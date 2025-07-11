@@ -1,0 +1,58 @@
+/* 浅色主题 */
+QMainWindow {
+    background: #f7f7f7;
+}
+QMenuBar, QToolBar {
+    background: #eaeaea;
+    border-bottom: 1px solid #cccccc;
+}
+QStatusBar {
+    background: #eaeaea;
+    border-top: 1px solid #cccccc;
+}
+QTabWidget::pane {
+    border: 1px solid #cccccc;
+    background: #ffffff;
+}
+QTabBar::tab:selected {
+    background: #d0eaff;
+}
+QPushButton {
+    background: #4a90e2;
+    color: #fff;
+    border-radius: 4px;
+    padding: 5px 12px;
+}
+QPushButton:hover {
+    background: #357ab8;
+}
+/* 深色主题（可切换） */
+/*
+QMainWindow {
+    background: #232629;
+}
+QMenuBar, QToolBar {
+    background: #2c2f33;
+    border-bottom: 1px solid #444;
+}
+QStatusBar {
+    background: #2c2f33;
+    border-top: 1px solid #444;
+}
+QTabWidget::pane {
+    border: 1px solid #444;
+    background: #232629;
+}
+QTabBar::tab:selected {
+    background: #3a5068;
+}
+QPushButton {
+    background: #4a90e2;
+    color: #fff;
+    border-radius: 4px;
+    padding: 5px 12px;
+}
+QPushButton:hover {
+    background: #357ab8;
+}
+*/ 
