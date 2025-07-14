@@ -44,6 +44,10 @@ class SangerTab(QWidget):
         self.ab1_btn = QPushButton("加载 .ab1 文件")
         self.ab1_btn.clicked.connect(self.load_ab1_file)
         vbox.addWidget(self.ab1_btn)
+        # 导出图片按钮
+        self.export_img_btn = QPushButton("导出图片")
+        self.export_img_btn.clicked.connect(self.export_trace_figure)
+        vbox.addWidget(self.export_img_btn)
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.fig, self.ax = plt.subplots(figsize=(12, 5))
@@ -62,6 +66,33 @@ class SangerTab(QWidget):
         self.ab1_colors = []
         self.ab1_peaks = []
         return group
+
+    def export_trace_figure(self):
+        if not self.ab1_seq:
+            QMessageBox.warning(self, "未加载数据", "请先加载.ab1文件后再导出图片")
+            return
+        file_path, sel = QFileDialog.getSaveFileName(self, "导出图片", "trace_figure.png", "PNG图片 (*.png);;PDF文件 (*.pdf);;TIFF图片 (*.tiff *.tif)")
+        if not file_path:
+            return
+        # 根据选择的格式自动补后缀
+        if sel.startswith("PNG") and not file_path.lower().endswith(".png"):
+            file_path += ".png"
+        elif sel.startswith("PDF") and not file_path.lower().endswith(".pdf"):
+            file_path += ".pdf"
+        elif sel.startswith("TIFF") and not (file_path.lower().endswith(".tiff") or file_path.lower().endswith(".tif")):
+            file_path += ".tiff"
+        # 临时去除title
+        old_title = self.ax.get_title()
+        self.ax.set_title("")
+        self.fig.tight_layout()
+        try:
+            self.fig.savefig(file_path, dpi=300, bbox_inches='tight')
+            QMessageBox.information(self, "导出成功", f"图片已保存到: {file_path}")
+        except Exception as e:
+            QMessageBox.warning(self, "导出失败", str(e))
+        finally:
+            self.ax.set_title(old_title)
+            self.canvas.draw()
 
     # 2. 序列选择
     def init_selection_ui(self):
@@ -159,64 +190,62 @@ class SangerTab(QWidget):
             self.canvas.draw()
             return
         try:
+            # 读取主叫碱基位置信息与序列
             peak_locations = np.array(self.ab1_peaks, dtype=np.int32).flatten()
             called_bases = self.ab1_bases
             total_bases = len(peak_locations)
-            base_x = np.arange(1, total_bases + 1)  # 1-based
-            base_colors = {'A': '#00C000', 'T': '#C00000', 'G': '#000000', 'C': '#0000C0'}
+            if total_bases == 0:
+                self.ax.set_title("ab1文件无有效主叫碱基")
+                self.canvas.draw()
+                return
+            # 横坐标为碱基编号（1,2,3...）
+            base_x = np.arange(1, total_bases + 1)
+            # 4色通道
             trace = {
                 'G': np.array(self.ab1_colors[0], dtype=np.int32),
                 'A': np.array(self.ab1_colors[1], dtype=np.int32),
                 'T': np.array(self.ab1_colors[2], dtype=np.int32),
                 'C': np.array(self.ab1_colors[3], dtype=np.int32)
             }
-            for base in 'GATC':
-                if np.any(peak_locations < 0) or np.any(peak_locations >= len(trace[base])):
-                    raise ValueError(f"主峰索引超出信号通道范围: {base}")
-            window = 5  # 主峰延长线更短
-            px_per_base = 40  # 横坐标碱基间距更紧凑
-            fig_width = max(12, total_bases * px_per_base / 100)
-            self.fig.set_size_inches(fig_width, 6)
+            base_colors = {'A': '#00C000', 'T': '#C00000', 'G': '#000000', 'C': '#0000C0'}
+            window = 5
             max_y = 1
-            for i, (base, x) in enumerate(zip(called_bases, base_x)):
-                b = base
-                peak = peak_locations[i]
-                x_peak = np.arange(peak - window, peak + window + 1)
-                x_peak_base = np.linspace(x - 0.5, x + 0.5, len(x_peak))
-                valid_idx = (x_peak >= 0) & (x_peak < len(trace[b]))
-                x_peak = x_peak[valid_idx]
-                x_peak_base = x_peak_base[valid_idx]
-                y_peak = trace[b][x_peak]
+            y_vals = []
+            for i, (base, peak) in enumerate(zip(called_bases, peak_locations)):
+                x_peak = np.linspace(i+1-0.4, i+1+0.4, 2*window+1)
+                idx_range = np.arange(peak-window, peak+window+1)
+                valid = (idx_range >= 0) & (idx_range < len(trace[base]))
+                idx_range = idx_range[valid]
+                x_peak = x_peak[valid]
+                y_peak = trace[base][idx_range]
                 if SCIPY_AVAILABLE and len(y_peak) > 3:
                     y_peak = gaussian_filter1d(y_peak, sigma=0.5)
-                # 两端补0，使曲线自然落地
                 y_peak = np.concatenate(([0], y_peak, [0]))
-                x_peak_base = np.concatenate(([x_peak_base[0]-(x_peak_base[1]-x_peak_base[0])], x_peak_base, [x_peak_base[-1]+(x_peak_base[-1]-x_peak_base[-2])]))
-                self.ax.plot(x_peak_base, y_peak, color=base_colors[b], linewidth=2.2, alpha=0.98, zorder=5)
+                x_peak = np.concatenate(([x_peak[0]-(x_peak[1]-x_peak[0])], x_peak, [x_peak[-1]+(x_peak[-1]-x_peak[-2])]))
+                self.ax.plot(x_peak, y_peak, color=base_colors[base], linewidth=2.2, alpha=0.98, zorder=5)
                 if len(y_peak) > 0:
                     y_val = max(y_peak)
+                    y_vals.append(y_val)
                     max_y = max(max_y, y_val)
-                # 主峰字母
-                self.ax.text(x, y_val + 0.08 * max_y, b, ha='center', va='bottom', fontsize=18, fontweight='bold', color=base_colors[b], zorder=6)
-                # 编号
-                self.ax.text(x, -0.18 * max_y, str(i+1), ha='center', va='top', fontsize=8, color='#666666', zorder=3)
+            # 统一主峰字母的y坐标
+            label_y = max_y + 0.08 * max_y
+            for i, base in enumerate(called_bases):
+                self.ax.text(i+1, label_y, base, color=base_colors.get(base, 'gray'), fontsize=16, fontweight='bold', ha='center', va='bottom', zorder=10)
+                self.ax.text(i+1, -0.18 * max_y, str(i+1), ha='center', va='top', fontsize=8, color='#666666', zorder=3)
             self.ax.set_xlim(0.5, total_bases + 0.5)
-            xtick_pos = base_x[::max(1, total_bases//25)]
-            self.ax.set_xticks(xtick_pos)
-            self.ax.set_xticklabels([str(i) for i in xtick_pos], fontsize=10)
             self.ax.set_ylim(-0.3 * max_y, max_y * 1.12)
-            self.ax.grid(True, alpha=0.08, linestyle='-', linewidth=0.3)
+            self.ax.set_xlabel("碱基编号", fontsize=12)
+            self.ax.set_ylabel("荧光信号强度", fontsize=12)
+            # 不再设置title
+            # self.ax.set_title(os.path.basename(self.ab1_path), fontsize=14, fontweight='bold')
+            self.ax.grid(True, linestyle="--", alpha=0.3)
             self.ax.spines['top'].set_visible(False)
             self.ax.spines['right'].set_visible(False)
             self.ax.spines['left'].set_visible(True)
             self.ax.spines['bottom'].set_visible(True)
-            self.ax.set_xlabel("碱基编号", fontsize=12)
-            self.ax.set_ylabel("荧光信号强度", fontsize=12)
-            self.ax.set_title(os.path.basename(self.ab1_path), fontsize=14, fontweight='bold')
-            handles, labels = self.ax.get_legend_handles_labels()
-            if handles:
-                self.ax.legend(handles, labels, loc='upper right', fontsize=11, framealpha=0.9, title='信号通道', title_fontsize=12)
             self.canvas.draw()
+            # 自适应宽度
+            fig_width = max(12, total_bases * 40 / 100)
             min_width = int(fig_width * self.fig.dpi)
             self.canvas_widget.setMinimumWidth(min_width)
             self.canvas.setMinimumWidth(min_width)
