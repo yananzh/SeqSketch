@@ -49,10 +49,68 @@ def create_menus(window):
     dna_menu.addAction(sanger_action)
     # 3. 蛋白质序列分析
     protein_menu = menubar.addMenu(window.tr("蛋白质序列分析"))
+    # 1. 氨基酸组成
+    aa_comp_action = QAction(window.tr("氨基酸组成"), window)
+    aa_comp_action.triggered.connect(window.open_amino_acid_composition_tab)
+    protein_menu.addAction(aa_comp_action)
+    # 2. 物化性质计算
+    physchem_action = QAction(window.tr("物化性质计算"), window)
+    physchem_action.triggered.connect(window.open_physicochemical_properties_tab)
+    protein_menu.addAction(physchem_action)
+    protein_menu.addSeparator()
+    # 3. 二级结构预测（子菜单）
+    sec_struct_menu = QMenu(window.tr("二级结构预测"), window)
+    psipred_action = QAction("PSIPRED", window)
+    psipred_action.triggered.connect(lambda: window.open_url_in_browser("http://bioinf.cs.ucl.ac.uk/psipred/"))
+    sec_struct_menu.addAction(psipred_action)
+    jpred_action = QAction("Jpred4", window)
+    jpred_action.triggered.connect(lambda: window.open_url_in_browser("https://www.compbio.dundee.ac.uk/jpred/"))
+    sec_struct_menu.addAction(jpred_action)
+    protein_menu.addMenu(sec_struct_menu)
+    # 4. 三级结构预测（子菜单）
+    tert_struct_menu = QMenu(window.tr("三级结构预测"), window)
+    swiss_model_action = QAction("SWISS-MODEL", window)
+    swiss_model_action.triggered.connect(lambda: window.open_url_in_browser("https://swissmodel.expasy.org/"))
+    tert_struct_menu.addAction(swiss_model_action)
+    alphafold_action = QAction("AlphaFold Server", window)
+    alphafold_action.triggered.connect(lambda: window.open_url_in_browser("https://alphafoldserver.com/"))
+    tert_struct_menu.addAction(alphafold_action)
+    protein_menu.addMenu(tert_struct_menu)
+    # 5. 结构域预测（子菜单）
+    domain_menu = QMenu(window.tr("结构域预测"), window)
+    interpro_action = QAction("InterPro", window)
+    interpro_action.triggered.connect(lambda: window.open_url_in_browser("https://www.ebi.ac.uk/interpro/"))
+    domain_menu.addAction(interpro_action)
+    protein_menu.addMenu(domain_menu)
+    # 6. 信号肽预测（子菜单）
+    signal_menu = QMenu(window.tr("信号肽预测"), window)
+    signalp_action = QAction("SignalP 6.0", window)
+    signalp_action.triggered.connect(lambda: window.open_url_in_browser("https://services.healthtech.dtu.dk/services/SignalP-6.0/"))
+    signal_menu.addAction(signalp_action)
+    protein_menu.addMenu(signal_menu)
+    # 7. 跨膜螺旋预测（子菜单）
+    tmhmm_menu = QMenu(window.tr("跨膜螺旋预测"), window)
+    deeptmhmm_action = QAction("DeepTMHMM 1.0", window)
+    deeptmhmm_action.triggered.connect(lambda: window.open_url_in_browser("https://services.healthtech.dtu.dk/services/DeepTMHMM-1.0/"))
+    tmhmm_menu.addAction(deeptmhmm_action)
+    protein_menu.addMenu(tmhmm_menu)
     # 4. 序列比对
     align_menu = menubar.addMenu(window.tr("序列比对"))
     # 5. BLAST分析
     blast_menu = menubar.addMenu(window.tr("BLAST分析"))
+    # NCBI在线BLAST
+    ncbi_blast_action = QAction(window.tr("NCBI在线BLAST"), window)
+    ncbi_blast_action.triggered.connect(window.open_ncbi_blast_web)
+    blast_menu.addAction(ncbi_blast_action)
+    # 本地BLAST子菜单
+    local_blast_menu = QMenu(window.tr("本地BLAST"), window)
+    make_db_action = QAction(window.tr("1. 构建BLAST数据库..."), window)
+    make_db_action.triggered.connect(window.open_blast_make_db_dialog)
+    local_blast_menu.addAction(make_db_action)
+    run_blast_action = QAction(window.tr("2. 运行BLAST查询..."), window)
+    run_blast_action.triggered.connect(window.open_blast_run_dialog)
+    local_blast_menu.addAction(run_blast_action)
+    blast_menu.addMenu(local_blast_menu)
     # 6. 引物设计
     primer_menu = menubar.addMenu(window.tr("引物设计"))
     # 7. 进化分析

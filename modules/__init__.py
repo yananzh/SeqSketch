@@ -28,6 +28,8 @@ from .reverse_complement_tab import ReverseComplementTab
 from .translate_tab import TranslateTab
 from .orf_tab import ORFTab
 from .sanger_tab import SangerTab
+from .amino_acid_composition_tab import AminoAcidCompositionTab
+from .physicochemical_properties_tab import PhysicochemicalPropertiesTab
 
 __all__ = [
     'FASTAProcessor',

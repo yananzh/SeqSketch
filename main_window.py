@@ -161,3 +161,55 @@ class MainWindow(QMainWindow):
         widget = self.tabs.widget(index)
         self.tabs.removeTab(index)
         widget.deleteLater() 
+
+    # 蛋白质序列分析相关槽函数
+    def open_amino_acid_composition_tab(self):
+        from modules import AminoAcidCompositionTab
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), AminoAcidCompositionTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = AminoAcidCompositionTab()
+        self.tabs.addTab(tab, self.tr("氨基酸组成"))
+        self.tabs.setCurrentWidget(tab)
+
+    def open_physicochemical_properties_tab(self):
+        from modules import PhysicochemicalPropertiesTab
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), PhysicochemicalPropertiesTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = PhysicochemicalPropertiesTab()
+        self.tabs.addTab(tab, self.tr("物化性质计算"))
+        self.tabs.setCurrentWidget(tab)
+
+    def open_url_in_browser(self, url):
+        from PyQt6.QtGui import QDesktopServices
+        from PyQt6.QtCore import QUrl
+        QDesktopServices.openUrl(QUrl(url)) 
+
+    # BLAST分析相关槽函数
+    def open_ncbi_blast_web(self):
+        import webbrowser
+        webbrowser.open_new_tab("https://blast.ncbi.nlm.nih.gov/Blast.cgi")
+
+    def open_blast_make_db_dialog(self):
+        from modules.blast_make_db_dialog import BlastMakeDbDialog
+        dlg = BlastMakeDbDialog(self, status_callback=self.status.showMessage)
+        dlg.exec()
+
+    def open_blast_run_dialog(self):
+        from modules.blast_run_dialog import BlastRunDialog
+        from modules.blast_result_tab import BlastResultTab
+        def get_query_seq():
+            for i in range(self.tabs.count()):
+                tab = self.tabs.widget(i)
+                if hasattr(tab, 'input_text'):
+                    return tab.input_text.toPlainText()
+            return ''
+        def on_result(xml_path):
+            tab = BlastResultTab(xml_path)
+            self.tabs.addTab(tab, f"BLAST结果")
+            self.tabs.setCurrentWidget(tab)
+        dlg = BlastRunDialog(self, get_query_seq=get_query_seq, status_callback=self.status.showMessage, result_callback=on_result)
+        dlg.exec() 
