@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QMenuBar, QMenu
 from PyQt6.QtGui import QAction
+from modules.favorites_manager import FavoritesManagerDialog
 
 def create_menus(window):
     menubar = window.menuBar()
@@ -128,7 +129,17 @@ def create_menus(window):
     mafft_action = QAction("MAFFT Server", window)
     mafft_action.triggered.connect(lambda: window.open_url_in_browser("https://mafft.cbrc.jp/alignment/server/"))
     multiple_align_menu.addAction(mafft_action)
+    # 新增 T-Coffee 选项
+    tcoffee_action = QAction("T-Coffee", window)
+    tcoffee_action.triggered.connect(lambda: window.open_url_in_browser("https://tcoffee.crg.eu/apps/tcoffee/index.html"))
+    multiple_align_menu.addAction(tcoffee_action)
     align_menu.addMenu(multiple_align_menu)
+    # 3. 序列标识图 (在线工具) (子菜单)
+    seq_logo_menu = QMenu(window.tr("序列标识图 (在线工具)"), window)
+    weblogo_action = QAction("WebLogo", window)
+    weblogo_action.triggered.connect(lambda: window.open_url_in_browser("http://weblogo.berkeley.edu/"))
+    seq_logo_menu.addAction(weblogo_action)
+    align_menu.addMenu(seq_logo_menu)
     # 5. BLAST分析
     blast_menu = menubar.addMenu(window.tr("BLAST分析"))
     # NCBI在线BLAST
@@ -146,10 +157,34 @@ def create_menus(window):
     blast_menu.addMenu(local_blast_menu)
     # 6. 引物设计
     primer_menu = menubar.addMenu(window.tr("引物设计"))
-    # 7. 进化分析
-    evolution_menu = menubar.addMenu(window.tr("进化分析"))
+    # 7. 进化树构建与可视化
+    evolution_menu = menubar.addMenu(window.tr("进化树构建与可视化"))
+    # 7.1 系统发育树构建（在线工具）子菜单
+    phylo_build_menu = QMenu(window.tr("系统发育树构建(在线工具)"), window)
+    ngphylogeny_action = QAction("NGPhylogeny.fr", window)
+    ngphylogeny_action.triggered.connect(lambda: window.open_url_in_browser("https://ngphylogeny.fr/about"))
+    phylo_build_menu.addAction(ngphylogeny_action)
+    iqtree_action = QAction("IQ-TREE", window)
+    iqtree_action.triggered.connect(lambda: window.open_url_in_browser("http://iqtree.cibiv.univie.ac.at/"))
+    phylo_build_menu.addAction(iqtree_action)
+    tygs_action = QAction("TYGS", window)
+    tygs_action.triggered.connect(lambda: window.open_url_in_browser("https://tygs.dsmz.de/"))
+    phylo_build_menu.addAction(tygs_action)
+    evolution_menu.addMenu(phylo_build_menu)
+    # 7.2 进化树可视化（在线工具）子菜单
+    phylo_vis_menu = QMenu(window.tr("进化树可视化（在线工具）"), window)
+    itol_action = QAction("iTOL", window)
+    itol_action.triggered.connect(lambda: window.open_url_in_browser("https://itol.embl.de/"))
+    phylo_vis_menu.addAction(itol_action)
+    tvbot_action = QAction("TVBOT", window)
+    tvbot_action.triggered.connect(lambda: window.open_url_in_browser("https://www.chiplot.online/tvbot.html"))
+    phylo_vis_menu.addAction(tvbot_action)
+    evolution_menu.addMenu(phylo_vis_menu)
     # 8. 收藏夹系统
     fav_menu = menubar.addMenu(window.tr("收藏夹"))
+    manage_fav_action = QAction(window.tr("管理收藏夹"), window)
+    manage_fav_action.triggered.connect(lambda: FavoritesManagerDialog(window).exec())
+    fav_menu.addAction(manage_fav_action)
     # 主题切换
     theme_menu = menubar.addMenu(window.tr("主题"))
     light_action = QAction(window.tr("浅色主题"), window)
