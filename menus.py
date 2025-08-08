@@ -1,6 +1,9 @@
 from PyQt6.QtWidgets import QMenuBar, QMenu
 from PyQt6.QtGui import QAction
-from modules.favorites_manager import FavoritesManagerDialog
+from modules.favorites_manager import BookmarkManager
+import os
+import sys
+import importlib.util
 
 def create_menus(window):
     menubar = window.menuBar()
@@ -157,6 +160,33 @@ def create_menus(window):
     blast_menu.addMenu(local_blast_menu)
     # 6. 引物设计
     primer_menu = menubar.addMenu(window.tr("引物设计"))
+    open_primer_action = QAction(window.tr("PCR 引物设计助手"), window)
+    def _open_primer_designer():
+        # 弹出 primer3_gui.py 中的 MainWindow 作为独立窗口
+        try:
+            import importlib.util
+            import sys, os
+            primer3_gui_path = os.path.join(os.path.dirname(__file__), "primer3_gui.py")
+            module_name = "primer3_gui_dynamic"
+            spec = importlib.util.spec_from_file_location(module_name, primer3_gui_path)
+            if spec and spec.loader:
+                mod = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = mod
+                spec.loader.exec_module(mod)
+                # 保持窗口引用，避免被回收
+                if not hasattr(window, "_primer3_window") or window._primer3_window is None:
+                    window._primer3_window = mod.MainWindow()
+                window._primer3_window.show()
+                window._primer3_window.raise_()
+                window._primer3_window.activateWindow()
+            else:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.critical(window, "错误", "无法加载 primer3_gui.py 模块。")
+        except Exception as e:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.critical(window, "错误", f"无法加载引物设计界面: {e}")
+    open_primer_action.triggered.connect(_open_primer_designer)
+    primer_menu.addAction(open_primer_action)
     # 7. 进化树构建与可视化
     evolution_menu = menubar.addMenu(window.tr("进化树构建与可视化"))
     # 7.1 系统发育树构建（在线工具）子菜单
@@ -183,7 +213,14 @@ def create_menus(window):
     # 8. 收藏夹系统
     fav_menu = menubar.addMenu(window.tr("收藏夹"))
     manage_fav_action = QAction(window.tr("管理收藏夹"), window)
-    manage_fav_action.triggered.connect(lambda: FavoritesManagerDialog(window).exec())
+    def _open_bookmark_manager():
+        # 保持引用，避免窗口被回收
+        if not hasattr(window, "_bookmark_manager") or window._bookmark_manager is None:
+            window._bookmark_manager = BookmarkManager()
+        window._bookmark_manager.show()
+        window._bookmark_manager.raise_()
+        window._bookmark_manager.activateWindow()
+    manage_fav_action.triggered.connect(_open_bookmark_manager)
     fav_menu.addAction(manage_fav_action)
     # 主题切换
     theme_menu = menubar.addMenu(window.tr("主题"))
