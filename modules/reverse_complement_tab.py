@@ -1,4 +1,4 @@
-from .base_tab import BaseTabWidget
+from utils.common_components import BaseTabWidget
 import re
 from PyQt6.QtWidgets import QMessageBox
 
@@ -9,7 +9,7 @@ class ReverseComplementTab(BaseTabWidget):
     )
 
     def __init__(self, parent=None):
-        super().__init__("反向互补序列", parent)
+        super().__init__("反向互补序列", "sequence")
 
     def run(self):
         seq = self.input_text.toPlainText().strip()

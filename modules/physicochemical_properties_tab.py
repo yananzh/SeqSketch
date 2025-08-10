@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem, QVBoxLayout, QFileDialog, QMessageBox
 from PyQt6.QtCore import Qt
-from .base_tab import BaseTabWidget
+from utils.common_components import BaseTabWidget
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 import csv
 import re
@@ -21,9 +21,9 @@ AMINO_ACIDS = [
 
 class PhysicochemicalPropertiesTab(BaseTabWidget):
     def __init__(self, parent=None):
-        super().__init__("物化性质计算", parent)
+        super().__init__("物化性质计算", "sequence")
         self.table = QTableWidget()
-        self.layout().addWidget(self.table)
+        self.add_content_widget(self.table)
         self.table.setVisible(False)
         self.export_btn.setText("导出为CSV")
         self.export_btn.clicked.disconnect()

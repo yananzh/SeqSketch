@@ -1,10 +1,10 @@
-from .base_tab import BaseTabWidget
+from utils.common_components import BaseTabWidget
 import re
 from PyQt6.QtWidgets import QMessageBox
 
 class RNATab(BaseTabWidget):
     def __init__(self, parent=None):
-        super().__init__("转成RNA", parent)
+        super().__init__("转成RNA", "sequence")
 
     def run(self):
         seq = self.input_text.toPlainText().strip()

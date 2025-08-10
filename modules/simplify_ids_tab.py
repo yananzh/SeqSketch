@@ -1,99 +1,126 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from modules.fasta_processor import FASTAProcessor
+from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog)
+from PyQt6.QtCore import Qt
+from utils.common_components import FASTAWorker, BaseTabWidget
 import os
 
-class SimplifyIDsWorker(QThread):
-    finished = pyqtSignal(str)
-    error = pyqtSignal(str)
-    def __init__(self, input_path, output_path):
-        super().__init__()
-        self.input_path = input_path
-        self.output_path = output_path
+
+class SimplifyIDsWorker(FASTAWorker):
+    """简化序列ID的工作线程"""
+    
     def run(self):
+        if not self.validate_files():
+            return
+        
         try:
-            processor = FASTAProcessor()
-            if not processor.read_file(self.input_path):
-                self.error.emit("无法读取FASTA文件")
+            self.emit_progress("正在加载FASTA文件...")
+            processor = self.load_fasta_processor()
+            if not processor:
                 return
+            
+            self.emit_progress("正在简化序列ID...")
             for record in processor.records:
                 record.header = record.header.split()[0]
                 record.description = ""
+            
+            self.emit_progress("正在保存结果...")
             if not processor.save_file(self.output_path):
-                self.error.emit("保存文件失败")
+                self.emit_error("保存文件失败")
                 return
-            self.finished.emit(f"简化完成，结果已保存到: {self.output_path}")
+            
+            self.emit_finished(f"简化完成，结果已保存到: {self.output_path}")
         except Exception as e:
-            self.error.emit(str(e))
+            self.emit_error(f"处理过程中发生错误: {e}")
 
-class SimplifyIDsTab(QWidget):
+class SimplifyIDsTab(BaseTabWidget):
+    """简化序列ID功能Tab"""
+    
     def __init__(self):
-        super().__init__()
-        self._init_ui()
-        self.worker = None
-    def _init_ui(self):
-        layout = QVBoxLayout()
-        # 输入区
+        super().__init__("简化序列ID", "file")
+        self.init_ui()
+        self.connect_signals()
+    
+    def init_ui(self):
+        # 输入文件选择
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("输入FASTA文件:"))
         self.input_edit = QLineEdit()
+        self.input_btn = QPushButton("选择文件")
         input_layout.addWidget(self.input_edit)
-        self.input_btn = QPushButton("浏览...")
-        self.input_btn.clicked.connect(self.browse_input)
         input_layout.addWidget(self.input_btn)
-        layout.addLayout(input_layout)
-        # 输出区
+        
+        # 输出文件选择
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("输出简化后的FASTA文件:"))
+        output_layout.addWidget(QLabel("输出文件:"))
         self.output_edit = QLineEdit()
+        self.output_btn = QPushButton("选择位置")
         output_layout.addWidget(self.output_edit)
-        self.output_btn = QPushButton("另存为...")
-        self.output_btn.clicked.connect(self.browse_output)
         output_layout.addWidget(self.output_btn)
-        layout.addLayout(output_layout)
-        # 执行区
-        run_layout = QHBoxLayout()
+        
+        # 控制按钮
+        control_layout = QHBoxLayout()
         self.run_btn = QPushButton("开始简化")
+        self.clear_btn = QPushButton("清空")
+        control_layout.addWidget(self.run_btn)
+        control_layout.addWidget(self.clear_btn)
+        control_layout.addStretch()
+        
+        # 添加到内容区域
+        self.add_content_layout(input_layout)
+        self.add_content_layout(output_layout)
+        self.add_content_layout(control_layout)
+    
+    def connect_signals(self):
+        self.input_btn.clicked.connect(self.select_input_file)
+        self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_simplify)
-        run_layout.addWidget(self.run_btn)
-        self.progress = QLabel()
-        run_layout.addWidget(self.progress)
-        layout.addLayout(run_layout)
-        # 日志区
-        self.log = QTextEdit()
-        self.log.setReadOnly(True)
-        layout.addWidget(self.log)
-        self.setLayout(layout)
-    def browse_input(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "选择FASTA文件", "", "FASTA files (*.fasta *.fa *.fas);;All files (*)")
+        self.clear_btn.clicked.connect(self.clear_all)
+    
+    def select_input_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择FASTA文件", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+        )
         if file_path:
             self.input_edit.setText(file_path)
             base = os.path.splitext(os.path.basename(file_path))[0]
             self.output_edit.setText(os.path.join(os.path.dirname(file_path), base + "_simplified.fasta"))
-    def browse_output(self):
-        file_path, _ = QFileDialog.getSaveFileName(self, "保存简化FASTA", "", "FASTA files (*.fasta *.fa *.fas);;All files (*)")
+    
+    def select_output_file(self):
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "保存简化后的文件", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+        )
         if file_path:
             self.output_edit.setText(file_path)
+    
+    def clear_all(self):
+        self.input_edit.clear()
+        self.output_edit.clear()
+        self.log_area.clear()
+        self.show_status("已清空")
+    
+    def set_running_state(self, running: bool):
+        """重写以禁用相关按钮"""
+        super().set_running_state(running)
+        self.run_btn.setEnabled(not running)
+        self.input_btn.setEnabled(not running)
+        self.output_btn.setEnabled(not running)
+    
     def run_simplify(self):
         input_path = self.input_edit.text().strip()
         output_path = self.output_edit.text().strip()
-        if not input_path or not os.path.isfile(input_path):
-            self.log.append("[错误] 输入文件无效")
+        
+        # 验证输入
+        from utils.common_components import validate_input_path, validate_output_path
+        
+        valid, error = validate_input_path(input_path, ['.fasta', '.fa', '.fas'])
+        if not valid:
+            self.log_message(error, "ERROR")
             return
-        if not output_path:
-            self.log.append("[错误] 输出文件路径无效")
+        
+        valid, error = validate_output_path(output_path)
+        if not valid:
+            self.log_message(error, "ERROR")
             return
-        self.run_btn.setEnabled(False)
-        self.progress.setText("处理中...")
-        self.worker = SimplifyIDsWorker(input_path, output_path)
-        self.worker.finished.connect(self.on_finished)
-        self.worker.error.connect(self.on_error)
-        self.worker.start()
-    def on_finished(self, msg):
-        self.progress.setText("完成")
-        self.log.append(msg)
-        self.run_btn.setEnabled(True)
-    def on_error(self, err):
-        self.progress.setText("错误")
-        self.log.append(f"[错误] {err}")
-        self.run_btn.setEnabled(True) 
+        
+        # 启动工作线程
+        worker = SimplifyIDsWorker(input_path, output_path)
+        self.start_worker(worker) 

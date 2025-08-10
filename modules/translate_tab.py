@@ -1,4 +1,4 @@
-from .base_tab import BaseTabWidget
+from utils.common_components import BaseTabWidget
 import re
 from PyQt6.QtWidgets import QMessageBox, QComboBox
 
@@ -29,7 +29,7 @@ AA_3LETTER = {
 
 class TranslateTab(BaseTabWidget):
     def __init__(self, parent=None):
-        super().__init__("翻译序列", parent)
+        super().__init__("翻译序列", "sequence")
         self.frame_box = QComboBox()
         self.frame_box.addItems([
             "+1 (正链, 从第1位)", "+2 (正链, 从第2位)", "+3 (正链, 从第3位)",
@@ -37,8 +37,8 @@ class TranslateTab(BaseTabWidget):
         ])
         self.aa_mode_box = QComboBox()
         self.aa_mode_box.addItems(["单字母缩写", "三字母缩写"])
-        self.layout().insertWidget(1, self.frame_box)
-        self.layout().insertWidget(2, self.aa_mode_box)
+        self.add_content_widget(self.frame_box)
+        self.add_content_widget(self.aa_mode_box)
 
     def run(self):
         seq = self.input_text.toPlainText().strip().replace("\n", "").replace(" ", "")

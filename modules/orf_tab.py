@@ -1,4 +1,4 @@
-from .base_tab import BaseTabWidget
+from utils.common_components import BaseTabWidget
 import re
 from PyQt6.QtWidgets import QMessageBox, QSpinBox, QComboBox
 
@@ -23,14 +23,14 @@ CODON_TABLE = {
 
 class ORFTab(BaseTabWidget):
     def __init__(self, parent=None):
-        super().__init__("ORF Finder", parent)
+        super().__init__("ORF Finder", "sequence")
         self.min_len_box = QSpinBox()
         self.min_len_box.setRange(30, 10000)
         self.min_len_box.setValue(100)
         self.chain_box = QComboBox()
         self.chain_box.addItems(["正链", "反链", "正+反链"])
-        self.layout().insertWidget(1, self.min_len_box)
-        self.layout().insertWidget(2, self.chain_box)
+        self.add_content_widget(self.min_len_box)
+        self.add_content_widget(self.chain_box)
 
     def run(self):
         seq = self.input_text.toPlainText().strip().replace("\n", "").replace(" ", "")
