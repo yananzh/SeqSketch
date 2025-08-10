@@ -9,6 +9,8 @@ modules/
 ├── __init__.py              # 模块包初始化文件
 ├── fasta_processor.py       # FASTA文件处理模块
 ├── sequence_analyzer.py     # 序列分析模块
+├── primer3_gui.py          # Primer3引物设计GUI模块
+├── primer_gui.py           # 通用引物设计GUI模块
 ├── example_usage.py         # 使用示例
 ├── test_fasta_modules.py    # 测试文件
 └── README.md               # 本说明文档
@@ -176,6 +178,45 @@ python test_fasta_modules.py
 3. 添加格式验证功能
 4. 编写测试用例
 
+### 3. 引物设计模块
+
+#### primer3_gui.py - Primer3引物设计GUI
+基于primer3-py库的PCR引物设计工具，提供图形界面。
+
+**主要功能：**
+- 常规引物设计（扩增内部片段）
+- 特定区域设计（在指定区域内）
+- 全长克隆设计（扩增完整模板）
+- 引物参数优化（长度、Tm值、GC含量）
+- 结果表格显示和导出
+
+**使用示例：**
+```python
+from modules.primer3_gui import MainWindow as Primer3MainWindow
+
+# 创建Primer3设计窗口
+primer_window = Primer3MainWindow()
+primer_window.show()
+```
+
+#### primer_gui.py - 通用引物设计GUI
+另一个引物设计界面实现，提供不同的用户体验。
+
+**主要功能：**
+- 基于primer3核心算法
+- 详细的参数设置
+- 结果可视化
+- 引物对评估
+
+**使用示例：**
+```python
+from modules.primer_gui import MainWindow as PrimerMainWindow
+
+# 创建通用引物设计窗口
+primer_window = PrimerMainWindow()
+primer_window.show()
+```
+
 ## 注意事项
 
 1. **文件编码**: 所有文件操作使用UTF-8编码
@@ -183,6 +224,7 @@ python test_fasta_modules.py
 3. **内存使用**: 大文件处理时注意内存使用情况
 4. **错误处理**: 所有方法都包含适当的错误处理
 5. **日志记录**: 使用Python标准logging模块记录操作日志
+6. **引物设计依赖**: primer3_gui需要安装primer3-py包
 
 ## 贡献指南
 

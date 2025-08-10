@@ -31,6 +31,17 @@ from .sanger_tab import SangerTab
 from .amino_acid_composition_tab import AminoAcidCompositionTab
 from .physicochemical_properties_tab import PhysicochemicalPropertiesTab
 
+# 引物设计相关模块
+try:
+    from .primer3_gui import MainWindow as Primer3MainWindow
+except ImportError:
+    Primer3MainWindow = None
+
+try:
+    from .primer_gui import MainWindow as PrimerMainWindow
+except ImportError:
+    PrimerMainWindow = None
+
 __all__ = [
     'FASTAProcessor',
     'SequenceAnalyzer',
@@ -40,4 +51,6 @@ __all__ = [
     'ExtractByRegexTab',
     'DownloadFromNCBITab',
     'BatchRenameIDsTab',
+    'Primer3MainWindow',
+    'PrimerMainWindow',
 ] 

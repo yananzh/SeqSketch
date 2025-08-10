@@ -162,26 +162,15 @@ def create_menus(window):
     primer_menu = menubar.addMenu(window.tr("引物设计"))
     open_primer_action = QAction(window.tr("PCR 引物设计助手"), window)
     def _open_primer_designer():
-        # 弹出 primer3_gui.py 中的 MainWindow 作为独立窗口
+        # 弹出 modules/primer3_gui.py 中的 MainWindow 作为独立窗口
         try:
-            import importlib.util
-            import sys, os
-            primer3_gui_path = os.path.join(os.path.dirname(__file__), "primer3_gui.py")
-            module_name = "primer3_gui_dynamic"
-            spec = importlib.util.spec_from_file_location(module_name, primer3_gui_path)
-            if spec and spec.loader:
-                mod = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = mod
-                spec.loader.exec_module(mod)
-                # 保持窗口引用，避免被回收
-                if not hasattr(window, "_primer3_window") or window._primer3_window is None:
-                    window._primer3_window = mod.MainWindow()
-                window._primer3_window.show()
-                window._primer3_window.raise_()
-                window._primer3_window.activateWindow()
-            else:
-                from PyQt6.QtWidgets import QMessageBox
-                QMessageBox.critical(window, "错误", "无法加载 primer3_gui.py 模块。")
+            from modules.primer3_gui import MainWindow as Primer3MainWindow
+            # 保持窗口引用，避免被回收
+            if not hasattr(window, "_primer3_window") or window._primer3_window is None:
+                window._primer3_window = Primer3MainWindow()
+            window._primer3_window.show()
+            window._primer3_window.raise_()
+            window._primer3_window.activateWindow()
         except Exception as e:
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.critical(window, "错误", f"无法加载引物设计界面: {e}")
