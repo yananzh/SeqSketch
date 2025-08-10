@@ -159,3 +159,84 @@ class ExtractByRegexTab(BaseTabWidget):
         # 启动工作线程
         worker = ExtractByRegexWorker(input_path, regex, output_path)
         self.start_worker(worker)
+    
+    def show_help(self):
+        """显示帮助信息"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
+        from PyQt6.QtCore import Qt
+        
+        help_text = """
+<h3>正则表达式提取序列工具</h3>
+<p><b>功能说明：</b></p>
+<p>使用正则表达式模式匹配序列ID，从FASTA文件中提取符合条件的序列。</p>
+
+<p><b>使用方法：</b></p>
+<ol>
+<li>选择源FASTA文件</li>
+<li>指定提取结果的保存位置</li>
+<li>输入正则表达式模式</li>
+<li>点击"开始提取"按钮</li>
+</ol>
+
+<p><b>正则表达式示例：</b></p>
+<ul>
+<li><code>^NM_.*</code> - 匹配以"NM_"开头的序列ID</li>
+<li><code>.*gene.*</code> - 匹配包含"gene"的序列ID</li>
+<li><code>seq_\\d+</code> - 匹配"seq_"后跟数字的序列ID</li>
+<li><code>(protein|enzyme)</code> - 匹配包含"protein"或"enzyme"的序列ID</li>
+<li><code>^[A-Z]{2}_\\d{6}$</code> - 匹配格式为"XX_123456"的序列ID</li>
+</ul>
+
+<p><b>常用正则符号：</b></p>
+<ul>
+<li><code>^</code> - 字符串开始</li>
+<li><code>$</code> - 字符串结束</li>
+<li><code>.*</code> - 匹配任意字符（贪婪模式）</li>
+<li><code>\\d</code> - 匹配数字</li>
+<li><code>\\w</code> - 匹配字母、数字、下划线</li>
+<li><code>[A-Z]</code> - 匹配大写字母</li>
+<li><code>+</code> - 匹配前面字符一次或多次</li>
+<li><code>|</code> - 或运算符</li>
+</ul>
+
+<p><b>应用场景：</b></p>
+<ul>
+<li>按基因命名规律提取特定类型序列</li>
+<li>筛选符合特定格式的序列ID</li>
+<li>灵活的模式匹配和序列分组</li>
+</ul>
+
+<p><b>注意事项：</b></p>
+<p>正则表达式区分大小写，请确保模式表达式的正确性。</p>
+        """
+        
+        # 创建自定义对话框
+        dialog = QDialog(self)
+        dialog.setWindowTitle("帮助 - 正则表达式提取序列")
+        dialog.setFixedSize(820, 550)
+        
+        layout = QVBoxLayout()
+        
+        # 创建滚动区域
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        # 创建文本标签
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(False)  # 禁用自动换行
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+        
+        scroll_area.setWidget(label)
+        layout.addWidget(scroll_area)
+        
+        # 添加确定按钮
+        ok_button = QPushButton("确定")
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button)
+        
+        dialog.setLayout(layout)
+        dialog.exec()

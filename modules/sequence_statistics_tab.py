@@ -173,6 +173,66 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.stat_labels['gc_content'].setText(f"{stats.get('gc_content', 0):.2f}")
         self.stat_labels['n_content'].setText(f"{stats.get('n_content', 0):.2f}")
     
+    def show_help(self):
+        """显示帮助信息"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
+        from PyQt6.QtCore import Qt
+        
+        help_text = """
+<h3>序列统计分析工具</h3>
+<p><b>功能说明：</b></p>
+<p>对FASTA文件中的序列进行全面的统计分析，生成详细的统计报告。</p>
+
+<p><b>主要功能：</b></p>
+<ul>
+<li><b>全局统计：</b>计算总序列数、平均长度、最小/最大长度</li>
+<li><b>碱基组成：</b>计算GC含量和N含量的百分比</li>
+<li><b>详细报告：</b>为每条序列生成长度、GC含量、N含量统计</li>
+</ul>
+
+<p><b>使用方法：</b></p>
+<ol>
+<li>选择输入的FASTA文件（支持.fasta/.fa/.fas格式）</li>
+<li>指定输出统计文件的保存位置</li>
+<li>点击"开始统计"按钮</li>
+<li>查看实时统计结果和详细日志</li>
+</ol>
+
+<p><b>输出格式：</b></p>
+<p>生成TSV格式的统计文件，包含每条序列的ID、长度、GC含量(%)、N含量(%)。</p>
+        """
+        
+        # 创建自定义对话框
+        dialog = QDialog(self)
+        dialog.setWindowTitle("帮助 - 序列统计分析")
+        dialog.setFixedSize(750, 450)
+        
+        layout = QVBoxLayout()
+        
+        # 创建滚动区域
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        # 创建文本标签
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(False)  # 禁用自动换行
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+        
+        scroll_area.setWidget(label)
+        layout.addWidget(scroll_area)
+        
+        # 添加确定按钮
+        ok_button = QPushButton("确定")
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button)
+        
+        dialog.setLayout(layout)
+        dialog.exec()
+    
     def run_statistics(self):
         input_path = self.input_edit.text().strip()
         output_path = self.output_edit.text().strip()

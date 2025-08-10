@@ -94,6 +94,11 @@ class BaseTabWidget(QWidget):
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
         
+        # 帮助按钮（所有模式都有）
+        self.help_btn = QPushButton("帮助")
+        self.help_btn.clicked.connect(self.show_help)
+        self.status_layout.addWidget(self.help_btn)
+        
         # 日志区域（仅文件处理模式显示）
         if self.tab_type == "file":
             self.log_area = QTextEdit()

@@ -123,4 +123,69 @@ class SimplifyIDsTab(BaseTabWidget):
         
         # 启动工作线程
         worker = SimplifyIDsWorker(input_path, output_path)
-        self.start_worker(worker) 
+        self.start_worker(worker)
+    
+    def show_help(self):
+        """显示帮助信息"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
+        from PyQt6.QtCore import Qt
+        
+        help_text = """
+<h3>序列ID简化工具</h3>
+<p><b>功能说明：</b></p>
+<p>简化FASTA文件中复杂的序列ID，只保留第一个词作为序列标识符。</p>
+
+<p><b>处理效果：</b></p>
+<ul>
+<li><b>原始ID：</b>gi|123456|ref|NM_001101.5| hypothetical protein [Homo sapiens]</li>
+<li><b>简化后：</b>gi|123456|ref|NM_001101.5|</li>
+</ul>
+
+<p><b>使用方法：</b></p>
+<ol>
+<li>选择要处理的FASTA文件</li>
+<li>指定输出文件的保存位置</li>
+<li>点击"开始简化"按钮</li>
+</ol>
+
+<p><b>应用场景：</b></p>
+<ul>
+<li>清理从数据库下载的复杂序列ID</li>
+<li>为后续分析准备简洁的序列标识符</li>
+<li>减少文件大小，提高处理效率</li>
+</ul>
+
+<p><b>注意事项：</b></p>
+<p>简化过程会移除序列描述信息，请确保简化后的ID仍能唯一标识序列。</p>
+        """
+        
+        # 创建自定义对话框
+        dialog = QDialog(self)
+        dialog.setWindowTitle("帮助 - 序列ID简化")
+        dialog.setFixedSize(780, 470)
+        
+        layout = QVBoxLayout()
+        
+        # 创建滚动区域
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        # 创建文本标签
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(False)  # 禁用自动换行
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+        
+        scroll_area.setWidget(label)
+        layout.addWidget(scroll_area)
+        
+        # 添加确定按钮
+        ok_button = QPushButton("确定")
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button)
+        
+        dialog.setLayout(layout)
+        dialog.exec() 

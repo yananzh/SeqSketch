@@ -212,3 +212,95 @@ class BatchRenameIDsTab(BaseTabWidget):
         # 启动工作线程
         worker = BatchRenameIDsWorker(input_path, mapping_path, has_header, output_path)
         self.start_worker(worker)
+    
+    def show_help(self):
+        """显示帮助信息"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
+        from PyQt6.QtCore import Qt
+        
+        help_text = """
+<h3>批量重命名序列ID工具</h3>
+<p><b>功能说明：</b></p>
+<p>根据映射文件批量重命名FASTA文件中的序列ID，实现ID的标准化和规范化。</p>
+
+<p><b>使用方法：</b></p>
+<ol>
+<li>选择要处理的FASTA文件</li>
+<li>选择ID映射文件（TSV格式）</li>
+<li>设置映射文件是否包含标题行</li>
+<li>指定输出文件的保存位置</li>
+<li>点击"开始重命名"按钮</li>
+</ol>
+
+<p><b>映射文件格式：</b></p>
+<p>制表符分隔的文本文件（TSV），包含两列：</p>
+<ul>
+<li><b>第一列：</b>原始序列ID（与FASTA文件中的ID匹配）</li>
+<li><b>第二列：</b>新的序列ID</li>
+</ul>
+
+<p><b>映射文件示例：</b></p>
+<pre>
+原始ID	新ID
+sequence_001	Gene_A
+sequence_002	Gene_B
+NM_001101.5	RefSeq_001
+gi|123456|ref|XM_001234.1|	Custom_Gene_X
+</pre>
+
+<p><b>标题行选项：</b></p>
+<ul>
+<li><b>包含标题行：</b>跳过第一行，从第二行开始处理映射关系</li>
+<li><b>不含标题行：</b>从第一行开始处理所有映射关系</li>
+</ul>
+
+<p><b>处理规则：</b></p>
+<ul>
+<li>精确匹配原始ID进行替换</li>
+<li>未在映射文件中的ID保持不变</li>
+<li>重复的新ID会添加后缀以避免冲突</li>
+</ul>
+
+<p><b>应用场景：</b></p>
+<ul>
+<li>序列ID标准化和规范化</li>
+<li>将复杂ID替换为简洁的标识符</li>
+<li>根据实验设计重新编号序列</li>
+<li>数据库迁移时的ID转换</li>
+</ul>
+
+<p><b>输出结果：</b></p>
+<p>生成新的FASTA文件，序列内容不变，仅更新序列ID。</p>
+<p>处理过程会显示重命名的序列数量和详细日志。</p>
+        """
+        
+        # 创建自定义对话框
+        dialog = QDialog(self)
+        dialog.setWindowTitle("帮助 - 批量重命名序列ID")
+        dialog.setFixedSize(850, 550)
+        
+        layout = QVBoxLayout()
+        
+        # 创建滚动区域
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        # 创建文本标签
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(False)  # 禁用自动换行
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+        
+        scroll_area.setWidget(label)
+        layout.addWidget(scroll_area)
+        
+        # 添加确定按钮
+        ok_button = QPushButton("确定")
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button)
+        
+        dialog.setLayout(layout)
+        dialog.exec()

@@ -58,6 +58,9 @@ class ExtractByIDTab(BaseTabWidget):
         self.connect_signals()
     
     def init_ui(self):
+        # 设置内容区域的间距和对齐
+        self.content_area.setSpacing(8)  # 适中的组件间距
+        
         # 输入文件选择
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("输入FASTA文件:"))
@@ -66,13 +69,13 @@ class ExtractByIDTab(BaseTabWidget):
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
         
-        # ID列表输入区
-        id_layout = QVBoxLayout()
-        id_layout.addWidget(QLabel("要提取的序列ID列表（每行一个）:"))
+        # ID列表输入区标签
+        id_label = QLabel("要提取的序列ID列表（每行一个）:")
+        
+        # ID输入框
         self.id_edit = QPlainTextEdit()
         self.id_edit.setPlaceholderText("输入序列ID，每行一个\n例如:\nseq1\nseq2\nseq3")
-        self.id_edit.setMaximumHeight(120)
-        id_layout.addWidget(self.id_edit)
+        self.id_edit.setFixedHeight(120)  # 增大高度以便输入更多ID
         
         # 输出文件选择
         output_layout = QHBoxLayout()
@@ -92,9 +95,13 @@ class ExtractByIDTab(BaseTabWidget):
         
         # 添加到内容区域
         self.add_content_layout(input_layout)
-        self.add_content_layout(id_layout)
+        self.add_content_widget(id_label)
+        self.add_content_widget(self.id_edit)
         self.add_content_layout(output_layout)
         self.add_content_layout(control_layout)
+        
+        # 添加拉伸项，确保内容顶部对齐
+        self.content_area.addStretch()
     
     def connect_signals(self):
         self.input_btn.clicked.connect(self.select_input_file)
@@ -164,3 +171,79 @@ class ExtractByIDTab(BaseTabWidget):
         # 启动工作线程
         worker = ExtractByIDWorker(input_path, id_list, output_path)
         self.start_worker(worker)
+    
+    def show_help(self):
+        """显示帮助信息"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
+        from PyQt6.QtCore import Qt
+        
+        help_text = """
+<h3>按ID提取序列工具</h3>
+<p><b>功能说明：</b></p>
+<p>根据提供的序列ID列表，从FASTA文件中提取对应的序列。</p>
+
+<p><b>使用方法：</b></p>
+<ol>
+<li>选择源FASTA文件</li>
+<li>指定提取结果的保存位置</li>
+<li>在文本框中输入要提取的序列ID（每行一个）</li>
+<li>点击"开始提取"按钮</li>
+</ol>
+
+<p><b>ID输入格式：</b></p>
+<p>每行输入一个完整的序列ID，例如：</p>
+<pre>
+sequence_001
+NM_001101.5
+gi|123456|ref|XM_001234.1|
+</pre>
+
+<p><b>匹配规则：</b></p>
+<ul>
+<li>采用精确匹配模式</li>
+<li>序列ID必须完全匹配（不区分大小写）</li>
+<li>自动忽略空行和空白字符</li>
+</ul>
+
+<p><b>应用场景：</b></p>
+<ul>
+<li>从大型数据库中提取特定基因序列</li>
+<li>根据分析结果筛选目标序列</li>
+<li>批量提取感兴趣的序列子集</li>
+</ul>
+
+<p><b>输出结果：</b></p>
+<p>包含所有匹配序列的新FASTA文件，保持原有的序列格式和描述信息。</p>
+<p>提取过程会显示找到的序列数量和处理进度。</p>
+        """
+        
+        # 创建自定义对话框
+        dialog = QDialog(self)
+        dialog.setWindowTitle("帮助 - 按ID提取序列")
+        dialog.setFixedSize(760, 500)
+        
+        layout = QVBoxLayout()
+        
+        # 创建滚动区域
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        # 创建文本标签
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(False)  # 禁用自动换行
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+        
+        scroll_area.setWidget(label)
+        layout.addWidget(scroll_area)
+        
+        # 添加确定按钮
+        ok_button = QPushButton("确定")
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button)
+        
+        dialog.setLayout(layout)
+        dialog.exec()

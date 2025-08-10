@@ -186,3 +186,94 @@ class DownloadFromNCBITab(BaseTabWidget):
         # 启动工作线程
         worker = DownloadFromNCBIWorker(db, acc_list, output_path, email)
         self.start_worker(worker)
+    
+    def show_help(self):
+        """显示帮助信息"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
+        from PyQt6.QtCore import Qt
+        
+        help_text = """
+<h3>NCBI序列下载工具</h3>
+<p><b>功能说明：</b></p>
+<p>根据检索号（Accession Number）从NCBI数据库批量下载序列数据。</p>
+
+<p><b>使用方法：</b></p>
+<ol>
+<li>选择目标数据库（nucleotide或protein）</li>
+<li>输入有效的邮箱地址（NCBI访问要求）</li>
+<li>输入检索号列表（每行一个）</li>
+<li>指定下载文件的保存位置</li>
+<li>点击"开始下载"按钮</li>
+</ol>
+
+<p><b>支持的数据库：</b></p>
+<ul>
+<li><b>nucleotide：</b>核酸序列数据库（DNA/RNA）</li>
+<li><b>protein：</b>蛋白质序列数据库</li>
+</ul>
+
+<p><b>检索号格式示例：</b></p>
+<pre>
+NM_001101.5
+XM_123456.1
+AF123456
+U12345
+AAA12345
+</pre>
+
+<p><b>邮箱要求：</b></p>
+<p>NCBI要求在API访问时提供有效邮箱地址，用于：</p>
+<ul>
+<li>追踪API使用情况</li>
+<li>在过度使用时发送通知</li>
+<li>技术问题联系</li>
+</ul>
+
+<p><b>应用场景：</b></p>
+<ul>
+<li>批量下载已知检索号的序列</li>
+<li>获取最新版本的参考序列</li>
+<li>构建本地序列数据集</li>
+</ul>
+
+<p><b>注意事项：</b></p>
+<ul>
+<li>请遵守NCBI的使用政策，避免过频请求</li>
+<li>网络连接质量会影响下载速度</li>
+<li>无效的检索号会被跳过并记录</li>
+</ul>
+
+<p><b>输出格式：</b></p>
+<p>下载的序列以标准FASTA格式保存，包含完整的序列信息和描述。</p>
+        """
+        
+        # 创建自定义对话框
+        dialog = QDialog(self)
+        dialog.setWindowTitle("帮助 - NCBI序列下载")
+        dialog.setFixedSize(800, 530)
+        
+        layout = QVBoxLayout()
+        
+        # 创建滚动区域
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        # 创建文本标签
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(False)  # 禁用自动换行
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+        
+        scroll_area.setWidget(label)
+        layout.addWidget(scroll_area)
+        
+        # 添加确定按钮
+        ok_button = QPushButton("确定")
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button)
+        
+        dialog.setLayout(layout)
+        dialog.exec()

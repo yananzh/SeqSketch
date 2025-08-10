@@ -12,6 +12,13 @@ def main():
     splash = None
     if os.path.exists(logo_path):
         pixmap = QPixmap(logo_path)
+        # 缩放logo到合适大小 - 最大宽度400像素，保持宽高比
+        if pixmap.width() > 400:
+            pixmap = pixmap.scaledToWidth(400, Qt.TransformationMode.SmoothTransformation)
+        # 如果高度仍然过大，限制最大高度为300像素
+        if pixmap.height() > 300:
+            pixmap = pixmap.scaledToHeight(300, Qt.TransformationMode.SmoothTransformation)
+        
         splash = QSplashScreen(pixmap)
         splash.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
         splash.show()
