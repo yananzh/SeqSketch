@@ -212,4 +212,40 @@ class MainWindow(QMainWindow):
             self.tabs.addTab(tab, f"BLAST结果")
             self.tabs.setCurrentWidget(tab)
         dlg = BlastRunDialog(self, get_query_seq=get_query_seq, status_callback=self.status.showMessage, result_callback=on_result)
-        dlg.exec() 
+        dlg.exec()
+
+    def check_for_updates(self):
+        """检查更新功能"""
+        QMessageBox.information(
+            self, 
+            self.tr("检查更新"), 
+            self.tr("当前版本: v1.0.0\n\n暂无可用更新。\n\n您可以访问项目主页获取最新信息：\nhttps://github.com/yananzh/BioSeq-Analyzer")
+        )
+
+    def show_about_dialog(self):
+        """显示关于对话框"""
+        about_text = self.tr("""
+<h2>BioSeq Analyzer 生物序列分析器</h2>
+<p><b>版本:</b> v1.0.0</p>
+<p><b>开发者:</b> yananzh</p>
+<p><b>描述:</b> 一个功能强大的生物序列分析工具，提供FASTA处理、DNA/RNA分析、蛋白质分析、序列比对、BLAST分析、引物设计等功能。</p>
+
+<p><b>主要功能:</b></p>
+<ul>
+<li>FASTA工具：序列统计、ID简化、序列提取、NCBI下载等</li>
+<li>DNA序列分析：RNA转换、互补序列、翻译、ORF查找等</li>
+<li>蛋白质序列分析：氨基酸组成、物化性质、结构预测等</li>
+<li>序列比对：双序列比对、多序列比对、序列标识图</li>
+<li>BLAST分析：NCBI在线BLAST、本地BLAST</li>
+<li>引物设计：PCR引物设计助手</li>
+<li>进化树构建与可视化</li>
+</ul>
+
+<p><b>技术栈:</b> Python 3, PyQt6</p>
+<p><b>许可证:</b> MIT License</p>
+<p><b>项目主页:</b> <a href="https://github.com/yananzh/BioSeq-Analyzer">https://github.com/yananzh/BioSeq-Analyzer</a></p>
+
+<p>感谢您使用 BioSeq Analyzer！</p>
+        """)
+        
+        QMessageBox.about(self, self.tr("关于 BioSeq Analyzer"), about_text)

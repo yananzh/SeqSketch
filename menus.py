@@ -222,19 +222,37 @@ def create_menus(window):
         window._bookmark_manager.activateWindow()
     manage_fav_action.triggered.connect(_open_bookmark_manager)
     fav_menu.addAction(manage_fav_action)
-    # 主题切换
-    theme_menu = menubar.addMenu(window.tr("主题"))
+    # 设置菜单
+    settings_menu = menubar.addMenu(window.tr("设置"))
+    
+    # 1. 外观主题 (子菜单)
+    theme_menu = QMenu(window.tr("外观主题"), window)
     light_action = QAction(window.tr("浅色主题"), window)
     dark_action = QAction(window.tr("深色主题"), window)
     light_action.triggered.connect(lambda: window.switch_theme(False))
     dark_action.triggered.connect(lambda: window.switch_theme(True))
     theme_menu.addAction(light_action)
     theme_menu.addAction(dark_action)
-    # 语言切换
-    lang_menu = menubar.addMenu(window.tr("语言"))
+    settings_menu.addMenu(theme_menu)
+    
+    # 2. 界面语言 (子菜单)
+    lang_menu = QMenu(window.tr("界面语言"), window)
     zh_action = QAction("中文", window)
     en_action = QAction("English", window)
     zh_action.triggered.connect(lambda: window.switch_language('zh'))
     en_action.triggered.connect(lambda: window.switch_language('en'))
     lang_menu.addAction(zh_action)
-    lang_menu.addAction(en_action) 
+    lang_menu.addAction(en_action)
+    settings_menu.addMenu(lang_menu)
+    
+    settings_menu.addSeparator()
+    
+    # 3. 检查更新
+    check_update_action = QAction(window.tr("检查更新"), window)
+    check_update_action.triggered.connect(window.check_for_updates)
+    settings_menu.addAction(check_update_action)
+    
+    # 4. 关于
+    about_action = QAction(window.tr("关于"), window)
+    about_action.triggered.connect(window.show_about_dialog)
+    settings_menu.addAction(about_action) 
