@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushB
                            QFileDialog, QPlainTextEdit)
 from PyQt6.QtCore import Qt
 from utils.common_components import FASTAWorker, BaseTabWidget
+import translations
 import os
 
 
@@ -63,32 +64,32 @@ class ExtractByIDTab(BaseTabWidget):
         
         # 输入文件选择
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("输入FASTA文件:"))
+        input_layout.addWidget(QLabel(translations.tr("输入FASTA文件:")))
         self.input_edit = QLineEdit()
-        self.input_btn = QPushButton("选择文件")
+        self.input_btn = QPushButton(translations.tr("选择文件"))
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
         
         # ID列表输入区标签
-        id_label = QLabel("要提取的序列ID列表（每行一个）:")
+        id_label = QLabel(translations.tr("要提取的序列ID列表（每行一个）:"))
         
         # ID输入框
         self.id_edit = QPlainTextEdit()
-        self.id_edit.setPlaceholderText("输入序列ID，每行一个\n例如:\nseq1\nseq2\nseq3")
+        self.id_edit.setPlaceholderText(translations.tr("输入序列ID，每行一个\n例如:\nseq1\nseq2\nseq3"))
         self.id_edit.setFixedHeight(120)  # 增大高度以便输入更多ID
         
         # 输出文件选择
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("输出文件:"))
+        output_layout.addWidget(QLabel(translations.tr("输出文件:")))
         self.output_edit = QLineEdit()
-        self.output_btn = QPushButton("选择位置")
+        self.output_btn = QPushButton(translations.tr("选择位置"))
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.run_btn = QPushButton("开始提取")
-        self.clear_btn = QPushButton("清空")
+        self.run_btn = QPushButton(translations.tr("开始提取"))
+        self.clear_btn = QPushButton(translations.tr("清空"))
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.addStretch()
@@ -130,7 +131,7 @@ class ExtractByIDTab(BaseTabWidget):
         self.output_edit.clear()
         self.id_edit.clear()
         self.log_area.clear()
-        self.show_status("已清空")
+        self.show_status(translations.tr("已清空"))
     
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
@@ -219,7 +220,7 @@ gi|123456|ref|XM_001234.1|
         
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("帮助 - 按ID提取序列")
+        dialog.setWindowTitle(translations.tr("帮助 - 按ID提取序列"))
         dialog.setFixedSize(760, 500)
         
         layout = QVBoxLayout()
@@ -241,9 +242,40 @@ gi|123456|ref|XM_001234.1|
         layout.addWidget(scroll_area)
         
         # 添加确定按钮
-        ok_button = QPushButton("确定")
+        ok_button = QPushButton(translations.tr("确定"))
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
         
         dialog.setLayout(layout)
         dialog.exec()
+    
+    def update_language(self):
+        """Update UI elements when language changes"""
+        # Update button texts
+        if hasattr(self, 'input_btn'):
+            self.input_btn.setText(translations.tr("选择文件"))
+        if hasattr(self, 'output_btn'):
+            self.output_btn.setText(translations.tr("选择位置"))
+        if hasattr(self, 'run_btn'):
+            self.run_btn.setText(translations.tr("开始提取"))
+        if hasattr(self, 'clear_btn'):
+            self.clear_btn.setText(translations.tr("清空"))
+        
+        # Update labels
+        for widget in self.findChildren(QLabel):
+            text = widget.text()
+            if "输入FASTA文件:" in text or "Input FASTA File:" in text:
+                widget.setText(translations.tr("输入FASTA文件:"))
+            elif "要提取的序列ID列表（每行一个）:" in text or "Sequence IDs to extract (one per line):" in text:
+                widget.setText(translations.tr("要提取的序列ID列表（每行一个）:"))
+            elif "输出文件:" in text or "Output File:" in text:
+                widget.setText(translations.tr("输出文件:"))
+            elif "状态:" in text or "Status:" in text:
+                widget.setText(translations.tr("状态:"))
+        
+        # Update placeholder text
+        if hasattr(self, 'id_edit'):
+            self.id_edit.setPlaceholderText(translations.tr("输入序列ID，每行一个\n例如:\nseq1\nseq2\nseq3"))
+            
+        # Call base class update_language for common elements
+        super().update_language()

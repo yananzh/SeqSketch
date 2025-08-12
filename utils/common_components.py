@@ -6,6 +6,7 @@ from PyQt6.QtCore import QObject, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
                            QTextEdit, QFileDialog, QMessageBox)
 from typing import Any, Dict, Optional
+import translations
 import logging
 import os
 
@@ -89,13 +90,13 @@ class BaseTabWidget(QWidget):
         
         # 状态区域
         self.status_layout = QHBoxLayout()
-        self.status_label = QLabel("就绪")
-        self.status_layout.addWidget(QLabel("状态:"))
+        self.status_label = QLabel(translations.tr("就绪"))
+        self.status_layout.addWidget(QLabel(translations.tr("状态:")))
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
         
         # 帮助按钮（所有模式都有）
-        self.help_btn = QPushButton("帮助")
+        self.help_btn = QPushButton(translations.tr("帮助"))
         self.help_btn.clicked.connect(self.show_help)
         self.status_layout.addWidget(self.help_btn)
         
@@ -104,7 +105,7 @@ class BaseTabWidget(QWidget):
             self.log_area = QTextEdit()
             self.log_area.setMaximumHeight(100)
             self.log_area.setReadOnly(True)
-            self.log_area.setPlaceholderText("操作日志将显示在此处...")
+            self.log_area.setPlaceholderText(translations.tr("操作日志将显示在此处..."))
             self.main_layout.addWidget(self.log_area)
         
         # 添加状态到布局
@@ -113,10 +114,10 @@ class BaseTabWidget(QWidget):
     def init_sequence_ui(self):
         """初始化序列处理UI"""
         # 输入区域
-        self.input_label = QLabel("输入序列或上传文件：")
+        self.input_label = QLabel(translations.tr("输入序列或上传文件："))
         self.input_text = QTextEdit()
-        self.input_text.setPlaceholderText("粘贴DNA/RNA序列，或点击下方按钮上传文件...")
-        self.upload_btn = QPushButton("上传文件")
+        self.input_text.setPlaceholderText(translations.tr("粘贴DNA/RNA序列，或点击下方按钮上传文件..."))
+        self.upload_btn = QPushButton(translations.tr("上传文件"))
         self.upload_btn.clicked.connect(self.open_file)
         self.input_hint = QLabel("")
         self.input_hint.setStyleSheet("color: #888;")
@@ -128,11 +129,11 @@ class BaseTabWidget(QWidget):
         input_layout.addWidget(self.input_hint)
 
         # 输出区域
-        self.output_label = QLabel("输出结果：")
+        self.output_label = QLabel(translations.tr("输出结果："))
         self.output_text = QTextEdit()
         self.output_text.setReadOnly(True)
-        self.export_btn = QPushButton("导出结果")
-        self.copy_btn = QPushButton("复制到剪贴板")
+        self.export_btn = QPushButton(translations.tr("导出结果"))
+        self.copy_btn = QPushButton(translations.tr("复制到剪贴板"))
         self.export_btn.clicked.connect(self.export_result)
         self.copy_btn.clicked.connect(self.copy_result)
 
@@ -146,9 +147,9 @@ class BaseTabWidget(QWidget):
         output_layout.addLayout(output_btn_layout)
 
         # 控制按钮
-        self.run_btn = QPushButton("运行")
-        self.clear_btn = QPushButton("清空")
-        self.help_btn = QPushButton("帮助")
+        self.run_btn = QPushButton(translations.tr("运行"))
+        self.clear_btn = QPushButton(translations.tr("清空"))
+        self.help_btn = QPushButton(translations.tr("帮助"))
         self.run_btn.clicked.connect(self.run)
         self.clear_btn.clicked.connect(self.clear)
         self.help_btn.clicked.connect(self.show_help)
@@ -220,6 +221,46 @@ class BaseTabWidget(QWidget):
     def show_help(self):
         """由子类实现的帮助方法"""
         pass
+    
+    def update_language(self):
+        """Update UI elements when language changes (base implementation)"""
+        # Update buttons
+        if hasattr(self, 'help_btn'):
+            self.help_btn.setText(translations.tr("帮助"))
+        if hasattr(self, 'run_btn'):
+            self.run_btn.setText(translations.tr("运行"))
+        if hasattr(self, 'clear_btn'):
+            self.clear_btn.setText(translations.tr("清空"))
+        if hasattr(self, 'upload_btn'):
+            self.upload_btn.setText(translations.tr("上传文件"))
+        if hasattr(self, 'export_btn'):
+            self.export_btn.setText(translations.tr("导出结果"))
+        if hasattr(self, 'copy_btn'):
+            self.copy_btn.setText(translations.tr("复制到剪贴板"))
+            
+        # Update labels
+        if hasattr(self, 'input_label'):
+            self.input_label.setText(translations.tr("输入序列或上传文件："))
+        if hasattr(self, 'output_label'):
+            self.output_label.setText(translations.tr("输出结果："))
+            
+        # Update placeholder texts
+        if hasattr(self, 'input_text'):
+            self.input_text.setPlaceholderText(translations.tr("粘贴DNA/RNA序列，或点击下方按钮上传文件..."))
+            
+        # Update status label
+        if hasattr(self, 'status_label') and self.status_label.text() in ["就绪", "Ready"]:
+            self.status_label.setText(translations.tr("就绪"))
+            
+        # Update status label prefix
+        for widget in self.findChildren(QLabel):
+            text = widget.text()
+            if "状态:" in text or "Status:" in text:
+                widget.setText(translations.tr("状态:"))
+                
+        # Update log area placeholder if exists
+        if hasattr(self, 'log_area'):
+            self.log_area.setPlaceholderText(translations.tr("操作日志将显示在此处..."))
     
     def add_content_layout(self, layout):
         """子类可以使用此方法添加内容布局"""

@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QFileDialog, QGroupBox, QSplitter, QLineEdit, QMessageBox, QScrollArea, QCheckBox
 )
 from PyQt6.QtCore import Qt
+import translations
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
@@ -315,3 +316,9 @@ class SangerTab(QWidget):
             with open(file_path, 'w') as f:
                 f.write(seq)
             QMessageBox.information(self, "保存成功", f"已保存到: {file_path}")
+    
+    def update_language(self):
+        """Update UI elements when language changes"""
+        # This is a complex tab, implement basic translation support
+        # Since it doesn't inherit from BaseTabWidget, we need a custom implementation
+        pass

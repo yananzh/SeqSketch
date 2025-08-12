@@ -51,14 +51,16 @@ class ORFTab(BaseTabWidget):
             results += self.find_orfs(revcomp, '-')
         results = [orf for orf in results if orf['length'] >= min_len]
         if not results:
-            self.output_text.setPlainText("未找到满足条件的ORF。")
-            self.status_label.setText("无ORF")
+            self.output_text.setPlainText(translations.tr("未找到满足条件的ORF。"))
+            self.status_label.setText(translations.tr("无ORF"))
             return
         out = []
         for orf in results:
-            out.append(f"读框: {orf['frame']} | 位置: {orf['start']+1}-{orf['end']} | 长度: {orf['length']} nt\n序列: {orf['seq']}\n翻译: {orf['aa']}\n")
+            out.append(f"{translations.tr('读框')}: {orf['frame']} | {translations.tr('位置')}: {orf['start']+1}-{orf['end']} | {translations.tr('长度')}: {orf['length']} nt\n{translations.tr('序列')}: {orf['seq']}\n{translations.tr('翻译')}: {orf['aa']}\n")
         self.output_text.setPlainText('\n'.join(out))
-        self.status_label.setText(f"共找到{len(results)}个ORF")
+        # Use pattern for dynamic translation
+        pattern = translations.tr('ORF_COUNT_PATTERN')
+        self.status_label.setText(pattern.format(count=len(results)))
 
     def find_orfs(self, seq, strand):
         orfs = []
@@ -101,4 +103,31 @@ class ORFTab(BaseTabWidget):
         return seq.translate(comp_map)[::-1]
 
     def show_help(self):
-        QMessageBox.information(self, "ORF Finder 帮助", "查找所有可能的开放阅读框，支持最小ORF长度阈值，显示ORF的位置、长度、读框和翻译结果，支持正向和反向链。") 
+        QMessageBox.information(self, translations.tr("ORF Finder 帮助"), translations.tr("查找所有可能的开放阅读框，支持最小ORF长度阈值，显示ORF的位置、长度、读框和翻译结果，支持正向和反向链。"))
+    
+    def update_language(self):
+        """Update UI elements when language changes"""
+        # Update ComboBox options
+        current_chain = self.chain_box.currentIndex()
+        self.chain_box.clear()
+        self.chain_box.addItems([translations.tr(option) for option in self.chain_options])
+        self.chain_box.setCurrentIndex(current_chain)
+        
+        # Update status messages if currently displayed
+        current_status = self.status_label.text()
+        if "请输入DNA序列" in current_status or "Please enter DNA sequence" in current_status:
+            self.status_label.setText(translations.tr("请输入DNA序列！"))
+        elif ("找到" in current_status and "ORF" in current_status) or ("Found" in current_status and "ORF" in current_status):
+            # Extract ORF count from status message
+            import re
+            match = re.search(r'\\d+', current_status)
+            if match:
+                count = match.group()
+                pattern = translations.tr('ORF_COUNT_PATTERN')
+                self.status_label.setText(pattern.format(count=count))
+        elif "无ORF" in current_status or "No ORF" in current_status:
+            self.status_label.setText(translations.tr("无ORF"))
+        elif "输入序列包含无效字符" in current_status or "Input sequence contains invalid characters" in current_status:
+            self.status_label.setText(translations.tr("输入序列包含无效字符，仅允许A/T/G/C/N！"))
+        
+        super().update_language() 

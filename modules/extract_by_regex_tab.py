@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushB
                            QFileDialog)
 from PyQt6.QtCore import Qt
 from utils.common_components import FASTAWorker, BaseTabWidget
+import translations
 import os
 import re
 
@@ -62,31 +63,31 @@ class ExtractByRegexTab(BaseTabWidget):
     def init_ui(self):
         # 输入文件选择
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("输入FASTA文件:"))
+        input_layout.addWidget(QLabel(translations.tr("输入FASTA文件:")))
         self.input_edit = QLineEdit()
-        self.input_btn = QPushButton("选择文件")
+        self.input_btn = QPushButton(translations.tr("选择文件"))
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
         
         # 正则表达式输入
         regex_layout = QHBoxLayout()
-        regex_layout.addWidget(QLabel("正则表达式:"))
+        regex_layout.addWidget(QLabel(translations.tr("正则表达式:")))
         self.regex_edit = QLineEdit()
-        self.regex_edit.setPlaceholderText("例如: gene.*protein, ^chr[0-9]+, .*hypothetical.*")
+        self.regex_edit.setPlaceholderText(translations.tr("例如: gene.*protein, ^chr[0-9]+, .*hypothetical.*"))
         regex_layout.addWidget(self.regex_edit)
         
         # 输出文件选择
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("输出文件:"))
+        output_layout.addWidget(QLabel(translations.tr("输出文件:")))
         self.output_edit = QLineEdit()
-        self.output_btn = QPushButton("选择位置")
+        self.output_btn = QPushButton(translations.tr("选择位置"))
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.run_btn = QPushButton("开始提取")
-        self.clear_btn = QPushButton("清空")
+        self.run_btn = QPushButton(translations.tr("开始提取"))
+        self.clear_btn = QPushButton(translations.tr("清空"))
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.addStretch()
@@ -124,7 +125,7 @@ class ExtractByRegexTab(BaseTabWidget):
         self.output_edit.clear()
         self.regex_edit.clear()
         self.log_area.clear()
-        self.show_status("已清空")
+        self.show_status(translations.tr("已清空"))
     
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
@@ -212,7 +213,7 @@ class ExtractByRegexTab(BaseTabWidget):
         
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("帮助 - 正则表达式提取序列")
+        dialog.setWindowTitle(translations.tr("帮助 - 正则表达式提取序列"))
         dialog.setFixedSize(820, 550)
         
         layout = QVBoxLayout()
@@ -234,9 +235,40 @@ class ExtractByRegexTab(BaseTabWidget):
         layout.addWidget(scroll_area)
         
         # 添加确定按钮
-        ok_button = QPushButton("确定")
+        ok_button = QPushButton(translations.tr("确定"))
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
         
         dialog.setLayout(layout)
         dialog.exec()
+    
+    def update_language(self):
+        """Update UI elements when language changes"""
+        # Update button texts
+        if hasattr(self, 'input_btn'):
+            self.input_btn.setText(translations.tr("选择文件"))
+        if hasattr(self, 'output_btn'):
+            self.output_btn.setText(translations.tr("选择位置"))
+        if hasattr(self, 'run_btn'):
+            self.run_btn.setText(translations.tr("开始提取"))
+        if hasattr(self, 'clear_btn'):
+            self.clear_btn.setText(translations.tr("清空"))
+        
+        # Update labels
+        for widget in self.findChildren(QLabel):
+            text = widget.text()
+            if "输入FASTA文件:" in text or "Input FASTA File:" in text:
+                widget.setText(translations.tr("输入FASTA文件:"))
+            elif "正则表达式:" in text or "Regular Expression:" in text:
+                widget.setText(translations.tr("正则表达式:"))
+            elif "输出文件:" in text or "Output File:" in text:
+                widget.setText(translations.tr("输出文件:"))
+            elif "状态:" in text or "Status:" in text:
+                widget.setText(translations.tr("状态:"))
+        
+        # Update placeholder text
+        if hasattr(self, 'regex_edit'):
+            self.regex_edit.setPlaceholderText(translations.tr("例如: gene.*protein, ^chr[0-9]+, .*hypothetical.*"))
+            
+        # Call base class update_language for common elements
+        super().update_language()

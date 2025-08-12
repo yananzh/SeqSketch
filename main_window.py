@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QFileDialog, QMessageBox, QApplication
 from PyQt6.QtCore import Qt, QTranslator, QLocale
 from menus import create_menus
+import translations
 from modules import SequenceStatisticsTab, SimplifyIDsTab, ExtractByIDTab, ExtractByRegexTab, DownloadFromNCBITab, BatchRenameIDsTab
 from PyQt6.QtGui import QIcon, QPixmap
 import os
@@ -10,8 +11,12 @@ from modules import RNATab, ComplementTab, ReverseComplementTab, TranslateTab, O
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(self.tr("BioSeq Analyzer 生物序列分析器"))
-        self.resize(1100, 700)
+        # Initialize translator
+        self.translator = None
+        self.current_language = 'zh_CN'  # Default language
+        
+        self.setWindowTitle(translations.tr("BioSeq Analyzer 生物序列分析器"))
+        self.resize(1200, 700)  # Increased width to better accommodate English menus
         self.setAcceptDrops(True)
         # 设置窗口logo
         icon_path = os.path.join(os.path.dirname(__file__), "Gemini_Generated_Image_ohhms3ohhms3ohhm1.png")
@@ -19,7 +24,6 @@ class MainWindow(QMainWindow):
             self.setWindowIcon(QIcon(icon_path))
         self._init_ui()
         self._load_style()
-        self.translator = None
 
     def _init_ui(self):
         # Tab区域
@@ -52,23 +56,76 @@ class MainWindow(QMainWindow):
         pass
 
     def switch_language(self, lang):
-        if self.translator:
-            QApplication.instance().removeTranslator(self.translator)
-        self.translator = QTranslator()
-        if lang == 'zh':
-            qm_path = os.path.join(os.path.dirname(__file__), '../resources/translations/zh_CN.qm')
-        else:
-            qm_path = os.path.join(os.path.dirname(__file__), '../resources/translations/en_US.qm')
-        if self.translator.load(qm_path):
-            QApplication.instance().installTranslator(self.translator)
+        """Switch interface language"""
+        # Map language codes
+        lang_map = {
+            'zh': 'zh_CN',
+            'en': 'en_US'
+        }
+        
+        # Get full language code
+        full_lang = lang_map.get(lang, lang)
+        
+        # Set language in translator
+        if translations.set_language(full_lang):
+            self.current_language = full_lang
+            # Update window title
+            self.setWindowTitle(translations.tr("BioSeq Analyzer 生物序列分析器"))
+            # Update existing tab titles
+            self._update_tab_titles()
+            # Adjust window size based on language
+            if full_lang == 'en_US':
+                # English needs more space for menu items
+                current_width = self.width()
+                if current_width < 1250:
+                    self.resize(1250, self.height())
+            # Recreate menus and UI
             self._init_ui()
+            # Show status message
+            lang_name = "中文" if full_lang == 'zh_CN' else "English"
+            status_msg = f"界面语言已切换到{lang_name}" if full_lang == 'zh_CN' else f"Interface language switched to {lang_name}"
+            self.status.showMessage(status_msg, 3000)
+    
+    def _update_tab_titles(self):
+        """Update titles of all open tabs"""
+        for i in range(self.tabs.count()):
+            tab = self.tabs.widget(i)
+            tab_type = type(tab).__name__
+            
+            # Map tab types to their translated titles
+            tab_title_map = {
+                'SequenceStatisticsTab': '序列长度统计',
+                'SimplifyIDsTab': 'ID 简化',
+                'ExtractByIDTab': '序列提取 (按ID)',
+                'ExtractByRegexTab': '序列提取 (正则表达式)',
+                'DownloadFromNCBITab': '从NCBI下载序列',
+                'BatchRenameIDsTab': '批量重命名ID',
+                'RNATab': '转成RNA',
+                'ComplementTab': '互补序列',
+                'ReverseComplementTab': '反向互补序列',
+                'TranslateTab': '翻译序列',
+                'ORFTab': 'ORF Finder',
+                'SangerTab': '桑格测序数据处理',
+                'AminoAcidCompositionTab': '氨基酸组成',
+                'PhysicochemicalPropertiesTab': '物化性质计算'
+            }
+            
+            # Get the corresponding Chinese key and translate it
+            if tab_type in tab_title_map:
+                chinese_title = tab_title_map[tab_type]
+                translated_title = translations.tr(chinese_title)
+                self.tabs.setTabText(i, translated_title)
+                
+            # Update tab internal UI elements if the tab has an update_language method
+            if hasattr(tab, 'update_language'):
+                tab.update_language()
 
     def switch_theme(self, dark):
         self._load_style(dark=dark)
 
     def show_message(self, text, error=False):
         if error:
-            QMessageBox.critical(self, self.tr("错误"), text)
+            QMessageBox.critical(self, translations.tr("错误"), text)
         else:
             self.status.showMessage(text, 5000)
 
@@ -78,7 +135,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = SequenceStatisticsTab()
-        self.tabs.addTab(tab, self.tr("序列统计"))
+        self.tabs.addTab(tab, translations.tr("序列长度统计"))
         self.tabs.setCurrentWidget(tab)
 
     def open_simplify_ids_tab(self):
@@ -87,7 +144,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = SimplifyIDsTab()
-        self.tabs.addTab(tab, self.tr("ID 简化"))
+        self.tabs.addTab(tab, translations.tr("ID 简化"))
         self.tabs.setCurrentWidget(tab)
 
     def open_extract_by_id_tab(self):
@@ -96,7 +153,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = ExtractByIDTab()
-        self.tabs.addTab(tab, self.tr("序列提取 (按ID)"))
+        self.tabs.addTab(tab, translations.tr("序列提取 (按ID)"))
         self.tabs.setCurrentWidget(tab)
 
     def open_extract_by_regex_tab(self):
@@ -105,7 +162,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = ExtractByRegexTab()
-        self.tabs.addTab(tab, self.tr("序列提取 (正则表达式)"))
+        self.tabs.addTab(tab, translations.tr("序列提取 (正则表达式)"))
         self.tabs.setCurrentWidget(tab)
 
     def open_download_from_ncbi_tab(self):
@@ -114,7 +171,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = DownloadFromNCBITab()
-        self.tabs.addTab(tab, self.tr("从NCBI下载序列"))
+        self.tabs.addTab(tab, translations.tr("从NCBI下载序列"))
         self.tabs.setCurrentWidget(tab)
 
     def open_batch_rename_ids_tab(self):
@@ -123,38 +180,38 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = BatchRenameIDsTab()
-        self.tabs.addTab(tab, self.tr("批量重命名ID"))
+        self.tabs.addTab(tab, translations.tr("批量重命名ID"))
         self.tabs.setCurrentWidget(tab)
 
     # DNA序列分析六大功能Tab
     def open_rna_tab(self):
         tab = RNATab()
-        self.tabs.addTab(tab, "转成RNA")
+        self.tabs.addTab(tab, translations.tr("转成RNA"))
         self.tabs.setCurrentWidget(tab)
 
     def open_complement_tab(self):
         tab = ComplementTab()
-        self.tabs.addTab(tab, "互补序列")
+        self.tabs.addTab(tab, translations.tr("互补序列"))
         self.tabs.setCurrentWidget(tab)
 
     def open_reverse_complement_tab(self):
         tab = ReverseComplementTab()
-        self.tabs.addTab(tab, "反向互补序列")
+        self.tabs.addTab(tab, translations.tr("反向互补序列"))
         self.tabs.setCurrentWidget(tab)
 
     def open_translate_tab(self):
         tab = TranslateTab()
-        self.tabs.addTab(tab, "翻译序列")
+        self.tabs.addTab(tab, translations.tr("翻译序列"))
         self.tabs.setCurrentWidget(tab)
 
     def open_orf_tab(self):
         tab = ORFTab()
-        self.tabs.addTab(tab, "ORF Finder")
+        self.tabs.addTab(tab, translations.tr("ORF Finder"))
         self.tabs.setCurrentWidget(tab)
 
     def open_sanger_tab(self):
         tab = SangerTab()
-        self.tabs.addTab(tab, "桑格测序数据处理")
+        self.tabs.addTab(tab, translations.tr("桑格测序数据处理"))
         self.tabs.setCurrentWidget(tab)
 
     def close_tab(self, index):
@@ -170,7 +227,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = AminoAcidCompositionTab()
-        self.tabs.addTab(tab, self.tr("氨基酸组成"))
+        self.tabs.addTab(tab, translations.tr("氨基酸组成"))
         self.tabs.setCurrentWidget(tab)
 
     def open_physicochemical_properties_tab(self):
@@ -180,7 +237,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = PhysicochemicalPropertiesTab()
-        self.tabs.addTab(tab, self.tr("物化性质计算"))
+        self.tabs.addTab(tab, translations.tr("物化性质计算"))
         self.tabs.setCurrentWidget(tab)
 
     def open_url_in_browser(self, url):
@@ -218,8 +275,8 @@ class MainWindow(QMainWindow):
         """检查更新功能"""
         QMessageBox.information(
             self, 
-            self.tr("检查更新"), 
-            self.tr("当前版本: v1.0.0\n\n暂无可用更新。\n\n您可以访问项目主页获取最新信息：\nhttps://github.com/yananzh/BioSeq-Analyzer")
+            translations.tr("检查更新"), 
+            translations.tr("当前版本: v1.0.0\n\n暂无可用更新。\n\n您可以访问项目主页获取最新信息：\nhttps://github.com/yananzh/BioSeq-Analyzer")
         )
 
     def show_about_dialog(self):
@@ -248,4 +305,4 @@ class MainWindow(QMainWindow):
 <p>感谢您使用 BioSeq Analyzer！</p>
         """)
         
-        QMessageBox.about(self, self.tr("关于 BioSeq Analyzer"), about_text)
+        QMessageBox.about(self, translations.tr("关于 BioSeq Analyzer"), about_text)

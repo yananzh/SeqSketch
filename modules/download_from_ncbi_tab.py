@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushB
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseWorker, BaseTabWidget
 from urllib.error import URLError
+import translations
 import os
 
 
@@ -79,43 +80,45 @@ class DownloadFromNCBITab(BaseTabWidget):
     def init_ui(self):
         # 数据库选择
         db_layout = QHBoxLayout()
-        db_layout.addWidget(QLabel("数据库:"))
+        db_layout.addWidget(QLabel(translations.tr("数据库:")))
         self.db_combo = QComboBox()
-        self.db_combo.addItems([
-            "nucleotide", "protein", "pubmed", "pmc", 
-            "books", "clinvar", "gds", "geoprofiles"
-        ])
+        self.db_combo.addItems(["nucleotide", "protein"])
         self.db_combo.setCurrentText("nucleotide")
         db_layout.addWidget(self.db_combo)
         db_layout.addStretch()
         
         # 邮箱输入
         email_layout = QHBoxLayout()
-        email_layout.addWidget(QLabel("邮箱地址:"))
+        email_layout.addWidget(QLabel(translations.tr("邮箱地址:")))
         self.email_edit = QLineEdit()
-        self.email_edit.setPlaceholderText("NCBI要求提供邮箱地址")
+        self.email_edit.setPlaceholderText(translations.tr("NCBI要求提供邮箱地址"))
         email_layout.addWidget(self.email_edit)
         
         # 检索号输入
         acc_layout = QVBoxLayout()
-        acc_layout.addWidget(QLabel("检索号列表（每行一个）:"))
+        acc_label = QLabel("检索号列表（每行一个）:")
+        acc_layout.addWidget(acc_label)
+        # 减小标签与输入框的间距
+        acc_layout.setSpacing(5)
         self.acc_edit = QPlainTextEdit()
         self.acc_edit.setPlaceholderText("输入检索号，每行一个\n例如:\nNM_001101.5\nNP_001092.1\nAF123456")
-        self.acc_edit.setMaximumHeight(120)
+        # 增加输入框高度
+        self.acc_edit.setMinimumHeight(150)
+        self.acc_edit.setMaximumHeight(200)
         acc_layout.addWidget(self.acc_edit)
         
         # 输出文件选择
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("输出文件:"))
+        output_layout.addWidget(QLabel(translations.tr("输出文件:")))
         self.output_edit = QLineEdit()
-        self.output_btn = QPushButton("选择位置")
+        self.output_btn = QPushButton(translations.tr("选择位置"))
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.run_btn = QPushButton("开始下载")
-        self.clear_btn = QPushButton("清空")
+        self.run_btn = QPushButton(translations.tr("开始下载"))
+        self.clear_btn = QPushButton(translations.tr("清空"))
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.addStretch()
@@ -145,7 +148,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.output_edit.clear()
         self.log_area.clear()
         self.db_combo.setCurrentText("nucleotide")
-        self.show_status("已清空")
+        self.show_status(translations.tr("已清空"))
     
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
@@ -249,7 +252,7 @@ AAA12345
         
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("帮助 - NCBI序列下载")
+        dialog.setWindowTitle(translations.tr("帮助 - NCBI序列下载"))
         dialog.setFixedSize(800, 530)
         
         layout = QVBoxLayout()
@@ -271,9 +274,48 @@ AAA12345
         layout.addWidget(scroll_area)
         
         # 添加确定按钮
-        ok_button = QPushButton("确定")
+        ok_button = QPushButton(translations.tr("确定"))
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
         
         dialog.setLayout(layout)
         dialog.exec()
+    
+    def update_language(self):
+        """Update UI elements when language changes"""
+        # Update button texts
+        if hasattr(self, 'input_btn'):
+            self.input_btn.setText(translations.tr("选择文件"))
+        if hasattr(self, 'output_btn'):
+            self.output_btn.setText(translations.tr("选择位置"))
+        if hasattr(self, 'run_btn'):
+            self.run_btn.setText(translations.tr("开始下载"))
+        if hasattr(self, 'clear_btn'):
+            self.clear_btn.setText(translations.tr("清空"))
+        if hasattr(self, 'help_btn'):
+            self.help_btn.setText(translations.tr("帮助"))
+            
+        # Update labels - find all QLabel widgets and update their text
+        for widget in self.findChildren(QLabel):
+            text = widget.text()
+            # Update specific labels by checking their current text
+            if "数据库:" in text or "Database:" in text:
+                widget.setText(translations.tr("数据库:"))
+            elif "邮箱地址:" in text or "Email Address:" in text:
+                widget.setText(translations.tr("邮箱地址:"))
+            elif "输出文件:" in text or "Output File:" in text:
+                widget.setText(translations.tr("输出文件:"))
+            elif "状态:" in text or "Status:" in text:
+                widget.setText(translations.tr("状态:"))
+        
+        # Update status label
+        if hasattr(self, 'status_label') and self.status_label.text() in ["就绪", "Ready"]:
+            self.status_label.setText(translations.tr("就绪"))
+            
+        # Update placeholder texts
+        if hasattr(self, 'email_edit'):
+            self.email_edit.setPlaceholderText(translations.tr("NCBI要求提供邮箱地址"))
+            
+        # Update log area placeholder if exists
+        if hasattr(self, 'log_area'):
+            self.log_area.setPlaceholderText(translations.tr("操作日志将显示在此处..."))

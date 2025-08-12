@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushB
                            QFileDialog, QCheckBox)
 from PyQt6.QtCore import Qt
 from utils.common_components import FASTAWorker, BaseTabWidget
+import translations
 import os
 
 
@@ -94,39 +95,39 @@ class BatchRenameIDsTab(BaseTabWidget):
     def init_ui(self):
         # 输入FASTA文件选择
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("输入FASTA文件:"))
+        input_layout.addWidget(QLabel(translations.tr("输入FASTA文件:")))
         self.input_edit = QLineEdit()
-        self.input_btn = QPushButton("选择文件")
+        self.input_btn = QPushButton(translations.tr("选择文件"))
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
         
         # 映射文件选择
         mapping_layout = QHBoxLayout()
-        mapping_layout.addWidget(QLabel("ID映射文件:"))
+        mapping_layout.addWidget(QLabel(translations.tr("ID映射文件:")))
         self.mapping_edit = QLineEdit()
-        self.mapping_btn = QPushButton("选择映射文件")
+        self.mapping_btn = QPushButton(translations.tr("选择映射文件"))
         mapping_layout.addWidget(self.mapping_edit)
         mapping_layout.addWidget(self.mapping_btn)
         
         # 映射文件选项
         option_layout = QHBoxLayout()
-        self.header_checkbox = QCheckBox("映射文件包含标题行")
+        self.header_checkbox = QCheckBox(translations.tr("映射文件包含标题行"))
         self.header_checkbox.setChecked(True)
         option_layout.addWidget(self.header_checkbox)
         option_layout.addStretch()
         
         # 输出文件选择
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("输出文件:"))
+        output_layout.addWidget(QLabel(translations.tr("输出文件:")))
         self.output_edit = QLineEdit()
-        self.output_btn = QPushButton("选择位置")
+        self.output_btn = QPushButton(translations.tr("选择位置"))
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.run_btn = QPushButton("开始重命名")
-        self.clear_btn = QPushButton("清空")
+        self.run_btn = QPushButton(translations.tr("开始重命名"))
+        self.clear_btn = QPushButton(translations.tr("清空"))
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.addStretch()
@@ -175,7 +176,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.output_edit.clear()
         self.log_area.clear()
         self.header_checkbox.setChecked(True)
-        self.show_status("已清空")
+        self.show_status(translations.tr("已清空"))
     
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
@@ -276,7 +277,7 @@ gi|123456|ref|XM_001234.1|	Custom_Gene_X
         
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("帮助 - 批量重命名序列ID")
+        dialog.setWindowTitle(translations.tr("帮助 - 批量重命名序列ID"))
         dialog.setFixedSize(850, 550)
         
         layout = QVBoxLayout()
@@ -298,9 +299,42 @@ gi|123456|ref|XM_001234.1|	Custom_Gene_X
         layout.addWidget(scroll_area)
         
         # 添加确定按钮
-        ok_button = QPushButton("确定")
+        ok_button = QPushButton(translations.tr("确定"))
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
         
         dialog.setLayout(layout)
         dialog.exec()
+    
+    def update_language(self):
+        """Update UI elements when language changes"""
+        # Update button texts
+        if hasattr(self, 'input_btn'):
+            self.input_btn.setText(translations.tr("选择文件"))
+        if hasattr(self, 'mapping_btn'):
+            self.mapping_btn.setText(translations.tr("选择映射文件"))
+        if hasattr(self, 'output_btn'):
+            self.output_btn.setText(translations.tr("选择位置"))
+        if hasattr(self, 'run_btn'):
+            self.run_btn.setText(translations.tr("开始重命名"))
+        if hasattr(self, 'clear_btn'):
+            self.clear_btn.setText(translations.tr("清空"))
+        
+        # Update labels
+        for widget in self.findChildren(QLabel):
+            text = widget.text()
+            if "输入FASTA文件:" in text or "Input FASTA File:" in text:
+                widget.setText(translations.tr("输入FASTA文件:"))
+            elif "ID映射文件:" in text or "ID Mapping File:" in text:
+                widget.setText(translations.tr("ID映射文件:"))
+            elif "输出文件:" in text or "Output File:" in text:
+                widget.setText(translations.tr("输出文件:"))
+            elif "状态:" in text or "Status:" in text:
+                widget.setText(translations.tr("状态:"))
+        
+        # Update checkbox text
+        if hasattr(self, 'header_checkbox'):
+            self.header_checkbox.setText(translations.tr("映射文件包含标题行"))
+            
+        # Call base class update_language for common elements
+        super().update_language()
