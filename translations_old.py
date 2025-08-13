@@ -206,6 +206,10 @@ TRANSLATIONS = {
         '目标分类与当前分类相同。': '目标分类与当前分类相同。',
         '无法解析拖放数据。': '无法解析拖放数据。',
         '没有可用的分类，请先创建分类。': '没有可用的分类，请先创建分类。',
+        
+        # 标准化错误处理消息
+        '{context}发生错误: {error}': '{context}发生错误: {error}',
+        '错误: {error}': '错误: {error}',
     },
     
     'en_US': {
@@ -692,6 +696,10 @@ TRANSLATIONS = {
         '目标分类与当前分类相同。': 'Target category is the same as current category.',
         '无法解析拖放数据。': 'Cannot parse drag and drop data.',
         '没有可用的分类，请先创建分类。': 'No categories available, please create a category first.',
+        
+        # 标准化错误处理消息
+        '{context}发生错误: {error}': 'Error in {context}: {error}',
+        '错误: {error}': 'Error: {error}',
     }
 }
 

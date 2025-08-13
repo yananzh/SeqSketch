@@ -1,7 +1,8 @@
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QFileDialog, QGroupBox, QSplitter, QLineEdit, QMessageBox, QScrollArea, QCheckBox
+    QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QFileDialog, QGroupBox, QSplitter, QLineEdit, QMessageBox, QScrollArea, QCheckBox
 )
 from PyQt6.QtCore import Qt
+from utils.common_components import BaseTabWidget
 import translations
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -17,13 +18,13 @@ try:
 except ImportError:
     SCIPY_AVAILABLE = False
 
-class SangerTab(QWidget):
+class SangerTab(BaseTabWidget):
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.init_ui()
+        super().__init__(translations.tr("桑格测序数据处理"), "sequence")
+        self.init_sanger_ui()
 
-    def init_ui(self):
-        main_layout = QVBoxLayout(self)
+    def init_sanger_ui(self):
+        """初始化桑格测序数据处理UI"""
         splitter = QSplitter(Qt.Orientation.Vertical)
         self.quality_group = self.init_quality_ui()
         splitter.addWidget(self.quality_group)
@@ -34,8 +35,7 @@ class SangerTab(QWidget):
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 2)
-        main_layout.addWidget(splitter)
-        self.setLayout(main_layout)
+        self.add_content_widget(splitter)
 
     # 1. 质量可视化
     def init_quality_ui(self):

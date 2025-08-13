@@ -5,10 +5,11 @@
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
                            QTextEdit, QFileDialog, QMessageBox)
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 import translations
 import logging
 import os
+from .error_handler import StandardErrorHandler, BioSeqError
 
 
 class BaseWorker(QObject):
@@ -29,13 +30,24 @@ class BaseWorker(QObject):
         self.progress.emit(message)
         self.logger.info(f"进度: {message}")
     
-    def emit_error(self, error_msg: str, exception: Optional[Exception] = None):
-        """发送错误信息"""
-        if exception:
-            self.logger.exception(f"错误: {error_msg}")
+    def emit_error(self, error: Union[str, Exception, BioSeqError], 
+                   context: str = "", exception: Optional[Exception] = None):
+        """
+        发送标准化错误信息
+        
+        Args:
+            error: 错误信息、异常对象或BioSeqError
+            context: 错误上下文
+            exception: 原始异常对象（用于日志记录）
+        """
+        if isinstance(error, BioSeqError):
+            formatted_msg = error.format_message()
+            StandardErrorHandler.log_error(self.logger, error.message, error.context, exception)
         else:
-            self.logger.error(error_msg)
-        self.error.emit(error_msg)
+            formatted_msg = StandardErrorHandler.format_error(error, context)
+            StandardErrorHandler.log_error(self.logger, error, context, exception)
+        
+        self.error.emit(formatted_msg)
     
     def emit_finished(self, result_msg: str):
         """发送完成信息"""

@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushB
                            QFileDialog, QComboBox, QPlainTextEdit)
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseWorker, BaseTabWidget
+from utils.error_handler import NetworkError, DependencyError, ErrorCode
 from urllib.error import URLError
 import translations
 import os
@@ -31,8 +32,13 @@ class DownloadFromNCBIWorker(BaseWorker):
             self.emit_progress(translations.tr("正在连接NCBI..."))
             try:
                 from Bio import Entrez
-            except ImportError:
-                self.emit_error(translations.tr("需要安装Biopython库来下载NCBI数据"))
+            except ImportError as e:
+                error = DependencyError(
+                    message=translations.tr("需要安装Biopython库来下载NCBI数据"),
+                    error_code=ErrorCode.DEPENDENCY_ERROR,
+                    context="NCBI下载"
+                )
+                self.emit_error(error, exception=e)
                 return
             
             Entrez.email = self.email
@@ -43,10 +49,20 @@ class DownloadFromNCBIWorker(BaseWorker):
                 with Entrez.efetch(db=self.db, id=ids, rettype='fasta', retmode='text') as handle:
                     fasta_data = handle.read()
             except URLError as e:
-                self.emit_error(translations.tr("网络连接错误: {error}").format(error=str(e)))
+                error = NetworkError(
+                    message=translations.tr("网络连接错误: {error}").format(error=str(e)),
+                    error_code=ErrorCode.NETWORK_ERROR,
+                    context="NCBI数据获取"
+                )
+                self.emit_error(error, exception=e)
                 return
             except Exception as e:
-                self.emit_error(translations.tr("NCBI下载错误: {error}").format(error=str(e)))
+                error = NetworkError(
+                    message=translations.tr("NCBI下载错误: {error}").format(error=str(e)),
+                    error_code=ErrorCode.API_ERROR,
+                    context="NCBI下载"
+                )
+                self.emit_error(error, exception=e)
                 return
             
             if not fasta_data.strip() or 'Error' in fasta_data or 'not found' in fasta_data:

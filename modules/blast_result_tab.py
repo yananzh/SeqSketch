@@ -1,22 +1,26 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout, QFileDialog, QTextEdit, QMessageBox
+from PyQt6.QtWidgets import QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout, QFileDialog, QTextEdit, QMessageBox
 from PyQt6.QtCore import Qt
 import translations
 from Bio.Blast import NCBIXML
+from utils.common_components import BaseTabWidget
 import csv
 import os
 
-class BlastResultTab(QWidget):
+class BlastResultTab(BaseTabWidget):
     def __init__(self, xml_path, parent=None):
-        super().__init__(parent)
+        super().__init__(translations.tr("BLAST结果: {filename}").format(filename=os.path.basename(xml_path)), "sequence")
         self.xml_path = xml_path
-        self.setWindowTitle(translations.tr("BLAST结果: {filename}").format(filename=os.path.basename(xml_path)))
-        layout = QVBoxLayout(self)
+        self.init_blast_ui()
+        self.parse_blast_xml()
+    
+    def init_blast_ui(self):
+        """初始化BLAST结果显示UI"""
         self.table = QTableWidget()
         self.table.setColumnCount(7)
         self.table.setHorizontalHeaderLabels(["Query ID", "Subject ID", "Identity %", "E-value", "Score", "Align Len", "Description"])
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.cellClicked.connect(self.show_detail)
-        layout.addWidget(self.table)
+        self.add_content_widget(self.table)
         # 导出按钮
         btn_layout = QHBoxLayout()
         self.export_csv_btn = QPushButton(translations.tr("导出CSV"))
@@ -28,15 +32,15 @@ class BlastResultTab(QWidget):
         btn_layout.addWidget(self.export_csv_btn)
         btn_layout.addWidget(self.export_tsv_btn)
         btn_layout.addWidget(self.export_html_btn)
-        layout.addLayout(btn_layout)
+        btn_layout.addStretch()
+        self.add_content_layout(btn_layout)
         # 详情区
         self.detail_text = QTextEdit()
         self.detail_text.setReadOnly(True)
-        layout.addWidget(self.detail_text)
-        self.setLayout(layout)
+        self.add_content_widget(self.detail_text)
         self.records = []
-        self.load_xml()
-    def load_xml(self):
+        self.parse_blast_xml()
+    def parse_blast_xml(self):
         try:
             with open(self.xml_path, 'r', encoding='utf-8') as f:
                 blast_records = list(NCBIXML.parse(f))
