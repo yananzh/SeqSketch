@@ -1,5 +1,6 @@
 from utils.common_components import BaseTabWidget
 import re
+import translations
 from PyQt6.QtWidgets import QMessageBox, QSpinBox, QComboBox
 
 CODON_TABLE = {
@@ -23,23 +24,24 @@ CODON_TABLE = {
 
 class ORFTab(BaseTabWidget):
     def __init__(self, parent=None):
-        super().__init__("ORF Finder", "sequence")
+        super().__init__(translations.tr("ORF Finder"), "sequence")
+        self.chain_options = ["正链", "反链", "正+反链"]
         self.min_len_box = QSpinBox()
         self.min_len_box.setRange(30, 10000)
         self.min_len_box.setValue(100)
         self.chain_box = QComboBox()
-        self.chain_box.addItems(["正链", "反链", "正+反链"])
+        self.chain_box.addItems([translations.tr(option) for option in self.chain_options])
         self.add_content_widget(self.min_len_box)
         self.add_content_widget(self.chain_box)
 
     def run(self):
         seq = self.input_text.toPlainText().strip().replace("\n", "").replace(" ", "")
         if not seq:
-            self.status_label.setText("请输入DNA序列！")
+            self.status_label.setText(translations.tr("请输入DNA序列！"))
             return
         seq = seq.upper().replace('U', 'T')
         if not re.fullmatch(r'[ACGTN]+', seq):
-            self.status_label.setText("输入序列包含无效字符，仅允许A/T/G/C/N！")
+            self.status_label.setText(translations.tr("输入序列包含无效字符，仅允许A/T/G/C/N！"))
             return
         min_len = self.min_len_box.value()
         chain_mode = self.chain_box.currentIndex()

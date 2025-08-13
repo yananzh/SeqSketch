@@ -73,6 +73,9 @@ class MainWindow(QMainWindow):
             self.setWindowTitle(translations.tr("BioSeq Analyzer 生物序列分析器"))
             # Update existing tab titles
             self._update_tab_titles()
+            # Update bookmark manager if it's open
+            if hasattr(self, '_bookmark_manager') and self._bookmark_manager is not None:
+                self._bookmark_manager.update_language()
             # Adjust window size based on language
             if full_lang == 'en_US':
                 # English needs more space for menu items

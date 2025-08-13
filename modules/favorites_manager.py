@@ -4,6 +4,7 @@ import json
 import os
 import time
 from typing import Dict, List, Any
+import translations
 
 from PyQt6.QtCore import Qt, QMimeData, QByteArray, QDataStream, QIODevice
 from PyQt6.QtGui import QAction, QDrag
@@ -43,13 +44,13 @@ MIME_TYPE = "application/x-bookmark-item"
 class EditBookmarkDialog(QDialog):
     def __init__(self, name: str = "", url: str = "", parent=None):
         super().__init__(parent)
-        self.setWindowTitle("编辑收藏")
+        self.setWindowTitle(translations.tr("编辑收藏"))
         self.name_edit = QLineEdit(name)
         self.url_edit = QLineEdit(url)
 
         form = QFormLayout()
-        form.addRow(QLabel("名称："), self.name_edit)
-        form.addRow(QLabel("URL："), self.url_edit)
+        form.addRow(QLabel(translations.tr("名称：")), self.name_edit)
+        form.addRow(QLabel(translations.tr("URL：")), self.url_edit)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -128,7 +129,7 @@ class BookmarkList(QListWidget):
 class BookmarkManager(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("收藏夹管理器")
+        self.setWindowTitle(translations.tr("收藏夹管理器"))
         self.resize(1000, 600)
 
         # 数据结构
@@ -145,34 +146,34 @@ class BookmarkManager(QMainWindow):
     # ============== UI ==============
     def _setup_ui(self):
         menu_bar = self.menuBar()
-        fav_menu = menu_bar.addMenu("收藏夹")
+        fav_menu = menu_bar.addMenu(translations.tr("收藏夹"))
 
-        add_category_act = QAction("新建分类", self)
+        add_category_act = QAction(translations.tr("添加分类"), self)
         add_category_act.triggered.connect(self.add_category)
         fav_menu.addAction(add_category_act)
 
-        rename_category_act = QAction("重命名分类", self)
+        rename_category_act = QAction(translations.tr("重命名分类"), self)
         rename_category_act.triggered.connect(self.rename_selected_category)
         fav_menu.addAction(rename_category_act)
 
-        delete_category_act = QAction("删除分类", self)
+        delete_category_act = QAction(translations.tr("删除分类"), self)
         delete_category_act.triggered.connect(self.delete_selected_category)
         fav_menu.addAction(delete_category_act)
 
         fav_menu.addSeparator()
 
-        add_bookmark_act = QAction("添加收藏", self)
+        add_bookmark_act = QAction(translations.tr("添加收藏"), self)
         add_bookmark_act.setShortcut("Ctrl+D")
         add_bookmark_act.triggered.connect(self.add_bookmark)
         fav_menu.addAction(add_bookmark_act)
 
         fav_menu.addSeparator()
 
-        import_act = QAction("导入收藏夹 (JSON)", self)
+        import_act = QAction(translations.tr("导入收藏"), self)
         import_act.triggered.connect(self.import_bookmarks)
         fav_menu.addAction(import_act)
 
-        export_act = QAction("导出收藏夹 (JSON)", self)
+        export_act = QAction(translations.tr("导出收藏"), self)
         export_act.triggered.connect(self.export_bookmarks)
         fav_menu.addAction(export_act)
 
@@ -191,7 +192,7 @@ class BookmarkManager(QMainWindow):
         central.setLayout(main_layout)
 
         self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("搜索收藏项（支持名称和 URL，实时过滤）")
+        self.search_box.setPlaceholderText(translations.tr("搜索收藏项（支持名称和 URL，实时过滤）"))
         self.search_box.textChanged.connect(self.filter_bookmarks)
         main_layout.addWidget(self.search_box)
 
@@ -261,7 +262,7 @@ class BookmarkManager(QMainWindow):
             with open(DATA_FILE, "w", encoding="utf-8") as f:
                 json.dump(ordered, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            QMessageBox.warning(self, "保存错误", f"保存收藏夹失败：{e}")
+            QMessageBox.warning(self, translations.tr("保存错误"), f"保存收藏夹失败：{e}")
 
     # ============== UI 同步 ==============
     def _populate_categories(self):
@@ -298,13 +299,13 @@ class BookmarkManager(QMainWindow):
 
     # ============== 分类管理 ==============
     def add_category(self):
-        text, ok = QInputDialog.getText(self, "新建分类", "输入分类名称：")
+        text, ok = QInputDialog.getText(self, translations.tr("添加分类"), translations.tr("输入分类名称"))
         if ok and text:
             text = text.strip()
             if not text:
                 return
             if text in self.bookmarks:
-                QMessageBox.warning(self, "提示", "该分类已存在！")
+                QMessageBox.warning(self, translations.tr("提示"), translations.tr("该分类已存在！"))
                 return
             self.bookmarks[text] = []
             self.categories.append(text)
@@ -314,7 +315,7 @@ class BookmarkManager(QMainWindow):
     def rename_selected_category(self):
         item = self.category_tree.currentItem()
         if not item:
-            QMessageBox.warning(self, "提示", "请先选择一个分类。")
+            QMessageBox.warning(self, translations.tr("提示"), translations.tr("请先选择一个分类。"))
             return
         self.category_tree.editItem(item, 0)
 
@@ -323,14 +324,14 @@ class BookmarkManager(QMainWindow):
         old_name = self.categories[idx] if 0 <= idx < len(self.categories) else None
         new_name = item.text(0).strip()
         if not new_name:
-            QMessageBox.warning(self, "提示", "分类名不能为空，操作取消。")
+            QMessageBox.warning(self, translations.tr("提示"), translations.tr("分类名不能为空，操作取消。"))
             if old_name:
                 item.setText(0, old_name)
             return
         if new_name == old_name:
             return
         if new_name in self.bookmarks:
-            QMessageBox.warning(self, "提示", "目标分类名已存在，操作取消。")
+            QMessageBox.warning(self, translations.tr("提示"), translations.tr("目标分类名已存在，操作取消。"))
             if old_name:
                 item.setText(0, old_name)
             return
@@ -342,13 +343,14 @@ class BookmarkManager(QMainWindow):
     def delete_selected_category(self):
         item = self.category_tree.currentItem()
         if not item:
-            QMessageBox.warning(self, "提示", "请先选择一个分类。")
+            QMessageBox.warning(self, translations.tr("提示"), translations.tr("请先选择一个分类。"))
             return
         cat = item.text(0)
+        message = translations.tr("将删除分类\"{category}\"及其下所有收藏，确定吗？").format(category=cat)
         reply = QMessageBox.question(
             self,
-            "确认删除",
-            f"将删除分类“{cat}”及其下所有收藏，确定吗？",
+            translations.tr("删除确认"),
+            message,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
@@ -363,14 +365,14 @@ class BookmarkManager(QMainWindow):
     def show_category_menu(self, pos):
         item = self.category_tree.itemAt(pos)
         menu = QMenu(self)
-        add_act = QAction("在此分类新建收藏", self)
+        add_act = QAction(translations.tr("添加收藏"), self)
         add_act.triggered.connect(self.add_bookmark_in_context)
         menu.addAction(add_act)
         if item:
-            rename_act = QAction("重命名分类", self)
+            rename_act = QAction(translations.tr("重命名分类"), self)
             rename_act.triggered.connect(self.rename_selected_category)
             menu.addAction(rename_act)
-            del_act = QAction("删除分类", self)
+            del_act = QAction(translations.tr("删除分类"), self)
             del_act.triggered.connect(self.delete_selected_category)
             menu.addAction(del_act)
         menu.exec(self.category_tree.viewport().mapToGlobal(pos))
@@ -378,7 +380,7 @@ class BookmarkManager(QMainWindow):
     def add_bookmark_in_context(self):
         item = self.category_tree.currentItem()
         if not item:
-            QMessageBox.warning(self, "提示", "请先选中分类再右键。")
+            QMessageBox.warning(self, translations.tr("提示"), translations.tr("请先选中分类再右键。"))
             return
         self.add_bookmark(to_category=item.text(0))
 
@@ -387,18 +389,18 @@ class BookmarkManager(QMainWindow):
         category_item = self.category_tree.currentItem()
         if to_category is None:
             if not category_item:
-                QMessageBox.warning(self, "提示", "请先选择一个分类。")
+                QMessageBox.warning(self, translations.tr("提示"), translations.tr("请先选择一个分类。"))
                 return
             category = category_item.text(0)
         else:
             category = to_category
 
         dialog = EditBookmarkDialog("", "", self)
-        dialog.setWindowTitle("添加收藏")
+        dialog.setWindowTitle(translations.tr("添加新收藏"))
         if dialog.exec() == QDialog.DialogCode.Accepted:
             name, url = dialog.get_data()
             if not name or not url:
-                QMessageBox.warning(self, "提示", "名称与 URL 不能为空。")
+                QMessageBox.warning(self, translations.tr("提示"), translations.tr("名称与 URL 不能为空。"))
                 return
             self.bookmarks.setdefault(category, []).append({"name": name, "url": url})
             self._display_bookmarks(category)
@@ -409,11 +411,11 @@ class BookmarkManager(QMainWindow):
             return
         data = item.data(Qt.ItemDataRole.UserRole)
         dialog = EditBookmarkDialog(data.get("name", ""), data.get("url", ""), self)
-        dialog.setWindowTitle("编辑收藏")
+        dialog.setWindowTitle(translations.tr("编辑收藏"))
         if dialog.exec() == QDialog.DialogCode.Accepted:
             name, url = dialog.get_data()
             if not name or not url:
-                QMessageBox.warning(self, "提示", "名称与 URL 不能为空。")
+                QMessageBox.warning(self, translations.tr("提示"), translations.tr("名称与 URL 不能为空。"))
                 return
             category_item = self.category_tree.currentItem()
             if not category_item:
@@ -436,27 +438,27 @@ class BookmarkManager(QMainWindow):
         try:
             webbrowser.open(url)
         except Exception:
-            QMessageBox.warning(self, "错误", f"无法打开网址：{url}")
+            QMessageBox.warning(self, translations.tr("错误"), f"无法打开网址：{url}")
 
     def rename_selected_bookmark(self):
         items = self.bookmark_list.selectedItems()
         if not items:
-            QMessageBox.warning(self, "提示", "请先选择要重命名的收藏项。")
+            QMessageBox.warning(self, translations.tr("提示"), translations.tr("请先选择要重命名的收藏项。"))
             return
         if len(items) > 1:
-            QMessageBox.warning(self, "提示", "只能一次重命名一个收藏项。")
+            QMessageBox.warning(self, translations.tr("提示"), translations.tr("只能一次重命名一个收藏项。"))
             return
         self.edit_bookmark(items[0])
 
     def delete_selected_bookmarks(self):
         items = self.bookmark_list.selectedItems()
         if not items:
-            QMessageBox.information(self, "提示", "未选择任何收藏项。")
+            QMessageBox.information(self, translations.tr("提示"), translations.tr("未选择任何收藏项。"))
             return
         reply = QMessageBox.question(
             self,
-            "确认删除",
-            f"确定删除选中的 {len(items)} 个收藏吗？",
+            translations.tr("删除确认"),
+            translations.tr("确定删除选中的 {count} 个收藏吗？").format(count=len(items)),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -477,15 +479,15 @@ class BookmarkManager(QMainWindow):
         if not items:
             return
         menu = QMenu(self)
-        open_act = QAction("打开", self)
+        open_act = QAction(translations.tr("在浏览器中打开"), self)
         open_act.triggered.connect(lambda: self.open_bookmark(items[0]))
         menu.addAction(open_act)
 
-        edit_act = QAction("编辑", self)
+        edit_act = QAction(translations.tr("编辑收藏"), self)
         edit_act.triggered.connect(lambda: self.edit_bookmark(items[0]))
         menu.addAction(edit_act)
 
-        del_act = QAction("删除", self)
+        del_act = QAction(translations.tr("删除收藏"), self)
         del_act.triggered.connect(self.delete_selected_bookmarks)
         menu.addAction(del_act)
 
@@ -508,7 +510,7 @@ class BookmarkManager(QMainWindow):
             return
         src_cat = src_item.text(0)
         if src_cat == target_cat:
-            QMessageBox.information(self, "提示", "目标分类与当前分类相同。")
+            QMessageBox.information(self, translations.tr("提示"), translations.tr("目标分类与当前分类相同。"))
             return
         rows = sorted([self.bookmark_list.row(it) for it in items], reverse=True)
         moved: List[Dict[str, str]] = []
@@ -531,14 +533,14 @@ class BookmarkManager(QMainWindow):
         try:
             payload = json.loads(raw.decode("utf-8"))
         except Exception:
-            QMessageBox.warning(self, "错误", "无法解析拖放数据。")
+            QMessageBox.warning(self, translations.tr("错误"), translations.tr("无法解析拖放数据。"))
             return
 
         pos = drop_event.position().toPoint()
         target_item = self.category_tree.itemAt(pos)
         if not target_item:
             if self.category_tree.topLevelItemCount() == 0:
-                QMessageBox.warning(self, "提示", "没有可用的分类，请先创建分类。")
+                QMessageBox.warning(self, translations.tr("提示"), translations.tr("没有可用的分类，请先创建分类。"))
                 return
             target_item = self.category_tree.topLevelItem(0)
         target_cat = target_item.text(0)
@@ -600,7 +602,7 @@ class BookmarkManager(QMainWindow):
 
     # ============== 导入 / 导出 ==============
     def import_bookmarks(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "导入收藏夹", "", "JSON Files (*.json)")
+        file_path, _ = QFileDialog.getOpenFileName(self, translations.tr("导入JSON收藏文件"), "", translations.tr("JSON文件 (*.json)"))
         if file_path:
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
@@ -615,20 +617,20 @@ class BookmarkManager(QMainWindow):
                     self.categories.append(target_cat)
                 self._populate_categories()
                 self._save_bookmarks()
-                QMessageBox.information(self, "导入成功", "已将导入内容合并到当前收藏夹。")
+                QMessageBox.information(self, translations.tr("导入成功"), translations.tr("已导入 {count} 个收藏").format(count=len(imported)))
             except Exception as e:
-                QMessageBox.warning(self, "错误", f"导入失败：{e}")
+                QMessageBox.warning(self, translations.tr("导入失败"), translations.tr("导入失败: {error}").format(error=str(e)))
 
     def export_bookmarks(self):
-        file_path, _ = QFileDialog.getSaveFileName(self, "导出收藏夹", "", "JSON Files (*.json)")
+        file_path, _ = QFileDialog.getSaveFileName(self, translations.tr("导出收藏到JSON文件"), "", translations.tr("JSON文件 (*.json)"))
         if file_path:
             try:
                 ordered = {cat: self.bookmarks.get(cat, []) for cat in self.categories}
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(ordered, f, ensure_ascii=False, indent=2)
-                QMessageBox.information(self, "导出成功", f"已导出到：{file_path}")
+                QMessageBox.information(self, translations.tr("导出成功"), translations.tr("收藏已导出到: {path}").format(path=file_path))
             except Exception as e:
-                QMessageBox.warning(self, "错误", f"导出失败：{e}")
+                QMessageBox.warning(self, translations.tr("导出失败"), translations.tr("导出失败: {error}").format(error=str(e)))
 
     def export_to_html(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "导出为 HTML 书签文件", "", "HTML 文件 (*.html)")
@@ -661,9 +663,9 @@ class BookmarkManager(QMainWindow):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
 
-            QMessageBox.information(self, "导出成功", f"书签已导出为 HTML：\n{file_path}")
+            QMessageBox.information(self, translations.tr("导出成功"), f"书签已导出为 HTML：\n{file_path}")
         except Exception as e:
-            QMessageBox.critical(self, "导出失败", f"错误：{e}")
+            QMessageBox.critical(self, translations.tr("导出失败"), f"错误：{e}")
 
     def _escape_html(self, text: str) -> str:
         return (
@@ -674,6 +676,19 @@ class BookmarkManager(QMainWindow):
             .replace('"', "&quot;")
         )
 
+    # ============== 语言更新 ==============
+    def update_language(self):
+        """Update UI elements when language changes"""
+        # Update window title
+        self.setWindowTitle(translations.tr("收藏夹管理器"))
+        
+        # Update search box placeholder
+        if hasattr(self, 'search_box'):
+            self.search_box.setPlaceholderText(translations.tr("搜索收藏项（支持名称和 URL，实时过滤）"))
+        
+        # Note: Menu items and dialog texts will be updated when they are next opened
+        # since they use translations.tr() calls that will return the new language
+    
     # ============== 关闭 ==============
     def closeEvent(self, event):
         self._save_bookmarks()

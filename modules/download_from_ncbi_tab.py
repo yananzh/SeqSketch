@@ -19,61 +19,61 @@ class DownloadFromNCBIWorker(BaseWorker):
     
     def run(self):
         try:
-            self.emit_progress("正在验证输入...")
+            self.emit_progress(translations.tr("正在验证输入..."))
             if not self.acc_list:
-                self.emit_error("检索号列表为空")
+                self.emit_error(translations.tr("检索号列表为空"))
                 return
             
             if not self.email:
-                self.emit_error("请提供邮箱地址（NCBI要求）")
+                self.emit_error(translations.tr("请提供邮箱地址（NCBI要求）"))
                 return
             
-            self.emit_progress("正在连接NCBI...")
+            self.emit_progress(translations.tr("正在连接NCBI..."))
             try:
                 from Bio import Entrez
             except ImportError:
-                self.emit_error("需要安装Biopython库来下载NCBI数据")
+                self.emit_error(translations.tr("需要安装Biopython库来下载NCBI数据"))
                 return
             
             Entrez.email = self.email
             ids = ','.join(self.acc_list)
             
-            self.emit_progress(f"正在下载{len(self.acc_list)}个序列...")
+            self.emit_progress(translations.tr("正在下载{count}个序列...").format(count=len(self.acc_list)))
             try:
                 with Entrez.efetch(db=self.db, id=ids, rettype='fasta', retmode='text') as handle:
                     fasta_data = handle.read()
             except URLError as e:
-                self.emit_error(f"网络连接错误: {e}")
+                self.emit_error(translations.tr("网络连接错误: {error}").format(error=str(e)))
                 return
             except Exception as e:
-                self.emit_error(f"NCBI下载错误: {e}")
+                self.emit_error(translations.tr("NCBI下载错误: {error}").format(error=str(e)))
                 return
             
             if not fasta_data.strip() or 'Error' in fasta_data or 'not found' in fasta_data:
-                self.emit_error("NCBI返回错误或未找到序列，请检查数据库类型和检索号是否正确")
+                self.emit_error(translations.tr("NCBI返回错误或未找到序列，请检查数据库类型和检索号是否正确"))
                 return
             
-            self.emit_progress("正在保存文件...")
+            self.emit_progress(translations.tr("正在保存文件..."))
             try:
                 # 确保输出目录存在
                 os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
                 with open(self.output_path, 'w', encoding='utf-8') as f:
                     f.write(fasta_data)
             except Exception as e:
-                self.emit_error(f"文件保存失败: {e}")
+                self.emit_error(translations.tr("文件保存失败: {error}").format(error=str(e)))
                 return
             
             seq_count = fasta_data.count('>')
-            self.emit_finished(f"下载完成，共{seq_count}条序列，已保存到: {self.output_path}")
+            self.emit_finished(translations.tr("下载完成，共{seq_count}条序列，已保存到: {output_path}").format(seq_count=seq_count, output_path=self.output_path))
         except Exception as e:
-            self.emit_error(f"下载过程中发生错误: {e}")
+            self.emit_error(translations.tr("下载过程中发生错误: {error}").format(error=str(e)))
 
 
 class DownloadFromNCBITab(BaseTabWidget):
     """从NCBI下载序列功能Tab"""
     
     def __init__(self):
-        super().__init__("从NCBI下载序列", "file")
+        super().__init__(translations.tr("从NCBI下载序列"), "file")
         self.init_ui()
         self.connect_signals()
     
@@ -96,12 +96,12 @@ class DownloadFromNCBITab(BaseTabWidget):
         
         # 检索号输入
         acc_layout = QVBoxLayout()
-        acc_label = QLabel("检索号列表（每行一个）:")
+        acc_label = QLabel(translations.tr("检索号列表（每行一个）:"))
         acc_layout.addWidget(acc_label)
         # 减小标签与输入框的间距
         acc_layout.setSpacing(5)
         self.acc_edit = QPlainTextEdit()
-        self.acc_edit.setPlaceholderText("输入检索号，每行一个\n例如:\nNM_001101.5\nNP_001092.1\nAF123456")
+        self.acc_edit.setPlaceholderText(translations.tr("输入检索号，每行一个\n例如:\nNM_001101.5\nNP_001092.1\nAF123456"))
         # 增加输入框高度
         self.acc_edit.setMinimumHeight(150)
         self.acc_edit.setMaximumHeight(200)
@@ -137,7 +137,7 @@ class DownloadFromNCBITab(BaseTabWidget):
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "保存下载的序列", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+            self, translations.tr("保存下载的序列"), "", translations.tr("FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)")
         )
         if file_path:
             self.output_edit.setText(file_path)
@@ -167,11 +167,11 @@ class DownloadFromNCBITab(BaseTabWidget):
         
         # 验证输入
         if not email:
-            self.log_message("请输入邮箱地址（NCBI要求）", "ERROR")
+            self.log_message(translations.tr("请输入邮箱地址（NCBI要求）"), "ERROR")
             return
         
         if not acc_text:
-            self.log_message("请输入检索号", "ERROR")
+            self.log_message(translations.tr("请输入检索号"), "ERROR")
             return
         
         from utils.common_components import validate_output_path
@@ -183,7 +183,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         # 处理检索号列表
         acc_list = [line.strip() for line in acc_text.split('\n') if line.strip()]
         if not acc_list:
-            self.log_message("检索号列表为空", "ERROR")
+            self.log_message(translations.tr("检索号列表为空"), "ERROR")
             return
         
         # 启动工作线程
@@ -195,27 +195,27 @@ class DownloadFromNCBITab(BaseTabWidget):
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
         from PyQt6.QtCore import Qt
         
-        help_text = """
-<h3>NCBI序列下载工具</h3>
-<p><b>功能说明：</b></p>
-<p>根据检索号（Accession Number）从NCBI数据库批量下载序列数据。</p>
+        help_text = f"""
+<h3>{translations.tr('NCBI序列下载工具')}</h3>
+<p><b>{translations.tr('功能说明：')}</b></p>
+<p>{translations.tr('根据检索号（Accession Number）从NCBI数据库批量下载序列数据。')}</p>
 
-<p><b>使用方法：</b></p>
+<p><b>{translations.tr('使用方法：')}</b></p>
 <ol>
-<li>选择目标数据库（nucleotide或protein）</li>
-<li>输入有效的邮箱地址（NCBI访问要求）</li>
-<li>输入检索号列表（每行一个）</li>
-<li>指定下载文件的保存位置</li>
-<li>点击"开始下载"按钮</li>
+<li>{translations.tr('选择目标数据库（nucleotide或protein）')}</li>
+<li>{translations.tr('输入有效的邮箱地址（NCBI访问要求）')}</li>
+<li>{translations.tr('输入检索号列表（每行一个）')}</li>
+<li>{translations.tr('指定下载文件的保存位置')}</li>
+<li>{translations.tr('点击"开始下载"按钮')}</li>
 </ol>
 
-<p><b>支持的数据库：</b></p>
+<p><b>{translations.tr('支持的数据库：')}</b></p>
 <ul>
-<li><b>nucleotide：</b>核酸序列数据库（DNA/RNA）</li>
-<li><b>protein：</b>蛋白质序列数据库</li>
+<li><b>{translations.tr('nucleotide：')}</b>{translations.tr('核酸序列数据库（DNA/RNA）')}</li>
+<li><b>{translations.tr('protein：')}</b>{translations.tr('蛋白质序列数据库')}</li>
 </ul>
 
-<p><b>检索号格式示例：</b></p>
+<p><b>{translations.tr('检索号格式示例：')}</b></p>
 <pre>
 NM_001101.5
 XM_123456.1
@@ -224,30 +224,30 @@ U12345
 AAA12345
 </pre>
 
-<p><b>邮箱要求：</b></p>
-<p>NCBI要求在API访问时提供有效邮箱地址，用于：</p>
+<p><b>{translations.tr('邮箱要求：')}</b></p>
+<p>{translations.tr('NCBI要求在API访问时提供有效邮箱地址，用于：')}</p>
 <ul>
-<li>追踪API使用情况</li>
-<li>在过度使用时发送通知</li>
-<li>技术问题联系</li>
+<li>{translations.tr('追踪API使用情况')}</li>
+<li>{translations.tr('在过度使用时发送通知')}</li>
+<li>{translations.tr('技术问题联系')}</li>
 </ul>
 
-<p><b>应用场景：</b></p>
+<p><b>{translations.tr('应用场景：')}</b></p>
 <ul>
-<li>批量下载已知检索号的序列</li>
-<li>获取最新版本的参考序列</li>
-<li>构建本地序列数据集</li>
+<li>{translations.tr('批量下载已知检索号的序列')}</li>
+<li>{translations.tr('获取最新版本的参考序列')}</li>
+<li>{translations.tr('构建本地序列数据集')}</li>
 </ul>
 
-<p><b>注意事项：</b></p>
+<p><b>{translations.tr('注意事项：')}</b></p>
 <ul>
-<li>请遵守NCBI的使用政策，避免过频请求</li>
-<li>网络连接质量会影响下载速度</li>
-<li>无效的检索号会被跳过并记录</li>
+<li>{translations.tr('请遵守NCBI的使用政策，避免过频请求')}</li>
+<li>{translations.tr('网络连接质量会影响下载速度')}</li>
+<li>{translations.tr('无效的检索号会被跳过并记录')}</li>
 </ul>
 
-<p><b>输出格式：</b></p>
-<p>下载的序列以标准FASTA格式保存，包含完整的序列信息和描述。</p>
+<p><b>{translations.tr('输出格式：')}</b></p>
+<p>{translations.tr('下载的序列以标准FASTA格式保存，包含完整的序列信息和描述。')}</p>
         """
         
         # 创建自定义对话框
@@ -283,9 +283,14 @@ AAA12345
     
     def update_language(self):
         """Update UI elements when language changes"""
+        # Update tab title
+        if hasattr(self, 'parent') and self.parent():
+            for i in range(self.parent().count()):
+                if self.parent().widget(i) == self:
+                    self.parent().setTabText(i, translations.tr("从NCBI下载序列"))
+                    break
+        
         # Update button texts
-        if hasattr(self, 'input_btn'):
-            self.input_btn.setText(translations.tr("选择文件"))
         if hasattr(self, 'output_btn'):
             self.output_btn.setText(translations.tr("选择位置"))
         if hasattr(self, 'run_btn'):
@@ -307,6 +312,8 @@ AAA12345
                 widget.setText(translations.tr("输出文件:"))
             elif "状态:" in text or "Status:" in text:
                 widget.setText(translations.tr("状态:"))
+            elif "检索号列表（每行一个）:" in text or "Accession Number List (one per line):" in text:
+                widget.setText(translations.tr("检索号列表（每行一个）:"))
         
         # Update status label
         if hasattr(self, 'status_label') and self.status_label.text() in ["就绪", "Ready"]:
@@ -315,6 +322,8 @@ AAA12345
         # Update placeholder texts
         if hasattr(self, 'email_edit'):
             self.email_edit.setPlaceholderText(translations.tr("NCBI要求提供邮箱地址"))
+        if hasattr(self, 'acc_edit'):
+            self.acc_edit.setPlaceholderText(translations.tr("输入检索号，每行一个\n例如:\nNM_001101.5\nNP_001092.1\nAF123456"))
             
         # Update log area placeholder if exists
         if hasattr(self, 'log_area'):

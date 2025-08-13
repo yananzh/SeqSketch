@@ -39,14 +39,14 @@ class SangerTab(QWidget):
 
     # 1. 质量可视化
     def init_quality_ui(self):
-        group = QGroupBox("质量可视化 (支持.ab1)")
+        group = QGroupBox(translations.tr("质量可视化 (支持.ab1)"))
         vbox = QVBoxLayout()
         self.ab1_path = ""
-        self.ab1_btn = QPushButton("加载 .ab1 文件")
+        self.ab1_btn = QPushButton(translations.tr("加载 .ab1 文件"))
         self.ab1_btn.clicked.connect(self.load_ab1_file)
         vbox.addWidget(self.ab1_btn)
         # 导出图片按钮
-        self.export_img_btn = QPushButton("导出图片")
+        self.export_img_btn = QPushButton(translations.tr("导出图片"))
         self.export_img_btn.clicked.connect(self.export_trace_figure)
         vbox.addWidget(self.export_img_btn)
         self.scroll_area = QScrollArea()
@@ -70,9 +70,9 @@ class SangerTab(QWidget):
 
     def export_trace_figure(self):
         if not self.ab1_seq:
-            QMessageBox.warning(self, "未加载数据", "请先加载.ab1文件后再导出图片")
+            QMessageBox.warning(self, translations.tr("未加载数据"), translations.tr("请先加载.ab1文件后再导出图片"))
             return
-        file_path, sel = QFileDialog.getSaveFileName(self, "导出图片", "trace_figure.png", "PNG图片 (*.png);;PDF文件 (*.pdf);;TIFF图片 (*.tiff *.tif)")
+        file_path, sel = QFileDialog.getSaveFileName(self, translations.tr("导出图片"), "trace_figure.png", "PNG图片 (*.png);;PDF文件 (*.pdf);;TIFF图片 (*.tiff *.tif)")
         if not file_path:
             return
         # 根据选择的格式自动补后缀
@@ -88,26 +88,26 @@ class SangerTab(QWidget):
         self.fig.tight_layout()
         try:
             self.fig.savefig(file_path, dpi=300, bbox_inches='tight')
-            QMessageBox.information(self, "导出成功", f"图片已保存到: {file_path}")
+            QMessageBox.information(self, translations.tr("导出成功"), translations.tr("图片已保存到: {path}").format(path=file_path))
         except Exception as e:
-            QMessageBox.warning(self, "导出失败", str(e))
+            QMessageBox.warning(self, translations.tr("导出失败"), str(e))
         finally:
             self.ax.set_title(old_title)
             self.canvas.draw()
 
     # 2. 序列选择
     def init_selection_ui(self):
-        group = QGroupBox("序列选择与导出")
+        group = QGroupBox(translations.tr("序列选择与导出"))
         vbox = QVBoxLayout()
         hbox = QHBoxLayout()
-        self.select_label = QLabel("选择区间: ")
+        self.select_label = QLabel(translations.tr("选择区间: "))
         self.select_start = QLineEdit()
-        self.select_start.setPlaceholderText("起始")
+        self.select_start.setPlaceholderText(translations.tr("起始"))
         self.select_start.setFixedWidth(60)
         self.select_end = QLineEdit()
-        self.select_end.setPlaceholderText("终止")
+        self.select_end.setPlaceholderText(translations.tr("终止"))
         self.select_end.setFixedWidth(60)
-        self.export_seq_btn = QPushButton("导出选定序列")
+        self.export_seq_btn = QPushButton(translations.tr("导出选定序列"))
         self.export_seq_btn.clicked.connect(self.export_selected_seq)
         hbox.addWidget(self.select_label)
         hbox.addWidget(self.select_start)
@@ -120,38 +120,38 @@ class SangerTab(QWidget):
 
     # 3. 序列拼接
     def init_assembly_ui(self):
-        group = QGroupBox("序列拼接")
+        group = QGroupBox(translations.tr("序列拼接"))
         vbox = QVBoxLayout()
         fwd_hbox = QHBoxLayout()
         self.fwd_edit = QTextEdit()
-        self.fwd_edit.setPlaceholderText("粘贴正向测序序列")
-        self.fwd_load_btn = QPushButton("加载正向序列文件")
+        self.fwd_edit.setPlaceholderText(translations.tr("粘贴正向测序序列"))
+        self.fwd_load_btn = QPushButton(translations.tr("加载正向序列文件"))
         self.fwd_load_btn.clicked.connect(lambda: self.load_seq_file(self.fwd_edit))
-        fwd_hbox.addWidget(QLabel("正向序列:"))
+        fwd_hbox.addWidget(QLabel(translations.tr("正向序列:")))
         fwd_hbox.addWidget(self.fwd_edit)
         fwd_hbox.addWidget(self.fwd_load_btn)
         vbox.addLayout(fwd_hbox)
         rev_hbox = QHBoxLayout()
         self.rev_edit = QTextEdit()
-        self.rev_edit.setPlaceholderText("粘贴反向测序序列")
-        self.rev_load_btn = QPushButton("加载反向序列文件")
+        self.rev_edit.setPlaceholderText(translations.tr("粘贴反向测序序列"))
+        self.rev_load_btn = QPushButton(translations.tr("加载反向序列文件"))
         self.rev_load_btn.clicked.connect(lambda: self.load_seq_file(self.rev_edit))
-        rev_hbox.addWidget(QLabel("反向序列:"))
+        rev_hbox.addWidget(QLabel(translations.tr("反向序列:")))
         rev_hbox.addWidget(self.rev_edit)
         rev_hbox.addWidget(self.rev_load_btn)
         vbox.addLayout(rev_hbox)
         run_hbox = QHBoxLayout()
-        self.assemble_btn = QPushButton("运行拼接")
+        self.assemble_btn = QPushButton(translations.tr("运行拼接"))
         self.assemble_btn.clicked.connect(self.run_assembly)
         run_hbox.addWidget(self.assemble_btn)
         run_hbox.addStretch()
         vbox.addLayout(run_hbox)
         self.assembly_result = QTextEdit()
         self.assembly_result.setReadOnly(True)
-        vbox.addWidget(QLabel("拼接结果："))
+        vbox.addWidget(QLabel(translations.tr("拼接结果：")))
         vbox.addWidget(self.assembly_result)
         save_hbox = QHBoxLayout()
-        self.save_assembly_btn = QPushButton("保存拼接序列到文件")
+        self.save_assembly_btn = QPushButton(translations.tr("保存拼接序列到文件"))
         self.save_assembly_btn.clicked.connect(self.save_assembly_result)
         save_hbox.addWidget(self.save_assembly_btn)
         save_hbox.addStretch()
@@ -160,11 +160,11 @@ class SangerTab(QWidget):
         return group
 
     def load_ab1_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "选择.ab1文件", "", "AB1文件 (*.ab1)")
+        file_path, _ = QFileDialog.getOpenFileName(self, translations.tr("选择.ab1文件"), "", "AB1文件 (*.ab1)")
         if not file_path:
             return
         if SeqIO is None:
-            QMessageBox.warning(self, "依赖缺失", "未安装biopython，无法解析.ab1文件。请先安装biopython。")
+            QMessageBox.warning(self, translations.tr("依赖缺失"), translations.tr("未安装biopython，无法解析.ab1文件。请先安装biopython。"))
             return
         try:
             record = SeqIO.read(file_path, "abi")
@@ -182,12 +182,12 @@ class SangerTab(QWidget):
             self.ab1_path = file_path
             self.plot_ab1_trace_aligned()
         except Exception as e:
-            QMessageBox.warning(self, "文件解析错误", str(e))
+            QMessageBox.warning(self, translations.tr("文件解析错误"), str(e))
 
     def plot_ab1_trace_aligned(self):
         self.ax.clear()
         if not self.ab1_colors or not self.ab1_seq:
-            self.ax.set_title("请先加载.ab1文件")
+            self.ax.set_title(translations.tr("请先加载.ab1文件"))
             self.canvas.draw()
             return
         try:
@@ -196,7 +196,7 @@ class SangerTab(QWidget):
             called_bases = self.ab1_bases
             total_bases = len(peak_locations)
             if total_bases == 0:
-                self.ax.set_title("ab1文件无有效主叫碱基")
+                self.ax.set_title(translations.tr("ab1文件无有效主叫碱基"))
                 self.canvas.draw()
                 return
             # 横坐标为碱基编号（1,2,3...）
@@ -235,8 +235,8 @@ class SangerTab(QWidget):
                 self.ax.text(i+1, -0.18 * max_y, str(i+1), ha='center', va='top', fontsize=8, color='#666666', zorder=3)
             self.ax.set_xlim(0.5, total_bases + 0.5)
             self.ax.set_ylim(-0.3 * max_y, max_y * 1.12)
-            self.ax.set_xlabel("碱基编号", fontsize=12)
-            self.ax.set_ylabel("荧光信号强度", fontsize=12)
+            self.ax.set_xlabel(translations.tr("碱基编号"), fontsize=12)
+            self.ax.set_ylabel(translations.tr("荧光信号强度"), fontsize=12)
             # 不再设置title
             # self.ax.set_title(os.path.basename(self.ab1_path), fontsize=14, fontweight='bold')
             self.ax.grid(True, linestyle="--", alpha=0.3)
@@ -251,7 +251,7 @@ class SangerTab(QWidget):
             self.canvas_widget.setMinimumWidth(min_width)
             self.canvas.setMinimumWidth(min_width)
         except Exception as e:
-            self.ax.set_title(f"文件解析错误: {e}")
+            self.ax.set_title(translations.tr("文件解析错误: {error}").format(error=str(e)))
             self.canvas.draw()
 
     def export_selected_seq(self):
@@ -262,16 +262,16 @@ class SangerTab(QWidget):
                 raise ValueError
             seq = self.ab1_seq[start-1:end]  # 碱基编号从1开始
         except Exception:
-            QMessageBox.warning(self, "区间错误", "请输入有效的起止区间")
+            QMessageBox.warning(self, translations.tr("区间错误"), translations.tr("请输入有效的起止区间"))
             return
-        file_path, _ = QFileDialog.getSaveFileName(self, "导出序列", "selected_seq.txt", "文本文件 (*.txt)")
+        file_path, _ = QFileDialog.getSaveFileName(self, translations.tr("导出序列"), "selected_seq.txt", "文本文件 (*.txt)")
         if file_path:
             with open(file_path, 'w') as f:
                 f.write(seq)
-            QMessageBox.information(self, "导出成功", f"已导出到: {file_path}")
+            QMessageBox.information(self, translations.tr("导出成功"), translations.tr("已导出到: {path}").format(path=file_path))
 
     def load_seq_file(self, edit_widget):
-        file_path, _ = QFileDialog.getOpenFileName(self, "选择序列文件", "", "FASTA/TXT文件 (*.fasta *.fa *.txt)")
+        file_path, _ = QFileDialog.getOpenFileName(self, translations.tr("选择序列文件"), "", "FASTA/TXT文件 (*.fasta *.fa *.txt)")
         if file_path:
             with open(file_path, 'r') as f:
                 seq = ''.join([line.strip() for line in f if not line.startswith('>')])
@@ -281,12 +281,12 @@ class SangerTab(QWidget):
         fwd = self.fwd_edit.toPlainText().strip().upper().replace('U', 'T')
         rev = self.rev_edit.toPlainText().strip().upper().replace('U', 'T')
         if not fwd or not rev:
-            QMessageBox.warning(self, "输入错误", "请粘贴或加载正向和反向序列")
+            QMessageBox.warning(self, translations.tr("输入错误"), translations.tr("请粘贴或加载正向和反向序列"))
             return
         rev_rc = self.reverse_complement(rev)
         overlap, merged = self.auto_assemble(fwd, rev_rc)
         if overlap < 10:
-            QMessageBox.warning(self, "拼接警告", "未检测到明显重叠，直接拼接两端")
+            QMessageBox.warning(self, translations.tr("拼接警告"), translations.tr("未检测到明显重叠，直接拼接两端"))
         self.assembly_result.setPlainText(merged)
 
     def reverse_complement(self, seq):
@@ -309,16 +309,60 @@ class SangerTab(QWidget):
     def save_assembly_result(self):
         seq = self.assembly_result.toPlainText().strip()
         if not seq:
-            QMessageBox.warning(self, "无拼接结果", "请先运行拼接")
+            QMessageBox.warning(self, translations.tr("无拼接结果"), translations.tr("请先运行拼接"))
             return
-        file_path, _ = QFileDialog.getSaveFileName(self, "保存拼接序列", "assembled_seq.fasta", "FASTA文件 (*.fasta);;文本文件 (*.txt)")
+        file_path, _ = QFileDialog.getSaveFileName(self, translations.tr("保存拼接序列"), "assembled_seq.fasta", "FASTA文件 (*.fasta);;文本文件 (*.txt)")
         if file_path:
             with open(file_path, 'w') as f:
                 f.write(seq)
-            QMessageBox.information(self, "保存成功", f"已保存到: {file_path}")
+            QMessageBox.information(self, translations.tr("保存成功"), translations.tr("已保存到: {path}").format(path=file_path))
     
     def update_language(self):
         """Update UI elements when language changes"""
-        # This is a complex tab, implement basic translation support
-        # Since it doesn't inherit from BaseTabWidget, we need a custom implementation
-        pass
+        # Update GroupBox titles
+        if hasattr(self, 'quality_group'):
+            self.quality_group.setTitle(translations.tr("质量可视化 (支持.ab1)"))
+        if hasattr(self, 'selection_group'):
+            self.selection_group.setTitle(translations.tr("序列选择与导出"))
+        if hasattr(self, 'assembly_group'):
+            self.assembly_group.setTitle(translations.tr("序列拼接"))
+        
+        # Update button texts
+        if hasattr(self, 'ab1_btn'):
+            self.ab1_btn.setText(translations.tr("加载 .ab1 文件"))
+        if hasattr(self, 'export_img_btn'):
+            self.export_img_btn.setText(translations.tr("导出图片"))
+        if hasattr(self, 'export_seq_btn'):
+            self.export_seq_btn.setText(translations.tr("导出选定序列"))
+        if hasattr(self, 'fwd_load_btn'):
+            self.fwd_load_btn.setText(translations.tr("加载正向序列文件"))
+        if hasattr(self, 'rev_load_btn'):
+            self.rev_load_btn.setText(translations.tr("加载反向序列文件"))
+        if hasattr(self, 'assemble_btn'):
+            self.assemble_btn.setText(translations.tr("运行拼接"))
+        if hasattr(self, 'save_assembly_btn'):
+            self.save_assembly_btn.setText(translations.tr("保存拼接序列到文件"))
+        
+        # Update label texts
+        if hasattr(self, 'select_label'):
+            self.select_label.setText(translations.tr("选择区间: "))
+            
+        # Update placeholder texts
+        if hasattr(self, 'select_start'):
+            self.select_start.setPlaceholderText(translations.tr("起始"))
+        if hasattr(self, 'select_end'):
+            self.select_end.setPlaceholderText(translations.tr("终止"))
+        if hasattr(self, 'fwd_edit'):
+            self.fwd_edit.setPlaceholderText(translations.tr("粘贴正向测序序列"))
+        if hasattr(self, 'rev_edit'):
+            self.rev_edit.setPlaceholderText(translations.tr("粘贴反向测序序列"))
+            
+        # Update all QLabel widgets
+        for widget in self.findChildren(QLabel):
+            text = widget.text()
+            if "正向序列:" in text or "Forward Sequence:" in text:
+                widget.setText(translations.tr("正向序列:"))
+            elif "反向序列:" in text or "Reverse Sequence:" in text:
+                widget.setText(translations.tr("反向序列:"))
+            elif "拼接结果：" in text or "Assembly Result:" in text:
+                widget.setText(translations.tr("拼接结果："))

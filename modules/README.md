@@ -10,7 +10,7 @@ modules/
 ├── fasta_processor.py       # FASTA文件处理模块
 ├── sequence_analyzer.py     # 序列分析模块
 ├── primer3_gui.py          # Primer3引物设计GUI模块
-├── primer_gui.py           # 通用引物设计GUI模块
+# primer_gui.py has been removed (was redundant with primer3_gui.py)
 ├── example_usage.py         # 使用示例
 ├── test_fasta_modules.py    # 测试文件
 └── README.md               # 本说明文档
@@ -199,23 +199,7 @@ primer_window = Primer3MainWindow()
 primer_window.show()
 ```
 
-#### primer_gui.py - 通用引物设计GUI
-另一个引物设计界面实现，提供不同的用户体验。
-
-**主要功能：**
-- 基于primer3核心算法
-- 详细的参数设置
-- 结果可视化
-- 引物对评估
-
-**使用示例：**
-```python
-from modules.primer_gui import MainWindow as PrimerMainWindow
-
-# 创建通用引物设计窗口
-primer_window = PrimerMainWindow()
-primer_window.show()
-```
+*Note: primer_gui.py has been removed as it was redundant with primer3_gui.py*
 
 ## 注意事项
 

@@ -37,10 +37,7 @@ try:
 except ImportError:
     Primer3MainWindow = None
 
-try:
-    from .primer_gui import MainWindow as PrimerMainWindow
-except ImportError:
-    PrimerMainWindow = None
+# Note: primer_gui.py has been removed as it was redundant with primer3_gui.py
 
 __all__ = [
     'FASTAProcessor',
@@ -52,5 +49,4 @@ __all__ = [
     'DownloadFromNCBITab',
     'BatchRenameIDsTab',
     'Primer3MainWindow',
-    'PrimerMainWindow',
 ] 
