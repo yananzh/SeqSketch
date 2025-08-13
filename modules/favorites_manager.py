@@ -138,6 +138,8 @@ class BookmarkManager(QMainWindow):
 
         self._setup_ui()
         self._load_bookmarks()
+        # 检查并更新默认分类名称
+        self._check_and_update_default_categories()
         self._populate_categories()
         if self.category_tree.topLevelItemCount() > 0:
             self.category_tree.setCurrentItem(self.category_tree.topLevelItem(0))
@@ -145,6 +147,14 @@ class BookmarkManager(QMainWindow):
 
     # ============== UI ==============
     def _setup_ui(self):
+        self._setup_menu()
+        self._setup_widgets()
+    
+    def _setup_menu(self):
+        """Setup menu bar with proper translations"""
+        # Clear existing menu bar
+        self.menuBar().clear()
+        
         menu_bar = self.menuBar()
         fav_menu = menu_bar.addMenu(translations.tr("收藏夹"))
 
@@ -177,15 +187,17 @@ class BookmarkManager(QMainWindow):
         export_act.triggered.connect(self.export_bookmarks)
         fav_menu.addAction(export_act)
 
-        export_html_act = QAction("导出为 HTML 书签文件", self)
+        export_html_act = QAction(translations.tr("导出为 HTML 书签文件"), self)
         export_html_act.triggered.connect(self.export_to_html)
         fav_menu.addAction(export_html_act)
 
         fav_menu.addSeparator()
-        exit_act = QAction("退出", self)
+        exit_act = QAction(translations.tr("退出"), self)
         exit_act.triggered.connect(self.close)
         fav_menu.addAction(exit_act)
-
+    
+    def _setup_widgets(self):
+        """Setup main widgets"""
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QVBoxLayout()
@@ -241,7 +253,8 @@ class BookmarkManager(QMainWindow):
             self._load_sample_data()
 
     def _load_sample_data(self):
-        self.bookmarks = {
+        # Store sample data with original keys for language switching
+        self._sample_data = {
             "学习": [
                 {"name": "Python 官网", "url": "https://www.python.org"},
                 {"name": "PyQt6 文档", "url": "https://doc.qt.io/qtforpython-6/"},
@@ -254,7 +267,26 @@ class BookmarkManager(QMainWindow):
                 {"name": "GitHub", "url": "https://github.com"},
             ],
         }
-        self.categories = list(self.bookmarks.keys())
+        self._translate_sample_data()
+    
+    def _translate_sample_data(self):
+        """Translate sample data category names to current language"""
+        if hasattr(self, '_sample_data'):
+            self.bookmarks = {}
+            for original_key, items in self._sample_data.items():
+                translated_key = translations.tr(original_key)
+                self.bookmarks[translated_key] = items
+            self.categories = list(self.bookmarks.keys())
+    
+    def _check_and_update_default_categories(self):
+        """Check and update default category names to current language"""
+        # If using sample data, just translate it
+        if hasattr(self, '_sample_data'):
+            self._translate_sample_data()
+            return
+        
+        # For existing data, check if contains default categories
+        self._update_default_category_names()
 
     def _save_bookmarks(self):
         try:
@@ -491,7 +523,7 @@ class BookmarkManager(QMainWindow):
         del_act.triggered.connect(self.delete_selected_bookmarks)
         menu.addAction(del_act)
 
-        move_menu = QMenu("移动到", self)
+        move_menu = QMenu(translations.tr("移动到"), self)
         for cat in self.categories:
             a = QAction(cat, self)
             a.triggered.connect(
@@ -633,7 +665,7 @@ class BookmarkManager(QMainWindow):
                 QMessageBox.warning(self, translations.tr("导出失败"), translations.tr("导出失败: {error}").format(error=str(e)))
 
     def export_to_html(self):
-        file_path, _ = QFileDialog.getSaveFileName(self, "导出为 HTML 书签文件", "", "HTML 文件 (*.html)")
+        file_path, _ = QFileDialog.getSaveFileName(self, translations.tr("导出为 HTML 书签文件"), "", translations.tr("HTML文件 (*.html)"))
         if not file_path:
             return
         try:
@@ -652,7 +684,7 @@ class BookmarkManager(QMainWindow):
                 )
                 lines.append("    <DL><p>")
                 for bm in items:
-                    name = self._escape_html(bm.get("name", "未命名"))
+                    name = self._escape_html(bm.get("name", translations.tr("未命名")))
                     url = bm.get("url", "#")
                     lines.append(
                         f'        <DT><A HREF="{self._escape_html(url)}" ADD_DATE="{now_ts}">{name}</A>'
@@ -663,9 +695,9 @@ class BookmarkManager(QMainWindow):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
 
-            QMessageBox.information(self, translations.tr("导出成功"), f"书签已导出为 HTML：\n{file_path}")
+            QMessageBox.information(self, translations.tr("导出成功"), translations.tr("书签已导出为 HTML：\n{path}").format(path=file_path))
         except Exception as e:
-            QMessageBox.critical(self, translations.tr("导出失败"), f"错误：{e}")
+            QMessageBox.critical(self, translations.tr("导出失败"), translations.tr("错误：{error}").format(error=str(e)))
 
     def _escape_html(self, text: str) -> str:
         return (
@@ -682,12 +714,67 @@ class BookmarkManager(QMainWindow):
         # Update window title
         self.setWindowTitle(translations.tr("收藏夹管理器"))
         
+        # Update menu bar with new translations
+        self._setup_menu()
+        
         # Update search box placeholder
         if hasattr(self, 'search_box'):
             self.search_box.setPlaceholderText(translations.tr("搜索收藏项（支持名称和 URL，实时过滤）"))
         
-        # Note: Menu items and dialog texts will be updated when they are next opened
+        # Update default category names
+        self._check_and_update_default_categories()
+        self._populate_categories()
+        self._save_bookmarks()
+        
+        # Note: Dialog texts will be updated when they are next opened
         # since they use translations.tr() calls that will return the new language
+    
+    def _update_default_category_names(self):
+        """Update default category names in existing bookmarks"""
+        # Mapping of default categories between languages
+        category_mappings = {
+            # Chinese to English
+            "学习": "Learning",
+            "新闻": "News", 
+            "工具": "Tools",
+            # English to Chinese
+            "Learning": "学习",
+            "News": "新闻",
+            "Tools": "工具"
+        }
+        
+        updated_bookmarks = {}
+        updated_categories = []
+        
+        for cat in self.categories:
+            if cat in category_mappings:
+                # This is a default category, need to find the original key to translate
+                # Find the original Chinese key
+                original_key = None
+                if cat in ["学习", "Learning"]:
+                    original_key = "学习"
+                elif cat in ["新闻", "News"]:
+                    original_key = "新闻" 
+                elif cat in ["工具", "Tools"]:
+                    original_key = "工具"
+                
+                if original_key:
+                    new_cat = translations.tr(original_key)
+                    updated_bookmarks[new_cat] = self.bookmarks[cat]
+                    updated_categories.append(new_cat)
+                else:
+                    # Fallback: keep as-is
+                    updated_bookmarks[cat] = self.bookmarks[cat]
+                    updated_categories.append(cat)
+            else:
+                # This is a user-created category, keep as-is
+                updated_bookmarks[cat] = self.bookmarks[cat]
+                updated_categories.append(cat)
+        
+        # Update if there were changes
+        if updated_bookmarks != self.bookmarks:
+            self.bookmarks = updated_bookmarks
+            self.categories = updated_categories
     
     # ============== 关闭 ==============
     def closeEvent(self, event):

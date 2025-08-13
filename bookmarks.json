@@ -1,5 +1,5 @@
 {
-  "学习": [
+  "Learning": [
     {
       "name": "Python 官网",
       "url": "https://www.python.org"
@@ -9,7 +9,7 @@
       "url": "https://doc.qt.io/qtforpython-6/"
     }
   ],
-  "新闻": [
+  "News": [
     {
       "name": "BBC 新闻",
       "url": "https://www.bbc.com"
@@ -19,7 +19,7 @@
       "url": "https://www.cnn.com"
     }
   ],
-  "工具": [
+  "Tools": [
     {
       "name": "GitHub",
       "url": "https://github.com"

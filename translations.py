@@ -169,10 +169,43 @@ TRANSLATIONS = {
         'ORF_COUNT_PATTERN': 'Found {count} ORFs',
         
         # Statistics labels
-        '总序列数': 'Total Sequences',
-        '总长度': 'Total Length',
-        '最小长度': 'Min Length',
-        '最大长度': 'Max Length',
+        '总序列数': '总序列数',
+        '总长度': '总长度',
+        '最小长度': '最小长度',
+        '最大长度': '最大长度',
+        
+        # Additional favorites manager translations for Chinese
+        '该分类已存在！': '该分类已存在！',
+        '分类名不能为空，操作取消。': '分类名不能为空，操作取消。',
+        '目标分类名已存在，操作取消。': '目标分类名已存在，操作取消。',
+        '名称与 URL 不能为空。': '名称与 URL 不能为空。',
+        '保存错误': '保存错误',
+        '请先选择一个分类。': '请先选择一个分类。',
+        '请先选中分类再右键。': '请先选中分类再右键。',
+        '请先选择要重命名的收藏项。': '请先选择要重命名的收藏项。',
+        '只能一次重命名一个收藏项。': '只能一次重命名一个收藏项。',
+        '无法打开网址：{url}': '无法打开网址：{url}',
+        '确定删除选中的 {count} 个收藏吗？': '确定删除选中的 {count} 个收藏吗？',
+        '保存收藏夹失败：{error}': '保存收藏夹失败：{error}',
+        
+        # Default category translations for Chinese
+        '学习': '学习',
+        '新闻': '新闻',
+        '工具': '工具',
+        
+        # Additional missing translations for Chinese
+        '导出为 HTML 书签文件': '导出为 HTML 书签文件',
+        '退出': '退出',
+        '搜索收藏项（支持名称和 URL，实时过滤）': '搜索收藏项（支持名称和 URL，实时过滤）',
+        '移动到': '移动到',
+        '未命名': '未命名',
+        'HTML文件 (*.html)': 'HTML文件 (*.html)',
+        '书签已导出为 HTML：\n{path}': '书签已导出为 HTML：\n{path}',
+        '错误：{error}': '错误：{error}',
+        '未选择任何收藏项。': '未选择任何收藏项。',
+        '目标分类与当前分类相同。': '目标分类与当前分类相同。',
+        '无法解析拖放数据。': '无法解析拖放数据。',
+        '没有可用的分类，请先创建分类。': '没有可用的分类，请先创建分类。',
     },
     
     'en_US': {
@@ -638,6 +671,21 @@ TRANSLATIONS = {
         '无法打开网址：{url}': 'Cannot open URL: {url}',
         '确定删除选中的 {count} 个收藏吗？': 'Are you sure to delete {count} selected bookmarks?',
         '保存收藏夹失败：{error}': 'Failed to save bookmarks: {error}',
+        
+        # Default category translations for English
+        '学习': 'Learning',
+        '新闻': 'News',
+        '工具': 'Tools',
+        
+        # Additional missing translations
+        '导出为 HTML 书签文件': 'Export as HTML Bookmark File',
+        '退出': 'Exit',
+        '搜索收藏项（支持名称和 URL，实时过滤）': 'Search bookmarks (supports name and URL, real-time filtering)',
+        '移动到': 'Move to',
+        '未命名': 'Untitled',
+        'HTML文件 (*.html)': 'HTML Files (*.html)',
+        '书签已导出为 HTML：\n{path}': 'Bookmarks exported as HTML:\n{path}',
+        '错误：{error}': 'Error: {error}',
         
         # Additional bookmark manager translations
         '未选择任何收藏项。': 'No bookmarks selected.',
