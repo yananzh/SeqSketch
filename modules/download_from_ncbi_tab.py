@@ -82,8 +82,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         db_layout.addWidget(QLabel("数据库:"))
         self.db_combo = QComboBox()
         self.db_combo.addItems([
-            "nucleotide", "protein", "pubmed", "pmc", 
-            "books", "clinvar", "gds", "geoprofiles"
+            "nucleotide", "protein"
         ])
         self.db_combo.setCurrentText("nucleotide")
         db_layout.addWidget(self.db_combo)
@@ -98,7 +97,11 @@ class DownloadFromNCBITab(BaseTabWidget):
         
         # 检索号输入
         acc_layout = QVBoxLayout()
-        acc_layout.addWidget(QLabel("检索号列表（每行一个）:"))
+        acc_layout.setSpacing(1)  # 最小间距
+        acc_layout.setContentsMargins(0, 0, 0, 0)  # 移除布局边距
+        acc_label = QLabel("检索号列表（每行一个）:")
+        acc_label.setContentsMargins(0, 0, 0, 0)  # 移除标签边距
+        acc_layout.addWidget(acc_label)
         self.acc_edit = QPlainTextEdit()
         self.acc_edit.setPlaceholderText("输入检索号，每行一个\n例如:\nNM_001101.5\nNP_001092.1\nAF123456")
         self.acc_edit.setMaximumHeight(120)
