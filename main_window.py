@@ -14,7 +14,7 @@ class MainWindow(QMainWindow):
         self.resize(1100, 700)
         self.setAcceptDrops(True)
         # 设置窗口logo
-        icon_path = os.path.join(os.path.dirname(__file__), "Gemini_Generated_Image_ohhms3ohhms3ohhm1.png")
+        icon_path = os.path.join(os.path.dirname(__file__), "窗口logo.png")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         self._init_ui()

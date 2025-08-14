@@ -8,7 +8,7 @@ import os
 def main():
     app = QApplication(sys.argv)
     # 显示启动界面
-    logo_path = os.path.join(os.path.dirname(__file__), "Gemini_Generated_Image_ohhms3ohhms3ohhm.png")
+    logo_path = os.path.join(os.path.dirname(__file__), "启动界面logo.png")
     splash = None
     if os.path.exists(logo_path):
         pixmap = QPixmap(logo_path)
