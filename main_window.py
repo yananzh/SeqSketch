@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QFileDialog, QMessageBox, QApplication
-from PyQt6.QtCore import Qt, QTranslator, QLocale
+from PyQt6.QtCore import Qt
 from menus import create_menus
 from modules import SequenceStatisticsTab, SimplifyIDsTab, ExtractByIDTab, ExtractByRegexTab, DownloadFromNCBITab, BatchRenameIDsTab
 from PyQt6.QtGui import QIcon, QPixmap
@@ -19,7 +19,6 @@ class MainWindow(QMainWindow):
             self.setWindowIcon(QIcon(icon_path))
         self._init_ui()
         self._load_style()
-        self.translator = None
 
     def _init_ui(self):
         # Tab区域
@@ -50,21 +49,6 @@ class MainWindow(QMainWindow):
 
     def dropEvent(self, event):
         pass
-
-    def switch_language(self, lang):
-        if self.translator:
-            QApplication.instance().removeTranslator(self.translator)
-        self.translator = QTranslator()
-        if lang == 'zh':
-            qm_path = os.path.join(os.path.dirname(__file__), '../resources/translations/zh_CN.qm')
-        else:
-            qm_path = os.path.join(os.path.dirname(__file__), '../resources/translations/en_US.qm')
-        if self.translator.load(qm_path):
-            QApplication.instance().installTranslator(self.translator)
-            self._init_ui()
-
-    def switch_theme(self, dark):
-        self._load_style(dark=dark)
 
     def show_message(self, text, error=False):
         if error:

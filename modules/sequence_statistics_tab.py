@@ -6,7 +6,7 @@ import os
 
 
 class SequenceStatisticsWorker(FASTAWorker):
-    """序列统计分析工作线程"""
+    """序列长度统计工作线程"""
     stats_finished = pyqtSignal(dict)  # 统计数据完成信号
     
     def run(self):
@@ -25,37 +25,33 @@ class SequenceStatisticsWorker(FASTAWorker):
             # 全局统计
             total = len(records)
             lengths = [r.length for r in records]
-            gc_counts = [r.sequence.count('G') + r.sequence.count('C') for r in records]
-            n_counts = [r.sequence.count('N') for r in records]
             total_bases = sum(lengths)
             avg_len = total_bases / total if total else 0
             min_len = min(lengths) if lengths else 0
             max_len = max(lengths) if lengths else 0
-            total_gc = sum(gc_counts)
-            total_n = sum(n_counts)
-            gc_content = (total_gc / total_bases * 100) if total_bases else 0
-            n_content = (total_n / total_bases * 100) if total_bases else 0
             
             global_stats = {
                 'total': total,
+                'total_length': total_bases,
                 'avg_len': avg_len,
                 'min_len': min_len,
-                'max_len': max_len,
-                'gc_content': gc_content,
-                'n_content': n_content
+                'max_len': max_len
             }
             
             self.emit_progress("正在生成详细统计...")
             # 每条序列统计
-            stats_lines = ["Sequence_ID\tLength\tGC_Content(%)\tN_Content(%)"]
+            stats_lines = ["Sequence_ID\tLength\tGC_Content(%)"]
             for record in records:
                 seq_id = record.header.split()[0]
                 L = record.length
-                gc = record.sequence.count('G') + record.sequence.count('C')
-                n = record.sequence.count('N')
-                gc_content = (gc / L * 100) if L else 0
-                n_content = (n / L * 100) if L else 0
-                stats_lines.append(f"{seq_id}\t{L}\t{gc_content:.2f}\t{n_content:.2f}")
+                # 只计算DNA序列的GC含量
+                sequence_upper = record.sequence.upper()
+                if all(base in 'ATCGN' for base in sequence_upper):
+                    gc = sequence_upper.count('G') + sequence_upper.count('C')
+                    gc_content = (gc / L * 100) if L else 0
+                    stats_lines.append(f"{seq_id}\t{L}\t{gc_content:.2f}")
+                else:
+                    stats_lines.append(f"{seq_id}\t{L}\tN/A")
             
             self.emit_progress("正在保存结果...")
             with open(self.output_path, 'w', encoding='utf-8') as f:
@@ -63,16 +59,16 @@ class SequenceStatisticsWorker(FASTAWorker):
             
             # 发送全局统计数据和完成消息
             self.stats_finished.emit(global_stats)
-            self.emit_finished(f"统计完成，结果已保存到: {self.output_path}")
+            self.emit_finished(f"长度统计完成，结果已保存到: {self.output_path}")
         except Exception as e:
-            self.emit_error(f"统计过程中发生错误: {e}")
+            self.emit_error(f"长度统计过程中发生错误: {e}")
 
 
 class SequenceStatisticsTab(BaseTabWidget):
-    """序列统计分析Tab"""
+    """序列长度统计Tab"""
     
     def __init__(self):
-        super().__init__("序列统计分析", "file")
+        super().__init__("序列长度统计", "file")
         self.init_ui()
         self.connect_signals()
     
@@ -98,11 +94,10 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.stat_labels = {}
         stats = [
             ("总序列数", 'total'),
+            ("总长度", 'total_length'),
             ("平均长度", 'avg_len'),
             ("最小长度", 'min_len'),
-            ("最大长度", 'max_len'),
-            ("GC含量(%)", 'gc_content'),
-            ("N含量(%)", 'n_content')
+            ("最大长度", 'max_len')
         ]
         for i, (label, key) in enumerate(stats):
             row, col = i // 2, (i % 2) * 2
@@ -140,7 +135,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         if file_path:
             self.input_edit.setText(file_path)
             base = os.path.splitext(os.path.basename(file_path))[0]
-            self.output_edit.setText(os.path.join(os.path.dirname(file_path), base + "_statistics.txt"))
+            self.output_edit.setText(os.path.join(os.path.dirname(file_path), base + "_length_statistics.txt"))
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -167,11 +162,10 @@ class SequenceStatisticsTab(BaseTabWidget):
     def update_statistics(self, stats: dict):
         """更新统计信息显示"""
         self.stat_labels['total'].setText(str(stats.get('total', 0)))
+        self.stat_labels['total_length'].setText(str(stats.get('total_length', 0)))
         self.stat_labels['avg_len'].setText(f"{stats.get('avg_len', 0):.1f}")
         self.stat_labels['min_len'].setText(str(stats.get('min_len', 0)))
         self.stat_labels['max_len'].setText(str(stats.get('max_len', 0)))
-        self.stat_labels['gc_content'].setText(f"{stats.get('gc_content', 0):.2f}")
-        self.stat_labels['n_content'].setText(f"{stats.get('n_content', 0):.2f}")
     
     def show_help(self):
         """显示帮助信息"""
@@ -179,15 +173,14 @@ class SequenceStatisticsTab(BaseTabWidget):
         from PyQt6.QtCore import Qt
         
         help_text = """
-<h3>序列统计分析工具</h3>
+<h3>序列长度统计工具</h3>
 <p><b>功能说明：</b></p>
-<p>对FASTA文件中的序列进行全面的统计分析，生成详细的统计报告。</p>
+<p>对FASTA文件中的序列进行长度统计分析，生成简洁的统计报告。</p>
 
 <p><b>主要功能：</b></p>
 <ul>
-<li><b>全局统计：</b>计算总序列数、平均长度、最小/最大长度</li>
-<li><b>碱基组成：</b>计算GC含量和N含量的百分比</li>
-<li><b>详细报告：</b>为每条序列生成长度、GC含量、N含量统计</li>
+<li><b>全局统计：</b>计算总序列数、总长度、平均长度、最小/最大长度</li>
+<li><b>详细报告：</b>为每条序列生成ID、长度、GC含量(仅DNA序列)统计</li>
 </ul>
 
 <p><b>使用方法：</b></p>
@@ -199,12 +192,12 @@ class SequenceStatisticsTab(BaseTabWidget):
 </ol>
 
 <p><b>输出格式：</b></p>
-<p>生成TSV格式的统计文件，包含每条序列的ID、长度、GC含量(%)、N含量(%)。</p>
+<p>生成TSV格式的统计文件，包含每条序列的ID、长度、GC含量(%)（仅适用于DNA序列，其他序列显示N/A）。</p>
         """
         
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("帮助 - 序列统计分析")
+        dialog.setWindowTitle("帮助 - 序列长度统计")
         dialog.setFixedSize(750, 450)
         
         layout = QVBoxLayout()
