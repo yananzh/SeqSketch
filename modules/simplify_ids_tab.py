@@ -5,61 +5,61 @@ import os
 
 
 class SimplifyIDsWorker(FASTAWorker):
-    """简化序列ID的工作线程"""
+    """Worker to simplify sequence IDs"""
     
     def run(self):
         if not self.validate_files():
             return
         
         try:
-            self.emit_progress("正在加载FASTA文件...")
+            self.emit_progress("Loading FASTA file...")
             processor = self.load_fasta_processor()
             if not processor:
                 return
             
-            self.emit_progress("正在简化序列ID...")
+            self.emit_progress("Simplifying sequence IDs...")
             for record in processor.records:
                 record.header = record.header.split()[0]
                 record.description = ""
             
-            self.emit_progress("正在保存结果...")
+            self.emit_progress("Saving results...")
             if not processor.save_file(self.output_path):
-                self.emit_error("保存文件失败")
+                self.emit_error("Failed to save file")
                 return
             
-            self.emit_finished(f"简化完成，结果已保存到: {self.output_path}")
+            self.emit_finished(f"Simplification complete. Saved to: {self.output_path}")
         except Exception as e:
-            self.emit_error(f"处理过程中发生错误: {e}")
+            self.emit_error(f"Error during processing: {e}")
 
 class SimplifyIDsTab(BaseTabWidget):
-    """简化序列ID功能Tab"""
+    """Simplify sequence IDs Tab"""
     
     def __init__(self):
-        super().__init__("简化序列ID", "file")
+        super().__init__("Simplify IDs", "file")
         self.init_ui()
         self.connect_signals()
     
     def init_ui(self):
         # 输入文件选择
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("输入FASTA文件:"))
+        input_layout.addWidget(QLabel("Input FASTA file:"))
         self.input_edit = QLineEdit()
-        self.input_btn = QPushButton("选择文件")
+        self.input_btn = QPushButton("Browse")
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
         
         # 输出文件选择
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("输出文件:"))
+        output_layout.addWidget(QLabel("Output file:"))
         self.output_edit = QLineEdit()
-        self.output_btn = QPushButton("选择位置")
+        self.output_btn = QPushButton("Save As")
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.run_btn = QPushButton("开始简化")
-        self.clear_btn = QPushButton("清空")
+        self.run_btn = QPushButton("Start")
+        self.clear_btn = QPushButton("Clear")
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.addStretch()
@@ -77,7 +77,7 @@ class SimplifyIDsTab(BaseTabWidget):
     
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择FASTA文件", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+            self, "Select FASTA file", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
         )
         if file_path:
             self.input_edit.setText(file_path)
@@ -86,7 +86,7 @@ class SimplifyIDsTab(BaseTabWidget):
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "保存简化后的文件", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+            self, "Save simplified file", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
         )
         if file_path:
             self.output_edit.setText(file_path)
@@ -95,7 +95,7 @@ class SimplifyIDsTab(BaseTabWidget):
         self.input_edit.clear()
         self.output_edit.clear()
         self.log_area.clear()
-        self.show_status("已清空")
+        self.show_status("Cleared")
     
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
@@ -126,42 +126,42 @@ class SimplifyIDsTab(BaseTabWidget):
         self.start_worker(worker)
     
     def show_help(self):
-        """显示帮助信息"""
+        """Show help information"""
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
         from PyQt6.QtCore import Qt
         
         help_text = """
-<h3>序列ID简化工具</h3>
-<p><b>功能说明：</b></p>
-<p>简化FASTA文件中复杂的序列ID，只保留第一个词作为序列标识符。</p>
+<h3>Simplify Sequence IDs</h3>
+<p><b>Description:</b></p>
+<p>Simplify complex FASTA IDs by keeping only the first token as the identifier.</p>
 
-<p><b>处理效果：</b></p>
+<p><b>Effect:</b></p>
 <ul>
-<li><b>原始ID：</b>gi|123456|ref|NM_001101.5| hypothetical protein [Homo sapiens]</li>
-<li><b>简化后：</b>gi|123456|ref|NM_001101.5|</li>
+<li><b>Original:</b> gi|123456|ref|NM_001101.5| hypothetical protein [Homo sapiens]</li>
+<li><b>Simplified:</b> gi|123456|ref|NM_001101.5|</li>
 </ul>
 
-<p><b>使用方法：</b></p>
+<p><b>Usage:</b></p>
 <ol>
-<li>选择要处理的FASTA文件</li>
-<li>指定输出文件的保存位置</li>
-<li>点击"开始简化"按钮</li>
+<li>Select a FASTA file</li>
+<li>Choose an output location</li>
+<li>Click "Start"</li>
 </ol>
 
-<p><b>应用场景：</b></p>
+<p><b>Use cases:</b></p>
 <ul>
-<li>清理从数据库下载的复杂序列ID</li>
-<li>为后续分析准备简洁的序列标识符</li>
-<li>减少文件大小，提高处理效率</li>
+<li>Clean complex IDs from downloaded datasets</li>
+<li>Prepare concise identifiers for downstream analysis</li>
+<li>Reduce file size and improve processing efficiency</li>
 </ul>
 
-<p><b>注意事项：</b></p>
-<p>简化过程会移除序列描述信息，请确保简化后的ID仍能唯一标识序列。</p>
+<p><b>Notes:</b></p>
+<p>Description lines are removed; ensure simplified IDs still uniquely identify sequences.</p>
         """
         
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("帮助 - 序列ID简化")
+        dialog.setWindowTitle("Help - Simplify IDs")
         dialog.setFixedSize(780, 470)
         
         layout = QVBoxLayout()
@@ -182,8 +182,8 @@ class SimplifyIDsTab(BaseTabWidget):
         scroll_area.setWidget(label)
         layout.addWidget(scroll_area)
         
-        # 添加确定按钮
-        ok_button = QPushButton("确定")
+        # Add OK button
+        ok_button = QPushButton("OK")
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
         

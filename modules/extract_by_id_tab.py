@@ -6,7 +6,7 @@ import os
 
 
 class ExtractByIDWorker(FASTAWorker):
-    """根据ID提取序列的工作线程"""
+    """Worker to extract sequences by ID"""
     
     def __init__(self, input_path, id_list, output_path):
         super().__init__(input_path, output_path)
@@ -17,18 +17,18 @@ class ExtractByIDWorker(FASTAWorker):
             return
         
         try:
-            self.emit_progress("正在加载FASTA文件...")
+            self.emit_progress("Loading FASTA file...")
             processor = self.load_fasta_processor()
             if not processor:
                 return
             
-            self.emit_progress("正在处理ID列表...")
+            self.emit_progress("Processing ID list...")
             id_set = set(i.strip() for i in self.id_list if i.strip())
             if not id_set:
-                self.emit_error("ID列表为空")
+                self.emit_error("ID list is empty")
                 return
             
-            self.emit_progress("正在匹配序列...")
+            self.emit_progress("Matching sequences...")
             matched = []
             for record in processor.records:
                 simple_id = record.header.split()[0]
@@ -36,24 +36,24 @@ class ExtractByIDWorker(FASTAWorker):
                     matched.append(record)
             
             if not matched:
-                self.emit_error("未找到任何匹配的ID")
+                self.emit_error("No matching IDs found")
                 return
             
-            self.emit_progress("正在保存结果...")
+            self.emit_progress("Saving results...")
             if not processor.save_file(self.output_path, matched):
-                self.emit_error("保存文件失败")
+                self.emit_error("Failed to save file")
                 return
             
-            self.emit_finished(f"提取完成，找到{len(matched)}条序列，结果已保存到: {self.output_path}")
+            self.emit_finished(f"Extraction complete. Found {len(matched)} sequences. Saved to: {self.output_path}")
         except Exception as e:
-            self.emit_error(f"提取过程中发生错误: {e}")
+            self.emit_error(f"Error during extraction: {e}")
 
 
 class ExtractByIDTab(BaseTabWidget):
-    """根据ID提取序列功能Tab"""
+    """Extract by ID Tab"""
     
     def __init__(self):
-        super().__init__("根据ID提取序列", "file")
+        super().__init__("Extract by ID", "file")
         self.init_ui()
         self.connect_signals()
     
@@ -63,32 +63,32 @@ class ExtractByIDTab(BaseTabWidget):
         
         # 输入文件选择
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("输入FASTA文件:"))
+        input_layout.addWidget(QLabel("Input FASTA file:"))
         self.input_edit = QLineEdit()
-        self.input_btn = QPushButton("选择文件")
+        self.input_btn = QPushButton("Browse")
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
         
         # ID列表输入区标签
-        id_label = QLabel("要提取的序列ID列表（每行一个）:")
+        id_label = QLabel("Sequence IDs to extract (one per line):")
         
         # ID输入框
         self.id_edit = QPlainTextEdit()
-        self.id_edit.setPlaceholderText("输入序列ID，每行一个\n例如:\nseq1\nseq2\nseq3")
+        self.id_edit.setPlaceholderText("Enter sequence IDs, one per line\nExamples:\nseq1\nseq2\nseq3")
         self.id_edit.setFixedHeight(120)  # 增大高度以便输入更多ID
         
         # 输出文件选择
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("输出文件:"))
+        output_layout.addWidget(QLabel("Output file:"))
         self.output_edit = QLineEdit()
-        self.output_btn = QPushButton("选择位置")
+        self.output_btn = QPushButton("Save As")
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.run_btn = QPushButton("开始提取")
-        self.clear_btn = QPushButton("清空")
+        self.run_btn = QPushButton("Start")
+        self.clear_btn = QPushButton("Clear")
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.addStretch()
@@ -111,7 +111,7 @@ class ExtractByIDTab(BaseTabWidget):
     
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择FASTA文件", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+            self, "Select FASTA file", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
         )
         if file_path:
             self.input_edit.setText(file_path)
@@ -120,7 +120,7 @@ class ExtractByIDTab(BaseTabWidget):
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "保存提取的序列", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+            self, "Save extracted sequences", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
         )
         if file_path:
             self.output_edit.setText(file_path)
@@ -130,7 +130,7 @@ class ExtractByIDTab(BaseTabWidget):
         self.output_edit.clear()
         self.id_edit.clear()
         self.log_area.clear()
-        self.show_status("已清空")
+        self.show_status("Cleared")
     
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
@@ -159,13 +159,13 @@ class ExtractByIDTab(BaseTabWidget):
             return
         
         if not id_text:
-            self.log_message("请输入要提取的序列ID", "ERROR")
+            self.log_message("Please enter sequence IDs to extract", "ERROR")
             return
         
         # 处理ID列表
         id_list = [line.strip() for line in id_text.split('\n') if line.strip()]
         if not id_list:
-            self.log_message("ID列表为空", "ERROR")
+            self.log_message("ID list is empty", "ERROR")
             return
         
         # 启动工作线程
@@ -173,53 +173,52 @@ class ExtractByIDTab(BaseTabWidget):
         self.start_worker(worker)
     
     def show_help(self):
-        """显示帮助信息"""
+        """Show help information"""
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
         from PyQt6.QtCore import Qt
         
         help_text = """
-<h3>按ID提取序列工具</h3>
-<p><b>功能说明：</b></p>
-<p>根据提供的序列ID列表，从FASTA文件中提取对应的序列。</p>
+<h3>Extract Sequences by ID</h3>
+<p><b>Description:</b></p>
+<p>Extract sequences from a FASTA file using a provided list of IDs.</p>
 
-<p><b>使用方法：</b></p>
+<p><b>Usage:</b></p>
 <ol>
-<li>选择源FASTA文件</li>
-<li>指定提取结果的保存位置</li>
-<li>在文本框中输入要提取的序列ID（每行一个）</li>
-<li>点击"开始提取"按钮</li>
+<li>Select the source FASTA file</li>
+<li>Choose where to save the results</li>
+<li>Enter the sequence IDs (one per line)</li>
+<li>Click "Start"</li>
 </ol>
 
-<p><b>ID输入格式：</b></p>
-<p>每行输入一个完整的序列ID，例如：</p>
+<p><b>ID input examples:</b></p>
 <pre>
 sequence_001
 NM_001101.5
 gi|123456|ref|XM_001234.1|
 </pre>
 
-<p><b>匹配规则：</b></p>
+<p><b>Matching rules:</b></p>
 <ul>
-<li>采用精确匹配模式</li>
-<li>序列ID必须完全匹配（不区分大小写）</li>
-<li>自动忽略空行和空白字符</li>
+<li>Exact match</li>
+<li>Case-insensitive</li>
+<li>Empty lines and whitespace ignored</li>
 </ul>
 
-<p><b>应用场景：</b></p>
+<p><b>Use cases:</b></p>
 <ul>
-<li>从大型数据库中提取特定基因序列</li>
-<li>根据分析结果筛选目标序列</li>
-<li>批量提取感兴趣的序列子集</li>
+<li>Extract specific genes from large databases</li>
+<li>Select target sequences based on analysis</li>
+<li>Batch extraction of sequence subsets</li>
 </ul>
 
-<p><b>输出结果：</b></p>
-<p>包含所有匹配序列的新FASTA文件，保持原有的序列格式和描述信息。</p>
-<p>提取过程会显示找到的序列数量和处理进度。</p>
+<p><b>Output:</b></p>
+<p>A new FASTA file containing all matched sequences, preserving original formatting.</p>
+<p>Shows the number of sequences found and progress.</p>
         """
         
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("帮助 - 按ID提取序列")
+        dialog.setWindowTitle("Help - Extract by ID")
         dialog.setFixedSize(760, 500)
         
         layout = QVBoxLayout()
@@ -240,8 +239,8 @@ gi|123456|ref|XM_001234.1|
         scroll_area.setWidget(label)
         layout.addWidget(scroll_area)
         
-        # 添加确定按钮
-        ok_button = QPushButton("确定")
+        # Add OK button
+        ok_button = QPushButton("OK")
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
         

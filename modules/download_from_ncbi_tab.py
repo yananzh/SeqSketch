@@ -7,7 +7,7 @@ import os
 
 
 class DownloadFromNCBIWorker(BaseWorker):
-    """从NCBI下载序列的工作线程"""
+    """Worker for downloading sequences from NCBI"""
     
     def __init__(self, db, acc_list, output_path, email):
         super().__init__()
@@ -18,68 +18,68 @@ class DownloadFromNCBIWorker(BaseWorker):
     
     def run(self):
         try:
-            self.emit_progress("正在验证输入...")
+            self.emit_progress("Validating input...")
             if not self.acc_list:
-                self.emit_error("检索号列表为空")
+                self.emit_error("Accession list is empty")
                 return
             
             if not self.email:
-                self.emit_error("请提供邮箱地址（NCBI要求）")
+                self.emit_error("Please provide an email (NCBI requirement)")
                 return
             
-            self.emit_progress("正在连接NCBI...")
+            self.emit_progress("Connecting to NCBI...")
             try:
                 from Bio import Entrez
             except ImportError:
-                self.emit_error("需要安装Biopython库来下载NCBI数据")
+                self.emit_error("Biopython is required to download NCBI data")
                 return
             
             Entrez.email = self.email
             ids = ','.join(self.acc_list)
             
-            self.emit_progress(f"正在下载{len(self.acc_list)}个序列...")
+            self.emit_progress(f"Downloading {len(self.acc_list)} sequences...")
             try:
                 with Entrez.efetch(db=self.db, id=ids, rettype='fasta', retmode='text') as handle:
                     fasta_data = handle.read()
             except URLError as e:
-                self.emit_error(f"网络连接错误: {e}")
+                self.emit_error(f"Network error: {e}")
                 return
             except Exception as e:
-                self.emit_error(f"NCBI下载错误: {e}")
+                self.emit_error(f"NCBI download error: {e}")
                 return
             
             if not fasta_data.strip() or 'Error' in fasta_data or 'not found' in fasta_data:
-                self.emit_error("NCBI返回错误或未找到序列，请检查数据库类型和检索号是否正确")
+                self.emit_error("NCBI returned error or no sequences found. Check DB type and accessions.")
                 return
             
-            self.emit_progress("正在保存文件...")
+            self.emit_progress("Saving file...")
             try:
-                # 确保输出目录存在
+                # Ensure output directory exists
                 os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
                 with open(self.output_path, 'w', encoding='utf-8') as f:
                     f.write(fasta_data)
             except Exception as e:
-                self.emit_error(f"文件保存失败: {e}")
+                self.emit_error(f"File save failed: {e}")
                 return
             
             seq_count = fasta_data.count('>')
-            self.emit_finished(f"下载完成，共{seq_count}条序列，已保存到: {self.output_path}")
+            self.emit_finished(f"Download complete. {seq_count} sequences saved to: {self.output_path}")
         except Exception as e:
-            self.emit_error(f"下载过程中发生错误: {e}")
+            self.emit_error(f"Error during download: {e}")
 
 
 class DownloadFromNCBITab(BaseTabWidget):
-    """从NCBI下载序列功能Tab"""
+    """NCBI download Tab"""
     
     def __init__(self):
-        super().__init__("从NCBI下载序列", "file")
+        super().__init__("Download from NCBI", "file")
         self.init_ui()
         self.connect_signals()
     
     def init_ui(self):
-        # 数据库选择
+        # Database selection
         db_layout = QHBoxLayout()
-        db_layout.addWidget(QLabel("数据库:"))
+        db_layout.addWidget(QLabel("Database:"))
         self.db_combo = QComboBox()
         self.db_combo.addItems([
             "nucleotide", "protein"
@@ -88,37 +88,37 @@ class DownloadFromNCBITab(BaseTabWidget):
         db_layout.addWidget(self.db_combo)
         db_layout.addStretch()
         
-        # 邮箱输入
+        # Email input
         email_layout = QHBoxLayout()
-        email_layout.addWidget(QLabel("邮箱地址:"))
+        email_layout.addWidget(QLabel("Email:"))
         self.email_edit = QLineEdit()
-        self.email_edit.setPlaceholderText("NCBI要求提供邮箱地址")
+        self.email_edit.setPlaceholderText("NCBI requires an email address")
         email_layout.addWidget(self.email_edit)
         
-        # 检索号输入
+        # Accession input
         acc_layout = QVBoxLayout()
-        acc_layout.setSpacing(1)  # 最小间距
-        acc_layout.setContentsMargins(0, 0, 0, 0)  # 移除布局边距
-        acc_label = QLabel("检索号列表（每行一个）:")
-        acc_label.setContentsMargins(0, 0, 0, 0)  # 移除标签边距
+        acc_layout.setSpacing(1)
+        acc_layout.setContentsMargins(0, 0, 0, 0)
+        acc_label = QLabel("Accession list (one per line):")
+        acc_label.setContentsMargins(0, 0, 0, 0)
         acc_layout.addWidget(acc_label)
         self.acc_edit = QPlainTextEdit()
-        self.acc_edit.setPlaceholderText("输入检索号，每行一个\n例如:\nNM_001101.5\nNP_001092.1\nAF123456")
+        self.acc_edit.setPlaceholderText("Enter accession numbers, one per line\nExamples:\nNM_001101.5\nNP_001092.1\nAF123456")
         self.acc_edit.setMaximumHeight(120)
         acc_layout.addWidget(self.acc_edit)
         
-        # 输出文件选择
+        # Output file selection
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("输出文件:"))
+        output_layout.addWidget(QLabel("Output file:"))
         self.output_edit = QLineEdit()
-        self.output_btn = QPushButton("选择位置")
+        self.output_btn = QPushButton("Save As")
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
-        # 控制按钮
+        # Control buttons
         control_layout = QHBoxLayout()
-        self.run_btn = QPushButton("开始下载")
-        self.clear_btn = QPushButton("清空")
+        self.run_btn = QPushButton("Download")
+        self.clear_btn = QPushButton("Clear")
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.addStretch()
@@ -137,7 +137,7 @@ class DownloadFromNCBITab(BaseTabWidget):
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "保存下载的序列", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+            self, "Save downloaded sequences", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
         )
         if file_path:
             self.output_edit.setText(file_path)
@@ -148,7 +148,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.output_edit.clear()
         self.log_area.clear()
         self.db_combo.setCurrentText("nucleotide")
-        self.show_status("已清空")
+        self.show_status("Cleared")
     
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
@@ -191,31 +191,31 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.start_worker(worker)
     
     def show_help(self):
-        """显示帮助信息"""
+        """Show help information"""
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
         from PyQt6.QtCore import Qt
         
         help_text = """
-<h3>NCBI序列下载工具</h3>
-<p><b>功能说明：</b></p>
-<p>根据检索号（Accession Number）从NCBI数据库批量下载序列数据。</p>
+<h3>NCBI Sequence Downloader</h3>
+<p><b>Description:</b></p>
+<p>Batch download sequences from NCBI by accession numbers.</p>
 
-<p><b>使用方法：</b></p>
+<p><b>Usage:</b></p>
 <ol>
-<li>选择目标数据库（nucleotide或protein）</li>
-<li>输入有效的邮箱地址（NCBI访问要求）</li>
-<li>输入检索号列表（每行一个）</li>
-<li>指定下载文件的保存位置</li>
-<li>点击"开始下载"按钮</li>
+<li>Select target database (nucleotide or protein)</li>
+<li>Enter a valid email (required by NCBI)</li>
+<li>Enter accession list (one per line)</li>
+<li>Choose output file location</li>
+<li>Click "Download"</li>
 </ol>
 
-<p><b>支持的数据库：</b></p>
+<p><b>Databases:</b></p>
 <ul>
-<li><b>nucleotide：</b>核酸序列数据库（DNA/RNA）</li>
-<li><b>protein：</b>蛋白质序列数据库</li>
+<li><b>nucleotide:</b> DNA/RNA sequence database</li>
+<li><b>protein:</b> Protein sequence database</li>
 </ul>
 
-<p><b>检索号格式示例：</b></p>
+<p><b>Accession examples:</b></p>
 <pre>
 NM_001101.5
 XM_123456.1
@@ -224,35 +224,35 @@ U12345
 AAA12345
 </pre>
 
-<p><b>邮箱要求：</b></p>
-<p>NCBI要求在API访问时提供有效邮箱地址，用于：</p>
+<p><b>Email requirement:</b></p>
+<p>NCBI requires a valid email for:</p>
 <ul>
-<li>追踪API使用情况</li>
-<li>在过度使用时发送通知</li>
-<li>技术问题联系</li>
+<li>Tracking API usage</li>
+<li>Notification on excessive usage</li>
+<li>Technical contact</li>
 </ul>
 
-<p><b>应用场景：</b></p>
+<p><b>Use cases:</b></p>
 <ul>
-<li>批量下载已知检索号的序列</li>
-<li>获取最新版本的参考序列</li>
-<li>构建本地序列数据集</li>
+<li>Batch download sequences by known accessions</li>
+<li>Get the latest reference sequences</li>
+<li>Build local sequence datasets</li>
 </ul>
 
-<p><b>注意事项：</b></p>
+<p><b>Notes:</b></p>
 <ul>
-<li>请遵守NCBI的使用政策，避免过频请求</li>
-<li>网络连接质量会影响下载速度</li>
-<li>无效的检索号会被跳过并记录</li>
+<li>Follow NCBI usage policies and avoid excessive requests</li>
+<li>Network quality affects speed</li>
+<li>Invalid accessions will be skipped and logged</li>
 </ul>
 
-<p><b>输出格式：</b></p>
-<p>下载的序列以标准FASTA格式保存，包含完整的序列信息和描述。</p>
+<p><b>Output:</b></p>
+<p>Sequences are saved in standard FASTA format with full headers.</p>
         """
         
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("帮助 - NCBI序列下载")
+        dialog.setWindowTitle("Help - NCBI Downloader")
         dialog.setFixedSize(800, 530)
         
         layout = QVBoxLayout()
@@ -273,8 +273,8 @@ AAA12345
         scroll_area.setWidget(label)
         layout.addWidget(scroll_area)
         
-        # 添加确定按钮
-        ok_button = QPushButton("确定")
+        # Add OK button
+        ok_button = QPushButton("OK")
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
         

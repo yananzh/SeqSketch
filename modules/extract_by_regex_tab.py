@@ -7,7 +7,7 @@ import re
 
 
 class ExtractByRegexWorker(FASTAWorker):
-    """根据正则表达式提取序列的工作线程"""
+    """Worker to extract sequences by regex"""
     
     def __init__(self, input_path, regex, output_path):
         super().__init__(input_path, output_path)
@@ -18,19 +18,19 @@ class ExtractByRegexWorker(FASTAWorker):
             return
         
         try:
-            self.emit_progress("正在加载FASTA文件...")
+            self.emit_progress("Loading FASTA file...")
             processor = self.load_fasta_processor()
             if not processor:
                 return
             
-            self.emit_progress("正在验证正则表达式...")
+            self.emit_progress("Validating regular expression...")
             try:
                 pattern = re.compile(self.regex)
             except Exception as e:
-                self.emit_error(f"正则表达式无效: {e}")
+                self.emit_error(f"Invalid regular expression: {e}")
                 return
             
-            self.emit_progress("正在匹配序列...")
+            self.emit_progress("Matching sequences...")
             matched = []
             for record in processor.records:
                 # 用完整ID行（不含>）匹配
@@ -38,55 +38,55 @@ class ExtractByRegexWorker(FASTAWorker):
                     matched.append(record)
             
             if not matched:
-                self.emit_error("未匹配到任何序列")
+                self.emit_error("No sequences matched")
                 return
             
-            self.emit_progress("正在保存结果...")
+            self.emit_progress("Saving results...")
             if not processor.save_file(self.output_path, matched):
-                self.emit_error("保存文件失败")
+                self.emit_error("Failed to save file")
                 return
             
-            self.emit_finished(f"提取完成，找到{len(matched)}条序列，结果已保存到: {self.output_path}")
+            self.emit_finished(f"Extraction complete. Found {len(matched)} sequences. Saved to: {self.output_path}")
         except Exception as e:
-            self.emit_error(f"提取过程中发生错误: {e}")
+            self.emit_error(f"Error during extraction: {e}")
 
 
 class ExtractByRegexTab(BaseTabWidget):
-    """根据正则表达式提取序列功能Tab"""
+    """Extract by Regex Tab"""
     
     def __init__(self):
-        super().__init__("根据正则表达式提取序列", "file")
+        super().__init__("Extract by Regex", "file")
         self.init_ui()
         self.connect_signals()
     
     def init_ui(self):
         # 输入文件选择
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("输入FASTA文件:"))
+        input_layout.addWidget(QLabel("Input FASTA file:"))
         self.input_edit = QLineEdit()
-        self.input_btn = QPushButton("选择文件")
+        self.input_btn = QPushButton("Browse")
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
         
         # 正则表达式输入
         regex_layout = QHBoxLayout()
-        regex_layout.addWidget(QLabel("正则表达式:"))
+        regex_layout.addWidget(QLabel("Regular Expression:"))
         self.regex_edit = QLineEdit()
-        self.regex_edit.setPlaceholderText("例如: gene.*protein, ^chr[0-9]+, .*hypothetical.*")
+        self.regex_edit.setPlaceholderText("Examples: gene.*protein, ^chr[0-9]+, .*hypothetical.*")
         regex_layout.addWidget(self.regex_edit)
         
         # 输出文件选择
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("输出文件:"))
+        output_layout.addWidget(QLabel("Output file:"))
         self.output_edit = QLineEdit()
-        self.output_btn = QPushButton("选择位置")
+        self.output_btn = QPushButton("Save As")
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.run_btn = QPushButton("开始提取")
-        self.clear_btn = QPushButton("清空")
+        self.run_btn = QPushButton("Start")
+        self.clear_btn = QPushButton("Clear")
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.addStretch()
@@ -105,7 +105,7 @@ class ExtractByRegexTab(BaseTabWidget):
     
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择FASTA文件", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+            self, "Select FASTA file", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
         )
         if file_path:
             self.input_edit.setText(file_path)
@@ -114,7 +114,7 @@ class ExtractByRegexTab(BaseTabWidget):
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "保存提取的序列", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+            self, "Save extracted sequences", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
         )
         if file_path:
             self.output_edit.setText(file_path)
@@ -124,7 +124,7 @@ class ExtractByRegexTab(BaseTabWidget):
         self.output_edit.clear()
         self.regex_edit.clear()
         self.log_area.clear()
-        self.show_status("已清空")
+        self.show_status("Cleared")
     
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
@@ -153,7 +153,7 @@ class ExtractByRegexTab(BaseTabWidget):
             return
         
         if not regex:
-            self.log_message("请输入正则表达式", "ERROR")
+            self.log_message("Please enter a regular expression", "ERROR")
             return
         
         # 启动工作线程
@@ -161,58 +161,58 @@ class ExtractByRegexTab(BaseTabWidget):
         self.start_worker(worker)
     
     def show_help(self):
-        """显示帮助信息"""
+        """Show help information"""
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
         from PyQt6.QtCore import Qt
         
         help_text = """
-<h3>正则表达式提取序列工具</h3>
-<p><b>功能说明：</b></p>
-<p>使用正则表达式模式匹配序列ID，从FASTA文件中提取符合条件的序列。</p>
+<h3>Extract by Regular Expression</h3>
+<p><b>Description:</b></p>
+<p>Use a regex to match sequence IDs and extract matching sequences from a FASTA file.</p>
 
-<p><b>使用方法：</b></p>
+<p><b>Usage:</b></p>
 <ol>
-<li>选择源FASTA文件</li>
-<li>指定提取结果的保存位置</li>
-<li>输入正则表达式模式</li>
-<li>点击"开始提取"按钮</li>
+<li>Select the source FASTA file</li>
+<li>Choose an output location</li>
+<li>Enter a regular expression pattern</li>
+<li>Click "Start"</li>
 </ol>
 
-<p><b>正则表达式示例：</b></p>
+<p><b>Regex examples:</b></p>
 <ul>
-<li><code>^NM_.*</code> - 匹配以"NM_"开头的序列ID</li>
-<li><code>.*gene.*</code> - 匹配包含"gene"的序列ID</li>
-<li><code>seq_\\d+</code> - 匹配"seq_"后跟数字的序列ID</li>
-<li><code>(protein|enzyme)</code> - 匹配包含"protein"或"enzyme"的序列ID</li>
-<li><code>^[A-Z]{2}_\\d{6}$</code> - 匹配格式为"XX_123456"的序列ID</li>
+<li><code>^NM_.*</code> - IDs starting with "NM_"</li>
+<li><code>.*gene.*</code> - IDs containing "gene"</li>
+<li><code>seq_\\d+</code> - IDs like "seq_" followed by digits</li>
+<li><code>(protein|enzyme)</code> - IDs containing "protein" or "enzyme"</li>
+<li><code>^[A-Z]{2}_\\d{6}$</code> - IDs in format "XX_123456"</li>
 </ul>
 
-<p><b>常用正则符号：</b></p>
+<p><b>Common regex tokens:</b></p>
 <ul>
-<li><code>^</code> - 字符串开始</li>
-<li><code>$</code> - 字符串结束</li>
-<li><code>.*</code> - 匹配任意字符（贪婪模式）</li>
-<li><code>\\d</code> - 匹配数字</li>
-<li><code>\\w</code> - 匹配字母、数字、下划线</li>
-<li><code>[A-Z]</code> - 匹配大写字母</li>
-<li><code>+</code> - 匹配前面字符一次或多次</li>
-<li><code>|</code> - 或运算符</li>
+<li><code>^</code> - start of string</li>
+<li><code>$</code> - end of string</li>
+<li><code>.*</code> - any characters (greedy)</li>
+<li><code>\\d</code> - digits</li>
+<li><code>\\w</code> - word characters</li>
+<li><code>[A-Z]</code> - uppercase letters</li>
+<li><code>+</code> - one or more</li>
+<li><code>|</code> - alternation</li>
 </ul>
 
-<p><b>应用场景：</b></p>
+<p><b>Use cases:</b></p>
 <ul>
-<li>按基因命名规律提取特定类型序列</li>
-<li>筛选符合特定格式的序列ID</li>
-<li>灵活的模式匹配和序列分组</li>
+<li>Extract sequences by naming conventions</li>
+<li>Filter IDs matching specific formats</li>
+<li>Flexible pattern matching and grouping</li>
 </ul>
 
-<p><b>注意事项：</b></p>
-<p>正则表达式区分大小写，请确保模式表达式的正确性。</p>
+<p><b>Notes:</b></p>
+<p>Regex is case-sensitive by default; ensure correctness of your pattern.</p>
         """
         
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("帮助 - 正则表达式提取序列")
+        dialog.setWindowTitle("Help - Extract by Regex")
         dialog.setFixedSize(820, 550)
         
         layout = QVBoxLayout()
@@ -233,8 +233,8 @@ class ExtractByRegexTab(BaseTabWidget):
         scroll_area.setWidget(label)
         layout.addWidget(scroll_area)
         
-        # 添加确定按钮
-        ok_button = QPushButton("确定")
+        # Add OK button
+        ok_button = QPushButton("OK")
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
         

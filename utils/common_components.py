@@ -1,6 +1,6 @@
 """
-通用工作线程基类和常用组件
-减少代码重复，提供统一的错误处理和信号机制
+Common worker base classes and components
+Reduce duplication and provide unified error handling and signals
 """
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
@@ -15,108 +15,106 @@ class BaseWorker(QObject):
     通用工作线程基类
     所有后台任务继承此类，减少重复代码
     """
-    finished = pyqtSignal(str)  # 完成信号，传递结果消息
-    error = pyqtSignal(str)     # 错误信号，传递错误消息
-    progress = pyqtSignal(str)  # 进度信号，传递进度信息
+    finished = pyqtSignal(str)
+    error = pyqtSignal(str)
+    progress = pyqtSignal(str)
     
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(self.__class__.__name__)
     
     def emit_progress(self, message: str):
-        """发送进度信息"""
+        """Emit progress message"""
         self.progress.emit(message)
-        self.logger.info(f"进度: {message}")
+        self.logger.info(f"Progress: {message}")
     
     def emit_error(self, error_msg: str, exception: Optional[Exception] = None):
-        """发送错误信息"""
+        """Emit error message"""
         if exception:
-            self.logger.exception(f"错误: {error_msg}")
+            self.logger.exception(f"Error: {error_msg}")
         else:
             self.logger.error(error_msg)
         self.error.emit(error_msg)
     
     def emit_finished(self, result_msg: str):
-        """发送完成信息"""
-        self.logger.info(f"任务完成: {result_msg}")
+        """Emit finished message"""
+        self.logger.info(f"Task finished: {result_msg}")
         self.finished.emit(result_msg)
     
     def run(self):
-        """子类必须重写此方法"""
-        raise NotImplementedError("子类必须实现run方法")
+        """Must be implemented by subclass"""
+        raise NotImplementedError("Subclass must implement run()")
 
 
 class DataWorker(BaseWorker):
     """
-    数据处理工作线程基类
-    用于返回处理结果数据的任务
+    Data worker base class for tasks returning processed data
     """
-    data_finished = pyqtSignal(dict)  # 完成信号，传递数据结果
+    data_finished = pyqtSignal(dict)
     
-    def emit_data_finished(self, data: Dict[str, Any], message: str = "处理完成"):
-        """发送数据完成信号"""
-        self.logger.info(f"数据任务完成: {message}")
+    def emit_data_finished(self, data: Dict[str, Any], message: str = "Completed"):
+        """Emit data finished signal"""
+        self.logger.info(f"Data task completed: {message}")
         self.data_finished.emit(data)
         self.finished.emit(message)
 
 
 class BaseTabWidget(QWidget):
     """
-    通用Tab基类
-    提供统一的UI模式和错误处理
+    Common Tab base class providing unified UI patterns and error handling
     """
     
-    def __init__(self, title: str = "分析工具", tab_type: str = "file"):
+    def __init__(self, title: str = "Analysis Tools", tab_type: str = "file"):
         super().__init__()
         self.title = title
-        self.tab_type = tab_type  # "file" 或 "sequence"
+        self.tab_type = tab_type
         self.worker_thread: Optional[QThread] = None
         self.logger = logging.getLogger(self.__class__.__name__)
         self.init_common_ui()
         self.connect_common_signals()
     
     def init_common_ui(self):
-        """初始化通用UI组件"""
+        """Initialize common UI components"""
         self.main_layout = QVBoxLayout(self)
         
-        # 为子类预留内容区域
+        # Content area for subclasses
         self.content_area = QVBoxLayout()
         self.main_layout.addLayout(self.content_area)
         
         if self.tab_type == "sequence":
-            # 为序列处理Tab创建输入输出区域
+            # Create input/output areas for sequence tabs
             self.init_sequence_ui()
         
-        # 状态区域
+        # Status area
         self.status_layout = QHBoxLayout()
-        self.status_label = QLabel("就绪")
-        self.status_layout.addWidget(QLabel("状态:"))
+        self.status_label = QLabel("Ready")
+        self.status_layout.addWidget(QLabel("Status:"))
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
         
-        # 帮助按钮（所有模式都有）
-        self.help_btn = QPushButton("帮助")
+        # Help button (for all modes)
+        self.help_btn = QPushButton("Help")
         self.help_btn.clicked.connect(self.show_help)
         self.status_layout.addWidget(self.help_btn)
         
-        # 日志区域（仅文件处理模式显示）
+        # Log area (file mode only)
         if self.tab_type == "file":
             self.log_area = QTextEdit()
             self.log_area.setMaximumHeight(100)
             self.log_area.setReadOnly(True)
-            self.log_area.setPlaceholderText("操作日志将显示在此处...")
+            self.log_area.setPlaceholderText("Operation logs will appear here...")
             self.main_layout.addWidget(self.log_area)
         
         # 添加状态到布局
         self.main_layout.addLayout(self.status_layout)
     
     def init_sequence_ui(self):
-        """初始化序列处理UI"""
-        # 输入区域
-        self.input_label = QLabel("输入序列或上传文件：")
+        """Initialize sequence processing UI"""
+        # Input area
+        self.input_label = QLabel("Input sequence or upload file:")
         self.input_text = QTextEdit()
-        self.input_text.setPlaceholderText("粘贴DNA/RNA序列，或点击下方按钮上传文件...")
-        self.upload_btn = QPushButton("上传文件")
+        self.input_text.setPlaceholderText("Paste DNA/RNA sequence, or upload a file...")
+        self.upload_btn = QPushButton("Upload File")
         self.upload_btn.clicked.connect(self.open_file)
         self.input_hint = QLabel("")
         self.input_hint.setStyleSheet("color: #888;")
@@ -127,12 +125,12 @@ class BaseTabWidget(QWidget):
         input_layout.addWidget(self.upload_btn)
         input_layout.addWidget(self.input_hint)
 
-        # 输出区域
-        self.output_label = QLabel("输出结果：")
+        # Output area
+        self.output_label = QLabel("Output:")
         self.output_text = QTextEdit()
         self.output_text.setReadOnly(True)
-        self.export_btn = QPushButton("导出结果")
-        self.copy_btn = QPushButton("复制到剪贴板")
+        self.export_btn = QPushButton("Export Result")
+        self.copy_btn = QPushButton("Copy to Clipboard")
         self.export_btn.clicked.connect(self.export_result)
         self.copy_btn.clicked.connect(self.copy_result)
 
@@ -145,10 +143,10 @@ class BaseTabWidget(QWidget):
         output_layout.addWidget(self.output_text)
         output_layout.addLayout(output_btn_layout)
 
-        # 控制按钮
-        self.run_btn = QPushButton("运行")
-        self.clear_btn = QPushButton("清空")
-        self.help_btn = QPushButton("帮助")
+        # Control buttons
+        self.run_btn = QPushButton("Run")
+        self.clear_btn = QPushButton("Clear")
+        self.help_btn = QPushButton("Help")
         self.run_btn.clicked.connect(self.run)
         self.clear_btn.clicked.connect(self.clear)
         self.help_btn.clicked.connect(self.show_help)
@@ -165,48 +163,48 @@ class BaseTabWidget(QWidget):
         self.add_content_layout(ctrl_btn_layout)
     
     def open_file(self):
-        """打开文件（序列处理模式）"""
+        """Open file (sequence mode)"""
         from PyQt6.QtWidgets import QFileDialog, QMessageBox
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择序列文件", "", 
-            "FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;所有文件 (*)"
+            self, "Select sequence file", "", 
+            "FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)"
         )
         if file_path:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 self.input_text.setPlainText(content)
-                self.input_hint.setText(f"已加载文件: {file_path}")
+                self.input_hint.setText(f"Loaded file: {file_path}")
             except Exception as e:
-                QMessageBox.warning(self, "文件读取错误", str(e))
+                QMessageBox.warning(self, "File Read Error", str(e))
 
     def export_result(self):
-        """导出结果（序列处理模式）"""
+        """Export result (sequence mode)"""
         from PyQt6.QtWidgets import QFileDialog, QMessageBox
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "导出结果", "result.txt", 
-            "文本文件 (*.txt);;FASTA文件 (*.fasta);;CSV文件 (*.csv)"
+            self, "Export Result", "result.txt", 
+            "Text Files (*.txt);;FASTA Files (*.fasta);;CSV Files (*.csv)"
         )
         if file_path:
             try:
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(self.output_text.toPlainText())
-                self.status_label.setText(f"结果已导出: {file_path}")
+                self.status_label.setText(f"Exported: {file_path}")
             except Exception as e:
-                QMessageBox.warning(self, "导出错误", str(e))
+                QMessageBox.warning(self, "Export Error", str(e))
 
     def copy_result(self):
-        """复制结果到剪贴板（序列处理模式）"""
+        """Copy result to clipboard (sequence mode)"""
         self.output_text.selectAll()
         self.output_text.copy()
-        self.status_label.setText("结果已复制到剪贴板")
+        self.status_label.setText("Copied to clipboard")
     
     def run(self):
         """由子类实现的主要运行方法"""
         pass
         
     def clear(self):
-        """清空内容"""
+        """Clear content"""
         if hasattr(self, 'input_text'):
             self.input_text.clear()
         if hasattr(self, 'output_text'):
@@ -215,39 +213,39 @@ class BaseTabWidget(QWidget):
             self.input_hint.clear()
         if hasattr(self, 'log_area'):
             self.log_area.clear()
-        self.show_status("已清空")
+        self.show_status("Cleared")
         
     def show_help(self):
-        """由子类实现的帮助方法"""
+        """Help method implemented by subclass"""
         pass
     
     def add_content_layout(self, layout):
-        """子类可以使用此方法添加内容布局"""
+        """Add content layout"""
         self.content_area.addLayout(layout)
     
     def add_content_widget(self, widget):
-        """子类可以使用此方法添加内容控件"""
+        """Add content widget"""
         self.content_area.addWidget(widget)
     
     def connect_common_signals(self):
-        """连接通用信号 - 子类可重写"""
+        """Connect common signals (optional override)"""
         pass
     
     def show_status(self, message: str):
-        """显示状态信息"""
+        """Show status message"""
         self.status_label.setText(message)
         self.logger.info(message)
     
     def log_message(self, message: str, level: str = "INFO"):
-        """添加日志消息（仅文件处理模式）"""
+        """Append log message (file mode only)"""
         if not hasattr(self, 'log_area'):
             return
             
         prefix = {
-            "INFO": "[信息]",
-            "ERROR": "[错误]",
-            "WARNING": "[警告]"
-        }.get(level, "[信息]")
+            "INFO": "[Info]",
+            "ERROR": "[Error]",
+            "WARNING": "[Warning]"
+        }.get(level, "[Info]")
         
         self.log_area.append(f"{prefix} {message}")
         

@@ -10,7 +10,7 @@ from modules import RNATab, ComplementTab, ReverseComplementTab, TranslateTab, O
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(self.tr("BioSeq Analyzer 生物序列分析器"))
+        self.setWindowTitle(self.tr("BioSeq Analyzer"))
         self.resize(1100, 700)
         self.setAcceptDrops(True)
         # 设置窗口logo
@@ -39,7 +39,7 @@ class MainWindow(QMainWindow):
                 qss = f.read()
             self.setStyleSheet(qss)
         except Exception as e:
-            print("QSS加载失败:", e)
+            print("QSS load failed:", e)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -52,7 +52,7 @@ class MainWindow(QMainWindow):
 
     def show_message(self, text, error=False):
         if error:
-            QMessageBox.critical(self, self.tr("错误"), text)
+            QMessageBox.critical(self, self.tr("Error"), text)
         else:
             self.status.showMessage(text, 5000)
 
@@ -62,7 +62,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = SequenceStatisticsTab()
-        self.tabs.addTab(tab, self.tr("序列统计"))
+        self.tabs.addTab(tab, self.tr("Sequence Statistics"))
         self.tabs.setCurrentWidget(tab)
 
     def open_simplify_ids_tab(self):
@@ -71,7 +71,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = SimplifyIDsTab()
-        self.tabs.addTab(tab, self.tr("ID 简化"))
+        self.tabs.addTab(tab, self.tr("Simplify IDs"))
         self.tabs.setCurrentWidget(tab)
 
     def open_extract_by_id_tab(self):
@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = ExtractByIDTab()
-        self.tabs.addTab(tab, self.tr("序列提取 (按ID)"))
+        self.tabs.addTab(tab, self.tr("Extract by ID"))
         self.tabs.setCurrentWidget(tab)
 
     def open_extract_by_regex_tab(self):
@@ -89,7 +89,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = ExtractByRegexTab()
-        self.tabs.addTab(tab, self.tr("序列提取 (正则表达式)"))
+        self.tabs.addTab(tab, self.tr("Extract by Regex"))
         self.tabs.setCurrentWidget(tab)
 
     def open_download_from_ncbi_tab(self):
@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = DownloadFromNCBITab()
-        self.tabs.addTab(tab, self.tr("从NCBI下载序列"))
+        self.tabs.addTab(tab, self.tr("Download from NCBI"))
         self.tabs.setCurrentWidget(tab)
 
     def open_batch_rename_ids_tab(self):
@@ -107,28 +107,28 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = BatchRenameIDsTab()
-        self.tabs.addTab(tab, self.tr("批量重命名ID"))
+        self.tabs.addTab(tab, self.tr("Batch Rename IDs"))
         self.tabs.setCurrentWidget(tab)
 
     # DNA序列分析六大功能Tab
     def open_rna_tab(self):
         tab = RNATab()
-        self.tabs.addTab(tab, "转成RNA")
+        self.tabs.addTab(tab, "Convert to RNA")
         self.tabs.setCurrentWidget(tab)
 
     def open_complement_tab(self):
         tab = ComplementTab()
-        self.tabs.addTab(tab, "互补序列")
+        self.tabs.addTab(tab, "Complement")
         self.tabs.setCurrentWidget(tab)
 
     def open_reverse_complement_tab(self):
         tab = ReverseComplementTab()
-        self.tabs.addTab(tab, "反向互补序列")
+        self.tabs.addTab(tab, "Reverse Complement")
         self.tabs.setCurrentWidget(tab)
 
     def open_translate_tab(self):
         tab = TranslateTab()
-        self.tabs.addTab(tab, "翻译序列")
+        self.tabs.addTab(tab, "Translate")
         self.tabs.setCurrentWidget(tab)
 
     def open_orf_tab(self):
@@ -138,7 +138,7 @@ class MainWindow(QMainWindow):
 
     def open_sanger_tab(self):
         tab = SangerTab()
-        self.tabs.addTab(tab, "桑格测序数据处理")
+        self.tabs.addTab(tab, "Sanger Sequencing")
         self.tabs.setCurrentWidget(tab)
 
     def close_tab(self, index):
@@ -193,43 +193,43 @@ class MainWindow(QMainWindow):
             return ''
         def on_result(xml_path):
             tab = BlastResultTab(xml_path)
-            self.tabs.addTab(tab, f"BLAST结果")
+            self.tabs.addTab(tab, f"BLAST Result")
             self.tabs.setCurrentWidget(tab)
         dlg = BlastRunDialog(self, get_query_seq=get_query_seq, status_callback=self.status.showMessage, result_callback=on_result)
         dlg.exec()
 
     def check_for_updates(self):
-        """检查更新功能"""
+        """Check for updates"""
         QMessageBox.information(
             self, 
-            self.tr("检查更新"), 
-            self.tr("当前版本: v1.0.0\n\n暂无可用更新。\n\n您可以访问项目主页获取最新信息：\nhttps://github.com/yananzh/BioSeq-Analyzer")
+            self.tr("Check for Updates"), 
+            self.tr("Current version: v1.0.0\n\nNo updates available.\n\nVisit the project page for the latest info:\nhttps://github.com/yananzh/BioSeq-Analyzer")
         )
 
     def show_about_dialog(self):
-        """显示关于对话框"""
+        """Show About dialog"""
         about_text = self.tr("""
-<h2>BioSeq Analyzer 生物序列分析器</h2>
-<p><b>版本:</b> v1.0.0</p>
-<p><b>开发者:</b> yananzh</p>
-<p><b>描述:</b> 一个功能强大的生物序列分析工具，提供FASTA处理、DNA/RNA分析、蛋白质分析、序列比对、BLAST分析、引物设计等功能。</p>
+<h2>BioSeq Analyzer</h2>
+<p><b>Version:</b> v1.0.0</p>
+<p><b>Developer:</b> yananzh</p>
+<p><b>Description:</b> A powerful toolkit for sequence analysis: FASTA processing, DNA/RNA tools, protein analysis, alignment, BLAST, primer design, and more.</p>
 
-<p><b>主要功能:</b></p>
+<p><b>Main Features:</b></p>
 <ul>
-<li>FASTA工具：序列统计、ID简化、序列提取、NCBI下载等</li>
-<li>DNA序列分析：RNA转换、互补序列、翻译、ORF查找等</li>
-<li>蛋白质序列分析：氨基酸组成、物化性质、结构预测等</li>
-<li>序列比对：双序列比对、多序列比对、序列标识图</li>
-<li>BLAST分析：NCBI在线BLAST、本地BLAST</li>
-<li>引物设计：PCR引物设计助手</li>
-<li>进化树构建与可视化</li>
+<li>FASTA Tools: statistics, ID simplification, extraction, NCBI download</li>
+<li>DNA Analysis: RNA conversion, complement, translation, ORF finder</li>
+<li>Protein Analysis: amino acid composition, physicochemical properties, structure prediction</li>
+<li>Alignment: pairwise, multiple, sequence logo</li>
+<li>BLAST: NCBI online BLAST, local BLAST</li>
+<li>Primer Design: PCR primer assistant</li>
+<li>Phylogenetics: build and visualize trees</li>
 </ul>
 
-<p><b>技术栈:</b> Python 3, PyQt6</p>
-<p><b>许可证:</b> MIT License</p>
-<p><b>项目主页:</b> <a href="https://github.com/yananzh/BioSeq-Analyzer">https://github.com/yananzh/BioSeq-Analyzer</a></p>
+<p><b>Tech Stack:</b> Python 3, PyQt6</p>
+<p><b>License:</b> MIT License</p>
+<p><b>Project Page:</b> <a href="https://github.com/yananzh/BioSeq-Analyzer">https://github.com/yananzh/BioSeq-Analyzer</a></p>
 
-<p>感谢您使用 BioSeq Analyzer！</p>
+<p>Thanks for using BioSeq Analyzer!</p>
         """)
         
-        QMessageBox.about(self, self.tr("关于 BioSeq Analyzer"), about_text)
+        QMessageBox.about(self, self.tr("About BioSeq Analyzer"), about_text)

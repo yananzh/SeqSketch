@@ -6,7 +6,7 @@ import os
 
 
 class SequenceStatisticsWorker(FASTAWorker):
-    """序列长度统计工作线程"""
+    """Sequence length statistics worker"""
     stats_finished = pyqtSignal(dict)  # 统计数据完成信号
     
     def run(self):
@@ -14,12 +14,12 @@ class SequenceStatisticsWorker(FASTAWorker):
             return
         
         try:
-            self.emit_progress("正在加载FASTA文件...")
+            self.emit_progress("Loading FASTA file...")
             processor = self.load_fasta_processor()
             if not processor:
                 return
             
-            self.emit_progress("正在计算统计信息...")
+            self.emit_progress("Computing statistics...")
             records = processor.records
             
             # 全局统计
@@ -38,7 +38,7 @@ class SequenceStatisticsWorker(FASTAWorker):
                 'max_len': max_len
             }
             
-            self.emit_progress("正在生成详细统计...")
+            self.emit_progress("Generating detailed statistics...")
             # 每条序列统计
             stats_lines = ["Sequence_ID\tLength\tGC_Content(%)"]
             for record in records:
@@ -53,39 +53,39 @@ class SequenceStatisticsWorker(FASTAWorker):
                 else:
                     stats_lines.append(f"{seq_id}\t{L}\tN/A")
             
-            self.emit_progress("正在保存结果...")
+            self.emit_progress("Saving results...")
             with open(self.output_path, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(stats_lines))
             
             # 发送全局统计数据和完成消息
             self.stats_finished.emit(global_stats)
-            self.emit_finished(f"长度统计完成，结果已保存到: {self.output_path}")
+            self.emit_finished(f"Length statistics complete. Saved to: {self.output_path}")
         except Exception as e:
-            self.emit_error(f"长度统计过程中发生错误: {e}")
+            self.emit_error(f"Error during length statistics: {e}")
 
 
 class SequenceStatisticsTab(BaseTabWidget):
-    """序列长度统计Tab"""
+    """Sequence length statistics Tab"""
     
     def __init__(self):
-        super().__init__("序列长度统计", "file")
+        super().__init__("Sequence Statistics", "file")
         self.init_ui()
         self.connect_signals()
     
     def init_ui(self):
         # 输入文件选择
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("输入FASTA文件:"))
+        input_layout.addWidget(QLabel("Input FASTA file:"))
         self.input_edit = QLineEdit()
-        self.input_btn = QPushButton("选择文件")
+        self.input_btn = QPushButton("Browse")
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
         
         # 输出文件选择
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("输出统计文件:"))
+        output_layout.addWidget(QLabel("Output stats file:"))
         self.output_edit = QLineEdit()
-        self.output_btn = QPushButton("选择位置")
+        self.output_btn = QPushButton("Save As")
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
@@ -93,11 +93,11 @@ class SequenceStatisticsTab(BaseTabWidget):
         stats_layout = QGridLayout()
         self.stat_labels = {}
         stats = [
-            ("总序列数", 'total'),
-            ("总长度", 'total_length'),
-            ("平均长度", 'avg_len'),
-            ("最小长度", 'min_len'),
-            ("最大长度", 'max_len')
+            ("Total Sequences", 'total'),
+            ("Total Length", 'total_length'),
+            ("Average Length", 'avg_len'),
+            ("Min Length", 'min_len'),
+            ("Max Length", 'max_len')
         ]
         for i, (label, key) in enumerate(stats):
             row, col = i // 2, (i % 2) * 2
@@ -110,8 +110,8 @@ class SequenceStatisticsTab(BaseTabWidget):
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.run_btn = QPushButton("开始统计")
-        self.clear_btn = QPushButton("清空")
+        self.run_btn = QPushButton("Start")
+        self.clear_btn = QPushButton("Clear")
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.addStretch()
@@ -130,7 +130,7 @@ class SequenceStatisticsTab(BaseTabWidget):
     
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择FASTA文件", "", "FASTA文件 (*.fasta *.fa *.fas);;所有文件 (*)"
+            self, "Select FASTA file", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
         )
         if file_path:
             self.input_edit.setText(file_path)
@@ -139,7 +139,7 @@ class SequenceStatisticsTab(BaseTabWidget):
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "保存统计结果", "", "文本文件 (*.txt);;所有文件 (*)"
+            self, "Save statistics", "", "Text Files (*.txt);;All Files (*)"
         )
         if file_path:
             self.output_edit.setText(file_path)
@@ -150,7 +150,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.log_area.clear()
         for label in self.stat_labels.values():
             label.setText("--")
-        self.show_status("已清空")
+        self.show_status("Cleared")
     
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
@@ -168,36 +168,36 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.stat_labels['max_len'].setText(str(stats.get('max_len', 0)))
     
     def show_help(self):
-        """显示帮助信息"""
+        """Show help information"""
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
         from PyQt6.QtCore import Qt
         
         help_text = """
-<h3>序列长度统计工具</h3>
-<p><b>功能说明：</b></p>
-<p>对FASTA文件中的序列进行长度统计分析，生成简洁的统计报告。</p>
+<h3>Sequence Length Statistics</h3>
+<p><b>Description:</b></p>
+<p>Compute length statistics for sequences in a FASTA file and generate a concise report.</p>
 
-<p><b>主要功能：</b></p>
+<p><b>Features:</b></p>
 <ul>
-<li><b>全局统计：</b>计算总序列数、总长度、平均长度、最小/最大长度</li>
-<li><b>详细报告：</b>为每条序列生成ID、长度、GC含量(仅DNA序列)统计</li>
+<li><b>Global stats:</b> total sequences, total length, average, min/max length</li>
+<li><b>Detailed report:</b> ID, length, GC content (DNA only) per sequence</li>
 </ul>
 
-<p><b>使用方法：</b></p>
+<p><b>Usage:</b></p>
 <ol>
-<li>选择输入的FASTA文件（支持.fasta/.fa/.fas格式）</li>
-<li>指定输出统计文件的保存位置</li>
-<li>点击"开始统计"按钮</li>
-<li>查看实时统计结果和详细日志</li>
+<li>Select a FASTA file (.fasta/.fa/.fas)</li>
+<li>Choose where to save the stats file</li>
+<li>Click "Start"</li>
+<li>View real-time stats and logs</li>
 </ol>
 
-<p><b>输出格式：</b></p>
-<p>生成TSV格式的统计文件，包含每条序列的ID、长度、GC含量(%)（仅适用于DNA序列，其他序列显示N/A）。</p>
+<p><b>Output:</b></p>
+<p>Generates a TSV file containing ID, length, GC content (%) for DNA sequences (others show N/A).</p>
         """
         
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("帮助 - 序列长度统计")
+        dialog.setWindowTitle("Help - Sequence Statistics")
         dialog.setFixedSize(750, 450)
         
         layout = QVBoxLayout()
@@ -218,8 +218,8 @@ class SequenceStatisticsTab(BaseTabWidget):
         scroll_area.setWidget(label)
         layout.addWidget(scroll_area)
         
-        # 添加确定按钮
-        ok_button = QPushButton("确定")
+        # Add OK button
+        ok_button = QPushButton("OK")
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
         

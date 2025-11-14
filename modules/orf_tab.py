@@ -28,18 +28,18 @@ class ORFTab(BaseTabWidget):
         self.min_len_box.setRange(30, 10000)
         self.min_len_box.setValue(100)
         self.chain_box = QComboBox()
-        self.chain_box.addItems(["正链", "反链", "正+反链"])
+        self.chain_box.addItems(["Forward", "Reverse", "Forward + Reverse"])
         self.add_content_widget(self.min_len_box)
         self.add_content_widget(self.chain_box)
 
     def run(self):
         seq = self.input_text.toPlainText().strip().replace("\n", "").replace(" ", "")
         if not seq:
-            self.status_label.setText("请输入DNA序列！")
+            self.status_label.setText("Please enter a DNA sequence.")
             return
         seq = seq.upper().replace('U', 'T')
         if not re.fullmatch(r'[ACGTN]+', seq):
-            self.status_label.setText("输入序列包含无效字符，仅允许A/T/G/C/N！")
+            self.status_label.setText("Invalid characters. Only A/T/G/C/N allowed.")
             return
         min_len = self.min_len_box.value()
         chain_mode = self.chain_box.currentIndex()
@@ -51,14 +51,14 @@ class ORFTab(BaseTabWidget):
             results += self.find_orfs(revcomp, '-')
         results = [orf for orf in results if orf['length'] >= min_len]
         if not results:
-            self.output_text.setPlainText("未找到满足条件的ORF。")
-            self.status_label.setText("无ORF")
+            self.output_text.setPlainText("No ORFs meet the criteria.")
+            self.status_label.setText("No ORF")
             return
         out = []
         for orf in results:
-            out.append(f"读框: {orf['frame']} | 位置: {orf['start']+1}-{orf['end']} | 长度: {orf['length']} nt\n序列: {orf['seq']}\n翻译: {orf['aa']}\n")
+            out.append(f"Frame: {orf['frame']} | Position: {orf['start']+1}-{orf['end']} | Length: {orf['length']} nt\nSequence: {orf['seq']}\nTranslation: {orf['aa']}\n")
         self.output_text.setPlainText('\n'.join(out))
-        self.status_label.setText(f"共找到{len(results)}个ORF")
+        self.status_label.setText(f"Found {len(results)} ORFs")
 
     def find_orfs(self, seq, strand):
         orfs = []
@@ -101,4 +101,4 @@ class ORFTab(BaseTabWidget):
         return seq.translate(comp_map)[::-1]
 
     def show_help(self):
-        QMessageBox.information(self, "ORF Finder 帮助", "查找所有可能的开放阅读框，支持最小ORF长度阈值，显示ORF的位置、长度、读框和翻译结果，支持正向和反向链。") 
+        QMessageBox.information(self, "Help - ORF Finder", "Find open reading frames with a minimum length threshold. Shows position, length, frame and translation; supports forward and reverse strands.") 
