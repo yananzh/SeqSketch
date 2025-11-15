@@ -81,7 +81,7 @@ class BlastMakeDbDialog(QDialog):
         bin_dir = get_blast_bin_dir()
         if not bin_dir or not os.path.isdir(bin_dir):
             while True:
-        ret = QMessageBox.question(self, "First Use", "Please specify BLAST+ bin directory (contains makeblastdb, etc.)", QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+                ret = QMessageBox.question(self, "First Use", "Please specify BLAST+ bin directory (contains makeblastdb, etc.)", QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
                 if ret == QMessageBox.StandardButton.Cancel:
                     self.reject()
                     return

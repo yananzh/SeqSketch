@@ -1,54 +1,49 @@
-from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-                           QFileDialog)
-from PyQt6.QtCore import Qt
-from utils.common_components import FASTAWorker, BaseTabWidget
+from PyQt6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QPushButton, 
+                           QFileDialog, QSizePolicy)
+from PyQt6.QtCore import pyqtSignal
+from utils.common_components import BaseTabWidget
 import os
 import re
 
 
-class ExtractByRegexWorker(FASTAWorker):
-    """Worker to extract sequences by regex"""
-    
-    def __init__(self, input_path, regex, output_path):
-        super().__init__(input_path, output_path)
-        self.regex = regex
-    
-    def run(self):
-        if not self.validate_files():
-            return
-        
+# Drag-and-drop enabled QLineEdit
+class FileDropLineEdit(QLineEdit):
+    file_dropped = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event):
+        md = event.mimeData()
+        if md.hasUrls():
+            urls = md.urls()
+            if urls:
+                local = urls[0].toLocalFile()
+                if self._is_valid_fasta(local):
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
+
+    def dropEvent(self, event):
+        urls = event.mimeData().urls()
+        if urls:
+            local = urls[0].toLocalFile()
+            if self._is_valid_fasta(local):
+                self.setText(local)
+                self.file_dropped.emit(local)
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+    @staticmethod
+    def _is_valid_fasta(path: str) -> bool:
+        allowed = {'.fasta', '.fa', '.fas', '.fna', '.ffn', '.faa', '.frn', '.txt'}
         try:
-            self.emit_progress("Loading FASTA file...")
-            processor = self.load_fasta_processor()
-            if not processor:
-                return
-            
-            self.emit_progress("Validating regular expression...")
-            try:
-                pattern = re.compile(self.regex)
-            except Exception as e:
-                self.emit_error(f"Invalid regular expression: {e}")
-                return
-            
-            self.emit_progress("Matching sequences...")
-            matched = []
-            for record in processor.records:
-                # 用完整ID行（不含>）匹配
-                if pattern.search(record.header):
-                    matched.append(record)
-            
-            if not matched:
-                self.emit_error("No sequences matched")
-                return
-            
-            self.emit_progress("Saving results...")
-            if not processor.save_file(self.output_path, matched):
-                self.emit_error("Failed to save file")
-                return
-            
-            self.emit_finished(f"Extraction complete. Found {len(matched)} sequences. Saved to: {self.output_path}")
-        except Exception as e:
-            self.emit_error(f"Error during extraction: {e}")
+            ext = os.path.splitext(path)[1].lower()
+            return os.path.isfile(path) and ext in allowed
+        except Exception:
+            return False
 
 
 class ExtractByRegexTab(BaseTabWidget):
@@ -60,38 +55,52 @@ class ExtractByRegexTab(BaseTabWidget):
         self.connect_signals()
     
     def init_ui(self):
-        # 输入文件选择
+        # Input FASTA file (drag-and-drop)
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("Input FASTA file:"))
-        self.input_edit = QLineEdit()
+        self.input_edit = FileDropLineEdit()
+        self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
+        self.input_edit.setMinimumWidth(320)
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
+        self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
+        input_layout.setSpacing(8)
         
-        # 正则表达式输入
+        # Regex input
         regex_layout = QHBoxLayout()
         regex_layout.addWidget(QLabel("Regular Expression:"))
         self.regex_edit = QLineEdit()
         self.regex_edit.setPlaceholderText("Examples: gene.*protein, ^chr[0-9]+, .*hypothetical.*")
+        self.regex_edit.setMinimumWidth(220)
+        self.regex_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         regex_layout.addWidget(self.regex_edit)
+        regex_layout.setSpacing(8)
         
-        # 输出文件选择
+        # Output file
         output_layout = QHBoxLayout()
         output_layout.addWidget(QLabel("Output file:"))
         self.output_edit = QLineEdit()
+        self.output_edit.setPlaceholderText("Choose where to save the results...")
+        self.output_edit.setMinimumWidth(320)
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
+        self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
+        output_layout.setSpacing(8)
         
-        # 控制按钮
+        # Control buttons
         control_layout = QHBoxLayout()
         self.run_btn = QPushButton("Start")
         self.clear_btn = QPushButton("Clear")
+        control_layout.addStretch(1)
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
-        control_layout.addStretch()
+        control_layout.setSpacing(10)
         
-        # 添加到内容区域
+        # Add to main content area
         self.add_content_layout(input_layout)
         self.add_content_layout(regex_layout)
         self.add_content_layout(output_layout)
@@ -102,15 +111,15 @@ class ExtractByRegexTab(BaseTabWidget):
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_extract)
         self.clear_btn.clicked.connect(self.clear_all)
+        if hasattr(self.input_edit, 'file_dropped'):
+            self.input_edit.file_dropped.connect(self.handle_input_file_selected)
     
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select FASTA file", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
+            self, "Select FASTA file", "", "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)"
         )
         if file_path:
-            self.input_edit.setText(file_path)
-            base = os.path.splitext(os.path.basename(file_path))[0]
-            self.output_edit.setText(os.path.join(os.path.dirname(file_path), base + "_regex_extracted.fasta"))
+            self.handle_input_file_selected(file_path)
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -118,6 +127,14 @@ class ExtractByRegexTab(BaseTabWidget):
         )
         if file_path:
             self.output_edit.setText(file_path)
+    
+    def handle_input_file_selected(self, file_path: str):
+        self.input_edit.setText(file_path)
+        base = os.path.splitext(os.path.basename(file_path))[0]
+        suggested = os.path.join(os.path.dirname(file_path), base + "_regex_extracted.fasta")
+        if not self.output_edit.text().strip():
+            self.output_edit.setText(suggested)
+        self.show_status("Input file selected")
     
     def clear_all(self):
         self.input_edit.clear()
@@ -142,7 +159,7 @@ class ExtractByRegexTab(BaseTabWidget):
         # 验证输入
         from utils.common_components import validate_input_path, validate_output_path
         
-        valid, error = validate_input_path(input_path, ['.fasta', '.fa', '.fas'])
+        valid, error = validate_input_path(input_path, ['.fasta', '.fa', '.fas', '.fna', '.ffn', '.faa', '.frn', '.txt'])
         if not valid:
             self.log_message(error, "ERROR")
             return
@@ -156,9 +173,48 @@ class ExtractByRegexTab(BaseTabWidget):
             self.log_message("Please enter a regular expression", "ERROR")
             return
         
-        # 启动工作线程
-        worker = ExtractByRegexWorker(input_path, regex, output_path)
-        self.start_worker(worker)
+        # Single-threaded processing
+        self.set_running_state(True)
+        self.log_message("Loading FASTA file...")
+        
+        try:
+            from modules.fasta_processor import FASTAProcessor
+            processor = FASTAProcessor()
+            if not processor.read_file(input_path):
+                self.log_message("Failed to read FASTA file", "ERROR")
+                self.set_running_state(False)
+                return
+            
+            self.log_message("Validating regular expression...")
+            try:
+                pattern = re.compile(regex)
+            except Exception as e:
+                self.log_message(f"Invalid regular expression: {e}", "ERROR")
+                self.set_running_state(False)
+                return
+            
+            self.log_message("Matching sequences...")
+            matched = []
+            for record in processor.records:
+                if pattern.search(record.header):
+                    matched.append(record)
+            
+            if not matched:
+                self.log_message("No sequences matched", "ERROR")
+                self.set_running_state(False)
+                return
+            
+            self.log_message(f"Saving results... ({len(matched)} sequences)")
+            if not processor.save_file(output_path, matched):
+                self.log_message("Failed to save file", "ERROR")
+                self.set_running_state(False)
+                return
+            
+            self.log_message(f"Extraction complete. Found {len(matched)} sequences. Saved to: {output_path}")
+        except Exception as e:
+            self.log_message(f"Error during extraction: {e}", "ERROR")
+        
+        self.set_running_state(False)
     
     def show_help(self):
         """Show help information"""

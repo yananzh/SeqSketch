@@ -1,52 +1,12 @@
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-                           QFileDialog, QPlainTextEdit)
+                           QFileDialog, QPlainTextEdit, QSizePolicy)
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtCore import Qt
 from utils.common_components import FASTAWorker, BaseTabWidget
 import os
 
 
-class ExtractByIDWorker(FASTAWorker):
-    """Worker to extract sequences by ID"""
-    
-    def __init__(self, input_path, id_list, output_path):
-        super().__init__(input_path, output_path)
-        self.id_list = id_list
-    
-    def run(self):
-        if not self.validate_files():
-            return
-        
-        try:
-            self.emit_progress("Loading FASTA file...")
-            processor = self.load_fasta_processor()
-            if not processor:
-                return
-            
-            self.emit_progress("Processing ID list...")
-            id_set = set(i.strip() for i in self.id_list if i.strip())
-            if not id_set:
-                self.emit_error("ID list is empty")
-                return
-            
-            self.emit_progress("Matching sequences...")
-            matched = []
-            for record in processor.records:
-                simple_id = record.header.split()[0]
-                if simple_id in id_set:
-                    matched.append(record)
-            
-            if not matched:
-                self.emit_error("No matching IDs found")
-                return
-            
-            self.emit_progress("Saving results...")
-            if not processor.save_file(self.output_path, matched):
-                self.emit_error("Failed to save file")
-                return
-            
-            self.emit_finished(f"Extraction complete. Found {len(matched)} sequences. Saved to: {self.output_path}")
-        except Exception as e:
-            self.emit_error(f"Error during extraction: {e}")
+# Remove worker, use main thread
 
 
 class ExtractByIDTab(BaseTabWidget):
@@ -64,8 +24,46 @@ class ExtractByIDTab(BaseTabWidget):
         # 输入文件选择
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("Input FASTA file:"))
-        self.input_edit = QLineEdit()
+        class FileDropLineEdit(QLineEdit):
+            file_dropped = pyqtSignal(str)
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.setAcceptDrops(True)
+            def dragEnterEvent(self, event):
+                md = event.mimeData()
+                if md.hasUrls():
+                    urls = md.urls()
+                    if urls:
+                        local = urls[0].toLocalFile()
+                        if self._is_valid_fasta(local):
+                            event.acceptProposedAction()
+                            return
+                event.ignore()
+            def dropEvent(self, event):
+                urls = event.mimeData().urls()
+                if urls:
+                    local = urls[0].toLocalFile()
+                    if self._is_valid_fasta(local):
+                        self.setText(local)
+                        self.file_dropped.emit(local)
+                        event.acceptProposedAction()
+                        return
+                event.ignore()
+            @staticmethod
+            def _is_valid_fasta(path: str) -> bool:
+                allowed = {'.fasta', '.fa', '.fas'}
+                try:
+                    ext = os.path.splitext(path)[1].lower()
+                    return os.path.isfile(path) and ext in allowed
+                except Exception:
+                    return False
+
+        self.input_edit = FileDropLineEdit()
+        self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
+        self.input_edit.setMinimumWidth(320)
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
+        self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
         
@@ -81,7 +79,11 @@ class ExtractByIDTab(BaseTabWidget):
         output_layout = QHBoxLayout()
         output_layout.addWidget(QLabel("Output file:"))
         self.output_edit = QLineEdit()
+        self.output_edit.setPlaceholderText("Choose where to save the extracted file...")
+        self.output_edit.setMinimumWidth(320)
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
+        self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
@@ -89,9 +91,10 @@ class ExtractByIDTab(BaseTabWidget):
         control_layout = QHBoxLayout()
         self.run_btn = QPushButton("Start")
         self.clear_btn = QPushButton("Clear")
+        control_layout.addStretch(1)
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
-        control_layout.addStretch()
+        control_layout.setSpacing(10)
         
         # 添加到内容区域
         self.add_content_layout(input_layout)
@@ -108,15 +111,23 @@ class ExtractByIDTab(BaseTabWidget):
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_extract)
         self.clear_btn.clicked.connect(self.clear_all)
+        if hasattr(self.input_edit, 'file_dropped'):
+            self.input_edit.file_dropped.connect(self.handle_input_file_selected)
     
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "Select FASTA file", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
         )
         if file_path:
-            self.input_edit.setText(file_path)
-            base = os.path.splitext(os.path.basename(file_path))[0]
-            self.output_edit.setText(os.path.join(os.path.dirname(file_path), base + "_extracted.fasta"))
+            self.handle_input_file_selected(file_path)
+    
+    def handle_input_file_selected(self, file_path: str):
+        self.input_edit.setText(file_path)
+        base = os.path.splitext(os.path.basename(file_path))[0]
+        suggested = os.path.join(os.path.dirname(file_path), base + "_extracted.fasta")
+        if not self.output_edit.text().strip():
+            self.output_edit.setText(suggested)
+        self.show_status("Input file selected")
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -144,33 +155,66 @@ class ExtractByIDTab(BaseTabWidget):
         input_path = self.input_edit.text().strip()
         output_path = self.output_edit.text().strip()
         id_text = self.id_edit.toPlainText().strip()
-        
-        # 验证输入
+
+        # Validate input
         from utils.common_components import validate_input_path, validate_output_path
-        
         valid, error = validate_input_path(input_path, ['.fasta', '.fa', '.fas'])
         if not valid:
             self.log_message(error, "ERROR")
             return
-        
         valid, error = validate_output_path(output_path)
         if not valid:
             self.log_message(error, "ERROR")
             return
-        
         if not id_text:
             self.log_message("Please enter sequence IDs to extract", "ERROR")
             return
-        
-        # 处理ID列表
         id_list = [line.strip() for line in id_text.split('\n') if line.strip()]
         if not id_list:
             self.log_message("ID list is empty", "ERROR")
             return
-        
-        # 启动工作线程
-        worker = ExtractByIDWorker(input_path, id_list, output_path)
-        self.start_worker(worker)
+
+        self.set_running_state(True)
+        self.log_message("Starting extraction...", "INFO")
+        try:
+            from modules.fasta_processor import FASTAProcessor
+            import os
+            # Load FASTA
+            self.show_status("Loading FASTA file...")
+            processor = FASTAProcessor()
+            if not processor.read_file(input_path):
+                self.log_message("Unable to read FASTA file", "ERROR")
+                self.set_running_state(False)
+                return
+            records = processor.records
+            if not records:
+                self.log_message("No sequences found in FASTA file", "ERROR")
+                self.set_running_state(False)
+                return
+            self.log_message(f"Loaded {len(records)} sequences", "INFO")
+            # Match IDs
+            self.show_status("Matching sequence IDs...")
+            id_set = set(id_list)
+            matched = [record for record in records if record.header.split()[0] in id_set]
+            if not matched:
+                self.log_message("No matching IDs found", "ERROR")
+                self.set_running_state(False)
+                return
+            self.log_message(f"Found {len(matched)} matching sequences", "INFO")
+            # Save
+            self.show_status("Saving results...")
+            if not processor.save_file(output_path, matched):
+                self.log_message("Failed to save file", "ERROR")
+                self.set_running_state(False)
+                return
+            self.log_message(f"Extraction complete! Saved to: {output_path}", "INFO")
+            self.show_status("Complete")
+        except Exception as e:
+            import traceback
+            self.log_message(f"Error during extraction: {e}\n{traceback.format_exc()}", "ERROR")
+            self.show_status("Error")
+        finally:
+            self.set_running_state(False)
     
     def show_help(self):
         """Show help information"""

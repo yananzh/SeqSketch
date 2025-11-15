@@ -1,11 +1,9 @@
 from PyQt6.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QFileDialog, QMessageBox, QApplication
 from PyQt6.QtCore import Qt
 from menus import create_menus
-from modules import SequenceStatisticsTab, SimplifyIDsTab, ExtractByIDTab, ExtractByRegexTab, DownloadFromNCBITab, BatchRenameIDsTab
 from PyQt6.QtGui import QIcon, QPixmap
 import os
-# 新增DNA序列分析相关Tab
-from modules import RNATab, ComplementTab, ReverseComplementTab, TranslateTab, ORFTab, SangerTab
+# 新增DNA序列分析相关Tab（按需导入）
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -57,6 +55,7 @@ class MainWindow(QMainWindow):
             self.status.showMessage(text, 5000)
 
     def open_sequence_statistics_tab(self):
+        from modules.sequence_statistics_tab import SequenceStatisticsTab
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), SequenceStatisticsTab):
                 self.tabs.setCurrentIndex(i)
@@ -66,6 +65,7 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(tab)
 
     def open_simplify_ids_tab(self):
+        from modules.simplify_ids_tab import SimplifyIDsTab
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), SimplifyIDsTab):
                 self.tabs.setCurrentIndex(i)
@@ -75,6 +75,7 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(tab)
 
     def open_extract_by_id_tab(self):
+        from modules.extract_by_id_tab import ExtractByIDTab
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), ExtractByIDTab):
                 self.tabs.setCurrentIndex(i)
@@ -84,6 +85,7 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(tab)
 
     def open_extract_by_regex_tab(self):
+        from modules.extract_by_regex_tab import ExtractByRegexTab
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), ExtractByRegexTab):
                 self.tabs.setCurrentIndex(i)
@@ -93,6 +95,7 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(tab)
 
     def open_download_from_ncbi_tab(self):
+        from modules.download_from_ncbi_tab import DownloadFromNCBITab
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), DownloadFromNCBITab):
                 self.tabs.setCurrentIndex(i)
@@ -102,6 +105,7 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(tab)
 
     def open_batch_rename_ids_tab(self):
+        from modules.batch_rename_ids_tab import BatchRenameIDsTab
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), BatchRenameIDsTab):
                 self.tabs.setCurrentIndex(i)
@@ -112,31 +116,37 @@ class MainWindow(QMainWindow):
 
     # DNA序列分析六大功能Tab
     def open_rna_tab(self):
+        from modules.rna_tab import RNATab
         tab = RNATab()
         self.tabs.addTab(tab, "Convert to RNA")
         self.tabs.setCurrentWidget(tab)
 
     def open_complement_tab(self):
+        from modules.complement_tab import ComplementTab
         tab = ComplementTab()
         self.tabs.addTab(tab, "Complement")
         self.tabs.setCurrentWidget(tab)
 
     def open_reverse_complement_tab(self):
+        from modules.reverse_complement_tab import ReverseComplementTab
         tab = ReverseComplementTab()
         self.tabs.addTab(tab, "Reverse Complement")
         self.tabs.setCurrentWidget(tab)
 
     def open_translate_tab(self):
+        from modules.translate_tab import TranslateTab
         tab = TranslateTab()
         self.tabs.addTab(tab, "Translate")
         self.tabs.setCurrentWidget(tab)
 
     def open_orf_tab(self):
+        from modules.orf_tab import ORFTab
         tab = ORFTab()
         self.tabs.addTab(tab, "ORF Finder")
         self.tabs.setCurrentWidget(tab)
 
     def open_sanger_tab(self):
+        from modules.sanger_tab import SangerTab
         tab = SangerTab()
         self.tabs.addTab(tab, "Sanger Sequencing")
         self.tabs.setCurrentWidget(tab)
@@ -148,23 +158,23 @@ class MainWindow(QMainWindow):
 
     # 蛋白质序列分析相关槽函数
     def open_amino_acid_composition_tab(self):
-        from modules import AminoAcidCompositionTab
+        from modules.amino_acid_composition_tab import AminoAcidCompositionTab
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), AminoAcidCompositionTab):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = AminoAcidCompositionTab()
-        self.tabs.addTab(tab, self.tr("氨基酸组成"))
+        self.tabs.addTab(tab, self.tr("Amino Acid Composition"))
         self.tabs.setCurrentWidget(tab)
 
     def open_physicochemical_properties_tab(self):
-        from modules import PhysicochemicalPropertiesTab
+        from modules.physicochemical_properties_tab import PhysicochemicalPropertiesTab
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), PhysicochemicalPropertiesTab):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = PhysicochemicalPropertiesTab()
-        self.tabs.addTab(tab, self.tr("物化性质计算"))
+        self.tabs.addTab(tab, self.tr("Physicochemical Properties"))
         self.tabs.setCurrentWidget(tab)
 
     def open_url_in_browser(self, url):

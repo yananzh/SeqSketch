@@ -36,9 +36,9 @@ class Worker(QObject):
 
     def run(self):
         try:
-            self.progress.emit("正在调用 Primer3 核心库进行计算...")
+            self.progress.emit("Calling Primer3 core for computation...")
             if p3_bindings is None:
-                self.error.emit("未能导入 primer3 库，请先安装: pip install primer3-py")
+                self.error.emit("Failed to import primer3. Please install: pip install primer3-py")
                 return
             if hasattr(p3_bindings, "design_primers"):
                 results = p3_bindings.design_primers(
@@ -50,10 +50,10 @@ class Worker(QObject):
                     seq_args=self.seq_args,
                     global_args=self.global_args,
                 )
-            self.progress.emit("计算完成。")
+            self.progress.emit("Computation finished.")
             self.finished.emit(results)
         except Exception as e:
-            self.error.emit(f"发生错误: {e}")
+            self.error.emit(f"Error: {e}")
 
 
 class MainWindow(QMainWindow):
@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
         self.setMenuBar(None)
 
     def init_ui(self):
-        self.setWindowTitle("PCR 引物设计助手 (PyQt6)")
+        self.setWindowTitle("PCR Primer Designer (PyQt6)")
         self.setGeometry(100, 100, 1500, 700)
 
         central = QWidget()
@@ -82,20 +82,20 @@ class MainWindow(QMainWindow):
         left_panel.setFixedWidth(600)
 
         # 1. Sequence
-        seq_group = QGroupBox("1. 粘贴模板序列 (DNA)")
+        seq_group = QGroupBox("1. Paste Template Sequence (DNA)")
         seq_v = QVBoxLayout(seq_group)
         self.seq_input = QPlainTextEdit()
-        self.seq_input.setPlaceholderText("在此处粘贴FASTA或原始DNA序列...")
-        self.seq_len_label = QLabel("序列长度: 0 bp")
+        self.seq_input.setPlaceholderText("Paste FASTA or raw DNA sequence here...")
+        self.seq_len_label = QLabel("Sequence Length: 0 bp")
         seq_v.addWidget(self.seq_input)
         seq_v.addWidget(self.seq_len_label)
 
         # 2. Mode
-        mode_group = QGroupBox("2. 选择设计模式")
+        mode_group = QGroupBox("2. Design Mode")
         mode_v = QVBoxLayout(mode_group)
-        self.rb_standard = QRadioButton("常规引物设计 (扩增内部片段)")
-        self.rb_specific = QRadioButton("特定区域设计 (在指定区域内)")
-        self.rb_cloning = QRadioButton("全长克隆设计 (扩增完整模板)")
+        self.rb_standard = QRadioButton("Standard Primer Design (internal fragment)")
+        self.rb_specific = QRadioButton("Specific Region (within target)")
+        self.rb_cloning = QRadioButton("Full-length Cloning (entire template)")
         self.rb_standard.setChecked(True)
         for rb in (self.rb_standard, self.rb_specific, self.rb_cloning):
             mode_v.addWidget(rb)
@@ -105,22 +105,22 @@ class MainWindow(QMainWindow):
         region_form = QFormLayout(self.region_group)
         self.region_start_spin = QSpinBox(); self.region_start_spin.setRange(1, 999999)
         self.region_end_spin = QSpinBox(); self.region_end_spin.setRange(1, 999999)
-        region_form.addRow("起始位置 (Start):", self.region_start_spin)
-        region_form.addRow("结束位置 (End):", self.region_end_spin)
+        region_form.addRow("Start:", self.region_start_spin)
+        region_form.addRow("End:", self.region_end_spin)
 
         # 3. General
-        general_group = QGroupBox("3. 产物与引物通用参数")
+        general_group = QGroupBox("3. Product and Primer Parameters")
         general_form = QFormLayout(general_group)
         self.prod_size_min = QSpinBox(); self.prod_size_min.setRange(50, 10000); self.prod_size_min.setValue(150)
         self.prod_size_max = QSpinBox(); self.prod_size_max.setRange(50, 10000); self.prod_size_max.setValue(300)
         self.num_primers_spin = QSpinBox(); self.num_primers_spin.setRange(1, 10); self.num_primers_spin.setValue(5)
         size_row = QWidget(); size_h = QHBoxLayout(size_row); size_h.setContentsMargins(0, 0, 0, 0); size_h.setSpacing(6)
         size_h.addWidget(self.prod_size_min); size_h.addWidget(self.prod_size_max)
-        general_form.addRow("产物大小范围 (Min/Max):", size_row)
-        general_form.addRow("返回引物对数量:", self.num_primers_spin)
+        general_form.addRow("Product Size Range (Min/Max):", size_row)
+        general_form.addRow("Number of Primer Pairs:", self.num_primers_spin)
 
         # 4. Primer specs with annotations
-        primer_group = QGroupBox("4. 引物特性参数")
+        primer_group = QGroupBox("4. Primer Specifications")
         primer_form = QFormLayout(primer_group)
         primer_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
         self.p_len_max = QSpinBox(); self.p_len_max.setRange(15, 30); self.p_len_max.setValue(25)
         len_row = QWidget(); len_h = QHBoxLayout(len_row); len_h.setContentsMargins(0, 0, 0, 0); len_h.setSpacing(6)
         len_h.addWidget(self.p_len_min); len_h.addWidget(self.p_len_opt); len_h.addWidget(self.p_len_max)
-        primer_form.addRow("引物长度 (Min/Opt/Max):", len_row)
+        primer_form.addRow("Primer Length (Min/Opt/Max):", len_row)
         
         # Tm
         self.p_tm_min = QDoubleSpinBox(); self.p_tm_min.setRange(40.0, 80.0); self.p_tm_min.setDecimals(1); self.p_tm_min.setValue(57.0)
@@ -138,7 +138,7 @@ class MainWindow(QMainWindow):
         self.p_tm_max = QDoubleSpinBox(); self.p_tm_max.setRange(40.0, 80.0); self.p_tm_max.setDecimals(1); self.p_tm_max.setValue(63.0)
         tm_row = QWidget(); tm_h = QHBoxLayout(tm_row); tm_h.setContentsMargins(0, 0, 0, 0); tm_h.setSpacing(6)
         tm_h.addWidget(self.p_tm_min); tm_h.addWidget(self.p_tm_opt); tm_h.addWidget(self.p_tm_max)
-        primer_form.addRow("引物Tm (°C) (Min/Opt/Max):", tm_row)
+        primer_form.addRow("Primer Tm (°C) (Min/Opt/Max):", tm_row)
         
         # GC%
         self.p_gc_min = QDoubleSpinBox(); self.p_gc_min.setRange(20.0, 80.0); self.p_gc_min.setDecimals(1); self.p_gc_min.setValue(40.0)
@@ -146,10 +146,10 @@ class MainWindow(QMainWindow):
         self.p_gc_max = QDoubleSpinBox(); self.p_gc_max.setRange(20.0, 80.0); self.p_gc_max.setDecimals(1); self.p_gc_max.setValue(60.0)
         gc_row = QWidget(); gc_h = QHBoxLayout(gc_row); gc_h.setContentsMargins(0, 0, 0, 0); gc_h.setSpacing(6)
         gc_h.addWidget(self.p_gc_min); gc_h.addWidget(self.p_gc_opt); gc_h.addWidget(self.p_gc_max)
-        primer_form.addRow("引物GC含量 (%) (Min/Opt/Max):", gc_row)
+        primer_form.addRow("Primer GC (%) (Min/Opt/Max):", gc_row)
 
         # Action button
-        self.design_button = QPushButton("开始设计引物")
+        self.design_button = QPushButton("Design Primers")
         self.design_button.setStyleSheet("font-size: 16px; padding: 10px;")
 
         # Assemble left
@@ -188,7 +188,7 @@ class MainWindow(QMainWindow):
             self.results_table.setColumnWidth(5, 70)   # GC%
             self.results_table.setColumnWidth(6, 110)  # Product Size
         self.tabs = QTabWidget()
-        self.tabs.addTab(self.results_table, "引物对列表")
+        self.tabs.addTab(self.results_table, "Primer Pairs")
         right_layout.addWidget(self.tabs)
 
         main_layout.addWidget(left_panel)
@@ -197,7 +197,7 @@ class MainWindow(QMainWindow):
         # Status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("准备就绪。")
+        self.status_bar.showMessage("Ready.")
 
     def create_menu(self):
         pass
@@ -221,7 +221,7 @@ class MainWindow(QMainWindow):
 
     def on_sequence_changed(self):
         seq_len = len(self.seq_input.toPlainText().strip())
-        self.seq_len_label.setText(f"序列长度: {seq_len} bp")
+        self.seq_len_label.setText(f"Sequence Length: {seq_len} bp")
         if self.rb_cloning.isChecked():
             self.update_cloning_product_size()
 
@@ -238,7 +238,7 @@ class MainWindow(QMainWindow):
         raw_text = self.seq_input.toPlainText().strip()
         if not raw_text:
             from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "输入错误", "请输入有效的DNA模板序列。")
+            QMessageBox.warning(self, "Input Error", "Please enter a valid DNA template sequence.")
             return
 
         if raw_text.startswith('>'):
@@ -250,11 +250,11 @@ class MainWindow(QMainWindow):
 
         if not sequence or any(c not in 'ACGTUN' for c in sequence):
             from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "输入错误", "请输入有效的DNA模板序列（仅包含ACGTU字母）。")
+            QMessageBox.warning(self, "Input Error", "Please enter a valid DNA template sequence (ACGTU only).")
             return
 
         self.design_button.setEnabled(False)
-        self.status_bar.showMessage("正在准备参数...")
+        self.status_bar.showMessage("Preparing parameters...")
         self.results_table.setRowCount(0)
         self.primer_pair_details.clear()
 
@@ -278,7 +278,7 @@ class MainWindow(QMainWindow):
             start_pos = self.region_start_spin.value()
             end_pos = self.region_end_spin.value()
             if start_pos >= end_pos or end_pos > seq_len:
-                self.show_error_message("特定区域范围无效，请检查起始/结束位置。")
+                self.show_error_message("Invalid target region. Check start/end positions.")
                 return
             included_region = f"{start_pos - 1},{end_pos - start_pos + 1}"
             seq_args['SEQUENCE_INCLUDED_REGION'] = included_region
@@ -302,12 +302,12 @@ class MainWindow(QMainWindow):
         self.worker.error.connect(self.worker.deleteLater)
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.worker_thread.start()
-        self.status_bar.showMessage("后台任务已启动，正在设计引物...")
+        self.status_bar.showMessage("Background task started. Designing primers...")
 
     def update_results_table(self, results: Dict[str, Any]):
         num_returned = results.get('PRIMER_PAIR_NUM_RETURNED', 0)
         if num_returned == 0:
-            self.show_error_message("未找到符合条件的引物对。请尝试放宽参数。")
+            self.show_error_message("No primer pairs found. Try relaxing constraints.")
             return
 
         self.results_table.setRowCount(num_returned * 2)
@@ -346,13 +346,13 @@ class MainWindow(QMainWindow):
             self.results_table.setItem(i*2+1, 5, QTableWidgetItem(f"{rev_gc:.2f}" if isinstance(rev_gc, (float, int)) else str(rev_gc)))
             self.results_table.setItem(i*2+1, 6, QTableWidgetItem(str(prod_size)))
 
-        self.status_bar.showMessage(f"成功找到 {num_returned} 对引物。")
+        self.status_bar.showMessage(f"Found {num_returned} primer pairs.")
         self.design_button.setEnabled(True)
 
     def show_error_message(self, message: str):
         from PyQt6.QtWidgets import QMessageBox
-        QMessageBox.critical(self, "错误", message)
-        self.status_bar.showMessage("任务失败或未找到结果。")
+        QMessageBox.critical(self, "Error", message)
+        self.status_bar.showMessage("Task failed or no results found.")
         self.design_button.setEnabled(True)
 
 if __name__ == '__main__':

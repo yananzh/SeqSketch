@@ -64,34 +64,27 @@ class FASTAProcessor:
         try:
             self.file_path = file_path
             self.records = []
-            
-            with open(file_path, 'r', encoding='utf-8') as f:
+            try:
+                f = open(file_path, 'r', encoding='utf-8')
+            except Exception:
+                f = open(file_path, 'r', encoding='latin-1')
+            with f as fobj:
                 current_header = ""
                 current_sequence = ""
-                
-                for line_num, line in enumerate(f, 1):
+                for line_num, line in enumerate(fobj, 1):
                     line = line.strip()
-                    
                     if line.startswith('>'):
-                        # 保存前一个记录
                         if current_header and current_sequence:
                             self._add_record(current_header, current_sequence)
-                        
-                        # 开始新记录
-                        current_header = line[1:]  # 去掉'>'符号
+                        current_header = line[1:]
                         current_sequence = ""
                     else:
-                        # 序列行
                         if current_header:
                             current_sequence += line
-                
-                # 保存最后一个记录
                 if current_header and current_sequence:
                     self._add_record(current_header, current_sequence)
-            
             logger.info(f"成功读取FASTA文件: {file_path}, 包含 {len(self.records)} 条序列")
             return True
-            
         except Exception as e:
             logger.error(f"读取FASTA文件失败: {e}")
             return False
@@ -132,7 +125,7 @@ class FASTAProcessor:
                 errors.append(f"记录 {i+1} ({record.header}): 序列为空")
             
             # 检查序列字符
-            invalid_chars = set(record.sequence) - set('ATGCUNatgcun')
+            invalid_chars = set(record.sequence) - set('ATGCUNRYMKSWBDHVatgcunrymkswbdhv')
             if invalid_chars:
                 errors.append(f"记录 {i+1} ({record.header}): 包含无效字符 {invalid_chars}")
         
@@ -372,4 +365,4 @@ def batch_process_fasta_files(file_paths: List[str],
                 'message': str(e)
             }
     
-    return results 
+    return results

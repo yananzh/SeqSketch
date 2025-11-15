@@ -258,14 +258,14 @@ class BaseTabWidget(QWidget):
     
     def set_running_state(self, running: bool):
         """设置运行状态 - 子类应重写以禁用特定按钮"""
-        self.show_status("处理中..." if running else "就绪")
+        self.show_status("Processing..." if running else "Ready")
     
     def handle_worker_finished(self, message: str):
         """处理工作线程完成"""
         if hasattr(self, 'log_area'):
             self.log_message(message)
         else:
-            self.show_status("完成")
+            self.show_status("Completed")
         self.set_running_state(False)
         if self.worker_thread:
             self.worker_thread.quit()
@@ -277,7 +277,7 @@ class BaseTabWidget(QWidget):
         if hasattr(self, 'log_area'):
             self.log_message(error_msg, "ERROR")
         else:
-            self.show_status(f"错误: {error_msg}")
+            self.show_status(f"Error: {error_msg}")
         self.set_running_state(False)
         if self.worker_thread:
             self.worker_thread.quit()
@@ -287,7 +287,7 @@ class BaseTabWidget(QWidget):
     def start_worker(self, worker: BaseWorker):
         """启动工作线程的通用方法"""
         if self.worker_thread and self.worker_thread.isRunning():
-            error_msg = "任务正在运行中，请等待完成"
+            error_msg = "A task is already running, please wait until it completes"
             if hasattr(self, 'log_area'):
                 self.log_message(error_msg, "WARNING")
             else:

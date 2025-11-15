@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-                           QFileDialog, QGridLayout)
+                           QFileDialog, QGridLayout, QSizePolicy)
 from PyQt6.QtCore import Qt, pyqtSignal
 from utils.common_components import FASTAWorker, BaseTabWidget
 import os
@@ -7,61 +7,113 @@ import os
 
 class SequenceStatisticsWorker(FASTAWorker):
     """Sequence length statistics worker"""
-    stats_finished = pyqtSignal(dict)  # 统计数据完成信号
+    # 信号必须定义为类变量，不能在__init__或run中定义
+    stats_finished = pyqtSignal(dict)
+    
+    def __init__(self, input_path: str, output_path: str):
+        super().__init__(input_path, output_path)
     
     def run(self):
-        if not self.validate_files():
-            return
+        import logging
+        logger = logging.getLogger(__name__)
+        print("=" * 50)
+        print("DEBUG: SequenceStatisticsWorker.run() called!")
+        print(f"DEBUG: Input path: {self.input_path}")
+        print(f"DEBUG: Output path: {self.output_path}")
+        print("=" * 50)
+        logger.info("SequenceStatisticsWorker.run() started")
         
         try:
-            self.emit_progress("Loading FASTA file...")
-            processor = self.load_fasta_processor()
-            if not processor:
+            print("DEBUG: Starting file validation...")
+            if not self.validate_files():
+                print("DEBUG: File validation failed")
+                logger.warning("File validation failed")
                 return
             
-            self.emit_progress("Computing statistics...")
-            records = processor.records
+            print("DEBUG: Files validated successfully")
+            logger.info("Files validated successfully")
             
-            # 全局统计
-            total = len(records)
-            lengths = [r.length for r in records]
-            total_bases = sum(lengths)
-            avg_len = total_bases / total if total else 0
-            min_len = min(lengths) if lengths else 0
-            max_len = max(lengths) if lengths else 0
-            
-            global_stats = {
-                'total': total,
-                'total_length': total_bases,
-                'avg_len': avg_len,
-                'min_len': min_len,
-                'max_len': max_len
-            }
-            
-            self.emit_progress("Generating detailed statistics...")
-            # 每条序列统计
-            stats_lines = ["Sequence_ID\tLength\tGC_Content(%)"]
-            for record in records:
-                seq_id = record.header.split()[0]
-                L = record.length
-                # 只计算DNA序列的GC含量
-                sequence_upper = record.sequence.upper()
-                if all(base in 'ATCGN' for base in sequence_upper):
-                    gc = sequence_upper.count('G') + sequence_upper.count('C')
-                    gc_content = (gc / L * 100) if L else 0
-                    stats_lines.append(f"{seq_id}\t{L}\t{gc_content:.2f}")
-                else:
-                    stats_lines.append(f"{seq_id}\t{L}\tN/A")
-            
-            self.emit_progress("Saving results...")
-            with open(self.output_path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(stats_lines))
-            
-            # 发送全局统计数据和完成消息
-            self.stats_finished.emit(global_stats)
-            self.emit_finished(f"Length statistics complete. Saved to: {self.output_path}")
+            try:
+                self.emit_progress("Loading FASTA file...")
+                logger.info(f"Loading FASTA file: {self.input_path}")
+                processor = self.load_fasta_processor()
+                if not processor:
+                    logger.error("Failed to load FASTA processor")
+                    return
+                
+                logger.info(f"FASTA file loaded, {len(processor.records)} records")
+                
+                self.emit_progress("Computing statistics...")
+                records = processor.records
+                
+                if not records:
+                    logger.error("No sequences found")
+                    self.emit_error("No sequences found in the FASTA file")
+                    return
+                
+                # 全局统计
+                total = len(records)
+                lengths = [r.length for r in records]
+                total_bases = sum(lengths)
+                avg_len = total_bases / total if total else 0
+                min_len = min(lengths) if lengths else 0
+                max_len = max(lengths) if lengths else 0
+                
+                global_stats = {
+                    'total': total,
+                    'total_length': total_bases,
+                    'avg_len': avg_len,
+                    'min_len': min_len,
+                    'max_len': max_len
+                }
+                
+                logger.info(f"Global stats computed: {global_stats}")
+                
+                self.emit_progress("Generating detailed statistics...")
+                # 每条序列统计
+                stats_lines = ["Sequence_ID\tLength\tGC_Content(%)"]
+                allowed = set("ACGTNRYMKSWBDHV")
+                for idx, record in enumerate(records):
+                    if idx % 100 == 0:
+                        logger.info(f"Processing record {idx}/{total}")
+                    seq_id = record.header.split()[0]
+                    seq = record.sequence.upper().replace('U', 'T')
+                    L = len(seq)
+                    if L == 0:
+                        stats_lines.append(f"{seq_id}\t0\t0.00")
+                        continue
+                    if all(base in allowed for base in seq):
+                        gc = seq.count('G') + seq.count('C')
+                        gc_content = (gc / L * 100)
+                        stats_lines.append(f"{seq_id}\t{L}\t{gc_content:.2f}")
+                    else:
+                        # 非标准字符，仍输出长度，GC设为N/A
+                        stats_lines.append(f"{seq_id}\t{L}\tN/A")
+                
+                logger.info(f"Detailed statistics generated for {len(stats_lines)-1} sequences")
+                
+                self.emit_progress("Saving results...")
+                with open(self.output_path, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(stats_lines))
+                
+                logger.info(f"Results saved to: {self.output_path}")
+                
+                # Emit stats signal with data before finishing
+                logger.info("Emitting stats_finished signal")
+                self.stats_finished.emit(global_stats)
+                
+                logger.info("Emitting finished signal")
+                self.emit_finished(f"Length statistics complete. Saved to: {self.output_path}")
+                logger.info("Worker run() completed successfully")
+            except Exception as e:
+                import traceback
+                error_details = traceback.format_exc()
+                logger.error(f"Error in worker run(): {e}\n{error_details}")
+                self.emit_error(f"Error during length statistics: {e}\n{error_details}")
         except Exception as e:
-            self.emit_error(f"Error during length statistics: {e}")
+            import traceback
+            logger.exception("Unexpected error in worker run()")
+            self.emit_error(f"Unexpected error: {e}\n{traceback.format_exc()}")
 
 
 class SequenceStatisticsTab(BaseTabWidget):
@@ -73,21 +125,70 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.connect_signals()
     
     def init_ui(self):
+        # Inner class: LineEdit with file drag-and-drop support
+        class FileDropLineEdit(QLineEdit):
+            file_dropped = pyqtSignal(str)
+
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.setAcceptDrops(True)
+
+            def dragEnterEvent(self, event):
+                md = event.mimeData()
+                if md.hasUrls():
+                    urls = md.urls()
+                    if urls:
+                        local = urls[0].toLocalFile()
+                        if self._is_valid_fasta(local):
+                            event.acceptProposedAction()
+                            return
+                event.ignore()
+
+            def dropEvent(self, event):
+                urls = event.mimeData().urls()
+                if urls:
+                    local = urls[0].toLocalFile()
+                    if self._is_valid_fasta(local):
+                        self.setText(local)
+                        self.file_dropped.emit(local)
+                        event.acceptProposedAction()
+                        return
+                event.ignore()
+
+            @staticmethod
+            def _is_valid_fasta(path: str) -> bool:
+                allowed = {'.fasta', '.fa', '.fas', '.fna', '.ffn', '.faa', '.frn', '.txt'}
+                try:
+                    ext = os.path.splitext(path)[1].lower()
+                    return os.path.isfile(path) and ext in allowed
+                except Exception:
+                    return False
+
         # 输入文件选择
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("Input FASTA file:"))
-        self.input_edit = QLineEdit()
+        self.input_edit = FileDropLineEdit()
+        self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
+        self.input_edit.setMinimumWidth(320)
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
+        self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
+        input_layout.setSpacing(8)
         
         # 输出文件选择
         output_layout = QHBoxLayout()
         output_layout.addWidget(QLabel("Output stats file:"))
         self.output_edit = QLineEdit()
+        self.output_edit.setPlaceholderText("Choose where to save the stats...")
+        self.output_edit.setMinimumWidth(320)
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
+        self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
+        output_layout.setSpacing(8)
         
         # 全局统计信息显示区
         stats_layout = QGridLayout()
@@ -107,14 +208,20 @@ class SequenceStatisticsTab(BaseTabWidget):
             stats_layout.addWidget(l, row, col)
             stats_layout.addWidget(v, row, col + 1)
             self.stat_labels[key] = v
+        # Flexible value columns and nicer spacing
+        stats_layout.setColumnStretch(1, 1)
+        stats_layout.setColumnStretch(3, 1)
+        stats_layout.setHorizontalSpacing(16)
+        stats_layout.setVerticalSpacing(6)
         
         # 控制按钮
         control_layout = QHBoxLayout()
         self.run_btn = QPushButton("Start")
         self.clear_btn = QPushButton("Clear")
+        control_layout.addStretch(1)
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
-        control_layout.addStretch()
+        control_layout.setSpacing(10)
         
         # 添加到内容区域
         self.add_content_layout(input_layout)
@@ -127,15 +234,16 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_statistics)
         self.clear_btn.clicked.connect(self.clear_all)
+        # Drag-and-drop signal from input line edit
+        if hasattr(self.input_edit, 'file_dropped'):
+            self.input_edit.file_dropped.connect(self.handle_input_file_selected)
     
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select FASTA file", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
+            self, "Select FASTA file", "", "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)"
         )
         if file_path:
-            self.input_edit.setText(file_path)
-            base = os.path.splitext(os.path.basename(file_path))[0]
-            self.output_edit.setText(os.path.join(os.path.dirname(file_path), base + "_length_statistics.txt"))
+            self.handle_input_file_selected(file_path)
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -143,6 +251,15 @@ class SequenceStatisticsTab(BaseTabWidget):
         )
         if file_path:
             self.output_edit.setText(file_path)
+
+    def handle_input_file_selected(self, file_path: str):
+        """Handle input selection from dialog or drag-and-drop"""
+        self.input_edit.setText(file_path)
+        base = os.path.splitext(os.path.basename(file_path))[0]
+        suggested = os.path.join(os.path.dirname(file_path), base + "_length_statistics.txt")
+        if not self.output_edit.text().strip():
+            self.output_edit.setText(suggested)
+        self.show_status("Input file selected")
     
     def clear_all(self):
         self.input_edit.clear()
@@ -233,7 +350,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         # 验证输入
         from utils.common_components import validate_input_path, validate_output_path
         
-        valid, error = validate_input_path(input_path, ['.fasta', '.fa', '.fas'])
+        valid, error = validate_input_path(input_path, ['.fasta', '.fa', '.fas', '.fna', '.ffn', '.faa', '.frn', '.txt'])
         if not valid:
             self.log_message(error, "ERROR")
             return
@@ -243,7 +360,116 @@ class SequenceStatisticsTab(BaseTabWidget):
             self.log_message(error, "ERROR")
             return
         
-        # 启动工作线程
-        worker = SequenceStatisticsWorker(input_path, output_path)
-        worker.stats_finished.connect(self.update_statistics)
-        self.start_worker(worker)
+        # 禁用按钮，防止重复点击
+        self.set_running_state(True)
+        self.log_message("Starting sequence statistics processing...", "INFO")
+        
+        try:
+            # 直接在主线程中处理，不使用worker线程
+            from modules.fasta_processor import FASTAProcessor
+            import os
+            
+            # 验证输入文件
+            if not input_path or not os.path.isfile(input_path):
+                self.log_message("Input file is invalid or does not exist", "ERROR")
+                self.set_running_state(False)
+                return
+            
+            if not output_path:
+                self.log_message("Output file path cannot be empty", "ERROR")
+                self.set_running_state(False)
+                return
+            
+            # 检查输出目录是否存在，不存在则创建
+            output_dir = os.path.dirname(output_path)
+            if output_dir and not os.path.exists(output_dir):
+                try:
+                    os.makedirs(output_dir)
+                except Exception as e:
+                    self.log_message(f"Unable to create output directory: {e}", "ERROR")
+                    self.set_running_state(False)
+                    return
+            
+            # 加载FASTA文件
+            self.show_status("Loading FASTA file...")
+            self.log_message("Loading FASTA file...", "INFO")
+            processor = FASTAProcessor()
+            if not processor.read_file(input_path):
+                self.log_message("Unable to read FASTA file", "ERROR")
+                self.set_running_state(False)
+                return
+            
+            records = processor.records
+            if not records:
+                self.log_message("No sequences found in FASTA file", "ERROR")
+                self.set_running_state(False)
+                return
+            
+            self.log_message(f"Successfully loaded {len(records)} sequences", "INFO")
+            
+            # 计算全局统计
+            self.show_status("Computing statistics...")
+            self.log_message("Computing statistics...", "INFO")
+            
+            total = len(records)
+            lengths = [r.length for r in records]
+            total_bases = sum(lengths)
+            avg_len = total_bases / total if total else 0
+            min_len = min(lengths) if lengths else 0
+            max_len = max(lengths) if lengths else 0
+            
+            global_stats = {
+                'total': total,
+                'total_length': total_bases,
+                'avg_len': avg_len,
+                'min_len': min_len,
+                'max_len': max_len
+            }
+            
+            # 更新UI显示统计信息
+            self.update_statistics(global_stats)
+            self.log_message(f"Total sequences: {total}, Average length: {avg_len:.1f}", "INFO")
+            
+            # 生成详细统计
+            self.show_status("Generating detailed statistics...")
+            self.log_message("Generating detailed statistics...", "INFO")
+            
+            stats_lines = ["Sequence_ID\tLength\tGC_Content(%)"]
+            allowed = set("ACGTNRYMKSWBDHV")
+            
+            for idx, record in enumerate(records):
+                seq_id = record.header.split()[0]
+                seq = record.sequence.upper().replace('U', 'T')
+                L = len(seq)
+                
+                if L == 0:
+                    stats_lines.append(f"{seq_id}\t0\t0.00")
+                    continue
+                
+                if all(base in allowed for base in seq):
+                    gc = seq.count('G') + seq.count('C')
+                    gc_content = (gc / L * 100)
+                    stats_lines.append(f"{seq_id}\t{L}\t{gc_content:.2f}")
+                else:
+                    # 非标准字符，仍输出长度，GC设为N/A
+                    stats_lines.append(f"{seq_id}\t{L}\tN/A")
+            
+            # 保存结果
+            self.show_status("Saving results...")
+            self.log_message("Saving results...", "INFO")
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(stats_lines))
+            
+            # 完成
+            self.log_message(f"Statistics complete! Results saved to: {output_path}", "INFO")
+            self.show_status("Complete")
+            
+        except Exception as e:
+            import traceback
+            error_msg = f"Error during processing: {e}\n{traceback.format_exc()}"
+            self.log_message(error_msg, "ERROR")
+            self.show_status("Error")
+        finally:
+            # 恢复按钮状态
+            self.set_running_state(False)
