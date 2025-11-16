@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushB
                            QFileDialog, QCheckBox, QSizePolicy)
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtCore import Qt
-from utils.common_components import FASTAWorker, BaseTabWidget
+from utils.common_components import BaseTabWidget
 import os
 
 
@@ -64,10 +64,47 @@ class BatchRenameIDsTab(BaseTabWidget):
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
         
-        # 映射文件选择
+        # 映射文件选择（支持拖放）
         mapping_layout = QHBoxLayout()
         mapping_layout.addWidget(QLabel("ID mapping file:"))
-        self.mapping_edit = QLineEdit()
+        class MappingDropLineEdit(QLineEdit):
+            file_dropped = pyqtSignal(str)
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.setAcceptDrops(True)
+            def dragEnterEvent(self, event):
+                md = event.mimeData()
+                if md.hasUrls():
+                    urls = md.urls()
+                    if urls:
+                        local = urls[0].toLocalFile()
+                        if self._is_valid_mapping(local):
+                            event.acceptProposedAction()
+                            return
+                event.ignore()
+            def dropEvent(self, event):
+                urls = event.mimeData().urls()
+                if urls:
+                    local = urls[0].toLocalFile()
+                    if self._is_valid_mapping(local):
+                        self.setText(local)
+                        self.file_dropped.emit(local)
+                        event.acceptProposedAction()
+                        return
+                event.ignore()
+            @staticmethod
+            def _is_valid_mapping(path: str) -> bool:
+                allowed = {'.csv', '.tsv', '.txt', '.xlsx', '.xls'}
+                try:
+                    ext = os.path.splitext(path)[1].lower()
+                    return os.path.isfile(path) and ext in allowed
+                except Exception:
+                    return False
+
+        self.mapping_edit = MappingDropLineEdit()
+        self.mapping_edit.setPlaceholderText("Select or drop a CSV/TSV mapping file...")
+        self.mapping_edit.setMinimumWidth(320)
+        self.mapping_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.mapping_btn = QPushButton("Choose Mapping File")
         mapping_layout.addWidget(self.mapping_edit)
         mapping_layout.addWidget(self.mapping_btn)
@@ -115,6 +152,8 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.clear_btn.clicked.connect(self.clear_all)
         if hasattr(self.input_edit, 'file_dropped'):
             self.input_edit.file_dropped.connect(self.handle_input_file_selected)
+        if hasattr(self.mapping_edit, 'file_dropped'):
+            self.mapping_edit.file_dropped.connect(self.handle_mapping_file_selected)
     
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -122,21 +161,28 @@ class BatchRenameIDsTab(BaseTabWidget):
         )
         if file_path:
             self.handle_input_file_selected(file_path)
-        def handle_input_file_selected(self, file_path: str):
-            self.input_edit.setText(file_path)
-            base = os.path.splitext(os.path.basename(file_path))[0]
-            suggested = os.path.join(os.path.dirname(file_path), base + "_renamed.fasta")
-            if not self.output_edit.text().strip():
-                self.output_edit.setText(suggested)
-            self.show_status("Input file selected")
+
+    def handle_input_file_selected(self, file_path: str):
+        self.input_edit.setText(file_path)
+        base = os.path.splitext(os.path.basename(file_path))[0]
+        suggested = os.path.join(os.path.dirname(file_path), base + "_renamed.fasta")
+        if not self.output_edit.text().strip():
+            self.output_edit.setText(suggested)
+        self.show_status("Input file selected")
     
     def select_mapping_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "Select ID mapping file", "", 
-            "Excel Files (*.xlsx *.xls);;CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)"
+            "CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)"
         )
         if file_path:
-            self.mapping_edit.setText(file_path)
+            self.handle_mapping_file_selected(file_path)
+
+    def handle_mapping_file_selected(self, file_path: str):
+        self.mapping_edit.setText(file_path)
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext in ['.xls', '.xlsx']:
+            self.log_message("Excel selected. Requires pandas, or save as CSV/TSV.")
     
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -168,23 +214,43 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.set_running_state(True)
         self.log_message("Starting batch ID renaming...", "INFO")
         try:
-            import pandas as pd
             ext = os.path.splitext(mapping_path)[1].lower()
+            mapping = {}
             if ext in ['.xls', '.xlsx']:
+                try:
+                    import pandas as pd
+                except Exception:
+                    self.log_message("Excel mapping requires pandas. Install with: pip install pandas, or save as CSV/TSV.", "ERROR")
+                    self.set_running_state(False)
+                    return
                 df = pd.read_excel(mapping_path, header=0 if has_header else None)
-            elif ext in ['.csv']:
-                df = pd.read_csv(mapping_path, header=0 if has_header else None)
-            elif ext in ['.tsv', '.txt']:
-                df = pd.read_csv(mapping_path, sep='\t', header=0 if has_header else None)
+                if df.shape[1] < 2:
+                    self.log_message("Mapping file must have at least two columns (old ID, new ID)", "ERROR")
+                    self.set_running_state(False)
+                    return
+                mapping = dict(zip(df.iloc[:, 0].astype(str), df.iloc[:, 1].astype(str)))
+            elif ext in ['.csv', '.tsv', '.txt']:
+                import csv
+                delimiter = ',' if ext == '.csv' else '\t'
+                with open(mapping_path, 'r', encoding='utf-8') as f:
+                    reader = csv.reader(f, delimiter=delimiter)
+                    rows = list(reader)
+                if has_header and rows:
+                    rows = rows[1:]
+                for row in rows:
+                    if len(row) >= 2:
+                        old_id = str(row[0]).strip()
+                        new_id = str(row[1]).strip()
+                        if old_id:
+                            mapping[old_id] = new_id
+                if not mapping:
+                    self.log_message("No valid mappings found in the file", "ERROR")
+                    self.set_running_state(False)
+                    return
             else:
-                self.log_message("Unsupported mapping format. Use Excel, CSV or TSV.", "ERROR")
+                self.log_message("Unsupported mapping format. Use Excel (.xlsx/.xls), CSV (.csv) or TSV (.tsv/.txt).", "ERROR")
                 self.set_running_state(False)
                 return
-            if df.shape[1] < 2:
-                self.log_message("Mapping file must have at least two columns (old ID, new ID)", "ERROR")
-                self.set_running_state(False)
-                return
-            mapping = dict(zip(df.iloc[:, 0].astype(str), df.iloc[:, 1].astype(str)))
             self.log_message(f"Loaded {len(mapping)} ID mappings", "INFO")
             # Load FASTA
             from modules.fasta_processor import FASTAProcessor
@@ -228,23 +294,23 @@ class BatchRenameIDsTab(BaseTabWidget):
             self.show_status("Error")
         finally:
             self.set_running_state(False)
-        valid, error = validate_input_path(input_path, ['.fasta', '.fa', '.fas'])
-        if not valid:
-            self.log_message(error, "ERROR")
-            return
-        
-        if not mapping_path or not os.path.exists(mapping_path):
-            self.log_message("Please choose a valid mapping file", "ERROR")
-            return
-        
-        valid, error = validate_output_path(output_path)
-        if not valid:
-            self.log_message(error, "ERROR")
-            return
-        
-        # 启动工作线程
-        worker = BatchRenameIDsWorker(input_path, mapping_path, has_header, output_path)
-        self.start_worker(worker)
+
+    def clear_all(self):
+        self.input_edit.clear()
+        self.mapping_edit.clear()
+        self.output_edit.clear()
+        self.header_checkbox.setChecked(True)
+        if hasattr(self, 'log_area'):
+            self.log_area.clear()
+        self.show_status("Cleared")
+
+    def set_running_state(self, running: bool):
+        super().set_running_state(running)
+        self.run_btn.setEnabled(not running)
+        self.input_btn.setEnabled(not running)
+        self.mapping_btn.setEnabled(not running)
+        self.output_btn.setEnabled(not running)
+        self.header_checkbox.setEnabled(not running)
     
     def show_help(self):
         """显示帮助信息"""
