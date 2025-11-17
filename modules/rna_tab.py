@@ -169,7 +169,7 @@ UUAAGGCC
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         label = QLabel(help_text)
         label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(False)
+        label.setWordWrap(True)
         label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         label.setMargin(20)
         scroll_area.setWidget(label)

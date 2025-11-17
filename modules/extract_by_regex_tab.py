@@ -282,7 +282,7 @@ class ExtractByRegexTab(BaseTabWidget):
         # 创建文本标签
         label = QLabel(help_text)
         label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(False)  # 禁用自动换行
+        label.setWordWrap(True)  # 启用自动换行
         label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         label.setMargin(20)
         
