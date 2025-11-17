@@ -1,72 +1,9 @@
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-                           QFileDialog, QComboBox, QPlainTextEdit)
+                           QFileDialog, QComboBox, QPlainTextEdit, QSizePolicy)
 from PyQt6.QtCore import Qt
-from utils.common_components import BaseWorker, BaseTabWidget
+from utils.common_components import BaseTabWidget
 from urllib.error import URLError
 import os
-
-
-class DownloadFromNCBIWorker(BaseWorker):
-    """Worker for downloading sequences from NCBI"""
-    
-    def __init__(self, db, acc_list, output_path, email):
-        super().__init__()
-        self.db = db
-        self.acc_list = acc_list
-        self.output_path = output_path
-        self.email = email
-    
-    def run(self):
-        try:
-            self.emit_progress("Validating input...")
-            if not self.acc_list:
-                self.emit_error("Accession list is empty")
-                return
-            
-            if not self.email:
-                self.emit_error("Please provide an email (NCBI requirement)")
-                return
-            
-            self.emit_progress("Connecting to NCBI...")
-            try:
-                from Bio import Entrez
-            except ImportError:
-                self.emit_error("Biopython is required to download NCBI data")
-                return
-            
-            Entrez.email = self.email
-            ids = ','.join(self.acc_list)
-            
-            self.emit_progress(f"Downloading {len(self.acc_list)} sequences...")
-            try:
-                with Entrez.efetch(db=self.db, id=ids, rettype='fasta', retmode='text') as handle:
-                    fasta_data = handle.read()
-            except URLError as e:
-                self.emit_error(f"Network error: {e}")
-                return
-            except Exception as e:
-                self.emit_error(f"NCBI download error: {e}")
-                return
-            
-            if not fasta_data.strip() or 'Error' in fasta_data or 'not found' in fasta_data:
-                self.emit_error("NCBI returned error or no sequences found. Check DB type and accessions.")
-                return
-            
-            self.emit_progress("Saving file...")
-            try:
-                # Ensure output directory exists
-                os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
-                with open(self.output_path, 'w', encoding='utf-8') as f:
-                    f.write(fasta_data)
-            except Exception as e:
-                self.emit_error(f"File save failed: {e}")
-                return
-            
-            seq_count = fasta_data.count('>')
-            self.emit_finished(f"Download complete. {seq_count} sequences saved to: {self.output_path}")
-        except Exception as e:
-            self.emit_error(f"Error during download: {e}")
-
 
 class DownloadFromNCBITab(BaseTabWidget):
     """NCBI download Tab"""
@@ -85,6 +22,7 @@ class DownloadFromNCBITab(BaseTabWidget):
             "nucleotide", "protein"
         ])
         self.db_combo.setCurrentText("nucleotide")
+        self.db_combo.setMinimumWidth(140)
         db_layout.addWidget(self.db_combo)
         db_layout.addStretch()
         
@@ -93,6 +31,8 @@ class DownloadFromNCBITab(BaseTabWidget):
         email_layout.addWidget(QLabel("Email:"))
         self.email_edit = QLineEdit()
         self.email_edit.setPlaceholderText("NCBI requires an email address")
+        self.email_edit.setMinimumWidth(320)
+        self.email_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         email_layout.addWidget(self.email_edit)
         
         # Accession input
@@ -104,14 +44,20 @@ class DownloadFromNCBITab(BaseTabWidget):
         acc_layout.addWidget(acc_label)
         self.acc_edit = QPlainTextEdit()
         self.acc_edit.setPlaceholderText("Enter accession numbers, one per line\nExamples:\nNM_001101.5\nNP_001092.1\nAF123456")
-        self.acc_edit.setMaximumHeight(120)
+        # Enlarge input area
+        self.acc_edit.setMinimumHeight(200)
+        self.acc_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         acc_layout.addWidget(self.acc_edit)
         
         # Output file selection
         output_layout = QHBoxLayout()
         output_layout.addWidget(QLabel("Output file:"))
         self.output_edit = QLineEdit()
+        self.output_edit.setPlaceholderText("Choose where to save the downloaded FASTA...")
+        self.output_edit.setMinimumWidth(320)
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
+        self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         
@@ -119,9 +65,9 @@ class DownloadFromNCBITab(BaseTabWidget):
         control_layout = QHBoxLayout()
         self.run_btn = QPushButton("Download")
         self.clear_btn = QPushButton("Clear")
+        control_layout.addStretch(1)
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
-        control_layout.addStretch()
         
         # 添加到内容区域
         self.add_content_layout(db_layout)
@@ -185,10 +131,48 @@ class DownloadFromNCBITab(BaseTabWidget):
         if not acc_list:
             self.log_message("检索号列表为空", "ERROR")
             return
-        
-        # 启动工作线程
-        worker = DownloadFromNCBIWorker(db, acc_list, output_path, email)
-        self.start_worker(worker)
+
+        # 单线程执行下载
+        self.set_running_state(True)
+        try:
+            self.show_status("Connecting to NCBI...")
+            try:
+                from Bio import Entrez
+            except ImportError:
+                self.log_message("Biopython (Bio.Entrez) is required to download NCBI data", "ERROR")
+                return
+            Entrez.email = email
+            ids = ','.join(acc_list)
+            self.show_status(f"Downloading {len(acc_list)} sequences...")
+            try:
+                with Entrez.efetch(db=db, id=ids, rettype='fasta', retmode='text') as handle:
+                    fasta_data = handle.read()
+            except URLError as e:
+                self.log_message(f"Network error: {e}", "ERROR")
+                return
+            except Exception as e:
+                self.log_message(f"NCBI download error: {e}", "ERROR")
+                return
+            if not fasta_data.strip() or 'Error' in fasta_data or 'not found' in fasta_data:
+                self.log_message("NCBI returned error or no sequences found. Check DB type and accessions.", "ERROR")
+                return
+            self.show_status("Saving file...")
+            try:
+                out_dir = os.path.dirname(output_path)
+                if out_dir:
+                    os.makedirs(out_dir, exist_ok=True)
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write(fasta_data)
+            except Exception as e:
+                self.log_message(f"File save failed: {e}", "ERROR")
+                return
+            seq_count = fasta_data.count('>')
+            self.log_message(f"Download complete. {seq_count} sequences saved to: {output_path}")
+        except Exception as e:
+            import traceback
+            self.log_message(f"Error during download: {e}\n{traceback.format_exc()}", "ERROR")
+        finally:
+            self.set_running_state(False)
     
     def show_help(self):
         """Show help information"""
