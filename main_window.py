@@ -15,6 +15,8 @@ class MainWindow(QMainWindow):
         icon_path = os.path.join(os.path.dirname(__file__), "窗口logo.png")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
+        # Keep references to child windows to prevent garbage collection
+        self.child_windows = []
         self._init_ui()
         self._load_style()
 

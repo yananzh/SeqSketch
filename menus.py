@@ -48,7 +48,7 @@ def create_menus(window):
     orf_action = QAction(window.tr("ORF Finder"), window)
     orf_action.triggered.connect(window.open_orf_tab)
     dna_menu.addAction(orf_action)
-    sanger_action = QAction(window.tr("Sanger Sequencing"), window)
+    sanger_action = QAction(window.tr("Sanger Sequence Assembly"), window)
     sanger_action.triggered.connect(window.open_sanger_tab)
     dna_menu.addAction(sanger_action)
     # 3. Protein Analysis
