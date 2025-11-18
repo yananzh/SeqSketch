@@ -150,7 +150,7 @@ class MainWindow(QMainWindow):
     def open_sanger_tab(self):
         from modules.sanger_tab import SangerTab
         tab = SangerTab()
-        self.tabs.addTab(tab, "Sanger Sequencing")
+        self.tabs.addTab(tab, "Sanger Sequence Assembly")
         self.tabs.setCurrentWidget(tab)
 
     def close_tab(self, index):
