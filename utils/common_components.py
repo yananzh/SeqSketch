@@ -143,18 +143,15 @@ class BaseTabWidget(QWidget):
         output_layout.addWidget(self.output_text)
         output_layout.addLayout(output_btn_layout)
 
-        # Control buttons
+        # Control buttons (Help is unified at bottom-right in status bar)
         self.run_btn = QPushButton("Run")
         self.clear_btn = QPushButton("Clear")
-        self.help_btn = QPushButton("Help")
         self.run_btn.clicked.connect(self.run)
         self.clear_btn.clicked.connect(self.clear)
-        self.help_btn.clicked.connect(self.show_help)
 
         ctrl_btn_layout = QHBoxLayout()
         ctrl_btn_layout.addWidget(self.run_btn)
         ctrl_btn_layout.addWidget(self.clear_btn)
-        ctrl_btn_layout.addWidget(self.help_btn)
         ctrl_btn_layout.addStretch()
 
         # 添加到内容区域

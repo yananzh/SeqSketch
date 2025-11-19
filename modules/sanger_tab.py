@@ -67,17 +67,12 @@ class SangerTab(QWidget):
         params_hbox.addStretch()
         main_layout.addLayout(params_hbox)
         
-        # Action buttons
+        # Action buttons (Help unified at bottom-right)
         btn_hbox = QHBoxLayout()
         self.assemble_btn = QPushButton("Run Assembly")
         self.assemble_btn.clicked.connect(self.run_assembly)
         self.assemble_btn.setMinimumWidth(120)
         btn_hbox.addWidget(self.assemble_btn)
-        
-        self.help_btn = QPushButton("Help")
-        self.help_btn.clicked.connect(self.show_help)
-        self.help_btn.setMinimumWidth(80)
-        btn_hbox.addWidget(self.help_btn)
         btn_hbox.addStretch()
         main_layout.addLayout(btn_hbox)
         
@@ -106,10 +101,18 @@ class SangerTab(QWidget):
         export_hbox.addStretch()
         main_layout.addLayout(export_hbox)
         
-        # Status label
+        # Status + Help (bottom-right Help placement)
+        status_layout = QHBoxLayout()
+        status_caption = QLabel("Status:")
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet("color: #666; font-style: italic;")
-        main_layout.addWidget(self.status_label)
+        status_layout.addWidget(status_caption)
+        status_layout.addWidget(self.status_label)
+        status_layout.addStretch()
+        help_btn = QPushButton("Help")
+        help_btn.clicked.connect(self.show_help)
+        status_layout.addWidget(help_btn)
+        main_layout.addLayout(status_layout)
         
         self.setLayout(main_layout)
 
