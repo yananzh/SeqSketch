@@ -1,1 +1,4 @@
 softwares/
+.venv
+.vscode
+__pycache__
