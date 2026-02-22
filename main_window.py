@@ -182,7 +182,18 @@ class MainWindow(QMainWindow):
     def open_url_in_browser(self, url):
         from PyQt6.QtGui import QDesktopServices
         from PyQt6.QtCore import QUrl
-        QDesktopServices.openUrl(QUrl(url)) 
+        QDesktopServices.openUrl(QUrl(url))
+    
+    # Alignment相关槽函数
+    def open_sequence_logo_tab(self):
+        from modules.sequence_logo_tab import SequenceLogoTab
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), SequenceLogoTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = SequenceLogoTab()
+        self.tabs.addTab(tab, self.tr("Sequence Logo"))
+        self.tabs.setCurrentWidget(tab)
 
     # BLAST分析相关槽函数
     def open_ncbi_blast_web(self):

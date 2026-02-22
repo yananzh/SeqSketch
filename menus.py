@@ -137,12 +137,10 @@ def create_menus(window):
     tcoffee_action.triggered.connect(lambda: window.open_url_in_browser("https://tcoffee.crg.eu/apps/tcoffee/index.html"))
     multiple_align_menu.addAction(tcoffee_action)
     align_menu.addMenu(multiple_align_menu)
-    # 3. 序列标识图 (在线工具) (子菜单)
-    seq_logo_menu = QMenu(window.tr("Sequence Logo (Online)"), window)
-    weblogo_action = QAction("WebLogo", window)
-    weblogo_action.triggered.connect(lambda: window.open_url_in_browser("http://weblogo.berkeley.edu/"))
-    seq_logo_menu.addAction(weblogo_action)
-    align_menu.addMenu(seq_logo_menu)
+    # 3. 序列标识图 (本地)
+    seq_logo_action = QAction(window.tr("Sequence Logo"), window)
+    seq_logo_action.triggered.connect(window.open_sequence_logo_tab)
+    align_menu.addAction(seq_logo_action)
     # 5. BLAST
     blast_menu = menubar.addMenu(window.tr("BLAST"))
     # NCBI在线BLAST
