@@ -5,6 +5,7 @@ import os
 import sys
 import importlib.util
 
+
 def create_menus(window):
     menubar = window.menuBar()
     menubar.clear()
@@ -65,78 +66,85 @@ def create_menus(window):
     # 3. Secondary Structure (submenu)
     sec_struct_menu = QMenu(window.tr("Secondary Structure"), window)
     psipred_action = QAction("PSIPRED", window)
-    psipred_action.triggered.connect(lambda: window.open_url_in_browser("http://bioinf.cs.ucl.ac.uk/psipred/"))
+    psipred_action.triggered.connect(
+        lambda: window.open_url_in_browser("http://bioinf.cs.ucl.ac.uk/psipred/")
+    )
     sec_struct_menu.addAction(psipred_action)
     jpred_action = QAction("Jpred4", window)
-    jpred_action.triggered.connect(lambda: window.open_url_in_browser("https://www.compbio.dundee.ac.uk/jpred/"))
+    jpred_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://www.compbio.dundee.ac.uk/jpred/")
+    )
     sec_struct_menu.addAction(jpred_action)
     protein_menu.addMenu(sec_struct_menu)
     # 4. Tertiary Structure (submenu)
     tert_struct_menu = QMenu(window.tr("Tertiary Structure"), window)
     swiss_model_action = QAction("SWISS-MODEL", window)
-    swiss_model_action.triggered.connect(lambda: window.open_url_in_browser("https://swissmodel.expasy.org/"))
+    swiss_model_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://swissmodel.expasy.org/")
+    )
     tert_struct_menu.addAction(swiss_model_action)
     alphafold_action = QAction("AlphaFold Server", window)
-    alphafold_action.triggered.connect(lambda: window.open_url_in_browser("https://alphafoldserver.com/"))
+    alphafold_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://alphafoldserver.com/")
+    )
     tert_struct_menu.addAction(alphafold_action)
     protein_menu.addMenu(tert_struct_menu)
     # 5. Domain Prediction (submenu)
     domain_menu = QMenu(window.tr("Domain Prediction"), window)
     interpro_action = QAction("InterPro", window)
-    interpro_action.triggered.connect(lambda: window.open_url_in_browser("https://www.ebi.ac.uk/interpro/"))
+    interpro_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://www.ebi.ac.uk/interpro/")
+    )
     domain_menu.addAction(interpro_action)
     protein_menu.addMenu(domain_menu)
     # 6. Signal Peptide (submenu)
     signal_menu = QMenu(window.tr("Signal Peptide"), window)
     signalp_action = QAction("SignalP 6.0", window)
-    signalp_action.triggered.connect(lambda: window.open_url_in_browser("https://services.healthtech.dtu.dk/services/SignalP-6.0/"))
+    signalp_action.triggered.connect(
+        lambda: window.open_url_in_browser(
+            "https://services.healthtech.dtu.dk/services/SignalP-6.0/"
+        )
+    )
     signal_menu.addAction(signalp_action)
     protein_menu.addMenu(signal_menu)
     # 7. Transmembrane Helices (submenu)
     tmhmm_menu = QMenu(window.tr("Transmembrane Helices"), window)
     deeptmhmm_action = QAction("DeepTMHMM 1.0", window)
-    deeptmhmm_action.triggered.connect(lambda: window.open_url_in_browser("https://services.healthtech.dtu.dk/services/DeepTMHMM-1.0/"))
+    deeptmhmm_action.triggered.connect(
+        lambda: window.open_url_in_browser(
+            "https://services.healthtech.dtu.dk/services/DeepTMHMM-1.0/"
+        )
+    )
     tmhmm_menu.addAction(deeptmhmm_action)
     protein_menu.addMenu(tmhmm_menu)
     # 8. Homolog Search (submenu)
     homolog_menu = QMenu(window.tr("Homolog Search"), window)
     hmmer_action = QAction("HMMER", window)
-    hmmer_action.triggered.connect(lambda: window.open_url_in_browser("https://www.ebi.ac.uk/Tools/hmmer/search/phmmer"))
+    hmmer_action.triggered.connect(
+        lambda: window.open_url_in_browser(
+            "https://www.ebi.ac.uk/Tools/hmmer/search/phmmer"
+        )
+    )
     homolog_menu.addAction(hmmer_action)
     protein_menu.addMenu(homolog_menu)
     # 9. Structure Similarity (submenu)
     structure_similarity_menu = QMenu(window.tr("Structure Similarity"), window)
     foldseek_action = QAction("Foldseek Search", window)
-    foldseek_action.triggered.connect(lambda: window.open_url_in_browser("https://search.foldseek.com/search"))
+    foldseek_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://search.foldseek.com/search")
+    )
     structure_similarity_menu.addAction(foldseek_action)
     protein_menu.addMenu(structure_similarity_menu)
     # 4. Alignment
     align_menu = menubar.addMenu(window.tr("Alignment"))
-    # 1. 双序列比对 (在线工具) (子菜单)
-    pairwise_align_menu = QMenu(window.tr("Pairwise Alignment (Online)"), window)
-    water_action = QAction("Local (EBI EMBOSS Water)", window)
-    water_action.triggered.connect(lambda: window.open_url_in_browser("https://www.ebi.ac.uk/jdispatcher/emboss/water"))
-    pairwise_align_menu.addAction(water_action)
-    needle_action = QAction("Global (EBI EMBOSS Needle)", window)
-    needle_action.triggered.connect(lambda: window.open_url_in_browser("https://www.ebi.ac.uk/jdispatcher/emboss/needle"))
-    pairwise_align_menu.addAction(needle_action)
-    align_menu.addMenu(pairwise_align_menu)
-    # 2. 多序列比对 (在线工具) (子菜单)
-    multiple_align_menu = QMenu(window.tr("Multiple Alignment (Online)"), window)
-    clustalo_action = QAction("EBI Clustal Omega", window)
-    clustalo_action.triggered.connect(lambda: window.open_url_in_browser("https://www.ebi.ac.uk/jdispatcher/msa/clustalo"))
-    multiple_align_menu.addAction(clustalo_action)
-    muscle_action = QAction("EBI MUSCLE", window)
-    muscle_action.triggered.connect(lambda: window.open_url_in_browser("https://www.ebi.ac.uk/jdispatcher/msa/muscle"))
-    multiple_align_menu.addAction(muscle_action)
-    mafft_action = QAction("MAFFT Server", window)
-    mafft_action.triggered.connect(lambda: window.open_url_in_browser("https://mafft.cbrc.jp/alignment/server/"))
-    multiple_align_menu.addAction(mafft_action)
-    # 新增 T-Coffee 选项
-    tcoffee_action = QAction("T-Coffee", window)
-    tcoffee_action.triggered.connect(lambda: window.open_url_in_browser("https://tcoffee.crg.eu/apps/tcoffee/index.html"))
-    multiple_align_menu.addAction(tcoffee_action)
-    align_menu.addMenu(multiple_align_menu)
+    # 1. 双序列比对 (本地)
+    pairwise_action = QAction(window.tr("Pairwise Sequence Alignment"), window)
+    pairwise_action.triggered.connect(window.open_pairwise_alignment_tab)
+    align_menu.addAction(pairwise_action)
+    # 2. 多序列比对 (本地)
+    msa_action = QAction(window.tr("Multiple Sequence Alignment"), window)
+    msa_action.triggered.connect(window.open_multiple_sequence_alignment_tab)
+    align_menu.addAction(msa_action)
     # 3. 序列标识图 (本地)
     seq_logo_action = QAction(window.tr("Sequence Logo"), window)
     seq_logo_action.triggered.connect(window.open_sequence_logo_tab)
@@ -159,10 +167,12 @@ def create_menus(window):
     # 6. Primer Design
     primer_menu = menubar.addMenu(window.tr("Primer Design"))
     open_primer_action = QAction(window.tr("PCR Primer Assistant"), window)
+
     def _open_primer_designer():
         # 弹出 modules/primer3_gui.py 中的 MainWindow 作为独立窗口
         try:
             from modules.primer3_gui import MainWindow as Primer3MainWindow
+
             # 保持窗口引用，避免被回收
             if not hasattr(window, "_primer3_window") or window._primer3_window is None:
                 window._primer3_window = Primer3MainWindow()
@@ -171,7 +181,11 @@ def create_menus(window):
             window._primer3_window.activateWindow()
         except Exception as e:
             from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.critical(window, "Error", f"Failed to load primer designer: {e}")
+
+            QMessageBox.critical(
+                window, "Error", f"Failed to load primer designer: {e}"
+            )
+
     open_primer_action.triggered.connect(_open_primer_designer)
     primer_menu.addAction(open_primer_action)
     # 7. Phylogenetics
@@ -179,27 +193,38 @@ def create_menus(window):
     # 7.1 系统发育树构建（在线工具）子菜单
     phylo_build_menu = QMenu(window.tr("Phylogeny (Online)"), window)
     ngphylogeny_action = QAction("NGPhylogeny.fr", window)
-    ngphylogeny_action.triggered.connect(lambda: window.open_url_in_browser("https://ngphylogeny.fr/about"))
+    ngphylogeny_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://ngphylogeny.fr/about")
+    )
     phylo_build_menu.addAction(ngphylogeny_action)
     iqtree_action = QAction("IQ-TREE", window)
-    iqtree_action.triggered.connect(lambda: window.open_url_in_browser("http://iqtree.cibiv.univie.ac.at/"))
+    iqtree_action.triggered.connect(
+        lambda: window.open_url_in_browser("http://iqtree.cibiv.univie.ac.at/")
+    )
     phylo_build_menu.addAction(iqtree_action)
     tygs_action = QAction("TYGS", window)
-    tygs_action.triggered.connect(lambda: window.open_url_in_browser("https://tygs.dsmz.de/"))
+    tygs_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://tygs.dsmz.de/")
+    )
     phylo_build_menu.addAction(tygs_action)
     evolution_menu.addMenu(phylo_build_menu)
     # 7.2 进化树可视化（在线工具）子菜单
     phylo_vis_menu = QMenu(window.tr("Tree Visualization (Online)"), window)
     itol_action = QAction("iTOL", window)
-    itol_action.triggered.connect(lambda: window.open_url_in_browser("https://itol.embl.de/"))
+    itol_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://itol.embl.de/")
+    )
     phylo_vis_menu.addAction(itol_action)
     tvbot_action = QAction("TVBOT", window)
-    tvbot_action.triggered.connect(lambda: window.open_url_in_browser("https://www.chiplot.online/tvbot.html"))
+    tvbot_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://www.chiplot.online/tvbot.html")
+    )
     phylo_vis_menu.addAction(tvbot_action)
     evolution_menu.addMenu(phylo_vis_menu)
     # 8. Favorites
     fav_menu = menubar.addMenu(window.tr("Favorites"))
     manage_fav_action = QAction(window.tr("Manage Favorites"), window)
+
     def _open_bookmark_manager():
         # 保持引用，避免窗口被回收
         if not hasattr(window, "_bookmark_manager") or window._bookmark_manager is None:
@@ -207,17 +232,18 @@ def create_menus(window):
         window._bookmark_manager.show()
         window._bookmark_manager.raise_()
         window._bookmark_manager.activateWindow()
+
     manage_fav_action.triggered.connect(_open_bookmark_manager)
     fav_menu.addAction(manage_fav_action)
     # Settings menu
     settings_menu = menubar.addMenu(window.tr("Settings"))
-    
+
     # 检查更新
     check_update_action = QAction(window.tr("Check for Updates"), window)
     check_update_action.triggered.connect(window.check_for_updates)
     settings_menu.addAction(check_update_action)
-    
+
     # 关于
     about_action = QAction(window.tr("About"), window)
     about_action.triggered.connect(window.show_about_dialog)
-    settings_menu.addAction(about_action) 
+    settings_menu.addAction(about_action)

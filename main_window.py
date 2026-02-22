@@ -1,9 +1,17 @@
-from PyQt6.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QFileDialog, QMessageBox, QApplication
+from PyQt6.QtWidgets import (
+    QMainWindow,
+    QTabWidget,
+    QStatusBar,
+    QFileDialog,
+    QMessageBox,
+    QApplication,
+)
 from PyQt6.QtCore import Qt
 from menus import create_menus
 from PyQt6.QtGui import QIcon, QPixmap
 import os
 # 新增DNA序列分析相关Tab（按需导入）
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -33,9 +41,9 @@ class MainWindow(QMainWindow):
         create_menus(self)
 
     def _load_style(self, dark=False):
-        qss_path = os.path.join(os.path.dirname(__file__), 'styles.qss')
+        qss_path = os.path.join(os.path.dirname(__file__), "styles.qss")
         try:
-            with open(qss_path, 'r', encoding='utf-8') as f:
+            with open(qss_path, "r", encoding="utf-8") as f:
                 qss = f.read()
             self.setStyleSheet(qss)
         except Exception as e:
@@ -58,6 +66,7 @@ class MainWindow(QMainWindow):
 
     def open_sequence_statistics_tab(self):
         from modules.sequence_statistics_tab import SequenceStatisticsTab
+
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), SequenceStatisticsTab):
                 self.tabs.setCurrentIndex(i)
@@ -68,6 +77,7 @@ class MainWindow(QMainWindow):
 
     def open_simplify_ids_tab(self):
         from modules.simplify_ids_tab import SimplifyIDsTab
+
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), SimplifyIDsTab):
                 self.tabs.setCurrentIndex(i)
@@ -78,6 +88,7 @@ class MainWindow(QMainWindow):
 
     def open_extract_by_id_tab(self):
         from modules.extract_by_id_tab import ExtractByIDTab
+
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), ExtractByIDTab):
                 self.tabs.setCurrentIndex(i)
@@ -88,6 +99,7 @@ class MainWindow(QMainWindow):
 
     def open_extract_by_regex_tab(self):
         from modules.extract_by_regex_tab import ExtractByRegexTab
+
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), ExtractByRegexTab):
                 self.tabs.setCurrentIndex(i)
@@ -98,6 +110,7 @@ class MainWindow(QMainWindow):
 
     def open_download_from_ncbi_tab(self):
         from modules.download_from_ncbi_tab import DownloadFromNCBITab
+
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), DownloadFromNCBITab):
                 self.tabs.setCurrentIndex(i)
@@ -108,6 +121,7 @@ class MainWindow(QMainWindow):
 
     def open_batch_rename_ids_tab(self):
         from modules.batch_rename_ids_tab import BatchRenameIDsTab
+
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), BatchRenameIDsTab):
                 self.tabs.setCurrentIndex(i)
@@ -119,36 +133,42 @@ class MainWindow(QMainWindow):
     # DNA序列分析六大功能Tab
     def open_rna_tab(self):
         from modules.rna_tab import RNATab
+
         tab = RNATab()
         self.tabs.addTab(tab, "Convert to RNA")
         self.tabs.setCurrentWidget(tab)
 
     def open_complement_tab(self):
         from modules.complement_tab import ComplementTab
+
         tab = ComplementTab()
         self.tabs.addTab(tab, "Complement")
         self.tabs.setCurrentWidget(tab)
 
     def open_reverse_complement_tab(self):
         from modules.reverse_complement_tab import ReverseComplementTab
+
         tab = ReverseComplementTab()
         self.tabs.addTab(tab, "Reverse Complement")
         self.tabs.setCurrentWidget(tab)
 
     def open_translate_tab(self):
         from modules.translate_tab import TranslateTab
+
         tab = TranslateTab()
         self.tabs.addTab(tab, "Translate")
         self.tabs.setCurrentWidget(tab)
 
     def open_orf_tab(self):
         from modules.orf_tab import ORFTab
+
         tab = ORFTab()
         self.tabs.addTab(tab, "ORF Finder")
         self.tabs.setCurrentWidget(tab)
 
     def open_sanger_tab(self):
         from modules.sanger_tab import SangerTab
+
         tab = SangerTab()
         self.tabs.addTab(tab, "Sanger Sequence Assembly")
         self.tabs.setCurrentWidget(tab)
@@ -156,11 +176,12 @@ class MainWindow(QMainWindow):
     def close_tab(self, index):
         widget = self.tabs.widget(index)
         self.tabs.removeTab(index)
-        widget.deleteLater() 
+        widget.deleteLater()
 
     # 蛋白质序列分析相关槽函数
     def open_amino_acid_composition_tab(self):
         from modules.amino_acid_composition_tab import AminoAcidCompositionTab
+
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), AminoAcidCompositionTab):
                 self.tabs.setCurrentIndex(i)
@@ -171,6 +192,7 @@ class MainWindow(QMainWindow):
 
     def open_physicochemical_properties_tab(self):
         from modules.physicochemical_properties_tab import PhysicochemicalPropertiesTab
+
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), PhysicochemicalPropertiesTab):
                 self.tabs.setCurrentIndex(i)
@@ -182,11 +204,35 @@ class MainWindow(QMainWindow):
     def open_url_in_browser(self, url):
         from PyQt6.QtGui import QDesktopServices
         from PyQt6.QtCore import QUrl
+
         QDesktopServices.openUrl(QUrl(url))
-    
+
     # Alignment相关槽函数
+    def open_pairwise_alignment_tab(self):
+        from modules.pairwise_alignment_tab import PairwiseAlignmentTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), PairwiseAlignmentTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = PairwiseAlignmentTab()
+        self.tabs.addTab(tab, self.tr("Pairwise Sequence Alignment"))
+        self.tabs.setCurrentWidget(tab)
+
+    def open_multiple_sequence_alignment_tab(self):
+        from modules.multiple_sequence_alignment_tab import MultipleSequenceAlignmentTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), MultipleSequenceAlignmentTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = MultipleSequenceAlignmentTab()
+        self.tabs.addTab(tab, self.tr("Multiple Sequence Alignment"))
+        self.tabs.setCurrentWidget(tab)
+
     def open_sequence_logo_tab(self):
         from modules.sequence_logo_tab import SequenceLogoTab
+
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), SequenceLogoTab):
                 self.tabs.setCurrentIndex(i)
@@ -198,35 +244,47 @@ class MainWindow(QMainWindow):
     # BLAST分析相关槽函数
     def open_ncbi_blast_web(self):
         import webbrowser
+
         webbrowser.open_new_tab("https://blast.ncbi.nlm.nih.gov/Blast.cgi")
 
     def open_blast_make_db_dialog(self):
         from modules.blast_make_db_dialog import BlastMakeDbDialog
+
         dlg = BlastMakeDbDialog(self, status_callback=self.status.showMessage)
         dlg.exec()
 
     def open_blast_run_dialog(self):
         from modules.blast_run_dialog import BlastRunDialog
         from modules.blast_result_tab import BlastResultTab
+
         def get_query_seq():
             for i in range(self.tabs.count()):
                 tab = self.tabs.widget(i)
-                if hasattr(tab, 'input_text'):
+                if hasattr(tab, "input_text"):
                     return tab.input_text.toPlainText()
-            return ''
+            return ""
+
         def on_result(xml_path):
             tab = BlastResultTab(xml_path)
             self.tabs.addTab(tab, f"BLAST Result")
             self.tabs.setCurrentWidget(tab)
-        dlg = BlastRunDialog(self, get_query_seq=get_query_seq, status_callback=self.status.showMessage, result_callback=on_result)
+
+        dlg = BlastRunDialog(
+            self,
+            get_query_seq=get_query_seq,
+            status_callback=self.status.showMessage,
+            result_callback=on_result,
+        )
         dlg.exec()
 
     def check_for_updates(self):
         """Check for updates"""
         QMessageBox.information(
-            self, 
-            self.tr("Check for Updates"), 
-            self.tr("Current version: v1.0.0\n\nNo updates available.\n\nVisit the project page for the latest info:\nhttps://github.com/yananzh/BioSeq-Analyzer")
+            self,
+            self.tr("Check for Updates"),
+            self.tr(
+                "Current version: v1.0.0\n\nNo updates available.\n\nVisit the project page for the latest info:\nhttps://github.com/yananzh/BioSeq-Analyzer"
+            ),
         )
 
     def show_about_dialog(self):
@@ -254,5 +312,5 @@ class MainWindow(QMainWindow):
 
 <p>Thanks for using BioSeq Analyzer!</p>
         """)
-        
+
         QMessageBox.about(self, self.tr("About BioSeq Analyzer"), about_text)
