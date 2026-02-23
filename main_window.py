@@ -258,35 +258,36 @@ class MainWindow(QMainWindow):
 
         webbrowser.open_new_tab("https://blast.ncbi.nlm.nih.gov/Blast.cgi")
 
-    def open_blast_make_db_dialog(self):
-        from modules.blast_make_db_dialog import BlastMakeDbDialog
-
-        dlg = BlastMakeDbDialog(self, status_callback=self.status.showMessage)
-        dlg.exec()
-
-    def open_blast_run_dialog(self):
-        from modules.blast_run_dialog import BlastRunDialog
+    def _open_blast_local_tab(self, sub_index: int = 0):
+        """Open (or focus) the Local BLAST tab and switch to sub_index."""
+        from modules.blast_local_tab import BlastLocalTab
         from modules.blast_result_tab import BlastResultTab
 
-        def get_query_seq():
-            for i in range(self.tabs.count()):
-                tab = self.tabs.widget(i)
-                if hasattr(tab, "input_text"):
-                    return tab.input_text.toPlainText()
-            return ""
+        # Reuse existing tab if already open
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), BlastLocalTab):
+                self.tabs.setCurrentIndex(i)
+                self.tabs.widget(i).switch_to(sub_index)
+                return
 
-        def on_result(xml_path):
-            tab = BlastResultTab(xml_path)
-            self.tabs.addTab(tab, f"BLAST Result")
-            self.tabs.setCurrentWidget(tab)
+        def on_result(tsv_path):
+            result_tab = BlastResultTab(tsv_path)
+            self.tabs.addTab(result_tab, "BLAST Result")
+            self.tabs.setCurrentWidget(result_tab)
 
-        dlg = BlastRunDialog(
-            self,
-            get_query_seq=get_query_seq,
+        tab = BlastLocalTab(
             status_callback=self.status.showMessage,
             result_callback=on_result,
         )
-        dlg.exec()
+        self.tabs.addTab(tab, "Local BLAST")
+        self.tabs.setCurrentWidget(tab)
+        tab.switch_to(sub_index)
+
+    def open_blast_make_db_dialog(self):
+        self._open_blast_local_tab(sub_index=0)
+
+    def open_blast_run_dialog(self):
+        self._open_blast_local_tab(sub_index=1)
 
     def check_for_updates(self):
         """Check for updates"""
