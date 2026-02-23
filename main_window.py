@@ -227,7 +227,18 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = MultipleSequenceAlignmentTab()
-        self.tabs.addTab(tab, self.tr("Multiple Sequence Alignment"))
+        self.tabs.addTab(tab, self.tr("Multiple Sequence Alignment (Muscle5)"))
+        self.tabs.setCurrentWidget(tab)
+
+    def open_msa_visualization_tab(self):
+        from modules.msa_visualization_tab import MSAVisualizationTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), MSAVisualizationTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = MSAVisualizationTab()
+        self.tabs.addTab(tab, self.tr("MSA Visualization"))
         self.tabs.setCurrentWidget(tab)
 
     def open_sequence_logo_tab(self):

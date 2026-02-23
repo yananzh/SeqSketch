@@ -110,7 +110,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     """Local multiple sequence alignment using MUSCLE v5"""
 
     def __init__(self, parent=None):
-        super().__init__("Multiple Sequence Alignment", "sequence")
+        super().__init__("Multiple Sequence Alignment (Muscle5)", "sequence")
         self._worker: _MuscleWorker | None = None
         self._rebuild_input_area()
         self._setup_parameters()
@@ -467,7 +467,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
     def show_help(self):
         html = """
-<h3>Multiple Sequence Alignment (MUSCLE v5)</h3>
+<h3>Multiple Sequence Alignment (Muscle5)</h3>
 <p>Align ≥ 2 DNA or protein sequences using the bundled MUSCLE v5 binary.
 Equivalent to running <code>muscle -align input.fa -output output.afa</code>
 on the command line.</p>
@@ -514,7 +514,7 @@ FASTA (aligned) output can be loaded directly into tree-building tools
 (FastTree, IQ-TREE) or visualisers (MEGA, Jalview).</p>
 """
         dlg = QDialog(self)
-        dlg.setWindowTitle("Help – Multiple Sequence Alignment")
+        dlg.setWindowTitle("Help – Multiple Sequence Alignment (Muscle5)")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(520)
         layout = QVBoxLayout()
