@@ -302,6 +302,19 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, self.tr("Tree Construction (IQ-TREE)"))
         self.tabs.setCurrentWidget(tab)
 
+    def open_partition_concat_tab(self):
+        """Open (or focus) the Sequence Concatenation & Partition tab."""
+        from modules.partition_concat_tab import PartitionConcatTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), PartitionConcatTab):
+                self.tabs.setCurrentIndex(i)
+                return
+
+        tab = PartitionConcatTab(status_callback=self.status.showMessage)
+        self.tabs.addTab(tab, self.tr("Sequence Concatenation and Partition Models"))
+        self.tabs.setCurrentWidget(tab)
+
     def check_for_updates(self):
         """Check for updates"""
         QMessageBox.information(

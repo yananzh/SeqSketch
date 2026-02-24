@@ -194,11 +194,17 @@ def create_menus(window):
     primer_menu.addAction(open_primer_action)
     # 7. Phylogenetic Tree
     evolution_menu = menubar.addMenu(window.tr("Phylogenetic Tree"))
-    # 7.1 Local IQ-TREE tab
+    # 7.1 Sequence Concatenation & Partition (first)
+    partition_action = QAction(
+        window.tr("Sequence Concatenation and Partition Models"), window
+    )
+    partition_action.triggered.connect(window.open_partition_concat_tab)
+    evolution_menu.addAction(partition_action)
+    # 7.2 Local IQ-TREE tab
     iqtree_local_action = QAction(window.tr("Tree Construction (IQ-TREE)"), window)
     iqtree_local_action.triggered.connect(window.open_iqtree_tab)
     evolution_menu.addAction(iqtree_local_action)
-    # 7.2 进化树可视化（在线工具）子菜单
+    # 7.3 进化树可视化（在线工具）子菜单
     phylo_vis_menu = QMenu(window.tr("Tree Visualization (Online)"), window)
     itol_action = QAction("iTOL", window)
     itol_action.triggered.connect(
