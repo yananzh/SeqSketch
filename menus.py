@@ -192,26 +192,12 @@ def create_menus(window):
 
     open_primer_action.triggered.connect(_open_primer_designer)
     primer_menu.addAction(open_primer_action)
-    # 7. Phylogenetics
-    evolution_menu = menubar.addMenu(window.tr("Phylogenetics"))
-    # 7.1 系统发育树构建（在线工具）子菜单
-    phylo_build_menu = QMenu(window.tr("Phylogeny (Online)"), window)
-    ngphylogeny_action = QAction("NGPhylogeny.fr", window)
-    ngphylogeny_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://ngphylogeny.fr/about")
-    )
-    phylo_build_menu.addAction(ngphylogeny_action)
-    iqtree_action = QAction("IQ-TREE", window)
-    iqtree_action.triggered.connect(
-        lambda: window.open_url_in_browser("http://iqtree.cibiv.univie.ac.at/")
-    )
-    phylo_build_menu.addAction(iqtree_action)
-    tygs_action = QAction("TYGS", window)
-    tygs_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://tygs.dsmz.de/")
-    )
-    phylo_build_menu.addAction(tygs_action)
-    evolution_menu.addMenu(phylo_build_menu)
+    # 7. Phylogenetic Tree
+    evolution_menu = menubar.addMenu(window.tr("Phylogenetic Tree"))
+    # 7.1 Local IQ-TREE tab
+    iqtree_local_action = QAction(window.tr("Tree Construction (IQ-TREE)"), window)
+    iqtree_local_action.triggered.connect(window.open_iqtree_tab)
+    evolution_menu.addAction(iqtree_local_action)
     # 7.2 进化树可视化（在线工具）子菜单
     phylo_vis_menu = QMenu(window.tr("Tree Visualization (Online)"), window)
     itol_action = QAction("iTOL", window)

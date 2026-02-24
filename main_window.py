@@ -289,6 +289,19 @@ class MainWindow(QMainWindow):
     def open_blast_run_dialog(self):
         self._open_blast_local_tab(sub_index=1)
 
+    def open_iqtree_tab(self):
+        """Open (or focus) the IQ-TREE Tree Construction tab."""
+        from modules.iqtree_tab import IqTreeTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), IqTreeTab):
+                self.tabs.setCurrentIndex(i)
+                return
+
+        tab = IqTreeTab(status_callback=self.status.showMessage)
+        self.tabs.addTab(tab, self.tr("Tree Construction (IQ-TREE)"))
+        self.tabs.setCurrentWidget(tab)
+
     def check_for_updates(self):
         """Check for updates"""
         QMessageBox.information(
