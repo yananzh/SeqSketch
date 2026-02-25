@@ -3,6 +3,7 @@ import re
 import sys
 import tempfile
 import subprocess
+import configparser
 
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -11,6 +12,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QComboBox,
     QTextEdit,
     QPushButton,
@@ -28,6 +30,7 @@ from utils.common_components import BaseTabWidget
 # ---------------------------------------------------------------------------
 _HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MUSCLE_EXE = os.path.join(_HERE, "softwares", "muscle-win64.v5.3.exe")
+CONFIG_INI = os.path.join(_HERE, "config.ini")
 
 
 # ---------------------------------------------------------------------------
@@ -38,11 +41,12 @@ class _MuscleWorker(QThread):
     error = pyqtSignal(str)
     progress = pyqtSignal(str)
 
-    def __init__(self, fasta_text: str, method: str, threads: int):
+    def __init__(self, fasta_text: str, method: str, threads: int, muscle_exe: str):
         super().__init__()
         self.fasta_text = fasta_text
         self.method = method  # "accurate" | "fast"
         self.threads = threads
+        self.muscle_exe = muscle_exe
 
     def run(self):
         tmp_in = tmp_out = None
@@ -58,7 +62,7 @@ class _MuscleWorker(QThread):
 
             flag = "-align" if self.method == "accurate" else "-super5"
             cmd = [
-                MUSCLE_EXE,
+                self.muscle_exe,
                 flag,
                 tmp_in,
                 "-output",
@@ -87,8 +91,8 @@ class _MuscleWorker(QThread):
 
         except FileNotFoundError:
             self.error.emit(
-                f"MUSCLE executable not found:\n{MUSCLE_EXE}\n\n"
-                "Please ensure muscle-win64.v5.3.exe is in the softwares/ directory."
+                f"MUSCLE executable not found:\n{self.muscle_exe}\n\n"
+                "Please select a valid MUSCLE executable path."
             )
         except subprocess.TimeoutExpired:
             self.error.emit("MUSCLE timed out (>10 min). Try the Fast/Super5 method.")
@@ -112,6 +116,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("Multiple Sequence Alignment (Muscle5)", "sequence")
         self._worker: _MuscleWorker | None = None
+        self._saved_muscle_path = self._load_saved_muscle_path()
         self._rebuild_input_area()
         self._setup_parameters()
         self._setup_output()
@@ -203,8 +208,29 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         row2.addWidget(self.threads_spin)
         row2.addStretch()
 
+        # Row 3: MUSCLE executable path
+        row3 = QHBoxLayout()
+        row3.setSpacing(10)
+
+        exe_label = QLabel("MUSCLE Path:")
+        self.muscle_path_edit = QLineEdit()
+        self.muscle_path_edit.setPlaceholderText("Choose MUSCLE executable path")
+        self.muscle_path_edit.setText(self._saved_muscle_path)
+        self.muscle_path_edit.setToolTip(
+            "Path to MUSCLE executable (muscle-win64.v5.3.exe or custom build)"
+        )
+
+        self.muscle_browse_btn = QPushButton("Browse")
+        self.muscle_browse_btn.setFixedWidth(80)
+        self.muscle_browse_btn.clicked.connect(self._browse_muscle_exe)
+
+        row3.addWidget(exe_label)
+        row3.addWidget(self.muscle_path_edit)
+        row3.addWidget(self.muscle_browse_btn)
+
         self.content_area.insertLayout(2, row1)
         self.content_area.insertLayout(3, row2)
+        self.content_area.insertLayout(4, row3)
 
     def _setup_output(self):
         self.output_label.setText("Alignment Result:")
@@ -242,6 +268,46 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         widget.dragEnterEvent = drag_enter
         widget.dropEvent = drop
+
+    def _browse_muscle_exe(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select MUSCLE executable",
+            "",
+            "Executable files (*.exe);;All Files (*)",
+        )
+        if path:
+            self.muscle_path_edit.setText(path)
+            self._save_muscle_path(path)
+
+    def _load_saved_muscle_path(self) -> str:
+        cfg = configparser.ConfigParser()
+        try:
+            if os.path.isfile(CONFIG_INI):
+                cfg.read(CONFIG_INI, encoding="utf-8")
+                saved = cfg.get("MSA", "muscle_exe", fallback="").strip()
+                if saved:
+                    return saved
+        except Exception:
+            pass
+        return MUSCLE_EXE
+
+    def _save_muscle_path(self, path: str):
+        path = (path or "").strip()
+        if not path:
+            return
+        cfg = configparser.ConfigParser()
+        try:
+            if os.path.isfile(CONFIG_INI):
+                cfg.read(CONFIG_INI, encoding="utf-8")
+            if not cfg.has_section("MSA"):
+                cfg.add_section("MSA")
+            cfg.set("MSA", "muscle_exe", path)
+            with open(CONFIG_INI, "w", encoding="utf-8") as f:
+                cfg.write(f)
+        except Exception:
+            # Keep feature non-blocking if config write fails
+            pass
 
     # ---------------------------------------------------------------- actions
 
@@ -300,13 +366,23 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         method = "accurate" if self.method_combo.currentIndex() == 0 else "fast"
         threads = self.threads_spin.value()
+        muscle_exe = self.muscle_path_edit.text().strip() or MUSCLE_EXE
+        self._save_muscle_path(muscle_exe)
+
+        if not os.path.isfile(muscle_exe):
+            QMessageBox.warning(
+                self,
+                "MUSCLE Path Error",
+                f"MUSCLE executable not found:\n{muscle_exe}\n\nPlease choose a valid path.",
+            )
+            return
 
         self.run_btn.setEnabled(False)
         self.status_label.setText(
             f"Running MUSCLE ({method}) on {len(seqs)} sequences…"
         )
 
-        self._worker = _MuscleWorker(clean_fasta, method, threads)
+        self._worker = _MuscleWorker(clean_fasta, method, threads, muscle_exe)
         self._worker.finished.connect(self._on_alignment_done)
         self._worker.error.connect(self._on_alignment_error)
         self._worker.progress.connect(lambda msg: self.status_label.setText(msg))
