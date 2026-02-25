@@ -315,6 +315,19 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, self.tr("Sequence Concatenation and Partition Models"))
         self.tabs.setCurrentWidget(tab)
 
+    def open_tree_visualization_tab(self):
+        """Open (or focus) the Tree Visualization tab."""
+        from modules.tree_visualization_tab import TreeVisualizationTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), TreeVisualizationTab):
+                self.tabs.setCurrentIndex(i)
+                return
+
+        tab = TreeVisualizationTab(status_callback=self.status.showMessage)
+        self.tabs.addTab(tab, self.tr("Tree Visualization"))
+        self.tabs.setCurrentWidget(tab)
+
     def check_for_updates(self):
         """Check for updates"""
         QMessageBox.information(

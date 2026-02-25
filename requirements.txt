@@ -6,3 +6,4 @@ scipy>=1.7.0
 primer3-py>=1.3.2
 pandas>=1.3.0
 logomaker>=0.8
+phytreeviz>=0.3.0

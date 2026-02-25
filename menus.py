@@ -204,19 +204,10 @@ def create_menus(window):
     iqtree_local_action = QAction(window.tr("Tree Construction (IQ-TREE)"), window)
     iqtree_local_action.triggered.connect(window.open_iqtree_tab)
     evolution_menu.addAction(iqtree_local_action)
-    # 7.3 进化树可视化（在线工具）子菜单
-    phylo_vis_menu = QMenu(window.tr("Tree Visualization (Online)"), window)
-    itol_action = QAction("iTOL", window)
-    itol_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://itol.embl.de/")
-    )
-    phylo_vis_menu.addAction(itol_action)
-    tvbot_action = QAction("TVBOT", window)
-    tvbot_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://www.chiplot.online/tvbot.html")
-    )
-    phylo_vis_menu.addAction(tvbot_action)
-    evolution_menu.addMenu(phylo_vis_menu)
+    # 7.3 Tree Visualization (local, phytreeviz)
+    tree_vis_action = QAction(window.tr("Tree Visualization"), window)
+    tree_vis_action.triggered.connect(window.open_tree_visualization_tab)
+    evolution_menu.addAction(tree_vis_action)
     # 8. Favorites
     fav_menu = menubar.addMenu(window.tr("Favorites"))
     manage_fav_action = QAction(window.tr("Manage Favorites"), window)
