@@ -1,22 +1,74 @@
 /* 浅色主题 */
+
+/* 1. 全局字体 */
+* {
+    font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+}
+
 QMainWindow {
     background: #f7f7f7;
 }
+
+/* 3. 菜单栏 & 菜单 */
 QMenuBar, QToolBar {
     background: #eaeaea;
     border-bottom: 1px solid #cccccc;
+    min-height: 26px;
+    font-size: 15px;
 }
+QMenuBar::item {
+    padding: 4px 14px;
+}
+QMenuBar::item:selected {
+    background: #d0eaff;
+    border-radius: 3px;
+}
+QMenu {
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    background: #ffffff;
+}
+QMenu::item {
+    padding: 5px 24px 5px 16px;
+}
+QMenu::item:selected {
+    background: #d0eaff;
+    color: #1a1a1a;
+    border-radius: 3px;
+}
+
 QStatusBar {
     background: #eaeaea;
     border-top: 1px solid #cccccc;
 }
+
 QTabWidget::pane {
     border: 1px solid #cccccc;
     background: #ffffff;
 }
+
+/* 2. 标签页 */
+QTabBar::tab {
+    padding: 6px 16px;
+    margin-right: 2px;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    background: #e0e0e0;
+    color: #555555;
+}
 QTabBar::tab:selected {
     background: #d0eaff;
+    color: #1565c0;
+    font-weight: 600;
 }
+QTabBar::tab:hover:!selected {
+    background: #d6d6d6;
+}
+QTabBar::tab:!selected {
+    margin-top: 3px;
+}
+
 QPushButton {
     background: #4a90e2;
     color: #fff;
@@ -26,6 +78,49 @@ QPushButton {
 QPushButton:hover {
     background: #357ab8;
 }
+
+/* 5. 输入控件 */
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QPlainTextEdit {
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    padding: 3px 6px;
+    background: #ffffff;
+    selection-background-color: #d0eaff;
+    selection-color: #1a1a1a;
+}
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus,
+QTextEdit:focus, QPlainTextEdit:focus {
+    border: 1.5px solid #4a90e2;
+}
+QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
+    background: #f0f0f0;
+    color: #999999;
+}
+QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+QComboBox::down-arrow {
+    width: 10px;
+    height: 10px;
+}
+
+/* 6. GroupBox */
+QGroupBox {
+    font-weight: 600;
+    border: 1px solid #c8c8c8;
+    border-radius: 6px;
+    margin-top: 8px;
+    padding-top: 6px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 10px;
+    padding: 0 4px;
+    color: #1976d2;
+}
+
 /* 深色主题（可切换） */
 /*
 QMainWindow {
