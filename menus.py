@@ -52,6 +52,9 @@ def create_menus(window):
     sanger_action = QAction(window.tr("Sanger Sequence Assembly"), window)
     sanger_action.triggered.connect(window.open_sanger_tab)
     dna_menu.addAction(sanger_action)
+    codon_usage_action = QAction(window.tr("Codon Usage Analysis"), window)
+    codon_usage_action.triggered.connect(window.open_codon_usage_tab)
+    dna_menu.addAction(codon_usage_action)
     # 3. Protein Analysis
     protein_menu = menubar.addMenu(window.tr("Protein Analysis"))
     # 1. 氨基酸组成
@@ -200,11 +203,15 @@ def create_menus(window):
     )
     partition_action.triggered.connect(window.open_partition_concat_tab)
     evolution_menu.addAction(partition_action)
-    # 7.2 Local IQ-TREE tab
+    # 7.2 Alignment Trimming (trimAl)
+    trimal_action = QAction(window.tr("Alignment Trimming (trimAl)"), window)
+    trimal_action.triggered.connect(window.open_alignment_trimming_tab)
+    evolution_menu.addAction(trimal_action)
+    # 7.3 Local IQ-TREE tab
     iqtree_local_action = QAction(window.tr("Tree Construction (IQ-TREE)"), window)
     iqtree_local_action.triggered.connect(window.open_iqtree_tab)
     evolution_menu.addAction(iqtree_local_action)
-    # 7.3 Tree Visualization (local, phytreeviz)
+    # 7.4 Tree Visualization (local, phytreeviz)
     tree_vis_action = QAction(window.tr("Tree Visualization"), window)
     tree_vis_action.triggered.connect(window.open_tree_visualization_tab)
     evolution_menu.addAction(tree_vis_action)

@@ -173,6 +173,17 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, "Sanger Sequence Assembly")
         self.tabs.setCurrentWidget(tab)
 
+    def open_codon_usage_tab(self):
+        from modules.codon_usage_tab import CodonUsageTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), CodonUsageTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = CodonUsageTab(status_callback=self.status.showMessage)
+        self.tabs.addTab(tab, self.tr("Codon Usage Analysis"))
+        self.tabs.setCurrentWidget(tab)
+
     def close_tab(self, index):
         widget = self.tabs.widget(index)
         self.tabs.removeTab(index)
@@ -326,6 +337,19 @@ class MainWindow(QMainWindow):
 
         tab = TreeVisualizationTab(status_callback=self.status.showMessage)
         self.tabs.addTab(tab, self.tr("Tree Visualization"))
+        self.tabs.setCurrentWidget(tab)
+
+    def open_alignment_trimming_tab(self):
+        """Open (or focus) the Alignment Trimming (trimAl) tab."""
+        from modules.trimal_tab import AlignmentTrimmingTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), AlignmentTrimmingTab):
+                self.tabs.setCurrentIndex(i)
+                return
+
+        tab = AlignmentTrimmingTab(status_callback=self.status.showMessage)
+        self.tabs.addTab(tab, self.tr("Alignment Trimming (trimAl)"))
         self.tabs.setCurrentWidget(tab)
 
     def check_for_updates(self):
