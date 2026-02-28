@@ -230,6 +230,17 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, self.tr("Pairwise Sequence Alignment"))
         self.tabs.setCurrentWidget(tab)
 
+    def open_dotplot_tab(self):
+        from modules.dotplot_tab import DotPlotTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), DotPlotTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = DotPlotTab()
+        self.tabs.addTab(tab, self.tr("DotPlot"))
+        self.tabs.setCurrentWidget(tab)
+
     def open_multiple_sequence_alignment_tab(self):
         from modules.multiple_sequence_alignment_tab import MultipleSequenceAlignmentTab
 
