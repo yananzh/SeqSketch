@@ -29,13 +29,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont
 
 from utils.common_components import BaseTabWidget
+from utils.app_paths import user_data_file
 
 # ---------------------------------------------------------------------------
 # Path to bundled MUSCLE binary
 # ---------------------------------------------------------------------------
 _HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MUSCLE_EXE = os.path.join(_HERE, "softwares", "muscle-win64.v5.3.exe")
-CONFIG_INI = os.path.join(_HERE, "config.ini")
+CONFIG_INI = user_data_file("config.ini")
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +229,9 @@ class _MuscleBatchWorker(QThread):
         self.overwrite = overwrite
 
     def _render_name(self, stem: str, index: int, ext: str) -> str:
-        safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_") or f"sample_{index:03d}"
+        safe_stem = (
+            re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_") or f"sample_{index:03d}"
+        )
         name = self.naming_pattern.format(
             stem=safe_stem,
             index=f"{index:03d}",
@@ -264,14 +267,18 @@ class _MuscleBatchWorker(QThread):
         for idx, in_path in enumerate(self.input_files, start=1):
             tmp_in = tmp_out = None
             try:
-                self.progress.emit(f"[{idx}/{total}] Reading: {os.path.basename(in_path)}")
+                self.progress.emit(
+                    f"[{idx}/{total}] Reading: {os.path.basename(in_path)}"
+                )
                 with open(in_path, "r", encoding="utf-8", errors="replace") as f:
                     raw = f.read().strip()
                 seqs = _parse_fasta_to_dict(raw)
                 if len(seqs) < 2:
                     raise ValueError("Need at least 2 sequences in FASTA")
 
-                with tempfile.NamedTemporaryFile(mode="w", suffix=".fa", delete=False, encoding="utf-8") as fin:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".fa", delete=False, encoding="utf-8"
+                ) as fin:
                     fin.write(raw + "\n")
                     tmp_in = fin.name
                 tmp_out = tmp_in + "_aln.afa"
@@ -293,7 +300,9 @@ class _MuscleBatchWorker(QThread):
                 )
                 if result.returncode != 0:
                     err = result.stderr.decode("utf-8", errors="replace").strip()
-                    raise RuntimeError(f"MUSCLE exited with code {result.returncode}: {err}")
+                    raise RuntimeError(
+                        f"MUSCLE exited with code {result.returncode}: {err}"
+                    )
 
                 with open(tmp_out, "r", encoding="utf-8") as fout:
                     aligned_fasta = fout.read()
@@ -311,7 +320,9 @@ class _MuscleBatchWorker(QThread):
 
                 stem = os.path.splitext(os.path.basename(in_path))[0]
                 out_name = self._render_name(stem, idx, ext)
-                out_path = self._ensure_unique_path(os.path.join(self.output_dir, out_name))
+                out_path = self._ensure_unique_path(
+                    os.path.join(self.output_dir, out_name)
+                )
                 with open(out_path, "w", encoding="utf-8") as fw:
                     fw.write(out_text)
 
@@ -320,7 +331,9 @@ class _MuscleBatchWorker(QThread):
 
             except Exception as exc:
                 fail_msgs.append(f"{os.path.basename(in_path)} -> {exc}")
-                self.progress.emit(f"[{idx}/{total}] Failed: {os.path.basename(in_path)}")
+                self.progress.emit(
+                    f"[{idx}/{total}] Failed: {os.path.basename(in_path)}"
+                )
             finally:
                 for p in (tmp_in, tmp_out):
                     if p and os.path.exists(p):
@@ -592,7 +605,9 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_log = QTextEdit()
         self.batch_log.setReadOnly(True)
         self.batch_log.setMinimumHeight(140)
-        self.batch_log.setPlaceholderText("Batch progress and summary will appear here...")
+        self.batch_log.setPlaceholderText(
+            "Batch progress and summary will appear here..."
+        )
         bl.addWidget(self.batch_log)
 
         bl.addStretch()
@@ -730,7 +745,10 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             self.batch_out_dir_edit.setText(out_dir)
 
     def _run_batch(self):
-        input_files = [self.batch_files_list.item(i).text() for i in range(self.batch_files_list.count())]
+        input_files = [
+            self.batch_files_list.item(i).text()
+            for i in range(self.batch_files_list.count())
+        ]
         out_dir = self.batch_out_dir_edit.text().strip()
         pattern = self.batch_name_pattern.text().strip()
         method = "accurate" if self.batch_method_combo.currentIndex() == 0 else "fast"
@@ -738,24 +756,34 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         muscle_exe = self.batch_muscle_path_edit.text().strip() or MUSCLE_EXE
 
         if not input_files:
-            QMessageBox.warning(self, "Batch Input Error", "Please select at least one FASTA file.")
+            QMessageBox.warning(
+                self, "Batch Input Error", "Please select at least one FASTA file."
+            )
             return
         if not out_dir:
-            QMessageBox.warning(self, "Output Directory Error", "Please select an output directory.")
+            QMessageBox.warning(
+                self, "Output Directory Error", "Please select an output directory."
+            )
             return
         if not pattern:
-            QMessageBox.warning(self, "Naming Pattern Error", "Auto naming pattern cannot be empty.")
+            QMessageBox.warning(
+                self, "Naming Pattern Error", "Auto naming pattern cannot be empty."
+            )
             return
         # Validate placeholders quickly
         try:
             _ = pattern.format(stem="sample", method=method, index="001", ext="fasta")
         except Exception as exc:
-            QMessageBox.warning(self, "Naming Pattern Error", f"Invalid pattern:\n{exc}")
+            QMessageBox.warning(
+                self, "Naming Pattern Error", f"Invalid pattern:\n{exc}"
+            )
             return
 
         self._save_muscle_path(muscle_exe)
         if not os.path.isfile(muscle_exe):
-            QMessageBox.warning(self, "MUSCLE Path Error", f"MUSCLE executable not found:\n{muscle_exe}")
+            QMessageBox.warning(
+                self, "MUSCLE Path Error", f"MUSCLE executable not found:\n{muscle_exe}"
+            )
             return
 
         out_mode = self.batch_fmt_combo.currentText()

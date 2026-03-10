@@ -27,6 +27,30 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Windows 单文件打包（推荐）
+在项目根目录执行：
+
+```powershell
+.\scripts\build_windows_onefile.ps1 -Profile balanced
+```
+
+可选 `Profile`：
+- `small`：体积更小，启动略慢
+- `balanced`：体积和启动速度平衡（默认）
+- `fast`：启动更快，体积更大
+
+打包产物：
+
+```text
+dist\BioSeqAnalyzer.exe
+```
+
+也可使用批处理：
+
+```bat
+scripts\build_windows_onefile.bat balanced
+```
+
 ## 测试桑格测序功能
 ```bash
 python test_sanger.py

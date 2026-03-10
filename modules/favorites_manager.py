@@ -29,11 +29,12 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
 )
 
+from utils.app_paths import user_data_file
+
 
 # 数据文件路径：放在项目根目录下（ui/bookmarks.json）
 def _resolve_data_file() -> str:
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(project_root, "bookmarks.json")
+    return user_data_file("bookmarks.json")
 
 
 DATA_FILE = _resolve_data_file()
