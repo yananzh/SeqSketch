@@ -72,6 +72,16 @@ def problematic_fasta_file(tmp_path: Path) -> Path:
     return fasta_path
 
 
+@pytest.fixture
+def duplicate_header_fasta_file(tmp_path: Path) -> Path:
+    fasta_path = tmp_path / "duplicate_headers.fasta"
+    fasta_path.write_text(
+        ">dup first copy\nATGC\n>seq2 normal copy\nAAAA\n>dup second copy\nGGGG\n",
+        encoding="utf-8",
+    )
+    return fasta_path
+
+
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -208,10 +218,94 @@ def test_extract_by_id_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path)
         "seq2 beta description",
         "gene_alpha product_x",
     ]
-    assert "Found 2 matching sequences" in log_text(tab)
+    assert "Matched 2 record(s) across 2 requested ID(s)" in log_text(tab)
+    assert "Match mode: Exact Match; output order: Preserve FASTA Order" in log_text(
+        tab
+    )
     assert "Extraction complete!" in log_text(tab)
     assert tab.status_label.text() == "Ready"
     print("[Extract by ID] finished successfully")
+
+
+def test_extract_by_id_case_insensitive_query_order_and_missing_report(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    output_path = tmp_path / "extracted_case_insensitive.fasta"
+    missing_report_path = tmp_path / "extracted_case_insensitive_missing_ids.txt"
+    tab = ExtractByIDTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.id_edit.setPlainText("GENE_ALPHA\nmissing_id\nseq2")
+    tab.match_mode_combo.setCurrentText("Case-Insensitive Exact")
+    tab.output_order_combo.setCurrentText("Preserve Query Order")
+    tab.export_missing_ids_checkbox.setChecked(True)
+    tab.run_extract()
+
+    assert output_path.exists()
+    assert missing_report_path.exists()
+    assert fasta_headers(output_path) == [
+        "gene_alpha product_x",
+        "seq2 beta description",
+    ]
+    assert read_text(missing_report_path).strip() == "missing_id"
+    assert "Matched 2 record(s) across 2 requested ID(s)" in log_text(tab)
+    assert "1 requested ID(s) were not found: missing_id" in log_text(tab)
+    assert (
+        "Match mode: Case-Insensitive Exact; output order: Preserve Query Order"
+        in log_text(tab)
+    )
+    assert "Missing ID report saved to:" in log_text(tab)
+
+
+def test_extract_by_id_exclude_mode_keeps_non_requested_records(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    output_path = tmp_path / "extracted_exclude_mode.fasta"
+    tab = ExtractByIDTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.id_edit.setPlainText("seq2")
+    tab.match_mode_combo.setCurrentText("Exclude Listed IDs")
+    tab.output_order_combo.setCurrentText("Preserve Query Order")
+    tab.run_extract()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == [
+        "seq1 alpha description",
+        "gene_alpha product_x",
+        "chr10_sample annotation",
+    ]
+    assert (
+        "Exclude mode uses FASTA order for output; query order was ignored."
+        in log_text(tab)
+    )
+    assert (
+        "Match mode: Exclude Listed IDs; output order: Preserve FASTA Order"
+        in log_text(tab)
+    )
+
+
+def test_extract_by_id_logs_duplicate_query_and_duplicate_fasta_headers(
+    qapp, duplicate_header_fasta_file: Path, tmp_path: Path
+):
+    output_path = tmp_path / "duplicate_header_extract.fasta"
+    tab = ExtractByIDTab()
+
+    tab.input_edit.setText(str(duplicate_header_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.id_edit.setPlainText("dup\ndup")
+    tab.run_extract()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == ["dup first copy", "dup second copy"]
+    assert "Duplicate query IDs ignored after first occurrence: dup" in log_text(tab)
+    assert (
+        "Duplicate FASTA headers detected; all matching records will be extracted: dup (x2)"
+        in log_text(tab)
+    )
+    assert "Matched 2 record(s) across 1 requested ID(s)" in log_text(tab)
 
 
 def test_extract_by_regex_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
