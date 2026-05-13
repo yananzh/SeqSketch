@@ -76,7 +76,8 @@ class CategoryTree(QTreeWidget):
         self.setDropIndicatorShown(True)
         self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.setEditTriggers(
-            QAbstractItemView.EditTrigger.EditKeyPressed | QAbstractItemView.EditTrigger.SelectedClicked
+            QAbstractItemView.EditTrigger.EditKeyPressed
+            | QAbstractItemView.EditTrigger.SelectedClicked
         )
 
     def dragEnterEvent(self, event):
@@ -192,7 +193,9 @@ class BookmarkManager(QMainWindow):
         central.setLayout(main_layout)
 
         self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("Search bookmarks (name and URL, live filter)")
+        self.search_box.setPlaceholderText(
+            "Search bookmarks (name and URL, live filter)"
+        )
         self.search_box.textChanged.connect(self.filter_bookmarks)
         main_layout.addWidget(self.search_box)
 
@@ -349,7 +352,7 @@ class BookmarkManager(QMainWindow):
         reply = QMessageBox.question(
             self,
             "Confirm Delete",
-            f"Delete category \"{cat}\" and all its bookmarks?",
+            f'Delete category "{cat}" and all its bookmarks?',
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
@@ -421,7 +424,11 @@ class BookmarkManager(QMainWindow):
                 return
             category = category_item.text(0)
             row = self.bookmark_list.row(item)
-            if row >= 0 and category in self.bookmarks and row < len(self.bookmarks[category]):
+            if (
+                row >= 0
+                and category in self.bookmarks
+                and row < len(self.bookmarks[category])
+            ):
                 self.bookmarks[category][row] = {"name": name, "url": url}
                 self._display_bookmarks(category)
                 self._save_bookmarks()
@@ -434,6 +441,7 @@ class BookmarkManager(QMainWindow):
         if not url:
             return
         import webbrowser
+
         try:
             webbrowser.open(url)
         except Exception:
@@ -509,7 +517,9 @@ class BookmarkManager(QMainWindow):
             return
         src_cat = src_item.text(0)
         if src_cat == target_cat:
-            QMessageBox.information(self, "Notice", "Target category is the same as current.")
+            QMessageBox.information(
+                self, "Notice", "Target category is the same as current."
+            )
             return
         rows = sorted([self.bookmark_list.row(it) for it in items], reverse=True)
         moved: List[Dict[str, str]] = []
@@ -539,7 +549,9 @@ class BookmarkManager(QMainWindow):
         target_item = self.category_tree.itemAt(pos)
         if not target_item:
             if self.category_tree.topLevelItemCount() == 0:
-                QMessageBox.warning(self, "Notice", "No categories available. Create one first.")
+                QMessageBox.warning(
+                    self, "Notice", "No categories available. Create one first."
+                )
                 return
             target_item = self.category_tree.topLevelItem(0)
         target_cat = target_item.text(0)
@@ -551,7 +563,9 @@ class BookmarkManager(QMainWindow):
         moved = False
         if selected:
             if src_cat:
-                rows = sorted([self.bookmark_list.row(it) for it in selected], reverse=True)
+                rows = sorted(
+                    [self.bookmark_list.row(it) for it in selected], reverse=True
+                )
                 copied: List[Dict[str, str]] = []
                 for r in rows:
                     if 0 <= r < len(self.bookmarks.get(src_cat, [])):
@@ -565,7 +579,9 @@ class BookmarkManager(QMainWindow):
                 name = bm.get("name") if isinstance(bm, dict) else ""
                 url = bm.get("url") if isinstance(bm, dict) else ""
                 if name and url:
-                    self.bookmarks.setdefault(target_cat, []).append({"name": name, "url": url})
+                    self.bookmarks.setdefault(target_cat, []).append(
+                        {"name": name, "url": url}
+                    )
 
         cur_item = self.category_tree.currentItem()
         cur_cat = cur_item.text(0) if cur_item else None
@@ -601,7 +617,9 @@ class BookmarkManager(QMainWindow):
 
     # ============== 导入 / 导出 ==============
     def import_bookmarks(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Import Bookmarks", "", "JSON Files (*.json)")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Import Bookmarks", "", "JSON Files (*.json)"
+        )
         if file_path:
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
@@ -616,29 +634,41 @@ class BookmarkManager(QMainWindow):
                     self.categories.append(target_cat)
                 self._populate_categories()
                 self._save_bookmarks()
-                QMessageBox.information(self, "Import Successful", "Imported content merged into current bookmarks.")
+                QMessageBox.information(
+                    self,
+                    "Import Successful",
+                    "Imported content merged into current bookmarks.",
+                )
             except Exception as e:
                 QMessageBox.warning(self, "Import Failed", f"Failed to import: {e}")
 
     def export_bookmarks(self):
-        file_path, _ = QFileDialog.getSaveFileName(self, "Export Bookmarks", "", "JSON Files (*.json)")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Export Bookmarks", "", "JSON Files (*.json)"
+        )
         if file_path:
             try:
                 ordered = {cat: self.bookmarks.get(cat, []) for cat in self.categories}
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(ordered, f, ensure_ascii=False, indent=2)
-                QMessageBox.information(self, "Export Successful", f"Exported to: {file_path}")
+                QMessageBox.information(
+                    self, "Export Successful", f"Exported to: {file_path}"
+                )
             except Exception as e:
                 QMessageBox.warning(self, "Export Failed", f"Failed to export: {e}")
 
     def export_to_html(self):
-        file_path, _ = QFileDialog.getSaveFileName(self, "Export as HTML Bookmarks", "", "HTML Files (*.html)")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Export as HTML Bookmarks", "", "HTML Files (*.html)"
+        )
         if not file_path:
             return
         try:
             lines: List[str] = []
             lines.append("<!DOCTYPE NETSCAPE-Bookmark-file-1>")
-            lines.append('<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">')
+            lines.append(
+                '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">'
+            )
             lines.append("<TITLE>Bookmarks</TITLE>")
             lines.append("<H1>Bookmarks</H1>")
             lines.append("<DL><p>")
@@ -662,7 +692,9 @@ class BookmarkManager(QMainWindow):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
 
-            QMessageBox.information(self, "Export Successful", f"Bookmarks exported as HTML:\n{file_path}")
+            QMessageBox.information(
+                self, "Export Successful", f"Bookmarks exported as HTML:\n{file_path}"
+            )
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", f"Error: {e}")
 
@@ -679,5 +711,3 @@ class BookmarkManager(QMainWindow):
     def closeEvent(self, event):
         self._save_bookmarks()
         event.accept()
-
-

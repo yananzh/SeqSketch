@@ -3,7 +3,9 @@ import configparser
 
 from utils.app_paths import resource_path, user_data_file
 
-_LEGACY_CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.ini")
+_LEGACY_CONFIG_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "config.ini"
+)
 CONFIG_FILE = user_data_file("config.ini")
 CONFIG_SECTION = "BLAST"
 CONFIG_KEY = "bin_dir"
@@ -42,7 +44,9 @@ def _detect_bundled_bin() -> str | None:
     if not candidates:
         return None
 
-    candidates.sort(key=lambda p: _version_key(os.path.basename(os.path.dirname(p))), reverse=True)
+    candidates.sort(
+        key=lambda p: _version_key(os.path.basename(os.path.dirname(p))), reverse=True
+    )
     return candidates[0]
 
 
