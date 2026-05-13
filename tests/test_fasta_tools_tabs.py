@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -19,6 +20,7 @@ def qapp():
     app = QApplication.instance()
     if app is None:
         app = QApplication([])
+    app = cast(QApplication, app)
     app.setQuitOnLastWindowClosed(False)
     return app
 
@@ -50,6 +52,26 @@ def mapping_csv_file(tmp_path: Path) -> Path:
     return mapping_path
 
 
+@pytest.fixture
+def protein_fasta_file(tmp_path: Path) -> Path:
+    fasta_path = tmp_path / "protein_sample.fasta"
+    fasta_path.write_text(
+        ">prot1 kinase domain\nMSTNPKPQR\n>prot2 enzyme alpha\nVLSPADKTNVK\n",
+        encoding="utf-8",
+    )
+    return fasta_path
+
+
+@pytest.fixture
+def problematic_fasta_file(tmp_path: Path) -> Path:
+    fasta_path = tmp_path / "problematic.fasta"
+    fasta_path.write_text(
+        ">dup first copy\nATGCN\n>dup second copy\nATG1Z\n",
+        encoding="utf-8",
+    )
+    return fasta_path
+
+
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -77,18 +99,82 @@ def test_sequence_statistics_happy_path(qapp, sample_fasta_file: Path, tmp_path:
 
     assert output_path.exists()
     content = read_text(output_path)
-    assert "Sequence_ID\tLength\tGC_Content(%)" in content
-    assert "seq1\t8\t50.00" in content
-    assert "seq2\t8\t0.00" in content
-    assert "gene_alpha\t6\t100.00" in content
+    assert "# Summary" in content
+    assert "Detected_Sequence_Type\tDNA/RNA" in content
+    assert "Total_Sequences\t4" in content
+    assert "N50\t8" in content
+    assert "L50\t2" in content
+    assert "Sequence_ID\tLength\tSequence_Type\tGC_Content(%)" in content
+    assert "seq1\t8\tDNA/RNA\t50.00\t0\t0\t0\t-\t17" in content
+    assert "seq2\t8\tDNA/RNA\t0.00\t0\t0\t0\t-\t16" in content
+    assert "gene_alpha\t6\tDNA/RNA\t100.00\t0\t0\t0\t-\t9" in content
+    assert "chr10_sample\t6\tDNA/RNA\t33.33\t0\t0\t0\t-\t10" in content
+    assert tab.stat_labels["sequence_type"].text() == "DNA/RNA"
     assert tab.stat_labels["total"].text() == "4"
     assert tab.stat_labels["total_length"].text() == "28"
     assert tab.stat_labels["avg_len"].text() == "7.0"
     assert tab.stat_labels["min_len"].text() == "6"
     assert tab.stat_labels["max_len"].text() == "8"
+    assert tab.stat_labels["n50"].text() == "8"
+    assert tab.stat_labels["l50"].text() == "2"
+    assert tab.stat_labels["duplicate_ids"].text() == "0"
+    assert tab.stat_labels["ambiguous_bases"].text() == "0"
+    assert tab.stat_labels["invalid_chars"].text() == "0"
+    assert tab.stat_labels["n_content"].text() == "0 (0.0%)"
     assert "Statistics complete!" in log_text(tab)
     assert tab.status_label.text() == "Ready"
     print("[Sequence Statistics] finished successfully")
+
+
+def test_sequence_statistics_protein_input_marks_nucleotide_metrics_na(
+    qapp, protein_fasta_file: Path, tmp_path: Path
+):
+    output_path = tmp_path / "protein_stats.txt"
+    tab = SequenceStatisticsTab()
+
+    tab.input_edit.setText(str(protein_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.run_statistics()
+
+    content = read_text(output_path)
+    assert "Detected_Sequence_Type\tProtein" in content
+    assert "Total_Sequences\t2" in content
+    assert "Total_Length\t20" in content
+    assert "Total_N_Count\tN/A" in content
+    assert "N_Content_Rate(%)\tN/A" in content
+    assert "prot1\t9\tProtein\tN/A\tN/A\tN/A\t0\t-\t13" in content
+    assert tab.stat_labels["sequence_type"].text() == "Protein"
+    assert tab.stat_labels["n_content"].text() == "N/A"
+    assert tab.stat_labels["ambiguous_bases"].text() == "0"
+    assert tab.stat_labels["invalid_chars"].text() == "0"
+
+
+def test_sequence_statistics_logs_duplicate_and_invalid_sequence_warnings(
+    qapp, problematic_fasta_file: Path, tmp_path: Path
+):
+    output_path = tmp_path / "problematic_stats.txt"
+    tab = SequenceStatisticsTab()
+
+    tab.input_edit.setText(str(problematic_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.run_statistics()
+
+    content = read_text(output_path)
+    assert "Detected_Sequence_Type\tMixed/Unknown" in content
+    assert "Duplicate_ID_Count\t1" in content
+    assert "Total_Invalid_Char_Count\t1" in content
+    assert "Warning_Count\t3" in content
+    assert "dup\t5\tDNA/RNA\t40.00\t1\t0\t0\t-\t10" in content
+    assert "dup\t5\tMixed/Unknown\tN/A\tN/A\tN/A\t1\t1\t11" in content
+    assert tab.stat_labels["sequence_type"].text() == "Mixed/Unknown"
+    assert tab.stat_labels["duplicate_ids"].text() == "1"
+    assert tab.stat_labels["invalid_chars"].text() == "1"
+    assert "Duplicate IDs detected: dup (x2)" in log_text(tab)
+    assert "Mixed or unknown sequence alphabets detected" in log_text(tab)
+    assert (
+        "Invalid characters detected in 1 sequence(s), total invalid characters: 1."
+        in log_text(tab)
+    )
 
 
 def test_simplify_ids_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
