@@ -50,7 +50,9 @@ def parse_mapping_entries(rows) -> tuple[dict[str, str], dict]:
         new_id_sources[new_id].append(old_id)
 
     duplicate_new_ids = {
-        new_id: old_ids for new_id, old_ids in new_id_sources.items() if len(old_ids) > 1
+        new_id: old_ids
+        for new_id, old_ids in new_id_sources.items()
+        if len(old_ids) > 1
     }
     summary = {
         "skipped_rows": skipped_rows,
@@ -60,7 +62,9 @@ def parse_mapping_entries(rows) -> tuple[dict[str, str], dict]:
     return mapping, summary
 
 
-def load_mapping_file(mapping_path: str, has_header: bool) -> tuple[dict[str, str], dict]:
+def load_mapping_file(
+    mapping_path: str, has_header: bool
+) -> tuple[dict[str, str], dict]:
     ext = os.path.splitext(mapping_path)[1].lower()
     if ext in [".xls", ".xlsx"]:
         try:
@@ -72,7 +76,9 @@ def load_mapping_file(mapping_path: str, has_header: bool) -> tuple[dict[str, st
 
         df = pd.read_excel(mapping_path, header=0 if has_header else None)
         if df.shape[1] < 2:
-            raise ValueError("Mapping file must have at least two columns (old ID, new ID)")
+            raise ValueError(
+                "Mapping file must have at least two columns (old ID, new ID)"
+            )
         rows = df.iloc[:, :2].fillna("").astype(str).values.tolist()
         return parse_mapping_entries(rows)
 
@@ -118,15 +124,13 @@ def plan_renames(records, mapping: dict[str, str]) -> dict:
             reason = "no mapping match"
             unchanged_count += 1
 
-        rename_rows.append(
-            {
-                "record": record,
-                "old_id": old_id,
-                "new_id": new_id,
-                "status": status,
-                "reason": reason,
-            }
-        )
+        rename_rows.append({
+            "record": record,
+            "old_id": old_id,
+            "new_id": new_id,
+            "status": status,
+            "reason": reason,
+        })
         final_id_sources[new_id].append(old_id)
 
     collisions = {
@@ -134,7 +138,9 @@ def plan_renames(records, mapping: dict[str, str]) -> dict:
         for final_id, source_ids in final_id_sources.items()
         if len(source_ids) > 1
     }
-    unused_mapping_ids = [old_id for old_id in mapping if old_id not in matched_mapping_ids]
+    unused_mapping_ids = [
+        old_id for old_id in mapping if old_id not in matched_mapping_ids
+    ]
 
     for row in rename_rows:
         if row["new_id"] in collisions:
@@ -423,7 +429,9 @@ class BatchRenameIDsTab(BaseTabWidget):
                 return
 
             if mapping_summary["duplicate_old_ids"]:
-                preview = ", ".join(sorted(mapping_summary["duplicate_old_ids"].keys())[:5])
+                preview = ", ".join(
+                    sorted(mapping_summary["duplicate_old_ids"].keys())[:5]
+                )
                 self.log_message(
                     f"Duplicate source IDs found in mapping file: {preview}",
                     "ERROR",
@@ -439,7 +447,9 @@ class BatchRenameIDsTab(BaseTabWidget):
             if mapping_summary["duplicate_new_ids"]:
                 preview = ", ".join(
                     f"{new_id} <- {', '.join(source_ids)}"
-                    for new_id, source_ids in list(mapping_summary["duplicate_new_ids"].items())[:5]
+                    for new_id, source_ids in list(
+                        mapping_summary["duplicate_new_ids"].items()
+                    )[:5]
                 )
                 self.log_message(
                     f"Multiple source IDs map to the same target ID: {preview}",
@@ -476,7 +486,9 @@ class BatchRenameIDsTab(BaseTabWidget):
             if rename_plan["collisions"]:
                 preview = ", ".join(
                     f"{final_id} <- {', '.join(source_ids)}"
-                    for final_id, source_ids in list(rename_plan["collisions"].items())[:5]
+                    for final_id, source_ids in list(rename_plan["collisions"].items())[
+                        :5
+                    ]
                 )
                 level = "ERROR" if block_on_collisions else "WARNING"
                 self.log_message(
@@ -506,11 +518,16 @@ class BatchRenameIDsTab(BaseTabWidget):
                                 "collisions": rename_plan["collisions"],
                             },
                         )
-                        self.log_message(f"Rename report saved to: {report_path}", "INFO")
+                        self.log_message(
+                            f"Rename report saved to: {report_path}", "INFO"
+                        )
                     return
 
             if rename_plan["renamed_count"] == 0:
-                self.log_message("No FASTA IDs matched the mapping file; nothing was renamed", "ERROR")
+                self.log_message(
+                    "No FASTA IDs matched the mapping file; nothing was renamed",
+                    "ERROR",
+                )
                 if export_report:
                     report_rows = rename_plan["rename_rows"] + [
                         {

@@ -611,7 +611,10 @@ def test_batch_rename_ids_exports_report_and_logs_unused_mapping_ids(
     report_text = read_text(report_path)
     assert "Renamed_Count\t1" in report_text
     assert "Unused_Mapping_IDs\tmissing_id" in report_text
-    assert "missing_id\trenamed_missing\tunused_mapping\tmapping ID not found in FASTA" in report_text
+    assert (
+        "missing_id\trenamed_missing\tunused_mapping\tmapping ID not found in FASTA"
+        in report_text
+    )
     assert "Rename report saved to:" in log_text(tab)
     assert "Unused mapping IDs: missing_id" in log_text(tab)
 
