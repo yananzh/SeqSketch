@@ -1,19 +1,90 @@
+from collections import Counter
+import os
+import re
+
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QVBoxLayout,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
-    QFileDialog,
+    QScrollArea,
     QSizePolicy,
+    QSpinBox,
+    QVBoxLayout,
 )
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtCore import Qt
-from utils.common_components import FASTAWorker, BaseTabWidget
-import os
+
+from utils.common_components import BaseTabWidget
 
 
-# Remove worker, use main thread
+SIMPLIFY_MODE_FIRST_TOKEN = "first_token"
+SIMPLIFY_MODE_DELIMITER_FIELD = "delimiter_field"
+SIMPLIFY_MODE_REGEX_CAPTURE = "regex_capture"
+SIMPLIFY_MODE_KEEP_TOKENS = "keep_tokens"
+
+
+def normalize_identifier(candidate: str) -> str:
+    return re.sub(r"\s+", "_", candidate.strip())
+
+
+def reconstruct_full_header(record) -> str:
+    if record.description:
+        return f"{record.header} {record.description}"
+    return record.header
+
+
+def simplify_identifier(
+    full_header: str,
+    original_id: str,
+    mode: str,
+    delimiter: str,
+    field_value: int,
+    compiled_pattern,
+) -> tuple[str, str | None]:
+    if mode == SIMPLIFY_MODE_FIRST_TOKEN:
+        tokens = full_header.split()
+        return normalize_identifier(tokens[0]) if tokens else original_id, None
+
+    if mode == SIMPLIFY_MODE_KEEP_TOKENS:
+        tokens = full_header.split()
+        candidate = (
+            normalize_identifier("_".join(tokens[:field_value])) if tokens else ""
+        )
+        return candidate or original_id, None
+
+    if mode == SIMPLIFY_MODE_DELIMITER_FIELD:
+        if not delimiter:
+            raise ValueError("Delimiter cannot be empty in delimiter-field mode")
+        parts = [part.strip() for part in full_header.split(delimiter)]
+        if field_value <= len(parts):
+            candidate = normalize_identifier(parts[field_value - 1])
+            return candidate or original_id, None
+        return original_id, "delimiter_miss"
+
+    if mode == SIMPLIFY_MODE_REGEX_CAPTURE:
+        if compiled_pattern is None:
+            raise ValueError("Regex pattern is required in regex-capture mode")
+        match = compiled_pattern.search(full_header)
+        if not match:
+            return original_id, "regex_no_match"
+        if match.groups():
+            for group in match.groups():
+                if group is not None:
+                    candidate = normalize_identifier(group)
+                    return candidate or original_id, None
+        candidate = normalize_identifier(match.group(0))
+        return candidate or original_id, None
+
+    raise ValueError(f"Unsupported simplification mode: {mode}")
+
+
+def mapping_report_path(output_path: str) -> str:
+    base, _ = os.path.splitext(output_path)
+    return f"{base}_id_mapping.tsv"
 
 
 class SimplifyIDsTab(BaseTabWidget):
@@ -23,9 +94,9 @@ class SimplifyIDsTab(BaseTabWidget):
         super().__init__("Simplify IDs", "file")
         self.init_ui()
         self.connect_signals()
+        self.update_mode_controls()
 
     def init_ui(self):
-        # Drag-and-drop enabled input field
         class FileDropLineEdit(QLineEdit):
             file_dropped = pyqtSignal(str)
 
@@ -64,7 +135,6 @@ class SimplifyIDsTab(BaseTabWidget):
                 except Exception:
                     return False
 
-        # Input row
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("Input FASTA file:"))
         self.input_edit = FileDropLineEdit()
@@ -79,7 +149,6 @@ class SimplifyIDsTab(BaseTabWidget):
         input_layout.addWidget(self.input_btn)
         input_layout.setSpacing(8)
 
-        # Output row
         output_layout = QHBoxLayout()
         output_layout.addWidget(QLabel("Output file:"))
         self.output_edit = QLineEdit()
@@ -96,7 +165,45 @@ class SimplifyIDsTab(BaseTabWidget):
         output_layout.addWidget(self.output_btn)
         output_layout.setSpacing(8)
 
-        # Control buttons
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("Simplify mode:"))
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItem("First token", SIMPLIFY_MODE_FIRST_TOKEN)
+        self.mode_combo.addItem("Delimiter field", SIMPLIFY_MODE_DELIMITER_FIELD)
+        self.mode_combo.addItem("Regex capture", SIMPLIFY_MODE_REGEX_CAPTURE)
+        self.mode_combo.addItem("Keep first N tokens", SIMPLIFY_MODE_KEEP_TOKENS)
+        mode_layout.addWidget(self.mode_combo)
+
+        self.preserve_description_checkbox = QCheckBox("Preserve description")
+        self.export_mapping_checkbox = QCheckBox("Export ID mapping report")
+        mode_layout.addWidget(self.preserve_description_checkbox)
+        mode_layout.addWidget(self.export_mapping_checkbox)
+        mode_layout.addStretch(1)
+
+        parameter_layout = QHBoxLayout()
+        self.delimiter_label = QLabel("Delimiter:")
+        self.delimiter_edit = QLineEdit()
+        self.delimiter_edit.setPlaceholderText("Example: |")
+        self.delimiter_edit.setMaximumWidth(120)
+
+        self.field_label = QLabel("Field index:")
+        self.field_spin = QSpinBox()
+        self.field_spin.setMinimum(1)
+        self.field_spin.setMaximum(99)
+        self.field_spin.setValue(1)
+
+        self.regex_label = QLabel("Regex:")
+        self.regex_edit = QLineEdit()
+        self.regex_edit.setPlaceholderText(r"Example: ref\|([^|]+)\|")
+
+        parameter_layout.addWidget(self.delimiter_label)
+        parameter_layout.addWidget(self.delimiter_edit)
+        parameter_layout.addWidget(self.field_label)
+        parameter_layout.addWidget(self.field_spin)
+        parameter_layout.addWidget(self.regex_label)
+        parameter_layout.addWidget(self.regex_edit)
+        parameter_layout.setSpacing(8)
+
         control_layout = QHBoxLayout()
         control_layout.addStretch(1)
         self.run_btn = QPushButton("Start")
@@ -105,19 +212,48 @@ class SimplifyIDsTab(BaseTabWidget):
         control_layout.addWidget(self.clear_btn)
         control_layout.setSpacing(10)
 
-        # Add to main layout
         self.add_content_layout(input_layout)
         self.add_content_layout(output_layout)
+        self.add_content_layout(mode_layout)
+        self.add_content_layout(parameter_layout)
         self.add_content_layout(control_layout)
-
-        # 添加拉伸项，确保内容顶部对齐，日志区域固定在底部
         self.content_area.addStretch()
+
+    def current_mode(self) -> str:
+        return str(self.mode_combo.currentData())
+
+    def update_mode_controls(self):
+        mode = self.current_mode()
+        delimiter_mode = mode == SIMPLIFY_MODE_DELIMITER_FIELD
+        regex_mode = mode == SIMPLIFY_MODE_REGEX_CAPTURE
+        keep_tokens_mode = mode == SIMPLIFY_MODE_KEEP_TOKENS
+
+        self.delimiter_label.setVisible(delimiter_mode)
+        self.delimiter_edit.setVisible(delimiter_mode)
+        self.delimiter_edit.setEnabled(delimiter_mode)
+
+        self.regex_label.setVisible(regex_mode)
+        self.regex_edit.setVisible(regex_mode)
+        self.regex_edit.setEnabled(regex_mode)
+
+        self.field_label.setVisible(delimiter_mode or keep_tokens_mode)
+        self.field_spin.setVisible(delimiter_mode or keep_tokens_mode)
+        self.field_spin.setEnabled(delimiter_mode or keep_tokens_mode)
+        if delimiter_mode:
+            self.field_label.setText("Field index:")
+            self.field_spin.setToolTip(
+                "1-based field index after splitting by delimiter"
+            )
+        elif keep_tokens_mode:
+            self.field_label.setText("Token count:")
+            self.field_spin.setToolTip("Keep the first N whitespace-separated tokens")
 
     def connect_signals(self):
         self.input_btn.clicked.connect(self.select_input_file)
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_simplify)
         self.clear_btn.clicked.connect(self.clear_all)
+        self.mode_combo.currentIndexChanged.connect(self.update_mode_controls)
         if hasattr(self.input_edit, "file_dropped"):
             self.input_edit.file_dropped.connect(self.handle_input_file_selected)
 
@@ -152,21 +288,45 @@ class SimplifyIDsTab(BaseTabWidget):
     def clear_all(self):
         self.input_edit.clear()
         self.output_edit.clear()
+        self.delimiter_edit.clear()
+        self.regex_edit.clear()
+        self.field_spin.setValue(1)
+        self.mode_combo.setCurrentIndex(0)
+        self.preserve_description_checkbox.setChecked(False)
+        self.export_mapping_checkbox.setChecked(False)
         self.log_area.clear()
         self.show_status("Cleared")
 
     def set_running_state(self, running: bool):
-        """重写以禁用相关按钮"""
         super().set_running_state(running)
         self.run_btn.setEnabled(not running)
         self.input_btn.setEnabled(not running)
         self.output_btn.setEnabled(not running)
+        self.mode_combo.setEnabled(not running)
+        self.preserve_description_checkbox.setEnabled(not running)
+        self.export_mapping_checkbox.setEnabled(not running)
+        self.delimiter_edit.setEnabled(
+            not running and self.current_mode() == SIMPLIFY_MODE_DELIMITER_FIELD
+        )
+        self.regex_edit.setEnabled(
+            not running and self.current_mode() == SIMPLIFY_MODE_REGEX_CAPTURE
+        )
+        self.field_spin.setEnabled(
+            not running
+            and self.current_mode()
+            in {SIMPLIFY_MODE_DELIMITER_FIELD, SIMPLIFY_MODE_KEEP_TOKENS}
+        )
 
     def run_simplify(self):
         input_path = self.input_edit.text().strip()
         output_path = self.output_edit.text().strip()
+        mode = self.current_mode()
+        delimiter = self.delimiter_edit.text()
+        regex_pattern = self.regex_edit.text().strip()
+        field_value = self.field_spin.value()
+        preserve_description = self.preserve_description_checkbox.isChecked()
+        export_mapping = self.export_mapping_checkbox.isChecked()
 
-        # Validate input
         from utils.common_components import validate_input_path, validate_output_path
 
         valid, error = validate_input_path(input_path, [".fasta", ".fa", ".fas"])
@@ -178,38 +338,143 @@ class SimplifyIDsTab(BaseTabWidget):
             self.log_message(error, "ERROR")
             return
 
+        compiled_pattern = None
+        if mode == SIMPLIFY_MODE_DELIMITER_FIELD and not delimiter:
+            self.log_message(
+                "Please enter a delimiter for delimiter-field mode", "ERROR"
+            )
+            return
+        if mode == SIMPLIFY_MODE_REGEX_CAPTURE:
+            if not regex_pattern:
+                self.log_message(
+                    "Please enter a regex pattern for regex-capture mode", "ERROR"
+                )
+                return
+            try:
+                compiled_pattern = re.compile(regex_pattern)
+            except re.error as exc:
+                self.log_message(f"Invalid regex pattern: {exc}", "ERROR")
+                return
+
         self.set_running_state(True)
         self.log_message("Starting ID simplification...", "INFO")
         try:
             from modules.fasta_processor import FASTAProcessor
-            import os
 
-            # Load FASTA
             self.show_status("Loading FASTA file...")
             processor = FASTAProcessor()
             if not processor.read_file(input_path):
                 self.log_message("Unable to read FASTA file", "ERROR")
-                self.set_running_state(False)
                 return
             records = processor.records
             if not records:
                 self.log_message("No sequences found in FASTA file", "ERROR")
-                self.set_running_state(False)
                 return
             self.log_message(f"Loaded {len(records)} sequences", "INFO")
-            # Simplify IDs
+
             self.show_status("Simplifying sequence IDs...")
+            mapping_rows = [
+                "Original_ID\tSimplified_ID\tChanged\tDescription_Preserved\tMode"
+            ]
+            warning_counts = Counter()
+            changed_count = 0
+            unchanged_count = 0
+            empty_count = 0
+            simplified_ids = []
+
             for record in records:
-                record.header = record.header.split()[0]
-                record.description = ""
-            # Save
+                original_id = record.header
+                full_header = reconstruct_full_header(record)
+                simplified_id, warning_key = simplify_identifier(
+                    full_header,
+                    original_id,
+                    mode,
+                    delimiter,
+                    field_value,
+                    compiled_pattern,
+                )
+
+                if not simplified_id:
+                    empty_count += 1
+                    warning_counts["empty_id"] += 1
+                    simplified_id = original_id
+                if warning_key:
+                    warning_counts[warning_key] += 1
+
+                description_changed = (
+                    bool(record.description) and not preserve_description
+                )
+                changed = simplified_id != original_id or description_changed
+                if changed:
+                    changed_count += 1
+                else:
+                    unchanged_count += 1
+
+                record.header = simplified_id
+                if not preserve_description:
+                    record.description = ""
+
+                simplified_ids.append(simplified_id)
+                mapping_rows.append(
+                    f"{original_id}\t{simplified_id}\t{str(changed)}\t{str(preserve_description)}\t{mode}"
+                )
+
+            duplicate_ids = {
+                sequence_id: count
+                for sequence_id, count in Counter(simplified_ids).items()
+                if count > 1
+            }
+            if empty_count:
+                self.log_message(
+                    f"Simplification produced empty IDs for {empty_count} sequence(s)",
+                    "ERROR",
+                )
+                return
+            if duplicate_ids:
+                preview = ", ".join(
+                    f"{sequence_id} (x{count})"
+                    for sequence_id, count in sorted(duplicate_ids.items())[:5]
+                )
+                self.log_message(
+                    f"Duplicate simplified IDs detected; output not saved: {preview}",
+                    "ERROR",
+                )
+                return
+
+            self.log_message(
+                f"Simplified {changed_count} sequence IDs; {unchanged_count} sequence(s) unchanged",
+                "INFO",
+            )
+            if warning_counts["delimiter_miss"]:
+                self.log_message(
+                    f"Delimiter was not usable for {warning_counts['delimiter_miss']} sequence(s); kept original IDs for those records",
+                    "WARNING",
+                )
+            if warning_counts["regex_no_match"]:
+                self.log_message(
+                    f"Regex did not match {warning_counts['regex_no_match']} sequence(s); kept original IDs for those records",
+                    "WARNING",
+                )
+            if unchanged_count == len(records):
+                self.log_message(
+                    "Selected simplification rule did not change any IDs",
+                    "WARNING",
+                )
+
             self.show_status("Saving results...")
             if not processor.save_file(output_path):
                 self.log_message("Failed to save file", "ERROR")
-                self.set_running_state(False)
                 return
+
+            if export_mapping:
+                mapping_path = mapping_report_path(output_path)
+                with open(mapping_path, "w", encoding="utf-8") as handle:
+                    handle.write("\n".join(mapping_rows))
+                self.log_message(f"ID mapping report saved to: {mapping_path}", "INFO")
+
             self.log_message(
-                f"Simplification complete! Saved to: {output_path}", "INFO"
+                f"Simplification complete! Saved to: {output_path}",
+                "INFO",
             )
             self.show_status("Complete")
         except Exception as e:
@@ -223,69 +488,49 @@ class SimplifyIDsTab(BaseTabWidget):
             self.set_running_state(False)
 
     def show_help(self):
-        """Show help information"""
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
-        from PyQt6.QtCore import Qt
-
         help_text = """
 <h3>Simplify Sequence IDs</h3>
 <p><b>Description:</b></p>
-<p>Simplify complex FASTA IDs by keeping only the first token as the identifier.</p>
+<p>Simplify FASTA headers into cleaner primary identifiers using configurable parsing rules.</p>
 
-<p><b>Effect:</b></p>
+<p><b>Modes:</b></p>
 <ul>
-<li><b>Original:</b> gi|123456|ref|NM_001101.5| hypothetical protein [Homo sapiens]</li>
-<li><b>Simplified:</b> gi|123456|ref|NM_001101.5|</li>
+<li><b>First token:</b> keep the first whitespace-separated token</li>
+<li><b>Delimiter field:</b> split the full header by a delimiter and keep the selected 1-based field</li>
+<li><b>Regex capture:</b> use the first capturing group (or full match) from a regex pattern</li>
+<li><b>Keep first N tokens:</b> keep the first N whitespace-separated tokens, joined with underscores</li>
 </ul>
 
-<p><b>Usage:</b></p>
-<ol>
-<li>Select a FASTA file</li>
-<li>Choose an output location</li>
-<li>Click "Start"</li>
-</ol>
-
-<p><b>Use cases:</b></p>
+<p><b>Safety features:</b></p>
 <ul>
-<li>Clean complex IDs from downloaded datasets</li>
-<li>Prepare concise identifiers for downstream analysis</li>
-<li>Reduce file size and improve processing efficiency</li>
+<li>Detects duplicate IDs after simplification and blocks saving by default</li>
+<li>Optionally preserves description text</li>
+<li>Optionally exports an ID mapping report</li>
 </ul>
 
 <p><b>Notes:</b></p>
-<p>Description lines are removed; ensure simplified IDs still uniquely identify sequences.</p>
+<p>If the selected rule does not match some headers, the original IDs are kept and a warning is logged.</p>
         """
 
-        # 创建自定义对话框
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Simplify IDs")
-        dialog.setFixedSize(780, 470)
+        dialog.setFixedSize(820, 520)
 
         layout = QVBoxLayout()
-
-        # 创建滚动区域
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
-        # 创建文本标签
         label = QLabel(help_text)
         label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)  # 启用自动换行
+        label.setWordWrap(True)
         label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         label.setMargin(20)
 
         scroll_area.setWidget(label)
         layout.addWidget(scroll_area)
 
-        # Add OK button
         ok_button = QPushButton("OK")
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
