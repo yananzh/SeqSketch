@@ -1,3 +1,6 @@
+from collections import Counter, defaultdict
+from datetime import datetime
+
 from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
@@ -15,6 +18,155 @@ import os
 
 
 # Remove worker, use main thread
+
+
+def rename_report_path_for_output(output_path: str) -> str:
+    base, _ = os.path.splitext(output_path)
+    return f"{base}_rename_report.tsv"
+
+
+def parse_mapping_entries(rows) -> tuple[dict[str, str], dict]:
+    mapping = {}
+    skipped_rows = 0
+    duplicate_old_ids = defaultdict(list)
+    new_id_sources = defaultdict(list)
+
+    for row in rows:
+        if len(row) < 2:
+            skipped_rows += 1
+            continue
+
+        old_id = str(row[0]).strip()
+        new_id = str(row[1]).strip()
+        if not old_id or not new_id:
+            skipped_rows += 1
+            continue
+
+        if old_id in mapping:
+            duplicate_old_ids[old_id].append(new_id)
+            continue
+
+        mapping[old_id] = new_id
+        new_id_sources[new_id].append(old_id)
+
+    duplicate_new_ids = {
+        new_id: old_ids for new_id, old_ids in new_id_sources.items() if len(old_ids) > 1
+    }
+    summary = {
+        "skipped_rows": skipped_rows,
+        "duplicate_old_ids": dict(duplicate_old_ids),
+        "duplicate_new_ids": duplicate_new_ids,
+    }
+    return mapping, summary
+
+
+def load_mapping_file(mapping_path: str, has_header: bool) -> tuple[dict[str, str], dict]:
+    ext = os.path.splitext(mapping_path)[1].lower()
+    if ext in [".xls", ".xlsx"]:
+        try:
+            import pandas as pd
+        except Exception as exc:
+            raise ImportError(
+                "Excel mapping requires pandas. Install with: pip install pandas, or save as CSV/TSV."
+            ) from exc
+
+        df = pd.read_excel(mapping_path, header=0 if has_header else None)
+        if df.shape[1] < 2:
+            raise ValueError("Mapping file must have at least two columns (old ID, new ID)")
+        rows = df.iloc[:, :2].fillna("").astype(str).values.tolist()
+        return parse_mapping_entries(rows)
+
+    if ext in [".csv", ".tsv", ".txt"]:
+        import csv
+
+        delimiter = "," if ext == ".csv" else "\t"
+        with open(mapping_path, "r", encoding="utf-8") as handle:
+            reader = csv.reader(handle, delimiter=delimiter)
+            rows = list(reader)
+        if has_header and rows:
+            rows = rows[1:]
+        return parse_mapping_entries(rows)
+
+    raise ValueError(
+        "Unsupported mapping format. Use Excel (.xlsx/.xls), CSV (.csv) or TSV (.tsv/.txt)."
+    )
+
+
+def plan_renames(records, mapping: dict[str, str]) -> dict:
+    rename_rows = []
+    matched_mapping_ids = set()
+    renamed_count = 0
+    unchanged_count = 0
+    final_id_sources = defaultdict(list)
+
+    for record in records:
+        old_id = record.header
+        if old_id in mapping:
+            new_id = mapping[old_id]
+            matched_mapping_ids.add(old_id)
+            if new_id != old_id:
+                status = "renamed"
+                reason = "mapping applied"
+                renamed_count += 1
+            else:
+                status = "unchanged"
+                reason = "mapping kept existing ID"
+                unchanged_count += 1
+        else:
+            new_id = old_id
+            status = "unchanged"
+            reason = "no mapping match"
+            unchanged_count += 1
+
+        rename_rows.append(
+            {
+                "record": record,
+                "old_id": old_id,
+                "new_id": new_id,
+                "status": status,
+                "reason": reason,
+            }
+        )
+        final_id_sources[new_id].append(old_id)
+
+    collisions = {
+        final_id: source_ids
+        for final_id, source_ids in final_id_sources.items()
+        if len(source_ids) > 1
+    }
+    unused_mapping_ids = [old_id for old_id in mapping if old_id not in matched_mapping_ids]
+
+    for row in rename_rows:
+        if row["new_id"] in collisions:
+            row["reason"] = f"output ID collision: {row['new_id']}"
+
+    return {
+        "rename_rows": rename_rows,
+        "renamed_count": renamed_count,
+        "unchanged_count": unchanged_count,
+        "unused_mapping_ids": unused_mapping_ids,
+        "collisions": collisions,
+    }
+
+
+def write_rename_report(output_path: str, report_rows: list[dict], metadata: dict):
+    lines = [
+        "Metric\tValue",
+        f"Generated_At\t{datetime.now().isoformat(timespec='seconds')}",
+        f"Total_Sequences\t{metadata['total_sequences']}",
+        f"Renamed_Count\t{metadata['renamed_count']}",
+        f"Unchanged_Count\t{metadata['unchanged_count']}",
+        f"Unused_Mapping_IDs\t{'; '.join(metadata['unused_mapping_ids']) if metadata['unused_mapping_ids'] else '-'}",
+        f"Collision_Count\t{len(metadata['collisions'])}",
+        "",
+        "Old_ID\tNew_ID\tStatus\tReason",
+    ]
+    for row in report_rows:
+        lines.append(
+            f"{row['old_id']}\t{row['new_id']}\t{row['status']}\t{row['reason']}"
+        )
+    with open(output_path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines))
 
 
 class BatchRenameIDsTab(BaseTabWidget):
@@ -136,6 +288,11 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.header_checkbox = QCheckBox("Mapping file contains header row")
         self.header_checkbox.setChecked(True)
         option_layout.addWidget(self.header_checkbox)
+        self.export_report_checkbox = QCheckBox("Export rename report")
+        option_layout.addWidget(self.export_report_checkbox)
+        self.block_on_collisions_checkbox = QCheckBox("Block on collisions")
+        self.block_on_collisions_checkbox.setChecked(True)
+        option_layout.addWidget(self.block_on_collisions_checkbox)
         option_layout.addStretch()
 
         # 输出文件选择
@@ -231,6 +388,8 @@ class BatchRenameIDsTab(BaseTabWidget):
         mapping_path = self.mapping_edit.text().strip()
         output_path = self.output_edit.text().strip()
         has_header = self.header_checkbox.isChecked()
+        export_report = self.export_report_checkbox.isChecked()
+        block_on_collisions = self.block_on_collisions_checkbox.isChecked()
 
         # Validate input
         from utils.common_components import validate_input_path, validate_output_path
@@ -250,56 +409,43 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.set_running_state(True)
         self.log_message("Starting batch ID renaming...", "INFO")
         try:
-            ext = os.path.splitext(mapping_path)[1].lower()
-            mapping = {}
-            if ext in [".xls", ".xlsx"]:
-                try:
-                    import pandas as pd
-                except Exception:
-                    self.log_message(
-                        "Excel mapping requires pandas. Install with: pip install pandas, or save as CSV/TSV.",
-                        "ERROR",
-                    )
-                    self.set_running_state(False)
-                    return
-                df = pd.read_excel(mapping_path, header=0 if has_header else None)
-                if df.shape[1] < 2:
-                    self.log_message(
-                        "Mapping file must have at least two columns (old ID, new ID)",
-                        "ERROR",
-                    )
-                    self.set_running_state(False)
-                    return
-                mapping = dict(
-                    zip(df.iloc[:, 0].astype(str), df.iloc[:, 1].astype(str))
-                )
-            elif ext in [".csv", ".tsv", ".txt"]:
-                import csv
+            try:
+                mapping, mapping_summary = load_mapping_file(mapping_path, has_header)
+            except ImportError as exc:
+                self.log_message(str(exc), "ERROR")
+                return
+            except ValueError as exc:
+                self.log_message(str(exc), "ERROR")
+                return
 
-                delimiter = "," if ext == ".csv" else "\t"
-                with open(mapping_path, "r", encoding="utf-8") as f:
-                    reader = csv.reader(f, delimiter=delimiter)
-                    rows = list(reader)
-                if has_header and rows:
-                    rows = rows[1:]
-                for row in rows:
-                    if len(row) >= 2:
-                        old_id = str(row[0]).strip()
-                        new_id = str(row[1]).strip()
-                        if old_id:
-                            mapping[old_id] = new_id
-                if not mapping:
-                    self.log_message("No valid mappings found in the file", "ERROR")
-                    self.set_running_state(False)
-                    return
-            else:
+            if not mapping:
+                self.log_message("No valid mappings found in the file", "ERROR")
+                return
+
+            if mapping_summary["duplicate_old_ids"]:
+                preview = ", ".join(sorted(mapping_summary["duplicate_old_ids"].keys())[:5])
                 self.log_message(
-                    "Unsupported mapping format. Use Excel (.xlsx/.xls), CSV (.csv) or TSV (.tsv/.txt).",
+                    f"Duplicate source IDs found in mapping file: {preview}",
                     "ERROR",
                 )
-                self.set_running_state(False)
                 return
+
             self.log_message(f"Loaded {len(mapping)} ID mappings", "INFO")
+            if mapping_summary["skipped_rows"]:
+                self.log_message(
+                    f"Skipped {mapping_summary['skipped_rows']} invalid mapping row(s)",
+                    "WARNING",
+                )
+            if mapping_summary["duplicate_new_ids"]:
+                preview = ", ".join(
+                    f"{new_id} <- {', '.join(source_ids)}"
+                    for new_id, source_ids in list(mapping_summary["duplicate_new_ids"].items())[:5]
+                )
+                self.log_message(
+                    f"Multiple source IDs map to the same target ID: {preview}",
+                    "WARNING",
+                )
+
             # Load FASTA
             from modules.fasta_processor import FASTAProcessor
 
@@ -312,31 +458,118 @@ class BatchRenameIDsTab(BaseTabWidget):
             records = processor.records
             if not records:
                 self.log_message("No sequences found in FASTA file", "ERROR")
-                self.set_running_state(False)
                 return
             self.log_message(f"Loaded {len(records)} sequences", "INFO")
+
             # Rename IDs
             self.show_status("Renaming sequence IDs...")
             total = len(records)
-            renamed_count = 0
-            for record in records:
-                old_id = record.header.split()[0]
-                if old_id in mapping:
-                    new_id = mapping[old_id]
-                    parts = record.header.split(" ", 1)
-                    if len(parts) > 1:
-                        record.header = f"{new_id} {parts[1]}"
-                    else:
-                        record.header = new_id
-                    renamed_count += 1
+            rename_plan = plan_renames(records, mapping)
+
+            if rename_plan["unused_mapping_ids"]:
+                preview = ", ".join(rename_plan["unused_mapping_ids"][:5])
+                self.log_message(
+                    f"Unused mapping IDs: {preview}",
+                    "WARNING",
+                )
+
+            if rename_plan["collisions"]:
+                preview = ", ".join(
+                    f"{final_id} <- {', '.join(source_ids)}"
+                    for final_id, source_ids in list(rename_plan["collisions"].items())[:5]
+                )
+                level = "ERROR" if block_on_collisions else "WARNING"
+                self.log_message(
+                    f"Output ID collisions detected: {preview}",
+                    level,
+                )
+                if block_on_collisions:
+                    if export_report:
+                        report_rows = rename_plan["rename_rows"] + [
+                            {
+                                "old_id": old_id,
+                                "new_id": mapping[old_id],
+                                "status": "unused_mapping",
+                                "reason": "mapping ID not found in FASTA",
+                            }
+                            for old_id in rename_plan["unused_mapping_ids"]
+                        ]
+                        report_path = rename_report_path_for_output(output_path)
+                        write_rename_report(
+                            report_path,
+                            report_rows,
+                            {
+                                "total_sequences": total,
+                                "renamed_count": rename_plan["renamed_count"],
+                                "unchanged_count": rename_plan["unchanged_count"],
+                                "unused_mapping_ids": rename_plan["unused_mapping_ids"],
+                                "collisions": rename_plan["collisions"],
+                            },
+                        )
+                        self.log_message(f"Rename report saved to: {report_path}", "INFO")
+                    return
+
+            if rename_plan["renamed_count"] == 0:
+                self.log_message("No FASTA IDs matched the mapping file; nothing was renamed", "ERROR")
+                if export_report:
+                    report_rows = rename_plan["rename_rows"] + [
+                        {
+                            "old_id": old_id,
+                            "new_id": mapping[old_id],
+                            "status": "unused_mapping",
+                            "reason": "mapping ID not found in FASTA",
+                        }
+                        for old_id in rename_plan["unused_mapping_ids"]
+                    ]
+                    report_path = rename_report_path_for_output(output_path)
+                    write_rename_report(
+                        report_path,
+                        report_rows,
+                        {
+                            "total_sequences": total,
+                            "renamed_count": 0,
+                            "unchanged_count": rename_plan["unchanged_count"],
+                            "unused_mapping_ids": rename_plan["unused_mapping_ids"],
+                            "collisions": rename_plan["collisions"],
+                        },
+                    )
+                    self.log_message(f"Rename report saved to: {report_path}", "INFO")
+                return
+
+            for row in rename_plan["rename_rows"]:
+                if row["status"] == "renamed":
+                    row["record"].header = row["new_id"]
+
             # Save
             self.show_status("Saving results...")
             if not processor.save_file(output_path):
                 self.log_message("Failed to save file", "ERROR")
-                self.set_running_state(False)
                 return
+            if export_report:
+                report_rows = rename_plan["rename_rows"] + [
+                    {
+                        "old_id": old_id,
+                        "new_id": mapping[old_id],
+                        "status": "unused_mapping",
+                        "reason": "mapping ID not found in FASTA",
+                    }
+                    for old_id in rename_plan["unused_mapping_ids"]
+                ]
+                report_path = rename_report_path_for_output(output_path)
+                write_rename_report(
+                    report_path,
+                    report_rows,
+                    {
+                        "total_sequences": total,
+                        "renamed_count": rename_plan["renamed_count"],
+                        "unchanged_count": rename_plan["unchanged_count"],
+                        "unused_mapping_ids": rename_plan["unused_mapping_ids"],
+                        "collisions": rename_plan["collisions"],
+                    },
+                )
+                self.log_message(f"Rename report saved to: {report_path}", "INFO")
             self.log_message(
-                f"Renaming complete! Processed {total} sequences, renamed {renamed_count}. Saved to: {output_path}",
+                f"Renaming complete! Processed {total} sequences, renamed {rename_plan['renamed_count']}, unchanged {rename_plan['unchanged_count']}. Saved to: {output_path}",
                 "INFO",
             )
             self.show_status("Complete")
@@ -355,6 +588,8 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.mapping_edit.clear()
         self.output_edit.clear()
         self.header_checkbox.setChecked(True)
+        self.export_report_checkbox.setChecked(False)
+        self.block_on_collisions_checkbox.setChecked(True)
         if hasattr(self, "log_area"):
             self.log_area.clear()
         self.show_status("Cleared")
@@ -366,6 +601,8 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.mapping_btn.setEnabled(not running)
         self.output_btn.setEnabled(not running)
         self.header_checkbox.setEnabled(not running)
+        self.export_report_checkbox.setEnabled(not running)
+        self.block_on_collisions_checkbox.setEnabled(not running)
 
     def show_help(self):
         """显示帮助信息"""

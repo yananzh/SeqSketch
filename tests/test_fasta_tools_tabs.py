@@ -581,6 +581,108 @@ def test_batch_rename_ids_happy_path(
     print("[Batch Rename IDs] finished successfully")
 
 
+def test_batch_rename_ids_exports_report_and_logs_unused_mapping_ids(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    mapping_path = tmp_path / "mapping_with_unused.csv"
+    output_path = tmp_path / "renamed_with_report.fasta"
+    report_path = tmp_path / "renamed_with_report_rename_report.tsv"
+    mapping_path.write_text(
+        "old_id,new_id\nseq1,renamed_seq1\nmissing_id,renamed_missing\n",
+        encoding="utf-8",
+    )
+    tab = BatchRenameIDsTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.mapping_edit.setText(str(mapping_path))
+    tab.output_edit.setText(str(output_path))
+    tab.header_checkbox.setChecked(True)
+    tab.export_report_checkbox.setChecked(True)
+    tab.run_rename()
+
+    assert output_path.exists()
+    assert report_path.exists()
+    assert fasta_headers(output_path) == [
+        "renamed_seq1 alpha description",
+        "seq2 beta description",
+        "gene_alpha product_x",
+        "chr10_sample annotation",
+    ]
+    report_text = read_text(report_path)
+    assert "Renamed_Count\t1" in report_text
+    assert "Unused_Mapping_IDs\tmissing_id" in report_text
+    assert "missing_id\trenamed_missing\tunused_mapping\tmapping ID not found in FASTA" in report_text
+    assert "Rename report saved to:" in log_text(tab)
+    assert "Unused mapping IDs: missing_id" in log_text(tab)
+
+
+def test_batch_rename_ids_blocks_collision_with_existing_fasta_id(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    mapping_path = tmp_path / "collision_mapping.csv"
+    output_path = tmp_path / "collision_output.fasta"
+    mapping_path.write_text(
+        "old_id,new_id\nseq1,seq2\n",
+        encoding="utf-8",
+    )
+    tab = BatchRenameIDsTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.mapping_edit.setText(str(mapping_path))
+    tab.output_edit.setText(str(output_path))
+    tab.header_checkbox.setChecked(True)
+    tab.run_rename()
+
+    assert not output_path.exists()
+    assert "Output ID collisions detected: seq2 <- seq1, seq2" in log_text(tab)
+
+
+def test_batch_rename_ids_duplicate_source_ids_are_blocking(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    mapping_path = tmp_path / "duplicate_source_mapping.csv"
+    output_path = tmp_path / "duplicate_source_output.fasta"
+    mapping_path.write_text(
+        "old_id,new_id\nseq1,renamed_a\nseq1,renamed_b\n",
+        encoding="utf-8",
+    )
+    tab = BatchRenameIDsTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.mapping_edit.setText(str(mapping_path))
+    tab.output_edit.setText(str(output_path))
+    tab.header_checkbox.setChecked(True)
+    tab.run_rename()
+
+    assert not output_path.exists()
+    assert "Duplicate source IDs found in mapping file: seq1" in log_text(tab)
+
+
+def test_batch_rename_ids_zero_match_does_not_write_output(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    mapping_path = tmp_path / "zero_match_mapping.csv"
+    output_path = tmp_path / "zero_match_output.fasta"
+    report_path = tmp_path / "zero_match_output_rename_report.tsv"
+    mapping_path.write_text(
+        "old_id,new_id\nmissing_id,renamed_missing\n",
+        encoding="utf-8",
+    )
+    tab = BatchRenameIDsTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.mapping_edit.setText(str(mapping_path))
+    tab.output_edit.setText(str(output_path))
+    tab.header_checkbox.setChecked(True)
+    tab.export_report_checkbox.setChecked(True)
+    tab.run_rename()
+
+    assert not output_path.exists()
+    assert report_path.exists()
+    assert "No FASTA IDs matched the mapping file; nothing was renamed" in log_text(tab)
+    assert "Unused_Mapping_IDs\tmissing_id" in read_text(report_path)
+
+
 def test_extract_by_regex_invalid_pattern_logs_error(
     qapp, sample_fasta_file: Path, tmp_path: Path
 ):
