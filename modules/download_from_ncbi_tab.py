@@ -1,8 +1,19 @@
 from collections import Counter
 from datetime import datetime
 
-from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-                           QFileDialog, QComboBox, QPlainTextEdit, QSizePolicy, QSpinBox, QCheckBox)
+from PyQt6.QtWidgets import (
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QFileDialog,
+    QComboBox,
+    QPlainTextEdit,
+    QSizePolicy,
+    QSpinBox,
+    QCheckBox,
+)
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget
 from urllib.error import URLError
@@ -26,7 +37,7 @@ def normalize_accession_list(acc_text: str) -> tuple[list[str], list[str]]:
 
 def split_batches(items: list[str], batch_size: int) -> list[list[str]]:
     size = max(1, batch_size)
-    return [items[index:index + size] for index in range(0, len(items), size)]
+    return [items[index : index + size] for index in range(0, len(items), size)]
 
 
 def parse_fasta_headers(fasta_text: str) -> list[str]:
@@ -42,7 +53,9 @@ def report_path_for_output(output_path: str) -> str:
     return f"{base}_download_report.txt"
 
 
-def fetch_batch_with_retries(entrez_module, db: str, batch: list[str], retry_count: int):
+def fetch_batch_with_retries(
+    entrez_module, db: str, batch: list[str], retry_count: int
+):
     last_error = None
     for attempt in range(retry_count + 1):
         try:
@@ -77,42 +90,43 @@ def write_download_report(output_path: str, report: dict):
         f"Failed_Accession_Candidates\t{'; '.join(report['failed_accessions']) if report['failed_accessions'] else '-'}",
         f"Generated_At\t{report['generated_at']}",
     ]
-    if report['errors']:
+    if report["errors"]:
         lines.append("")
         lines.append("# Errors")
-        lines.extend(report['errors'])
+        lines.extend(report["errors"])
 
     with open(output_path, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines))
 
+
 class DownloadFromNCBITab(BaseTabWidget):
     """NCBI download Tab"""
-    
+
     def __init__(self):
         super().__init__("Download from NCBI", "file")
         self.init_ui()
         self.connect_signals()
-    
+
     def init_ui(self):
         # Database selection
         db_layout = QHBoxLayout()
         db_layout.addWidget(QLabel("Database:"))
         self.db_combo = QComboBox()
-        self.db_combo.addItems([
-            "nucleotide", "protein"
-        ])
+        self.db_combo.addItems(["nucleotide", "protein"])
         self.db_combo.setCurrentText("nucleotide")
         self.db_combo.setMinimumWidth(140)
         db_layout.addWidget(self.db_combo)
         db_layout.addStretch()
-        
+
         # Email input
         email_layout = QHBoxLayout()
         email_layout.addWidget(QLabel("Email:"))
         self.email_edit = QLineEdit()
         self.email_edit.setPlaceholderText("NCBI requires an email address")
         self.email_edit.setMinimumWidth(320)
-        self.email_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.email_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         email_layout.addWidget(self.email_edit)
 
         # Download options
@@ -130,7 +144,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.export_report_checkbox = QCheckBox("Export download report")
         option_layout.addWidget(self.export_report_checkbox)
         option_layout.addStretch()
-        
+
         # Accession input
         acc_layout = QVBoxLayout()
         acc_layout.setSpacing(1)
@@ -139,24 +153,32 @@ class DownloadFromNCBITab(BaseTabWidget):
         acc_label.setContentsMargins(0, 0, 0, 0)
         acc_layout.addWidget(acc_label)
         self.acc_edit = QPlainTextEdit()
-        self.acc_edit.setPlaceholderText("Enter accession numbers, one per line\nExamples:\nNM_001101.5\nNP_001092.1\nAF123456")
+        self.acc_edit.setPlaceholderText(
+            "Enter accession numbers, one per line\nExamples:\nNM_001101.5\nNP_001092.1\nAF123456"
+        )
         # Enlarge input area
         self.acc_edit.setMinimumHeight(200)
-        self.acc_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.acc_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         acc_layout.addWidget(self.acc_edit)
-        
+
         # Output file selection
         output_layout = QHBoxLayout()
         output_layout.addWidget(QLabel("Output file:"))
         self.output_edit = QLineEdit()
-        self.output_edit.setPlaceholderText("Choose where to save the downloaded FASTA...")
+        self.output_edit.setPlaceholderText(
+            "Choose where to save the downloaded FASTA..."
+        )
         self.output_edit.setMinimumWidth(320)
-        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.output_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
-        
+
         # Control buttons
         control_layout = QHBoxLayout()
         self.run_btn = QPushButton("Download")
@@ -164,7 +186,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         control_layout.addStretch(1)
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
-        
+
         # 添加到内容区域
         self.add_content_layout(db_layout)
         self.add_content_layout(email_layout)
@@ -173,19 +195,22 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.add_content_layout(output_layout)
         self.add_content_layout(control_layout)
         self.content_area.addStretch()
-    
+
     def connect_signals(self):
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_download)
         self.clear_btn.clicked.connect(self.clear_all)
-    
+
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save downloaded sequences", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
+            self,
+            "Save downloaded sequences",
+            "",
+            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
         )
         if file_path:
             self.output_edit.setText(file_path)
-    
+
     def clear_all(self):
         self.email_edit.clear()
         self.acc_edit.clear()
@@ -196,7 +221,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.retry_count_spin.setValue(1)
         self.export_report_checkbox.setChecked(False)
         self.show_status("Cleared")
-    
+
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
         super().set_running_state(running)
@@ -208,7 +233,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.batch_size_spin.setEnabled(not running)
         self.retry_count_spin.setEnabled(not running)
         self.export_report_checkbox.setEnabled(not running)
-    
+
     def run_download(self):
         db = self.db_combo.currentText()
         email = self.email_edit.text().strip()
@@ -217,24 +242,27 @@ class DownloadFromNCBITab(BaseTabWidget):
         batch_size = self.batch_size_spin.value()
         retry_count = self.retry_count_spin.value()
         export_report = self.export_report_checkbox.isChecked()
-        
+
         # 验证输入
         if not email:
             self.log_message("请输入邮箱地址（NCBI要求）", "ERROR")
             return
-        
+
         if not acc_text:
             self.log_message("请输入检索号", "ERROR")
             return
-        
+
         from utils.common_components import validate_output_path
+
         valid, error = validate_output_path(output_path)
         if not valid:
             self.log_message(error, "ERROR")
             return
-        
+
         # 处理检索号列表
-        requested_acc_list = [line.strip() for line in acc_text.split('\n') if line.strip()]
+        requested_acc_list = [
+            line.strip() for line in acc_text.split("\n") if line.strip()
+        ]
         acc_list, duplicate_accessions = normalize_accession_list(acc_text)
         if not acc_list:
             self.log_message("检索号列表为空", "ERROR")
@@ -247,7 +275,9 @@ class DownloadFromNCBITab(BaseTabWidget):
             try:
                 from Bio import Entrez
             except ImportError:
-                self.log_message("Biopython (Bio.Entrez) is required to download NCBI data", "ERROR")
+                self.log_message(
+                    "Biopython (Bio.Entrez) is required to download NCBI data", "ERROR"
+                )
                 return
             Entrez.email = email
             if duplicate_accessions:
@@ -284,8 +314,12 @@ class DownloadFromNCBITab(BaseTabWidget):
                     continue
                 except Exception as e:
                     failed_accessions.extend(batch)
-                    error_messages.append(f"Batch {batch_index}: NCBI download error: {e}")
-                    self.log_message(f"NCBI download error in batch {batch_index}: {e}", "ERROR")
+                    error_messages.append(
+                        f"Batch {batch_index}: NCBI download error: {e}"
+                    )
+                    self.log_message(
+                        f"NCBI download error in batch {batch_index}: {e}", "ERROR"
+                    )
                     continue
 
                 if retry_attempts_used:
@@ -294,7 +328,11 @@ class DownloadFromNCBITab(BaseTabWidget):
                         "WARNING",
                     )
 
-                if not fasta_data.strip() or "Error" in fasta_data or "not found" in fasta_data:
+                if (
+                    not fasta_data.strip()
+                    or "Error" in fasta_data
+                    or "not found" in fasta_data
+                ):
                     failed_accessions.extend(batch)
                     error_messages.append(
                         f"Batch {batch_index}: empty or error response from NCBI"
@@ -341,24 +379,29 @@ class DownloadFromNCBITab(BaseTabWidget):
                             "batches_succeeded": batches_succeeded,
                             "sequences_returned": 0,
                             "failed_accessions": sorted(set(failed_accessions)),
-                            "generated_at": datetime.now().isoformat(timespec="seconds"),
+                            "generated_at": datetime.now().isoformat(
+                                timespec="seconds"
+                            ),
                             "errors": error_messages,
                         },
                     )
                     self.log_message(f"Download report saved to: {report_path}", "INFO")
-                self.log_message("NCBI returned error or no sequences found. Check DB type and accessions.", "ERROR")
+                self.log_message(
+                    "NCBI returned error or no sequences found. Check DB type and accessions.",
+                    "ERROR",
+                )
                 return
             self.show_status("Saving file...")
             try:
                 out_dir = os.path.dirname(output_path)
                 if out_dir:
                     os.makedirs(out_dir, exist_ok=True)
-                with open(output_path, 'w', encoding='utf-8') as f:
+                with open(output_path, "w", encoding="utf-8") as f:
                     f.write(fasta_data + "\n")
             except Exception as e:
                 self.log_message(f"File save failed: {e}", "ERROR")
                 return
-            seq_count = fasta_data.count('>')
+            seq_count = fasta_data.count(">")
             if export_report:
                 report_path = report_path_for_output(output_path)
                 write_download_report(
@@ -386,18 +429,29 @@ class DownloadFromNCBITab(BaseTabWidget):
                     f"Partial download: {len(set(failed_accessions))} accession(s) may have failed or returned no sequence: {preview}",
                     "WARNING",
                 )
-            self.log_message(f"Download complete. {seq_count} sequences saved to: {output_path}")
+            self.log_message(
+                f"Download complete. {seq_count} sequences saved to: {output_path}"
+            )
         except Exception as e:
             import traceback
-            self.log_message(f"Error during download: {e}\n{traceback.format_exc()}", "ERROR")
+
+            self.log_message(
+                f"Error during download: {e}\n{traceback.format_exc()}", "ERROR"
+            )
         finally:
             self.set_running_state(False)
-    
+
     def show_help(self):
         """Show help information"""
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
+        from PyQt6.QtWidgets import (
+            QDialog,
+            QVBoxLayout,
+            QLabel,
+            QPushButton,
+            QScrollArea,
+        )
         from PyQt6.QtCore import Qt
-        
+
         help_text = """
 <h3>NCBI Sequence Downloader</h3>
 <p><b>Description:</b></p>
@@ -452,34 +506,34 @@ AAA12345
 <p><b>Output:</b></p>
 <p>Sequences are saved in standard FASTA format with full headers.</p>
         """
-        
+
         # 创建自定义对话框
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - NCBI Downloader")
         dialog.setFixedSize(800, 530)
-        
+
         layout = QVBoxLayout()
-        
+
         # 创建滚动区域
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        
+
         # 创建文本标签
         label = QLabel(help_text)
         label.setTextFormat(Qt.TextFormat.RichText)
         label.setWordWrap(True)  # 启用自动换行
         label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         label.setMargin(20)
-        
+
         scroll_area.setWidget(label)
         layout.addWidget(scroll_area)
-        
+
         # Add OK button
         ok_button = QPushButton("OK")
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
-        
+
         dialog.setLayout(layout)
         dialog.exec()

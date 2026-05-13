@@ -421,7 +421,9 @@ def test_download_from_ncbi_deduplicates_accessions_and_exports_report(
     assert report_path.exists()
     assert len(calls) == 1
     assert calls[0]["id"] == "NM_001,NP_001"
-    assert "Duplicate accession IDs ignored after first occurrence: NM_001" in log_text(tab)
+    assert "Duplicate accession IDs ignored after first occurrence: NM_001" in log_text(
+        tab
+    )
     report_text = read_text(report_path)
     assert "Requested_Count\t3" in report_text
     assert "Unique_Requested_Count\t2" in report_text
@@ -468,7 +470,9 @@ def test_download_from_ncbi_runs_multiple_batches(qapp, tmp_path: Path, monkeypa
     assert read_text(output_path).count(">") == 3
 
 
-def test_download_from_ncbi_retries_after_network_error(qapp, tmp_path: Path, monkeypatch):
+def test_download_from_ncbi_retries_after_network_error(
+    qapp, tmp_path: Path, monkeypatch
+):
     output_path = tmp_path / "downloaded_retry.fasta"
     tab = DownloadFromNCBITab()
 
