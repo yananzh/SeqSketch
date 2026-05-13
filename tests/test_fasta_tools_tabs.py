@@ -379,6 +379,178 @@ def test_download_from_ncbi_happy_path(qapp, tmp_path: Path, monkeypatch):
     print("[Download from NCBI] finished successfully")
 
 
+def test_download_from_ncbi_deduplicates_accessions_and_exports_report(
+    qapp, tmp_path: Path, monkeypatch
+):
+    output_path = tmp_path / "downloaded_deduplicated.fasta"
+    report_path = tmp_path / "downloaded_deduplicated_download_report.txt"
+    tab = DownloadFromNCBITab()
+
+    class DummyHandle:
+        def __init__(self, data: str):
+            self._data = data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return self._data
+
+    calls = []
+
+    def fake_efetch(**kwargs):
+        calls.append(kwargs)
+        return DummyHandle(
+            ">NM_001 fake sequence\nATGCATGC\n>NP_001 fake protein\nMSTNPKPQR\n"
+        )
+
+    from Bio import Entrez
+
+    monkeypatch.setattr(Entrez, "efetch", fake_efetch)
+
+    tab.email_edit.setText("tester@example.com")
+    tab.acc_edit.setPlainText("NM_001\nNM_001\nNP_001")
+    tab.output_edit.setText(str(output_path))
+    tab.export_report_checkbox.setChecked(True)
+    tab.run_download()
+
+    assert output_path.exists()
+    assert report_path.exists()
+    assert len(calls) == 1
+    assert calls[0]["id"] == "NM_001,NP_001"
+    assert "Duplicate accession IDs ignored after first occurrence: NM_001" in log_text(tab)
+    report_text = read_text(report_path)
+    assert "Requested_Count\t3" in report_text
+    assert "Unique_Requested_Count\t2" in report_text
+    assert "Duplicate_Requested_Count\t1" in report_text
+    assert "Sequences_Returned\t2" in report_text
+
+
+def test_download_from_ncbi_runs_multiple_batches(qapp, tmp_path: Path, monkeypatch):
+    output_path = tmp_path / "downloaded_multibatch.fasta"
+    tab = DownloadFromNCBITab()
+
+    class DummyHandle:
+        def __init__(self, data: str):
+            self._data = data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return self._data
+
+    calls = []
+
+    def fake_efetch(**kwargs):
+        calls.append(kwargs["id"])
+        accession = kwargs["id"]
+        return DummyHandle(f">{accession} downloaded\nATGC\n")
+
+    from Bio import Entrez
+
+    monkeypatch.setattr(Entrez, "efetch", fake_efetch)
+
+    tab.email_edit.setText("tester@example.com")
+    tab.acc_edit.setPlainText("NM_001\nNP_001\nAF123456")
+    tab.output_edit.setText(str(output_path))
+    tab.batch_size_spin.setValue(1)
+    tab.run_download()
+
+    assert output_path.exists()
+    assert calls == ["NM_001", "NP_001", "AF123456"]
+    assert read_text(output_path).count(">") == 3
+
+
+def test_download_from_ncbi_retries_after_network_error(qapp, tmp_path: Path, monkeypatch):
+    output_path = tmp_path / "downloaded_retry.fasta"
+    tab = DownloadFromNCBITab()
+
+    class DummyHandle:
+        def __init__(self, data: str):
+            self._data = data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return self._data
+
+    from Bio import Entrez
+    from urllib.error import URLError
+
+    attempts = {"count": 0}
+
+    def fake_efetch(**kwargs):
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise URLError("temporary network failure")
+        return DummyHandle(">NM_001 recovered\nATGCATGC\n")
+
+    monkeypatch.setattr(Entrez, "efetch", fake_efetch)
+
+    tab.email_edit.setText("tester@example.com")
+    tab.acc_edit.setPlainText("NM_001")
+    tab.output_edit.setText(str(output_path))
+    tab.retry_count_spin.setValue(1)
+    tab.run_download()
+
+    assert output_path.exists()
+    assert attempts["count"] == 2
+    assert "Batch 1 succeeded after 2 attempt(s)" in log_text(tab)
+
+
+def test_download_from_ncbi_empty_result_exports_failure_report(
+    qapp, tmp_path: Path, monkeypatch
+):
+    output_path = tmp_path / "download_empty.fasta"
+    report_path = tmp_path / "download_empty_download_report.txt"
+    tab = DownloadFromNCBITab()
+
+    class DummyHandle:
+        def __init__(self, data: str):
+            self._data = data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return self._data
+
+    def fake_efetch(**kwargs):
+        return DummyHandle("")
+
+    from Bio import Entrez
+
+    monkeypatch.setattr(Entrez, "efetch", fake_efetch)
+
+    tab.email_edit.setText("tester@example.com")
+    tab.acc_edit.setPlainText("NM_001")
+    tab.output_edit.setText(str(output_path))
+    tab.export_report_checkbox.setChecked(True)
+    tab.run_download()
+
+    assert not output_path.exists()
+    assert report_path.exists()
+    report_text = read_text(report_path)
+    assert "Sequences_Returned\t0" in report_text
+    assert "Failed_Accession_Candidates\tNM_001" in report_text
+    assert "Download report saved to:" in log_text(tab)
+    assert "NCBI returned error or no sequences found." in log_text(tab)
+
+
 def test_batch_rename_ids_happy_path(
     qapp, sample_fasta_file: Path, mapping_csv_file: Path, tmp_path: Path
 ):
