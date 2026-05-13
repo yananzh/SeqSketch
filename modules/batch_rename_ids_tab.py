@@ -1,5 +1,13 @@
-from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-                           QFileDialog, QCheckBox, QSizePolicy)
+from PyQt6.QtWidgets import (
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QFileDialog,
+    QCheckBox,
+    QSizePolicy,
+)
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget
@@ -11,21 +19,24 @@ import os
 
 class BatchRenameIDsTab(BaseTabWidget):
     """批量重命名序列ID功能Tab"""
-    
+
     def __init__(self):
         super().__init__("Batch Rename IDs", "file")
         self.init_ui()
         self.connect_signals()
-    
+
     def init_ui(self):
         # 输入FASTA文件选择
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("Input FASTA file:"))
+
         class FileDropLineEdit(QLineEdit):
             file_dropped = pyqtSignal(str)
+
             def __init__(self, parent=None):
                 super().__init__(parent)
                 self.setAcceptDrops(True)
+
             def dragEnterEvent(self, event):
                 md = event.mimeData()
                 if md.hasUrls():
@@ -36,6 +47,7 @@ class BatchRenameIDsTab(BaseTabWidget):
                             event.acceptProposedAction()
                             return
                 event.ignore()
+
             def dropEvent(self, event):
                 urls = event.mimeData().urls()
                 if urls:
@@ -46,9 +58,10 @@ class BatchRenameIDsTab(BaseTabWidget):
                         event.acceptProposedAction()
                         return
                 event.ignore()
+
             @staticmethod
             def _is_valid_fasta(path: str) -> bool:
-                allowed = {'.fasta', '.fa', '.fas'}
+                allowed = {".fasta", ".fa", ".fas"}
                 try:
                     ext = os.path.splitext(path)[1].lower()
                     return os.path.isfile(path) and ext in allowed
@@ -58,20 +71,25 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
         self.input_edit.setMinimumWidth(320)
-        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.input_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
-        
+
         # 映射文件选择（支持拖放）
         mapping_layout = QHBoxLayout()
         mapping_layout.addWidget(QLabel("ID mapping file:"))
+
         class MappingDropLineEdit(QLineEdit):
             file_dropped = pyqtSignal(str)
+
             def __init__(self, parent=None):
                 super().__init__(parent)
                 self.setAcceptDrops(True)
+
             def dragEnterEvent(self, event):
                 md = event.mimeData()
                 if md.hasUrls():
@@ -82,6 +100,7 @@ class BatchRenameIDsTab(BaseTabWidget):
                             event.acceptProposedAction()
                             return
                 event.ignore()
+
             def dropEvent(self, event):
                 urls = event.mimeData().urls()
                 if urls:
@@ -92,9 +111,10 @@ class BatchRenameIDsTab(BaseTabWidget):
                         event.acceptProposedAction()
                         return
                 event.ignore()
+
             @staticmethod
             def _is_valid_mapping(path: str) -> bool:
-                allowed = {'.csv', '.tsv', '.txt', '.xlsx', '.xls'}
+                allowed = {".csv", ".tsv", ".txt", ".xlsx", ".xls"}
                 try:
                     ext = os.path.splitext(path)[1].lower()
                     return os.path.isfile(path) and ext in allowed
@@ -104,30 +124,34 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.mapping_edit = MappingDropLineEdit()
         self.mapping_edit.setPlaceholderText("Select or drop a CSV/TSV mapping file...")
         self.mapping_edit.setMinimumWidth(320)
-        self.mapping_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.mapping_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         self.mapping_btn = QPushButton("Choose Mapping File")
         mapping_layout.addWidget(self.mapping_edit)
         mapping_layout.addWidget(self.mapping_btn)
-        
+
         # 映射文件选项
         option_layout = QHBoxLayout()
         self.header_checkbox = QCheckBox("Mapping file contains header row")
         self.header_checkbox.setChecked(True)
         option_layout.addWidget(self.header_checkbox)
         option_layout.addStretch()
-        
+
         # 输出文件选择
         output_layout = QHBoxLayout()
         output_layout.addWidget(QLabel("Output file:"))
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the renamed file...")
         self.output_edit.setMinimumWidth(320)
-        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.output_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
-        
+
         # 控制按钮
         control_layout = QHBoxLayout()
         self.run_btn = QPushButton("Start")
@@ -136,28 +160,34 @@ class BatchRenameIDsTab(BaseTabWidget):
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.setSpacing(10)
-        
+
         # 添加到内容区域
         self.add_content_layout(input_layout)
         self.add_content_layout(mapping_layout)
         self.add_content_layout(option_layout)
         self.add_content_layout(output_layout)
         self.add_content_layout(control_layout)
-    
+
+        # 添加拉伸项，确保内容顶部对齐，日志区域固定在底部
+        self.content_area.addStretch()
+
     def connect_signals(self):
         self.input_btn.clicked.connect(self.select_input_file)
         self.mapping_btn.clicked.connect(self.select_mapping_file)
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_rename)
         self.clear_btn.clicked.connect(self.clear_all)
-        if hasattr(self.input_edit, 'file_dropped'):
+        if hasattr(self.input_edit, "file_dropped"):
             self.input_edit.file_dropped.connect(self.handle_input_file_selected)
-        if hasattr(self.mapping_edit, 'file_dropped'):
+        if hasattr(self.mapping_edit, "file_dropped"):
             self.mapping_edit.file_dropped.connect(self.handle_mapping_file_selected)
-    
+
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select FASTA file", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
+            self,
+            "Select FASTA file",
+            "",
+            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
         )
         if file_path:
             self.handle_input_file_selected(file_path)
@@ -169,11 +199,13 @@ class BatchRenameIDsTab(BaseTabWidget):
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
-    
+
     def select_mapping_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select ID mapping file", "", 
-            "CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)"
+            self,
+            "Select ID mapping file",
+            "",
+            "CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)",
         )
         if file_path:
             self.handle_mapping_file_selected(file_path)
@@ -181,16 +213,19 @@ class BatchRenameIDsTab(BaseTabWidget):
     def handle_mapping_file_selected(self, file_path: str):
         self.mapping_edit.setText(file_path)
         ext = os.path.splitext(file_path)[1].lower()
-        if ext in ['.xls', '.xlsx']:
+        if ext in [".xls", ".xlsx"]:
             self.log_message("Excel selected. Requires pandas, or save as CSV/TSV.")
-    
+
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save renamed file", "", "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
+            self,
+            "Save renamed file",
+            "",
+            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
         )
         if file_path:
             self.output_edit.setText(file_path)
-    
+
     def run_rename(self):
         input_path = self.input_edit.text().strip()
         mapping_path = self.mapping_edit.text().strip()
@@ -199,7 +234,8 @@ class BatchRenameIDsTab(BaseTabWidget):
 
         # Validate input
         from utils.common_components import validate_input_path, validate_output_path
-        valid, error = validate_input_path(input_path, ['.fasta', '.fa', '.fas'])
+
+        valid, error = validate_input_path(input_path, [".fasta", ".fa", ".fas"])
         if not valid:
             self.log_message(error, "ERROR")
             return
@@ -216,23 +252,32 @@ class BatchRenameIDsTab(BaseTabWidget):
         try:
             ext = os.path.splitext(mapping_path)[1].lower()
             mapping = {}
-            if ext in ['.xls', '.xlsx']:
+            if ext in [".xls", ".xlsx"]:
                 try:
                     import pandas as pd
                 except Exception:
-                    self.log_message("Excel mapping requires pandas. Install with: pip install pandas, or save as CSV/TSV.", "ERROR")
+                    self.log_message(
+                        "Excel mapping requires pandas. Install with: pip install pandas, or save as CSV/TSV.",
+                        "ERROR",
+                    )
                     self.set_running_state(False)
                     return
                 df = pd.read_excel(mapping_path, header=0 if has_header else None)
                 if df.shape[1] < 2:
-                    self.log_message("Mapping file must have at least two columns (old ID, new ID)", "ERROR")
+                    self.log_message(
+                        "Mapping file must have at least two columns (old ID, new ID)",
+                        "ERROR",
+                    )
                     self.set_running_state(False)
                     return
-                mapping = dict(zip(df.iloc[:, 0].astype(str), df.iloc[:, 1].astype(str)))
-            elif ext in ['.csv', '.tsv', '.txt']:
+                mapping = dict(
+                    zip(df.iloc[:, 0].astype(str), df.iloc[:, 1].astype(str))
+                )
+            elif ext in [".csv", ".tsv", ".txt"]:
                 import csv
-                delimiter = ',' if ext == '.csv' else '\t'
-                with open(mapping_path, 'r', encoding='utf-8') as f:
+
+                delimiter = "," if ext == ".csv" else "\t"
+                with open(mapping_path, "r", encoding="utf-8") as f:
                     reader = csv.reader(f, delimiter=delimiter)
                     rows = list(reader)
                 if has_header and rows:
@@ -248,12 +293,16 @@ class BatchRenameIDsTab(BaseTabWidget):
                     self.set_running_state(False)
                     return
             else:
-                self.log_message("Unsupported mapping format. Use Excel (.xlsx/.xls), CSV (.csv) or TSV (.tsv/.txt).", "ERROR")
+                self.log_message(
+                    "Unsupported mapping format. Use Excel (.xlsx/.xls), CSV (.csv) or TSV (.tsv/.txt).",
+                    "ERROR",
+                )
                 self.set_running_state(False)
                 return
             self.log_message(f"Loaded {len(mapping)} ID mappings", "INFO")
             # Load FASTA
             from modules.fasta_processor import FASTAProcessor
+
             self.show_status("Loading FASTA file...")
             processor = FASTAProcessor()
             if not processor.read_file(input_path):
@@ -274,7 +323,7 @@ class BatchRenameIDsTab(BaseTabWidget):
                 old_id = record.header.split()[0]
                 if old_id in mapping:
                     new_id = mapping[old_id]
-                    parts = record.header.split(' ', 1)
+                    parts = record.header.split(" ", 1)
                     if len(parts) > 1:
                         record.header = f"{new_id} {parts[1]}"
                     else:
@@ -286,11 +335,17 @@ class BatchRenameIDsTab(BaseTabWidget):
                 self.log_message("Failed to save file", "ERROR")
                 self.set_running_state(False)
                 return
-            self.log_message(f"Renaming complete! Processed {total} sequences, renamed {renamed_count}. Saved to: {output_path}", "INFO")
+            self.log_message(
+                f"Renaming complete! Processed {total} sequences, renamed {renamed_count}. Saved to: {output_path}",
+                "INFO",
+            )
             self.show_status("Complete")
         except Exception as e:
             import traceback
-            self.log_message(f"Error during renaming: {e}\n{traceback.format_exc()}", "ERROR")
+
+            self.log_message(
+                f"Error during renaming: {e}\n{traceback.format_exc()}", "ERROR"
+            )
             self.show_status("Error")
         finally:
             self.set_running_state(False)
@@ -300,7 +355,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.mapping_edit.clear()
         self.output_edit.clear()
         self.header_checkbox.setChecked(True)
-        if hasattr(self, 'log_area'):
+        if hasattr(self, "log_area"):
             self.log_area.clear()
         self.show_status("Cleared")
 
@@ -311,12 +366,18 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.mapping_btn.setEnabled(not running)
         self.output_btn.setEnabled(not running)
         self.header_checkbox.setEnabled(not running)
-    
+
     def show_help(self):
         """显示帮助信息"""
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
+        from PyQt6.QtWidgets import (
+            QDialog,
+            QVBoxLayout,
+            QLabel,
+            QPushButton,
+            QScrollArea,
+        )
         from PyQt6.QtCore import Qt
-        
+
         help_text = """
 <h3>批量重命名序列ID工具</h3>
 <p><b>功能说明：</b></p>
@@ -372,34 +433,34 @@ gi|123456|ref|XM_001234.1|	Custom_Gene_X
 <p>生成新的FASTA文件，序列内容不变，仅更新序列ID。</p>
 <p>处理过程会显示重命名的序列数量和详细日志。</p>
         """
-        
+
         # 创建自定义对话框
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Batch Rename IDs")
         dialog.setFixedSize(850, 550)
-        
+
         layout = QVBoxLayout()
-        
+
         # 创建滚动区域
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        
+
         # 创建文本标签
         label = QLabel(help_text)
         label.setTextFormat(Qt.TextFormat.RichText)
         label.setWordWrap(True)  # 启用自动换行
         label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         label.setMargin(20)
-        
+
         scroll_area.setWidget(label)
         layout.addWidget(scroll_area)
-        
+
         # 添加确定按钮
         ok_button = QPushButton("OK")
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
-        
+
         dialog.setLayout(layout)
         dialog.exec()
