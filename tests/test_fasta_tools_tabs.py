@@ -329,6 +329,84 @@ def test_extract_by_regex_happy_path(qapp, sample_fasta_file: Path, tmp_path: Pa
     print("[Extract by Regex] finished successfully")
 
 
+def test_extract_by_regex_case_insensitive_id_only(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    output_path = tmp_path / "regex_case_insensitive.fasta"
+    tab = ExtractByRegexTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.regex_edit.setText(r"^SEQ1$")
+    tab.match_scope_combo.setCurrentText("Sequence ID Only")
+    tab.case_insensitive_checkbox.setChecked(True)
+    tab.run_extract()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == ["seq1 alpha description"]
+    assert "Scope: Sequence ID Only" in log_text(tab)
+    assert "Case insensitive: Yes" in log_text(tab)
+
+
+def test_extract_by_regex_description_only_scope(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    output_path = tmp_path / "regex_description_only.fasta"
+    tab = ExtractByRegexTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.regex_edit.setText(r"product_x")
+    tab.match_scope_combo.setCurrentText("Description Only")
+    tab.run_extract()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == ["gene_alpha product_x"]
+    assert "Scope: Description Only" in log_text(tab)
+
+
+def test_extract_by_regex_exclude_matches(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    output_path = tmp_path / "regex_exclude.fasta"
+    tab = ExtractByRegexTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.regex_edit.setText(r"^(seq|gene)")
+    tab.match_mode_combo.setCurrentText("Exclude Matches")
+    tab.run_extract()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == ["chr10_sample annotation"]
+    assert "Mode: Exclude Matches" in log_text(tab)
+    assert "output contains 1 sequence(s)" in log_text(tab)
+
+
+def test_extract_by_regex_zero_match_exports_report(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    output_path = tmp_path / "regex_zero_match.fasta"
+    report_path = tmp_path / "regex_zero_match_regex_no_match_report.txt"
+    tab = ExtractByRegexTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.regex_edit.setText(r"^missing$")
+    tab.export_no_match_report_checkbox.setChecked(True)
+    tab.run_extract()
+
+    assert not output_path.exists()
+    assert report_path.exists()
+    report_text = read_text(report_path)
+    assert "Regex\t^missing$" in report_text
+    assert "Match_Mode\tInclude Matches" in report_text
+    assert "Match_Scope\tFull Header" in report_text
+    assert "Output_Count\t0" in report_text
+    assert "No sequences remained after applying the regex filter" in log_text(tab)
+    assert "No-match report saved to:" in log_text(tab)
+
+
 def test_download_from_ncbi_happy_path(qapp, tmp_path: Path, monkeypatch):
     print("[Download from NCBI] start happy-path flow")
     output_path = tmp_path / "downloaded.fasta"

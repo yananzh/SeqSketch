@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -5,6 +7,8 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QFileDialog,
     QSizePolicy,
+    QComboBox,
+    QCheckBox,
 )
 from PyQt6.QtCore import pyqtSignal
 from utils.common_components import BaseTabWidget
@@ -52,6 +56,77 @@ class FileDropLineEdit(QLineEdit):
             return False
 
 
+def full_header_text(record) -> str:
+    return (
+        f"{record.header} {record.description}".strip()
+        if record.description
+        else record.header
+    )
+
+
+def select_match_target(record, match_scope: str) -> str:
+    if match_scope == "Sequence ID Only":
+        return record.header
+    if match_scope == "Description Only":
+        return record.description
+    return full_header_text(record)
+
+
+def compile_regex_pattern(regex_text: str, case_insensitive: bool):
+    flags = re.IGNORECASE if case_insensitive else 0
+    return re.compile(regex_text, flags)
+
+
+def filter_records_by_regex(
+    records, pattern, match_mode: str, match_scope: str
+) -> tuple[list, dict]:
+    matching_records = []
+    output_records = []
+    exclude_matches = match_mode == "Exclude Matches"
+
+    for record in records:
+        match_target = select_match_target(record, match_scope)
+        is_match = bool(pattern.search(match_target))
+        if is_match:
+            matching_records.append(record)
+        if (is_match and not exclude_matches) or (exclude_matches and not is_match):
+            output_records.append(record)
+
+    summary = {
+        "scanned_count": len(records),
+        "match_count": len(matching_records),
+        "output_count": len(output_records),
+        "excluded_count": len(records) - len(output_records),
+        "exclude_matches": exclude_matches,
+        "match_scope": match_scope,
+    }
+    return output_records, summary
+
+
+def no_match_report_path_for_output(output_path: str) -> str:
+    base, _ = os.path.splitext(output_path)
+    return f"{base}_regex_no_match_report.txt"
+
+
+def write_no_match_report(
+    report_path: str, regex_text: str, summary: dict, case_insensitive: bool
+):
+    lines = [
+        "Metric\tValue",
+        f"Generated_At\t{datetime.now().isoformat(timespec='seconds')}",
+        f"Regex\t{regex_text}",
+        f"Match_Mode\t{'Exclude Matches' if summary['exclude_matches'] else 'Include Matches'}",
+        f"Match_Scope\t{summary['match_scope']}",
+        f"Case_Insensitive\t{'Yes' if case_insensitive else 'No'}",
+        f"Scanned_Count\t{summary['scanned_count']}",
+        f"Match_Count\t{summary['match_count']}",
+        f"Output_Count\t{summary['output_count']}",
+        f"Excluded_Count\t{summary['excluded_count']}",
+    ]
+    with open(report_path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines))
+
+
 class ExtractByRegexTab(BaseTabWidget):
     """Extract by Regex Tab"""
 
@@ -90,6 +165,25 @@ class ExtractByRegexTab(BaseTabWidget):
         regex_layout.addWidget(self.regex_edit)
         regex_layout.setSpacing(8)
 
+        options_layout = QHBoxLayout()
+        options_layout.addWidget(QLabel("Match mode:"))
+        self.match_mode_combo = QComboBox()
+        self.match_mode_combo.addItems(["Include Matches", "Exclude Matches"])
+        options_layout.addWidget(self.match_mode_combo)
+        options_layout.addWidget(QLabel("Match scope:"))
+        self.match_scope_combo = QComboBox()
+        self.match_scope_combo.addItems([
+            "Full Header",
+            "Sequence ID Only",
+            "Description Only",
+        ])
+        options_layout.addWidget(self.match_scope_combo)
+        self.case_insensitive_checkbox = QCheckBox("Case insensitive")
+        options_layout.addWidget(self.case_insensitive_checkbox)
+        self.export_no_match_report_checkbox = QCheckBox("Export no-match report")
+        options_layout.addWidget(self.export_no_match_report_checkbox)
+        options_layout.addStretch(1)
+
         # Output file
         output_layout = QHBoxLayout()
         output_layout.addWidget(QLabel("Output file:"))
@@ -117,6 +211,7 @@ class ExtractByRegexTab(BaseTabWidget):
         # Add to main content area
         self.add_content_layout(input_layout)
         self.add_content_layout(regex_layout)
+        self.add_content_layout(options_layout)
         self.add_content_layout(output_layout)
         self.add_content_layout(control_layout)
 
@@ -165,6 +260,10 @@ class ExtractByRegexTab(BaseTabWidget):
         self.input_edit.clear()
         self.output_edit.clear()
         self.regex_edit.clear()
+        self.match_mode_combo.setCurrentText("Include Matches")
+        self.match_scope_combo.setCurrentText("Full Header")
+        self.case_insensitive_checkbox.setChecked(False)
+        self.export_no_match_report_checkbox.setChecked(False)
         self.log_area.clear()
         self.show_status("Cleared")
 
@@ -175,11 +274,19 @@ class ExtractByRegexTab(BaseTabWidget):
         self.input_btn.setEnabled(not running)
         self.output_btn.setEnabled(not running)
         self.regex_edit.setEnabled(not running)
+        self.match_mode_combo.setEnabled(not running)
+        self.match_scope_combo.setEnabled(not running)
+        self.case_insensitive_checkbox.setEnabled(not running)
+        self.export_no_match_report_checkbox.setEnabled(not running)
 
     def run_extract(self):
         input_path = self.input_edit.text().strip()
         output_path = self.output_edit.text().strip()
         regex = self.regex_edit.text().strip()
+        match_mode = self.match_mode_combo.currentText()
+        match_scope = self.match_scope_combo.currentText()
+        case_insensitive = self.case_insensitive_checkbox.isChecked()
+        export_no_match_report = self.export_no_match_report_checkbox.isChecked()
 
         # 验证输入
         from utils.common_components import validate_input_path, validate_output_path
@@ -201,8 +308,17 @@ class ExtractByRegexTab(BaseTabWidget):
             self.log_message("Please enter a regular expression", "ERROR")
             return
 
+        try:
+            pattern = compile_regex_pattern(regex, case_insensitive)
+        except Exception as e:
+            self.log_message(f"Invalid regular expression: {e}", "ERROR")
+            return
+
         # Single-threaded processing
         self.set_running_state(True)
+        self.log_message(
+            f"Compiled regex successfully. Mode: {match_mode}; Scope: {match_scope}; Case insensitive: {'Yes' if case_insensitive else 'No'}"
+        )
         self.log_message("Loading FASTA file...")
 
         try:
@@ -214,33 +330,48 @@ class ExtractByRegexTab(BaseTabWidget):
                 self.set_running_state(False)
                 return
 
-            self.log_message("Validating regular expression...")
-            try:
-                pattern = re.compile(regex)
-            except Exception as e:
-                self.log_message(f"Invalid regular expression: {e}", "ERROR")
+            if not processor.records:
+                self.log_message("No sequences found in FASTA file", "ERROR")
                 self.set_running_state(False)
                 return
 
             self.log_message("Matching sequences...")
-            matched = []
-            for record in processor.records:
-                if pattern.search(record.header):
-                    matched.append(record)
+            filtered_records, summary = filter_records_by_regex(
+                processor.records,
+                pattern,
+                match_mode,
+                match_scope,
+            )
 
-            if not matched:
-                self.log_message("No sequences matched", "ERROR")
+            self.log_message(
+                f"Scanned {summary['scanned_count']} sequence(s); regex matched {summary['match_count']}; output contains {summary['output_count']} sequence(s)"
+            )
+
+            if not filtered_records:
+                self.log_message(
+                    "No sequences remained after applying the regex filter",
+                    "ERROR",
+                )
+                if export_no_match_report:
+                    report_path = no_match_report_path_for_output(output_path)
+                    write_no_match_report(
+                        report_path,
+                        regex,
+                        summary,
+                        case_insensitive,
+                    )
+                    self.log_message(f"No-match report saved to: {report_path}")
                 self.set_running_state(False)
                 return
 
-            self.log_message(f"Saving results... ({len(matched)} sequences)")
-            if not processor.save_file(output_path, matched):
+            self.log_message(f"Saving results... ({summary['output_count']} sequences)")
+            if not processor.save_file(output_path, filtered_records):
                 self.log_message("Failed to save file", "ERROR")
                 self.set_running_state(False)
                 return
 
             self.log_message(
-                f"Extraction complete. Found {len(matched)} sequences. Saved to: {output_path}"
+                f"Extraction complete. Found {summary['output_count']} sequences. Saved to: {output_path}"
             )
         except Exception as e:
             self.log_message(f"Error during extraction: {e}", "ERROR")
