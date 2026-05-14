@@ -179,7 +179,7 @@ class BatchRenameIDsTab(BaseTabWidget):
     """批量重命名序列ID功能Tab"""
 
     def __init__(self):
-        super().__init__("Batch Rename IDs", "file")
+        super().__init__("Rename IDs", "file")
         self.init_ui()
         self.connect_signals()
 
@@ -690,7 +690,7 @@ gi|123456|ref|XM_001234.1|	Custom_Gene_X
 
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Batch Rename IDs")
+        dialog.setWindowTitle("Help - Rename IDs")
         dialog.setFixedSize(850, 550)
 
         layout = QVBoxLayout()

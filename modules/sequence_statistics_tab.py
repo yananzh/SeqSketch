@@ -267,7 +267,7 @@ class SequenceStatisticsTab(BaseTabWidget):
     """Sequence length statistics Tab"""
 
     def __init__(self):
-        super().__init__("Sequence Statistics", "file")
+        super().__init__("FASTA QC", "file")
         self.init_ui()
         self.connect_signals()
 
@@ -484,7 +484,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         from PyQt6.QtCore import Qt
 
         help_text = """
-<h3>Sequence Statistics and FASTA QC</h3>
+<h3>FASTA QC</h3>
 <p><b>Description:</b></p>
 <p>Generate a lightweight FASTA QC report with global assembly-style metrics and per-sequence diagnostics.</p>
 
@@ -509,7 +509,7 @@ class SequenceStatisticsTab(BaseTabWidget):
 
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Sequence Statistics")
+        dialog.setWindowTitle("Help - FASTA QC")
         dialog.setFixedSize(780, 500)
 
         layout = QVBoxLayout()

@@ -72,7 +72,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = SequenceStatisticsTab()
-        self.tabs.addTab(tab, self.tr("Sequence Statistics"))
+        self.tabs.addTab(tab, self.tr("FASTA QC"))
         self.tabs.setCurrentWidget(tab)
 
     def open_simplify_ids_tab(self):
@@ -83,7 +83,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = SimplifyIDsTab()
-        self.tabs.addTab(tab, self.tr("Simplify IDs"))
+        self.tabs.addTab(tab, self.tr("Simplify Headers"))
         self.tabs.setCurrentWidget(tab)
 
     def open_extract_by_id_tab(self):
@@ -94,7 +94,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = ExtractByIDTab()
-        self.tabs.addTab(tab, self.tr("Extract by ID"))
+        self.tabs.addTab(tab, self.tr("Filter by IDs"))
         self.tabs.setCurrentWidget(tab)
 
     def open_extract_by_regex_tab(self):
@@ -105,7 +105,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = ExtractByRegexTab()
-        self.tabs.addTab(tab, self.tr("Extract by Regex"))
+        self.tabs.addTab(tab, self.tr("Regex Filter"))
         self.tabs.setCurrentWidget(tab)
 
     def open_download_from_ncbi_tab(self):
@@ -116,7 +116,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = DownloadFromNCBITab()
-        self.tabs.addTab(tab, self.tr("Download from NCBI"))
+        self.tabs.addTab(tab, self.tr("NCBI Download"))
         self.tabs.setCurrentWidget(tab)
 
     def open_batch_rename_ids_tab(self):
@@ -127,7 +127,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = BatchRenameIDsTab()
-        self.tabs.addTab(tab, self.tr("Batch Rename IDs"))
+        self.tabs.addTab(tab, self.tr("Rename IDs"))
         self.tabs.setCurrentWidget(tab)
 
     # DNA序列分析六大功能Tab

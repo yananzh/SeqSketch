@@ -131,7 +131,7 @@ class ExtractByRegexTab(BaseTabWidget):
     """Extract by Regex Tab"""
 
     def __init__(self):
-        super().__init__("Extract by Regex", "file")
+        super().__init__("Regex Filter", "file")
         self.init_ui()
         self.connect_signals()
 
@@ -436,7 +436,7 @@ class ExtractByRegexTab(BaseTabWidget):
 
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Extract by Regex")
+        dialog.setWindowTitle("Help - Regex Filter")
         dialog.setFixedSize(820, 550)
 
         layout = QVBoxLayout()

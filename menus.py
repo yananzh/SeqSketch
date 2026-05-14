@@ -12,24 +12,24 @@ def create_menus(window):
     # 1. FASTA Tools
     fasta_menu = menubar.addMenu(window.tr("FASTA Tools"))
     # 四个功能项
-    seq_stat_action = QAction(window.tr("Sequence Statistics"), window)
+    seq_stat_action = QAction(window.tr("FASTA QC"), window)
     seq_stat_action.triggered.connect(window.open_sequence_statistics_tab)
     fasta_menu.addAction(seq_stat_action)
-    simplify_ids_action = QAction(window.tr("Simplify IDs"), window)
+    simplify_ids_action = QAction(window.tr("Simplify Headers"), window)
     simplify_ids_action.triggered.connect(window.open_simplify_ids_tab)
     fasta_menu.addAction(simplify_ids_action)
-    extract_by_id_action = QAction(window.tr("Extract by ID"), window)
+    extract_by_id_action = QAction(window.tr("Filter by IDs"), window)
     extract_by_id_action.triggered.connect(window.open_extract_by_id_tab)
     fasta_menu.addAction(extract_by_id_action)
-    extract_by_regex_action = QAction(window.tr("Extract by Regex"), window)
+    extract_by_regex_action = QAction(window.tr("Regex Filter"), window)
     extract_by_regex_action.triggered.connect(window.open_extract_by_regex_tab)
     fasta_menu.addAction(extract_by_regex_action)
     # 新增：从NCBI下载序列
-    download_ncbi_action = QAction(window.tr("Download from NCBI"), window)
+    download_ncbi_action = QAction(window.tr("NCBI Download"), window)
     download_ncbi_action.triggered.connect(window.open_download_from_ncbi_tab)
     fasta_menu.addAction(download_ncbi_action)
     # 新增：批量重命名ID
-    batch_rename_action = QAction(window.tr("Batch Rename IDs"), window)
+    batch_rename_action = QAction(window.tr("Rename IDs"), window)
     batch_rename_action.triggered.connect(window.open_batch_rename_ids_tab)
     fasta_menu.addAction(batch_rename_action)
     # 2. DNA Analysis

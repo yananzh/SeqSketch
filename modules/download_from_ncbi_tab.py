@@ -103,7 +103,7 @@ class DownloadFromNCBITab(BaseTabWidget):
     """NCBI download Tab"""
 
     def __init__(self):
-        super().__init__("Download from NCBI", "file")
+        super().__init__("NCBI Download", "file")
         self.init_ui()
         self.connect_signals()
 
@@ -509,7 +509,7 @@ AAA12345
 
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("Help - NCBI Downloader")
+        dialog.setWindowTitle("Help - NCBI Download")
         dialog.setFixedSize(800, 530)
 
         layout = QVBoxLayout()

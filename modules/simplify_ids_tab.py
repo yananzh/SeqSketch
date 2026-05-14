@@ -91,7 +91,7 @@ class SimplifyIDsTab(BaseTabWidget):
     """Simplify sequence IDs Tab"""
 
     def __init__(self):
-        super().__init__("Simplify IDs", "file")
+        super().__init__("Simplify Headers", "file")
         self.init_ui()
         self.connect_signals()
         self.update_mode_controls()
@@ -513,7 +513,7 @@ class SimplifyIDsTab(BaseTabWidget):
         """
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Simplify IDs")
+        dialog.setWindowTitle("Help - Simplify Headers")
         dialog.setFixedSize(820, 520)
 
         layout = QVBoxLayout()

@@ -130,7 +130,7 @@ class ExtractByIDTab(BaseTabWidget):
     """Extract by ID Tab"""
 
     def __init__(self):
-        super().__init__("Extract by ID", "file")
+        super().__init__("Filter by IDs", "file")
         self.init_ui()
         self.connect_signals()
 
@@ -507,7 +507,7 @@ gi|123456|ref|XM_001234.1|
 
         # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Extract by ID")
+        dialog.setWindowTitle("Help - Filter by IDs")
         dialog.setFixedSize(760, 500)
 
         layout = QVBoxLayout()
