@@ -138,19 +138,25 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, "Convert to RNA")
         self.tabs.setCurrentWidget(tab)
 
-    def open_complement_tab(self):
+    def _open_complement_tools_tab(self, mode: str):
         from modules.complement_tab import ComplementTab
 
+        for i in range(self.tabs.count()):
+            widget = self.tabs.widget(i)
+            if isinstance(widget, ComplementTab):
+                widget.set_mode(mode)
+                self.tabs.setCurrentIndex(i)
+                return
         tab = ComplementTab()
-        self.tabs.addTab(tab, "Complement")
+        tab.set_mode(mode)
+        self.tabs.addTab(tab, "Complement Tools")
         self.tabs.setCurrentWidget(tab)
+
+    def open_complement_tab(self):
+        self._open_complement_tools_tab("Complement")
 
     def open_reverse_complement_tab(self):
-        from modules.reverse_complement_tab import ReverseComplementTab
-
-        tab = ReverseComplementTab()
-        self.tabs.addTab(tab, "Reverse Complement")
-        self.tabs.setCurrentWidget(tab)
+        self._open_complement_tools_tab("Reverse Complement")
 
     def open_translate_tab(self):
         from modules.translate_tab import TranslateTab

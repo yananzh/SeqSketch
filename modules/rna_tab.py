@@ -3,18 +3,19 @@ import re
 from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtCore import Qt
 
+
 class RNATab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("Convert to RNA", "sequence")
         self._setup_drag_drop()
         self._update_ui_layout()
-    
+
     def _setup_drag_drop(self):
         """Enable drag-and-drop for FASTA files"""
         self.input_text.setAcceptDrops(True)
         self.input_text.dragEnterEvent = self._drag_enter_event
         self.input_text.dropEvent = self._drop_event
-    
+
     def _drag_enter_event(self, event):
         """Handle drag enter for file drops"""
         md = event.mimeData()
@@ -24,14 +25,14 @@ class RNATab(BaseTabWidget):
                 event.acceptProposedAction()
                 return
         event.ignore()
-    
+
     def _drop_event(self, event):
         """Handle file drop for FASTA input"""
         urls = event.mimeData().urls()
         if urls:
             file_path = urls[0].toLocalFile()
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 self.input_text.setPlainText(content)
                 self.input_hint.setText(f"Loaded file: {file_path}")
@@ -39,7 +40,7 @@ class RNATab(BaseTabWidget):
             except Exception as e:
                 self.status_label.setText(f"Error loading file: {e}")
                 event.ignore()
-    
+
     def _update_ui_layout(self):
         """Update placeholder and input/output sizing"""
         self.input_text.setPlaceholderText(
@@ -49,6 +50,9 @@ class RNATab(BaseTabWidget):
             "ATGCGATCGATCG\n"
             ">seq2\n"
             "TTAAGGCCTTAAGG"
+        )
+        self.input_hint.setText(
+            "Supports raw DNA and multi-sequence FASTA input. Output keeps FASTA headers and converts T to U."
         )
         self.output_text.setPlaceholderText("RNA sequences will appear here...")
         # Adjust minimum heights for better visibility
@@ -60,9 +64,9 @@ class RNATab(BaseTabWidget):
         if not seq:
             self.status_label.setText("Please enter a DNA sequence or FASTA.")
             return
-        
+
         # Check if input is FASTA format
-        if '>' in seq:
+        if ">" in seq:
             # Parse and convert multi-sequence FASTA
             result = self._convert_fasta(seq)
             if result:
@@ -73,27 +77,29 @@ class RNATab(BaseTabWidget):
         else:
             # Single raw sequence
             if not self.is_valid_dna(seq):
-                self.status_label.setText("Invalid characters. Allowed IUPAC codes: A/T/G/C/N, etc.")
+                self.status_label.setText(
+                    "Invalid characters. Allowed IUPAC codes: A/T/G/C/N, etc."
+                )
                 return
-            rna = seq.upper().replace('T', 'U').replace('t', 'u')
+            rna = seq.upper().replace("T", "U").replace("t", "u")
             self.output_text.setPlainText(rna)
             self.status_label.setText("Converted to RNA")
-    
+
     def _convert_fasta(self, fasta_text):
         """Convert FASTA format DNA to RNA"""
-        lines = fasta_text.split('\n')
+        lines = fasta_text.split("\n")
         output_lines = []
         current_seq = []
         current_header = None
-        
+
         for line in lines:
             line = line.strip()
-            if line.startswith('>'):
+            if line.startswith(">"):
                 # Save previous sequence if exists
                 if current_header is not None and current_seq:
-                    seq = ''.join(current_seq)
+                    seq = "".join(current_seq)
                     if self.is_valid_dna(seq):
-                        rna = seq.upper().replace('T', 'U').replace('t', 'u')
+                        rna = seq.upper().replace("T", "U").replace("t", "u")
                         output_lines.append(current_header)
                         output_lines.append(rna)
                     else:
@@ -103,22 +109,22 @@ class RNATab(BaseTabWidget):
                 current_seq = []
             elif line:
                 current_seq.append(line)
-        
+
         # Save last sequence
         if current_header is not None and current_seq:
-            seq = ''.join(current_seq)
+            seq = "".join(current_seq)
             if self.is_valid_dna(seq):
-                rna = seq.upper().replace('T', 'U').replace('t', 'u')
+                rna = seq.upper().replace("T", "U").replace("t", "u")
                 output_lines.append(current_header)
                 output_lines.append(rna)
             else:
                 return None
-        
-        return '\n'.join(output_lines) if output_lines else None
+
+        return "\n".join(output_lines) if output_lines else None
 
     def is_valid_dna(self, seq):
         # 允许IUPAC核苷酸代码
-        return re.fullmatch(r'[ACGTNacgtnRYMKSWBDHVrykmswbdhv\s]+', seq) is not None
+        return re.fullmatch(r"[ACGTNacgtnRYMKSWBDHVrykmswbdhv\s]+", seq) is not None
 
     def show_help(self):
         help_text = """
@@ -158,7 +164,14 @@ AUGCGAUCG
 UUAAGGCC
 </pre>
         """
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
+        from PyQt6.QtWidgets import (
+            QDialog,
+            QVBoxLayout,
+            QLabel,
+            QPushButton,
+            QScrollArea,
+        )
+
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Convert to RNA")
         dialog.setFixedSize(700, 500)
@@ -178,4 +191,4 @@ UUAAGGCC
         ok_button.clicked.connect(dialog.accept)
         layout.addWidget(ok_button)
         dialog.setLayout(layout)
-        dialog.exec() 
+        dialog.exec()

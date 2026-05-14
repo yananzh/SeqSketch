@@ -1,8 +1,19 @@
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, 
-    QFileDialog, QMessageBox, QScrollArea, QDialog, QSpinBox, QDoubleSpinBox
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTextEdit,
+    QFileDialog,
+    QMessageBox,
+    QScrollArea,
+    QDialog,
+    QSpinBox,
+    QDoubleSpinBox,
 )
 from PyQt6.QtCore import Qt
+
 
 class SangerTab(QWidget):
     def __init__(self, parent=None):
@@ -13,48 +24,55 @@ class SangerTab(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
-        
+
         # Input section
         input_label = QLabel("Input Sequences")
         input_label.setStyleSheet("font-size: 11pt;")
         main_layout.addWidget(input_label)
-        
+
+        input_hint = QLabel(
+            "Paste one forward read and one reverse read. The reverse read will be auto reverse-complemented before overlap assembly."
+        )
+        input_hint.setWordWrap(True)
+        input_hint.setStyleSheet("color: #666; font-size: 10pt;")
+        main_layout.addWidget(input_hint)
+
         # Forward sequence
         fwd_label = QLabel("Forward Sequence (5' → 3'):")
         main_layout.addWidget(fwd_label)
         self.fwd_edit = QTextEdit()
         self.fwd_edit.setPlaceholderText(
-            "Paste forward sequencing sequence...\n"
-            "Example: ATGCGATCGATCG..."
+            "Paste forward sequencing sequence...\nExample: ATGCGATCGATCG..."
         )
         self.fwd_edit.setMinimumHeight(120)
         main_layout.addWidget(self.fwd_edit)
-        
+
         # Reverse sequence
         rev_label = QLabel("Reverse Sequence (will be auto reverse-complemented):")
         main_layout.addWidget(rev_label)
         self.rev_edit = QTextEdit()
         self.rev_edit.setPlaceholderText(
-            "Paste reverse sequencing sequence...\n"
-            "Example: CGACCGATCGCAT..."
+            "Paste reverse sequencing sequence...\nExample: CGACCGATCGCAT..."
         )
         self.rev_edit.setMinimumHeight(120)
         main_layout.addWidget(self.rev_edit)
-        
+
         # Parameters section
         params_label = QLabel("Assembly Parameters")
         params_label.setStyleSheet("font-size: 11pt;")
         main_layout.addWidget(params_label)
-        
+
         params_hbox = QHBoxLayout()
         params_hbox.addWidget(QLabel("Min overlap:"))
         self.min_overlap_spin = QSpinBox()
         self.min_overlap_spin.setRange(5, 5000)
         self.min_overlap_spin.setValue(20)
-        self.min_overlap_spin.setToolTip("Minimum overlap length to consider during assembly")
+        self.min_overlap_spin.setToolTip(
+            "Minimum overlap length to consider during assembly"
+        )
         self.min_overlap_spin.setMinimumWidth(80)
         params_hbox.addWidget(self.min_overlap_spin)
-        
+
         params_hbox.addSpacing(20)
         params_hbox.addWidget(QLabel("Min identity:"))
         self.min_identity_spin = QDoubleSpinBox()
@@ -66,7 +84,7 @@ class SangerTab(QWidget):
         params_hbox.addWidget(self.min_identity_spin)
         params_hbox.addStretch()
         main_layout.addLayout(params_hbox)
-        
+
         # Action buttons (Help unified at bottom-right)
         btn_hbox = QHBoxLayout()
         self.assemble_btn = QPushButton("Run Assembly")
@@ -75,32 +93,34 @@ class SangerTab(QWidget):
         btn_hbox.addWidget(self.assemble_btn)
         btn_hbox.addStretch()
         main_layout.addLayout(btn_hbox)
-        
+
         # Output section
         output_label = QLabel("Assembly Result")
         output_label.setStyleSheet("font-size: 11pt;")
         main_layout.addWidget(output_label)
-        
+
         self.assembly_result = QTextEdit()
         self.assembly_result.setReadOnly(True)
-        self.assembly_result.setPlaceholderText("Assembled sequence will appear here...")
+        self.assembly_result.setPlaceholderText(
+            "Assembled sequence will appear here..."
+        )
         self.assembly_result.setMinimumHeight(150)
         main_layout.addWidget(self.assembly_result)
-        
+
         # Export buttons
         export_hbox = QHBoxLayout()
         self.copy_assembly_btn = QPushButton("Copy to Clipboard")
         self.copy_assembly_btn.clicked.connect(self.copy_assembled_to_clipboard)
         self.copy_assembly_btn.setMinimumWidth(140)
         export_hbox.addWidget(self.copy_assembly_btn)
-        
+
         self.save_assembly_btn = QPushButton("Save to File")
         self.save_assembly_btn.clicked.connect(self.save_assembly_result)
         self.save_assembly_btn.setMinimumWidth(120)
         export_hbox.addWidget(self.save_assembly_btn)
         export_hbox.addStretch()
         main_layout.addLayout(export_hbox)
-        
+
         # Status + Help (bottom-right Help placement)
         status_layout = QHBoxLayout()
         status_caption = QLabel("Status:")
@@ -113,27 +133,39 @@ class SangerTab(QWidget):
         help_btn.clicked.connect(self.show_help)
         status_layout.addWidget(help_btn)
         main_layout.addLayout(status_layout)
-        
+
         self.setLayout(main_layout)
 
     def run_assembly(self):
-        fwd = self.fwd_edit.toPlainText().strip().upper().replace('U', 'T')
-        rev = self.rev_edit.toPlainText().strip().upper().replace('U', 'T')
+        fwd = self.fwd_edit.toPlainText().strip().upper().replace("U", "T")
+        rev = self.rev_edit.toPlainText().strip().upper().replace("U", "T")
         if not fwd or not rev:
-            self.status_label.setText("Error: Please paste both forward and reverse sequences")
-            QMessageBox.warning(self, "Input Error", "Paste both forward and reverse sequences")
+            self.status_label.setText(
+                "Error: Please paste both forward and reverse sequences"
+            )
+            QMessageBox.warning(
+                self, "Input Error", "Paste both forward and reverse sequences"
+            )
             return
-        
+
         self.status_label.setText("Running assembly...")
         # Automatically reverse-complement the reverse input
         rev_rc = self.reverse_complement(rev)
         min_overlap = self.min_overlap_spin.value()
         min_identity = float(self.min_identity_spin.value())
-        overlap, identity, merged = self.auto_assemble(fwd, rev_rc, min_overlap=min_overlap, min_identity=min_identity)
-        
+        overlap, identity, merged = self.auto_assemble(
+            fwd, rev_rc, min_overlap=min_overlap, min_identity=min_identity
+        )
+
         if overlap < min_overlap or identity < min_identity:
-            self.status_label.setText(f"Warning: No clear overlap (overlap={overlap}bp, identity={identity:.2f})")
-            QMessageBox.warning(self, "Assembly Warning", f"No clear overlap detected (overlap={overlap}, identity={identity:.2f}); concatenating ends directly")
+            self.status_label.setText(
+                f"Warning: No clear overlap (overlap={overlap}bp, identity={identity:.2f})"
+            )
+            QMessageBox.warning(
+                self,
+                "Assembly Warning",
+                f"No clear overlap detected (overlap={overlap}, identity={identity:.2f}); concatenating ends directly",
+            )
         else:
             # Show detailed success message
             success_msg = f"""<h3>Assembly Successful!</h3>
@@ -149,13 +181,15 @@ class SangerTab(QWidget):
 <li><b>Assembled sequence:</b> {len(merged)} bp</li>
 </ul>
 """
-            self.status_label.setText(f"Assembly complete: {overlap}bp overlap, {identity:.2%} identity")
+            self.status_label.setText(
+                f"Assembly complete: {overlap}bp overlap, {identity:.2%} identity"
+            )
             QMessageBox.information(self, "Assembly Complete", success_msg)
-        
+
         self.assembly_result.setPlainText(merged)
 
     def reverse_complement(self, seq):
-        comp_map = str.maketrans('ACGT', 'TGCA')
+        comp_map = str.maketrans("ACGT", "TGCA")
         return seq.translate(comp_map)[::-1]
 
     def status_message(self, msg):
@@ -194,9 +228,14 @@ class SangerTab(QWidget):
             self.status_label.setText("Error: No assembly result to save")
             QMessageBox.warning(self, "No Assembly Result", "Run assembly first")
             return
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save assembled sequence", "assembled_seq.fasta", "FASTA Files (*.fasta);;Text Files (*.txt)")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save assembled sequence",
+            "assembled_seq.fasta",
+            "FASTA Files (*.fasta);;Text Files (*.txt)",
+        )
         if file_path:
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 f.write(seq)
             self.status_label.setText(f"Saved to: {file_path}")
             QMessageBox.information(self, "Save Successful", f"Saved to: {file_path}")
@@ -208,9 +247,12 @@ class SangerTab(QWidget):
             QMessageBox.warning(self, "No Assembly Result", "Run assembly first")
             return
         from PyQt6.QtWidgets import QApplication
+
         QApplication.clipboard().setText(seq)
         self.status_label.setText("Copied to clipboard")
-        QMessageBox.information(self, "Copied", "Assembled sequence copied to clipboard")
+        QMessageBox.information(
+            self, "Copied", "Assembled sequence copied to clipboard"
+        )
 
     def show_help(self):
         """Show help information for Sanger assembly."""
@@ -236,6 +278,7 @@ class SangerTab(QWidget):
 <p><b>Note:</b> Non-ACGT characters are ignored; U is treated as T.</p>
 """
         from PyQt6.QtWidgets import QVBoxLayout
+
         dlg = QDialog(self)
         dlg.setWindowTitle("Help - Sanger Sequencing")
         dlg.resize(760, 520)
