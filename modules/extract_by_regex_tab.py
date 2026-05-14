@@ -390,15 +390,16 @@ class ExtractByRegexTab(BaseTabWidget):
         from PyQt6.QtCore import Qt
 
         help_text = """
-<h3>Extract by Regular Expression</h3>
+    <h3>Regex Filter</h3>
 <p><b>Description:</b></p>
-<p>Use a regex to match sequence IDs and extract matching sequences from a FASTA file.</p>
+    <p>Filter FASTA records with a regular expression. You can include or exclude matches, choose whether the pattern is applied to the full header, the sequence ID only, or the description only, and optionally export a no-match report.</p>
 
 <p><b>Usage:</b></p>
 <ol>
 <li>Select the source FASTA file</li>
 <li>Choose an output location</li>
 <li>Enter a regular expression pattern</li>
+    <li>Choose the match mode, scope, and case-sensitivity option</li>
 <li>Click "Start"</li>
 </ol>
 
@@ -409,6 +410,25 @@ class ExtractByRegexTab(BaseTabWidget):
 <li><code>seq_\\d+</code> - IDs like "seq_" followed by digits</li>
 <li><code>(protein|enzyme)</code> - IDs containing "protein" or "enzyme"</li>
 <li><code>^[A-Z]{2}_\\d{6}$</code> - IDs in format "XX_123456"</li>
+</ul>
+
+<p><b>Scope examples:</b></p>
+<pre>
+Header:
+&gt;NM_001101.5 hypothetical protein kinase
+
+Sequence ID Only:
+NM_001101.5
+
+Description Only:
+hypothetical protein kinase
+</pre>
+
+<p><b>Common workflows:</b></p>
+<ul>
+<li><b>Keep only RefSeq entries:</b> pattern <code>^N[MP]_|^X[MP]_</code>, scope <b>Sequence ID Only</b></li>
+<li><b>Find annotated products:</b> pattern <code>kinase|transporter</code>, scope <b>Description Only</b></li>
+<li><b>Remove unwanted records:</b> switch to <b>Exclude Matches</b> instead of manually building an ID list</li>
 </ul>
 
 <p><b>Common regex tokens:</b></p>
@@ -431,7 +451,10 @@ class ExtractByRegexTab(BaseTabWidget):
 </ul>
 
 <p><b>Notes:</b></p>
-<p>Regex is case-sensitive by default; ensure correctness of your pattern.</p>
+<ul>
+<li>Regex is case-sensitive by default; enable <b>Case insensitive</b> when matching mixed-case headers.</li>
+<li>If zero records remain after filtering, no FASTA file is written. You can still export a no-match report.</li>
+</ul>
         """
 
         # 创建自定义对话框

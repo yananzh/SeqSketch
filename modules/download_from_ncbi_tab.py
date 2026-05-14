@@ -453,9 +453,9 @@ class DownloadFromNCBITab(BaseTabWidget):
         from PyQt6.QtCore import Qt
 
         help_text = """
-<h3>NCBI Sequence Downloader</h3>
+    <h3>NCBI Download</h3>
 <p><b>Description:</b></p>
-<p>Batch download sequences from NCBI by accession numbers.</p>
+    <p>Batch download nucleotide or protein sequences from NCBI using accession numbers. The tab supports batching, retry attempts, duplicate-accession cleanup, and optional download reports.</p>
 
 <p><b>Usage:</b></p>
 <ol>
@@ -481,6 +481,15 @@ U12345
 AAA12345
 </pre>
 
+<p><b>Example workflow:</b></p>
+<ol>
+<li>Choose <b>nucleotide</b> for DNA/RNA accessions such as <code>NM_001101.5</code></li>
+<li>Enter your email address</li>
+<li>Paste one accession per line</li>
+<li>Optionally lower batch size or increase retry count if the network is unstable</li>
+<li>Enable <b>Export download report</b> if you want a sidecar summary of successes and likely failures</li>
+</ol>
+
 <p><b>Email requirement:</b></p>
 <p>NCBI requires a valid email for:</p>
 <ul>
@@ -501,10 +510,12 @@ AAA12345
 <li>Follow NCBI usage policies and avoid excessive requests</li>
 <li>Network quality affects speed</li>
 <li>Invalid accessions will be skipped and logged</li>
+<li>When the request returns no usable sequences, the tab does not create an empty FASTA file</li>
 </ul>
 
 <p><b>Output:</b></p>
 <p>Sequences are saved in standard FASTA format with full headers.</p>
+<p>If enabled, the download report records requested accession count, duplicate accessions, returned headers, failed candidates, and network/API errors.</p>
         """
 
         # 创建自定义对话框

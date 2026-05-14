@@ -464,9 +464,9 @@ class ExtractByIDTab(BaseTabWidget):
         from PyQt6.QtCore import Qt
 
         help_text = """
-<h3>Extract Sequences by ID</h3>
+    <h3>Filter by IDs</h3>
 <p><b>Description:</b></p>
-<p>Extract sequences from a FASTA file using a provided list of IDs.</p>
+    <p>Select or exclude FASTA records using an ID list. This tab supports exact matching, case-insensitive matching, inverse filtering, output-order control, and optional missing-ID reporting.</p>
 
 <p><b>Usage:</b></p>
 <ol>
@@ -482,6 +482,13 @@ sequence_001
 NM_001101.5
 gi|123456|ref|XM_001234.1|
 </pre>
+
+<p><b>Practical examples:</b></p>
+<ul>
+<li><b>Extract a panel of genes:</b> paste one accession per line and keep <b>Exact Match</b></li>
+<li><b>Remove contaminants:</b> list unwanted IDs and choose <b>Exclude Listed IDs</b></li>
+<li><b>Preserve your request order:</b> choose <b>Preserve Query Order</b> when downstream tools expect a custom sequence order</li>
+</ul>
 
 <p><b>Matching rules:</b></p>
 <ul>
@@ -502,7 +509,7 @@ gi|123456|ref|XM_001234.1|
 
 <p><b>Output:</b></p>
 <p>A new FASTA file containing all matched sequences, preserving original formatting.</p>
-<p>Shows the number of sequences found and progress.</p>
+<p>If requested, a sidecar missing-ID report is also written next to the output FASTA.</p>
         """
 
         # 创建自定义对话框

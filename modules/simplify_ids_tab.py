@@ -181,20 +181,32 @@ class SimplifyIDsTab(BaseTabWidget):
         mode_layout.addStretch(1)
 
         parameter_layout = QHBoxLayout()
+        parameter_layout.setSpacing(8)
         self.delimiter_label = QLabel("Delimiter:")
         self.delimiter_edit = QLineEdit()
         self.delimiter_edit.setPlaceholderText("Example: |")
-        self.delimiter_edit.setMaximumWidth(120)
+        self.delimiter_edit.setFixedWidth(110)
+        self.delimiter_edit.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
 
         self.field_label = QLabel("Field index:")
         self.field_spin = QSpinBox()
         self.field_spin.setMinimum(1)
         self.field_spin.setMaximum(99)
         self.field_spin.setValue(1)
+        self.field_spin.setFixedWidth(80)
+        self.field_spin.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
 
         self.regex_label = QLabel("Regex:")
         self.regex_edit = QLineEdit()
         self.regex_edit.setPlaceholderText(r"Example: ref\|([^|]+)\|")
+        self.regex_edit.setFixedWidth(260)
+        self.regex_edit.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
 
         parameter_layout.addWidget(self.delimiter_label)
         parameter_layout.addWidget(self.delimiter_edit)
@@ -202,7 +214,7 @@ class SimplifyIDsTab(BaseTabWidget):
         parameter_layout.addWidget(self.field_spin)
         parameter_layout.addWidget(self.regex_label)
         parameter_layout.addWidget(self.regex_edit)
-        parameter_layout.setSpacing(8)
+        parameter_layout.addStretch(1)
 
         control_layout = QHBoxLayout()
         control_layout.addStretch(1)
@@ -489,9 +501,9 @@ class SimplifyIDsTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h3>Simplify Sequence IDs</h3>
+<h3>Simplify Headers</h3>
 <p><b>Description:</b></p>
-<p>Simplify FASTA headers into cleaner primary identifiers using configurable parsing rules.</p>
+<p>Convert complex FASTA headers into cleaner IDs using one of several parsing rules. This is useful when headers come from NCBI, UniProt, assemblies, or lab-specific naming schemes.</p>
 
 <p><b>Modes:</b></p>
 <ul>
@@ -501,6 +513,24 @@ class SimplifyIDsTab(BaseTabWidget):
 <li><b>Keep first N tokens:</b> keep the first N whitespace-separated tokens, joined with underscores</li>
 </ul>
 
+<p><b>Examples:</b></p>
+<pre>
+Input header:
+&gt;gi|12345|ref|NM_001101.5| Homo sapiens gene alpha
+
+First token:
+gi|12345|ref|NM_001101.5|
+
+Delimiter field, delimiter="|", field index=4:
+NM_001101.5
+
+Regex capture, pattern=ref\|([^|]+)\|:
+NM_001101.5
+
+Keep first N tokens, token count=3:
+gi|12345|ref|NM_001101.5|_Homo_sapiens
+</pre>
+
 <p><b>Safety features:</b></p>
 <ul>
 <li>Detects duplicate IDs after simplification and blocks saving by default</li>
@@ -508,8 +538,21 @@ class SimplifyIDsTab(BaseTabWidget):
 <li>Optionally exports an ID mapping report</li>
 </ul>
 
+<p><b>Typical workflow:</b></p>
+<ol>
+<li>Select the input FASTA file and output file</li>
+<li>Choose the simplification mode</li>
+<li>Fill in the delimiter, regex, or token-count parameter when that mode requires it</li>
+<li>Optionally enable <b>Preserve description</b> and <b>Export ID mapping report</b></li>
+<li>Click <b>Start</b> and review the log for unchanged IDs, duplicates, or rule misses</li>
+</ol>
+
 <p><b>Notes:</b></p>
-<p>If the selected rule does not match some headers, the original IDs are kept and a warning is logged.</p>
+<ul>
+<li>If the selected rule does not match some headers, the original IDs are kept and a warning is logged.</li>
+<li>Delimiter field uses 1-based indexing. For example, field index 4 means the fourth part after splitting.</li>
+<li>Regex capture prefers the first capture group. If no capture group exists, the full match is used.</li>
+</ul>
         """
 
         dialog = QDialog(self)

@@ -503,8 +503,25 @@ class SequenceStatisticsTab(BaseTabWidget):
 <li>Review the summary panel and operation logs</li>
 </ol>
 
+<p><b>Example input:</b></p>
+<pre>
+&gt;seq1 alpha
+ATGCNNNN
+&gt;seq2 beta
+ATGCTGCA
+</pre>
+
+<p><b>What to look for:</b></p>
+<ul>
+<li><b>Detected Type:</b> DNA/RNA, protein, or mixed/unknown</li>
+<li><b>Duplicate IDs:</b> repeated record IDs that may affect downstream tools</li>
+<li><b>Ambiguous Bases / N Content:</b> useful for assembly and primer-quality review</li>
+<li><b>Invalid Chars:</b> unexpected symbols such as digits or punctuation inside sequences</li>
+</ul>
+
 <p><b>Output:</b></p>
 <p>The report contains a summary block followed by a per-sequence TSV table for downstream analysis.</p>
+<p>Each row includes sequence ID, length, inferred sequence type, GC content, ambiguity counts, invalid-character counts, and description length.</p>
         """
 
         # 创建自定义对话框
