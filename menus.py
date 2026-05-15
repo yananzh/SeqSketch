@@ -37,7 +37,7 @@ def create_menus(window):
     rna_action = QAction(window.tr("Convert to RNA"), window)
     rna_action.triggered.connect(window.open_rna_tab)
     dna_menu.addAction(rna_action)
-    complement_action = QAction(window.tr("Complement Tools"), window)
+    complement_action = QAction(window.tr("Complement/Reverse Complement"), window)
     complement_action.triggered.connect(window.open_complement_tab)
     dna_menu.addAction(complement_action)
     translate_action = QAction(window.tr("Translate"), window)

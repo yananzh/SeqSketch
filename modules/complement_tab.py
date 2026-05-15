@@ -11,7 +11,7 @@ class ComplementTab(BaseTabWidget):
     )
 
     def __init__(self, parent=None):
-        super().__init__("Complement Tools", "sequence")
+        super().__init__("Complement/Reverse Complement", "sequence")
         self._setup_drag_drop()
         self._setup_mode_controls()
         self._update_ui_layout()
@@ -161,7 +161,7 @@ class ComplementTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h3>Complement Tools</h3>
+<h3>Complement / Reverse Complement</h3>
 <p><b>Description:</b></p>
 <p>Generate either the direct complement or the reverse complement of DNA sequences from one unified tab.</p>
 
@@ -218,7 +218,7 @@ CGATCGCAT
         )
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Complement Tools")
+        dialog.setWindowTitle("Help - Complement/Reverse Complement")
         dialog.setFixedSize(720, 560)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()

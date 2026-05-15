@@ -149,7 +149,7 @@ class MainWindow(QMainWindow):
                 return
         tab = ComplementTab()
         tab.set_mode(mode)
-        self.tabs.addTab(tab, "Complement Tools")
+        self.tabs.addTab(tab, "Complement/Reverse Complement")
         self.tabs.setCurrentWidget(tab)
 
     def open_complement_tab(self):

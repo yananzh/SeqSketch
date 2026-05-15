@@ -136,13 +136,15 @@ class TranslateTab(BaseTabWidget):
     def _update_ui_layout(self):
         """Update placeholder and input/output sizing"""
         self.input_text.setPlaceholderText(
-            "Paste DNA/RNA sequence in FASTA format (single sequence only) or drag-and-drop a file...\n"
+            "Paste one or more DNA/RNA sequences in FASTA format or drag-and-drop a file...\n"
             "Example:\n"
             ">seq1\n"
-            "ATGCGATCGATCGTAA"
+            "ATGCGATCGATCGTAA\n"
+            ">seq2\n"
+            "ATGAAATTTGGGTGA"
         )
         self.input_hint.setText(
-            "Single sequence only. Use one DNA/RNA record per run; FASTA header is preserved in the output."
+            "Supports single or multi-sequence FASTA input. Each record is translated independently using the selected frame."
         )
         self.output_text.setPlaceholderText(
             "Translated protein sequence will appear here..."
@@ -187,55 +189,71 @@ class TranslateTab(BaseTabWidget):
         self.add_content_layout(aa_layout)
 
     def run(self):
-        seq = self.input_text.toPlainText().strip()
-        if not seq:
+        raw = self.input_text.toPlainText().strip()
+        if not raw:
             self.status_label.setText("Please enter a DNA or RNA sequence.")
-            return
-
-        # Parse FASTA if present
-        header = None
-        if ">" in seq:
-            lines = seq.split("\n")
-            seq_lines = []
-            for line in lines:
-                line = line.strip()
-                if line.startswith(">"):
-                    header = line
-                elif line:
-                    seq_lines.append(line)
-            seq = "".join(seq_lines)
-
-        # Clean sequence
-        seq = seq.replace("\n", "").replace(" ", "").upper().replace("U", "T")
-
-        if not seq:
-            self.status_label.setText("No valid sequence found.")
-            return
-
-        if not re.fullmatch(r"[ACGTN]+", seq):
-            self.status_label.setText("Invalid characters. Only A/T/G/C/N allowed.")
             return
 
         frame = self.frame_box.currentIndex()
         aa_mode = self.aa_mode_box.currentIndex()
+        frame_name = self.frame_box.currentText().split()[0]
 
+        if ">" in raw:
+            records = self._parse_fasta(raw)
+            if not records:
+                self.status_label.setText("No valid FASTA records found.")
+                return
+            output_blocks = []
+            for header, seq in records:
+                seq = seq.upper().replace("U", "T")
+                if not re.fullmatch(r"[ACGTN]+", seq):
+                    self.status_label.setText(
+                        f"Invalid characters in {header}. Only A/T/G/C/N allowed."
+                    )
+                    return
+                trans_seq = self._translate_frame(seq, frame, aa_mode)
+                output_blocks.append(f"{header} | Frame: {frame_name}\n{trans_seq}")
+            self.output_text.setPlainText("\n\n".join(output_blocks))
+            self.status_label.setText(
+                f"Translation complete — {len(records)} sequence(s)"
+            )
+        else:
+            seq = raw.replace("\n", "").replace(" ", "").upper().replace("U", "T")
+            if not seq:
+                self.status_label.setText("No valid sequence found.")
+                return
+            if not re.fullmatch(r"[ACGTN]+", seq):
+                self.status_label.setText(
+                    "Invalid characters. Only A/T/G/C/N allowed."
+                )
+                return
+            trans_seq = self._translate_frame(seq, frame, aa_mode)
+            self.output_text.setPlainText(trans_seq)
+            self.status_label.setText("Translation complete")
+
+    def _parse_fasta(self, text):
+        records = []
+        header = None
+        seq_lines = []
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith(">"):
+                if header is not None:
+                    records.append((header, "".join(seq_lines)))
+                header = line
+                seq_lines = []
+            elif line:
+                seq_lines.append(line)
+        if header is not None:
+            records.append((header, "".join(seq_lines)))
+        return records
+
+    def _translate_frame(self, seq, frame, aa_mode):
         if frame < 3:
-            offset = frame
-            trans_seq = self.translate(seq[offset:], aa_mode)
+            return self.translate(seq[frame:], aa_mode)
         else:
-            offset = frame - 3
             revcomp = self.reverse_complement(seq)
-            trans_seq = self.translate(revcomp[offset:], aa_mode)
-
-        # Add header to output if present
-        if header:
-            frame_name = self.frame_box.currentText().split()[0]
-            output = f"{header} | Frame: {frame_name}\n{trans_seq}"
-        else:
-            output = trans_seq
-
-        self.output_text.setPlainText(output)
-        self.status_label.setText("Translation complete")
+            return self.translate(revcomp[frame - 3:], aa_mode)
 
     def translate(self, seq, aa_mode):
         aa_seq = []
