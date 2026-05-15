@@ -76,9 +76,7 @@ def test_translate_and_orf_warn_that_only_single_sequence_is_supported(qapp):
     assert "single sequence only" in orf_tab.input_hint.text().lower()
 
 
-def test_orf_finder_uses_file_inputs_and_defaults_to_both_strands(
-    qapp, tmp_path: Path
-):
+def test_orf_finder_uses_file_inputs_and_defaults_to_both_strands(qapp, tmp_path: Path):
     tab = ORFTab()
 
     assert hasattr(tab, "input_edit")
@@ -86,9 +84,7 @@ def test_orf_finder_uses_file_inputs_and_defaults_to_both_strands(
     assert tab.chain_box.currentText() == "Both strands"
 
 
-def test_orf_finder_runs_from_fasta_file_and_writes_report(
-    qapp, tmp_path: Path
-):
+def test_orf_finder_runs_from_fasta_file_and_writes_report(qapp, tmp_path: Path):
     input_path = tmp_path / "orf_input.fasta"
     output_path = tmp_path / "orf_report.txt"
     input_path.write_text(
