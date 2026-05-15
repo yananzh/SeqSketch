@@ -1,29 +1,83 @@
 from utils.common_components import BaseTabWidget
 import re
 from PyQt6.QtWidgets import (
-    QMessageBox, QSpinBox, QComboBox, QHBoxLayout, QVBoxLayout,
-    QLabel, QPushButton,
+    QMessageBox,
+    QSpinBox,
+    QComboBox,
+    QHBoxLayout,
+    QVBoxLayout,
+    QLabel,
+    QPushButton,
 )
 from PyQt6.QtCore import Qt
 
 CODON_TABLE = {
-    'TTT': 'F', 'TTC': 'F', 'TTA': 'L', 'TTG': 'L',
-    'TCT': 'S', 'TCC': 'S', 'TCA': 'S', 'TCG': 'S',
-    'TAT': 'Y', 'TAC': 'Y', 'TAA': '*', 'TAG': '*',
-    'TGT': 'C', 'TGC': 'C', 'TGA': '*', 'TGG': 'W',
-    'CTT': 'L', 'CTC': 'L', 'CTA': 'L', 'CTG': 'L',
-    'CCT': 'P', 'CCC': 'P', 'CCA': 'P', 'CCG': 'P',
-    'CAT': 'H', 'CAC': 'H', 'CAA': 'Q', 'CAG': 'Q',
-    'CGT': 'R', 'CGC': 'R', 'CGA': 'R', 'CGG': 'R',
-    'ATT': 'I', 'ATC': 'I', 'ATA': 'I', 'ATG': 'M',
-    'ACT': 'T', 'ACC': 'T', 'ACA': 'T', 'ACG': 'T',
-    'AAT': 'N', 'AAC': 'N', 'AAA': 'K', 'AAG': 'K',
-    'AGT': 'S', 'AGC': 'S', 'AGA': 'R', 'AGG': 'R',
-    'GTT': 'V', 'GTC': 'V', 'GTA': 'V', 'GTG': 'V',
-    'GCT': 'A', 'GCC': 'A', 'GCA': 'A', 'GCG': 'A',
-    'GAT': 'D', 'GAC': 'D', 'GAA': 'E', 'GAG': 'E',
-    'GGT': 'G', 'GGC': 'G', 'GGA': 'G', 'GGG': 'G',
+    "TTT": "F",
+    "TTC": "F",
+    "TTA": "L",
+    "TTG": "L",
+    "TCT": "S",
+    "TCC": "S",
+    "TCA": "S",
+    "TCG": "S",
+    "TAT": "Y",
+    "TAC": "Y",
+    "TAA": "*",
+    "TAG": "*",
+    "TGT": "C",
+    "TGC": "C",
+    "TGA": "*",
+    "TGG": "W",
+    "CTT": "L",
+    "CTC": "L",
+    "CTA": "L",
+    "CTG": "L",
+    "CCT": "P",
+    "CCC": "P",
+    "CCA": "P",
+    "CCG": "P",
+    "CAT": "H",
+    "CAC": "H",
+    "CAA": "Q",
+    "CAG": "Q",
+    "CGT": "R",
+    "CGC": "R",
+    "CGA": "R",
+    "CGG": "R",
+    "ATT": "I",
+    "ATC": "I",
+    "ATA": "I",
+    "ATG": "M",
+    "ACT": "T",
+    "ACC": "T",
+    "ACA": "T",
+    "ACG": "T",
+    "AAT": "N",
+    "AAC": "N",
+    "AAA": "K",
+    "AAG": "K",
+    "AGT": "S",
+    "AGC": "S",
+    "AGA": "R",
+    "AGG": "R",
+    "GTT": "V",
+    "GTC": "V",
+    "GTA": "V",
+    "GTG": "V",
+    "GCT": "A",
+    "GCC": "A",
+    "GCA": "A",
+    "GCG": "A",
+    "GAT": "D",
+    "GAC": "D",
+    "GAA": "E",
+    "GAG": "E",
+    "GGT": "G",
+    "GGC": "G",
+    "GGA": "G",
+    "GGG": "G",
 }
+
 
 class ORFTab(BaseTabWidget):
     def __init__(self, parent=None):
@@ -31,13 +85,13 @@ class ORFTab(BaseTabWidget):
         self._setup_drag_drop()
         self._update_ui_layout()
         self._setup_parameters()
-    
+
     def _setup_drag_drop(self):
         """Enable drag-and-drop for FASTA files"""
         self.input_text.setAcceptDrops(True)
         self.input_text.dragEnterEvent = self._drag_enter_event
         self.input_text.dropEvent = self._drop_event
-    
+
     def _drag_enter_event(self, event):
         """Handle drag enter for file drops"""
         md = event.mimeData()
@@ -47,14 +101,14 @@ class ORFTab(BaseTabWidget):
                 event.acceptProposedAction()
                 return
         event.ignore()
-    
+
     def _drop_event(self, event):
         """Handle file drop for FASTA input"""
         urls = event.mimeData().urls()
         if urls:
             file_path = urls[0].toLocalFile()
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 # Keep full content including headers
                 self.input_text.setPlainText(content)
@@ -63,7 +117,7 @@ class ORFTab(BaseTabWidget):
             except Exception as e:
                 self.status_label.setText(f"Error loading file: {e}")
                 event.ignore()
-    
+
     def _update_ui_layout(self):
         """Update placeholder and input/output sizing"""
         self.input_text.setPlaceholderText(
@@ -79,7 +133,7 @@ class ORFTab(BaseTabWidget):
         # Adjust minimum heights for better visibility
         self.input_text.setMinimumHeight(180)
         self.output_text.setMinimumHeight(220)
-    
+
     def _setup_parameters(self):
         """Setup parameter controls with labels"""
         # Minimum length
@@ -93,28 +147,35 @@ class ORFTab(BaseTabWidget):
         min_len_layout.addWidget(min_len_label)
         min_len_layout.addWidget(self.min_len_box)
         min_len_layout.addStretch()
-        
+
         # Strand selection
         chain_layout = QHBoxLayout()
         chain_label = QLabel("Search Strand:")
         self.chain_box = QComboBox()
-        self.chain_box.addItems(["Forward strand only", "Reverse strand only", "Both strands"])
+        self.chain_box.addItems([
+            "Forward strand only",
+            "Reverse strand only",
+            "Both strands",
+        ])
         self.chain_box.setCurrentIndex(2)
         self.chain_box.setMinimumWidth(180)
         chain_layout.addWidget(chain_label)
         chain_layout.addWidget(self.chain_box)
         chain_layout.addStretch()
-        
+
         # Alternative start codons
         start_codon_layout = QHBoxLayout()
         start_codon_label = QLabel("Start Codons:")
         self.start_codon_box = QComboBox()
-        self.start_codon_box.addItems(["ATG only (standard)", "ATG, GTG, TTG (alternative)"])
+        self.start_codon_box.addItems([
+            "ATG only (standard)",
+            "ATG, GTG, TTG (alternative)",
+        ])
         self.start_codon_box.setMinimumWidth(220)
         start_codon_layout.addWidget(start_codon_label)
         start_codon_layout.addWidget(self.start_codon_box)
         start_codon_layout.addStretch()
-        
+
         self.add_content_layout(min_len_layout)
         self.add_content_layout(chain_layout)
         self.add_content_layout(start_codon_layout)
@@ -124,77 +185,79 @@ class ORFTab(BaseTabWidget):
         if not seq:
             self.status_label.setText("Please enter a DNA sequence.")
             return
-        
+
         # Parse FASTA if present
         header = None
-        if '>' in seq:
-            lines = seq.split('\n')
+        if ">" in seq:
+            lines = seq.split("\n")
             seq_lines = []
             for line in lines:
                 line = line.strip()
-                if line.startswith('>'):
+                if line.startswith(">"):
                     header = line
                 elif line:
                     seq_lines.append(line)
-            seq = ''.join(seq_lines)
-        
+            seq = "".join(seq_lines)
+
         # Clean sequence
-        seq = seq.replace("\n", "").replace(" ", "").upper().replace('U', 'T')
-        
+        seq = seq.replace("\n", "").replace(" ", "").upper().replace("U", "T")
+
         if not seq:
             self.status_label.setText("No valid sequence found.")
             return
-            
-        if not re.fullmatch(r'[ACGTN]+', seq):
+
+        if not re.fullmatch(r"[ACGTN]+", seq):
             self.status_label.setText("Invalid characters. Only A/T/G/C/N allowed.")
             return
-        
+
         min_len = self.min_len_box.value()
         chain_mode = self.chain_box.currentIndex()
         use_alt_start = self.start_codon_box.currentIndex() == 1
         results = []
         if chain_mode in (0, 2):
-            results += self.find_orfs(seq, '+', use_alt_start)
+            results += self.find_orfs(seq, "+", use_alt_start)
         if chain_mode in (1, 2):
             revcomp = self.reverse_complement(seq)
-            results += self.find_orfs(revcomp, '-', use_alt_start)
-        results = [orf for orf in results if orf['length'] >= min_len]
+            results += self.find_orfs(revcomp, "-", use_alt_start)
+        results = [orf for orf in results if orf["length"] >= min_len]
         if not results:
             self.output_text.setPlainText("No ORFs meet the criteria.")
             self.status_label.setText("No ORF")
             return
-        
+
         # Format output with header if present
         out = []
         if header:
             out.append(f"{header}\n")
         for idx, orf in enumerate(results, 1):
-            out.append(f"ORF #{idx} | Frame: {orf['frame']} | Position: {orf['start']+1}-{orf['end']} | Length: {orf['length']} nt\nSequence: {orf['seq']}\nTranslation: {orf['aa']}\n")
-        self.output_text.setPlainText('\n'.join(out))
+            out.append(
+                f"ORF #{idx} | Frame: {orf['frame']} | Position: {orf['start'] + 1}-{orf['end']} | Length: {orf['length']} nt\nSequence: {orf['seq']}\nTranslation: {orf['aa']}\n"
+            )
+        self.output_text.setPlainText("\n".join(out))
         self.status_label.setText(f"Found {len(results)} ORFs")
 
     def find_orfs(self, seq, strand, use_alt_start=False):
         orfs = []
-        start_codons = ['ATG', 'GTG', 'TTG'] if use_alt_start else ['ATG']
+        start_codons = ["ATG", "GTG", "TTG"] if use_alt_start else ["ATG"]
         for frame in range(3):
             i = frame
-            while i < len(seq)-2:
-                codon = seq[i:i+3]
+            while i < len(seq) - 2:
+                codon = seq[i : i + 3]
                 if codon in start_codons:
-                    for j in range(i+3, len(seq)-2, 3):
-                        stop = seq[j:j+3]
-                        if stop in ('TAA', 'TAG', 'TGA'):
-                            orf_seq = seq[i:j+3]
+                    for j in range(i + 3, len(seq) - 2, 3):
+                        stop = seq[j : j + 3]
+                        if stop in ("TAA", "TAG", "TGA"):
+                            orf_seq = seq[i : j + 3]
                             aa = self.translate(orf_seq)
                             orfs.append({
-                                'frame': f"{strand}{frame+1}",
-                                'start': i if strand=="+" else len(seq)-j-2,
-                                'end': j+3 if strand=="+" else len(seq)-i,
-                                'length': len(orf_seq),
-                                'seq': orf_seq,
-                                'aa': aa
+                                "frame": f"{strand}{frame + 1}",
+                                "start": i if strand == "+" else len(seq) - j - 2,
+                                "end": j + 3 if strand == "+" else len(seq) - i,
+                                "length": len(orf_seq),
+                                "seq": orf_seq,
+                                "aa": aa,
                             })
-                            i = j+3
+                            i = j + 3
                             break
                     else:
                         i += 3
@@ -204,14 +267,14 @@ class ORFTab(BaseTabWidget):
 
     def translate(self, seq):
         aa_seq = []
-        for i in range(0, len(seq)-2, 3):
-            codon = seq[i:i+3]
-            aa = CODON_TABLE.get(codon, 'X')
+        for i in range(0, len(seq) - 2, 3):
+            codon = seq[i : i + 3]
+            aa = CODON_TABLE.get(codon, "X")
             aa_seq.append(aa)
-        return ''.join(aa_seq)
+        return "".join(aa_seq)
 
     def reverse_complement(self, seq):
-        comp_map = str.maketrans('ACGT', 'TGCA')
+        comp_map = str.maketrans("ACGT", "TGCA")
         return seq.translate(comp_map)[::-1]
 
     def show_help(self):
@@ -275,7 +338,14 @@ Translation: MKPGFK*
 <li>Protein-coding potential analysis</li>
 </ul>
         """
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QScrollArea
+        from PyQt6.QtWidgets import (
+            QDialog,
+            QVBoxLayout,
+            QLabel,
+            QPushButton,
+            QScrollArea,
+        )
+
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - ORF Finder")
         dialog.setFixedSize(850, 600)

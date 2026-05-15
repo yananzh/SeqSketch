@@ -37,25 +37,33 @@ class SangerTab(QWidget):
         input_hint.setStyleSheet("color: #666; font-size: 10pt;")
         main_layout.addWidget(input_hint)
 
-        # Forward sequence
+        # Forward and Reverse sequences side by side
+        seqs_hbox = QHBoxLayout()
+        seqs_hbox.setSpacing(12)
+
+        fwd_vbox = QVBoxLayout()
         fwd_label = QLabel("Forward Sequence (5' → 3'):")
-        main_layout.addWidget(fwd_label)
         self.fwd_edit = QTextEdit()
         self.fwd_edit.setPlaceholderText(
             "Paste forward sequencing sequence...\nExample: ATGCGATCGATCG..."
         )
         self.fwd_edit.setMinimumHeight(120)
-        main_layout.addWidget(self.fwd_edit)
+        fwd_vbox.addWidget(fwd_label)
+        fwd_vbox.addWidget(self.fwd_edit)
 
-        # Reverse sequence
-        rev_label = QLabel("Reverse Sequence (will be auto reverse-complemented):")
-        main_layout.addWidget(rev_label)
+        rev_vbox = QVBoxLayout()
+        rev_label = QLabel("Reverse Sequence (auto reverse-complemented):")
         self.rev_edit = QTextEdit()
         self.rev_edit.setPlaceholderText(
             "Paste reverse sequencing sequence...\nExample: CGACCGATCGCAT..."
         )
         self.rev_edit.setMinimumHeight(120)
-        main_layout.addWidget(self.rev_edit)
+        rev_vbox.addWidget(rev_label)
+        rev_vbox.addWidget(self.rev_edit)
+
+        seqs_hbox.addLayout(fwd_vbox)
+        seqs_hbox.addLayout(rev_vbox)
+        main_layout.addLayout(seqs_hbox)
 
         # Parameters section
         params_label = QLabel("Assembly Parameters")

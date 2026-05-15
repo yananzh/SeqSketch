@@ -223,9 +223,7 @@ class TranslateTab(BaseTabWidget):
                 self.status_label.setText("No valid sequence found.")
                 return
             if not re.fullmatch(r"[ACGTN]+", seq):
-                self.status_label.setText(
-                    "Invalid characters. Only A/T/G/C/N allowed."
-                )
+                self.status_label.setText("Invalid characters. Only A/T/G/C/N allowed.")
                 return
             trans_seq = self._translate_frame(seq, frame, aa_mode)
             self.output_text.setPlainText(trans_seq)
@@ -253,7 +251,7 @@ class TranslateTab(BaseTabWidget):
             return self.translate(seq[frame:], aa_mode)
         else:
             revcomp = self.reverse_complement(seq)
-            return self.translate(revcomp[frame - 3:], aa_mode)
+            return self.translate(revcomp[frame - 3 :], aa_mode)
 
     def translate(self, seq, aa_mode):
         aa_seq = []
