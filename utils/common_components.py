@@ -19,18 +19,16 @@ import logging
 import os
 
 
-SEQUENCE_EDITOR_STYLE = """
-border: 2px solid #475569;
-border-radius: 6px;
-padding: 8px 10px;
-background: #ffffff;
-selection-background-color: #d9ebff;
-selection-color: #1a1a1a;
-"""
+SEQUENCE_EDITOR_STYLE = (
+    "border: 1px solid #94a3b8;"
+    "border-radius: 6px;"
+    "padding: 8px 10px;"
+    "background: #ffffff;"
+    "selection-background-color: #d9ebff;"
+    "selection-color: #1a1a1a;"
+)
 
-READ_ONLY_SEQUENCE_EDITOR_STYLE = """
-background: #f7f9fc;
-"""
+READ_ONLY_SEQUENCE_EDITOR_STYLE = "background: #f7f9fc;"
 
 
 def apply_sequence_editor_style(editor: QTextEdit) -> None:
@@ -39,6 +37,9 @@ def apply_sequence_editor_style(editor: QTextEdit) -> None:
     if editor.isReadOnly():
         style += READ_ONLY_SEQUENCE_EDITOR_STYLE
     editor.setStyleSheet(style)
+    # Make the viewport transparent so the outer frame's rounded corners and
+    # background colour are visible instead of being covered by a white rectangle.
+    editor.viewport().setStyleSheet("background: transparent;")
 
 
 class BaseWorker(QObject):

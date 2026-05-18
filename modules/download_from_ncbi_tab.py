@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
 )
 from PyQt6.QtCore import Qt
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, apply_sequence_editor_style
 from urllib.error import URLError
 import os
 
@@ -161,6 +161,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.acc_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
+        apply_sequence_editor_style(self.acc_edit)
         acc_layout.addWidget(self.acc_edit)
 
         # Output file selection

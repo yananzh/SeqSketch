@@ -14,7 +14,11 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtCore import Qt
-from utils.common_components import FASTAWorker, BaseTabWidget
+from utils.common_components import (
+    FASTAWorker,
+    BaseTabWidget,
+    apply_sequence_editor_style,
+)
 import os
 
 
@@ -200,6 +204,7 @@ class ExtractByIDTab(BaseTabWidget):
             "Enter sequence IDs, one per line\nExamples:\nseq1\nseq2\nseq3"
         )
         self.id_edit.setFixedHeight(120)  # 增大高度以便输入更多ID
+        apply_sequence_editor_style(self.id_edit)
 
         # 匹配选项
         options_layout = QHBoxLayout()

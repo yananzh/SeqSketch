@@ -85,7 +85,7 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
         for editor in (tab.input_text, tab.output_text):
             assert editor.property("sequenceEditorStyled") is True
             assert "border-radius" in editor.styleSheet()
-            assert "border: 2px solid #475569;" in editor.styleSheet()
+            assert "border: 1px solid #94a3b8;" in editor.styleSheet()
             assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
     sanger_tab = SangerTab()
@@ -96,7 +96,7 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
     ):
         assert editor.property("sequenceEditorStyled") is True
         assert "border-radius" in editor.styleSheet()
-        assert "border: 2px solid #475569;" in editor.styleSheet()
+        assert "border: 1px solid #94a3b8;" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
 

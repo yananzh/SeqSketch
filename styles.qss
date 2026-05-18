@@ -92,6 +92,22 @@ QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus,
 QTextEdit:focus, QPlainTextEdit:focus {
     border: 1.5px solid #4a90e2;
 }
+/* Sequence editor widgets keep their custom border on focus */
+QTextEdit[sequenceEditorStyled="true"],
+QTextEdit[sequenceEditorStyled="true"]:focus,
+QPlainTextEdit[sequenceEditorStyled="true"],
+QPlainTextEdit[sequenceEditorStyled="true"]:focus {
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: #ffffff;
+}
+QTextEdit[sequenceEditorStyled="true"][readOnly="true"],
+QTextEdit[sequenceEditorStyled="true"][readOnly="true"]:focus,
+QPlainTextEdit[sequenceEditorStyled="true"][readOnly="true"],
+QPlainTextEdit[sequenceEditorStyled="true"][readOnly="true"]:focus {
+    background: #f7f9fc;
+}
 QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
     background: #f0f0f0;
     color: #999999;

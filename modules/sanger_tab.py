@@ -95,16 +95,11 @@ class SangerTab(QWidget):
         self.min_identity_spin.setMinimumWidth(80)
         params_hbox.addWidget(self.min_identity_spin)
         params_hbox.addStretch()
-        main_layout.addLayout(params_hbox)
-
-        # Action buttons (Help unified at bottom-right)
-        btn_hbox = QHBoxLayout()
         self.assemble_btn = QPushButton("Run Assembly")
         self.assemble_btn.clicked.connect(self.run_assembly)
         self.assemble_btn.setMinimumWidth(120)
-        btn_hbox.addWidget(self.assemble_btn)
-        btn_hbox.addStretch()
-        main_layout.addLayout(btn_hbox)
+        params_hbox.addWidget(self.assemble_btn)
+        main_layout.addLayout(params_hbox)
 
         # Output section
         output_label = QLabel("Assembly Result")

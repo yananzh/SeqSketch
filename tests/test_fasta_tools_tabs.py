@@ -98,6 +98,17 @@ def log_text(tab) -> str:
     return tab.log_area.toPlainText()
 
 
+def test_fasta_tools_plain_text_editors_have_border_style(qapp):
+    """Filter by IDs and NCBI Download plain-text inputs share the sequence editor border style."""
+    extract_tab = ExtractByIDTab()
+    ncbi_tab = DownloadFromNCBITab()
+    for editor in (extract_tab.id_edit, ncbi_tab.acc_edit):
+        assert editor.property("sequenceEditorStyled") is True
+        assert "border: 1px solid #94a3b8;" in editor.styleSheet()
+        assert "border-radius: 6px;" in editor.styleSheet()
+        assert editor.viewport().styleSheet() == "background: transparent;"
+
+
 def test_sequence_statistics_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
     print("[Sequence Statistics] start happy-path flow")
     output_path = tmp_path / "sequence_stats.txt"
