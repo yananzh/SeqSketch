@@ -20,10 +20,10 @@ import os
 
 
 SEQUENCE_EDITOR_STYLE = """
-border: 1.5px solid #000000;
-border-radius: 8px;
+border: 2px solid #475569;
+border-radius: 6px;
 padding: 8px 10px;
-background: #fbfcfe;
+background: #ffffff;
 selection-background-color: #d9ebff;
 selection-color: #1a1a1a;
 """
