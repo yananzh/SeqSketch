@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import csv
-import io
 import collections
 import math
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 
 from PyQt6.QtWidgets import (
     QWidget,
@@ -30,7 +29,6 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QFileDialog,
     QMessageBox,
-    QScrollArea,
     QApplication,
     QHeaderView,
     QLineEdit,
@@ -41,7 +39,7 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
-from PyQt6.QtGui import QColor, QPixmap, QImage
+from PyQt6.QtGui import QColor
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -482,9 +480,6 @@ class CodonUsageTab(QWidget):
         self._thread: Optional[QThread] = None
         self._worker: Optional[_Worker] = None
         self._current_seq_idx: int = 0
-        self._rscu_fig_buf: Optional[bytes] = None
-        self._gc_fig_buf: Optional[bytes] = None
-        self._nc_fig_buf: Optional[bytes] = None
         self._build_ui()
 
     def _build_ui(self):
@@ -646,6 +641,7 @@ class CodonUsageTab(QWidget):
         self._stats_table.setMaximumHeight(230)
         sv.addWidget(self._stats_table)
 
+        sv.addSpacing(14)
         sv.addWidget(QLabel("Top 10 Most-Used Codons (excluding stop):"))
         self._top10_table = QTableWidget(0, 5)
         self._top10_table.setHorizontalHeaderLabels([
@@ -700,45 +696,27 @@ class CodonUsageTab(QWidget):
 
         rscu_container = QWidget()
         rv = QVBoxLayout(rscu_container)
-        rr = QHBoxLayout()
-        rr.addStretch()
-        self._btn_save_rscu = QPushButton("Save Chart as PNG")
-        self._btn_save_rscu.setEnabled(False)
-        rr.addWidget(self._btn_save_rscu)
-        rv.addLayout(rr)
-        rscu_scroll = QScrollArea()
-        rscu_scroll.setWidgetResizable(True)
-        self._rscu_chart_label = QLabel(
-            alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
-        )
-        rscu_scroll.setWidget(self._rscu_chart_label)
-        rv.addWidget(rscu_scroll)
+        self._rscu_fig = Figure(tight_layout=True)
+        self._rscu_canvas = FigureCanvas(self._rscu_fig)
+        self._rscu_canvas.setMinimumHeight(350)
+        self._rscu_toolbar = NavigationToolbar(self._rscu_canvas, rscu_container)
+        rv.addWidget(self._rscu_toolbar)
+        rv.addWidget(self._rscu_canvas)
         self._result_tabs.addTab(rscu_container, "RSCU Chart")
 
         gc_container = QWidget()
         gv = QVBoxLayout(gc_container)
-        gr = QHBoxLayout()
-        gr.addStretch()
-        self._btn_save_gc = QPushButton("Save Chart as PNG")
-        self._btn_save_gc.setEnabled(False)
-        gr.addWidget(self._btn_save_gc)
-        gv.addLayout(gr)
-        gc_scroll = QScrollArea()
-        gc_scroll.setWidgetResizable(True)
-        self._gc_chart_label = QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        gc_scroll.setWidget(self._gc_chart_label)
-        gv.addWidget(gc_scroll)
+        self._gc_fig = Figure(tight_layout=True)
+        self._gc_canvas = FigureCanvas(self._gc_fig)
+        self._gc_canvas.setMinimumHeight(300)
+        self._gc_toolbar = NavigationToolbar(self._gc_canvas, gc_container)
+        gv.addWidget(self._gc_toolbar)
+        gv.addWidget(self._gc_canvas)
         self._result_tabs.addTab(gc_container, "GC / Neutrality")
 
         cmp_container = QWidget()
         mv = QVBoxLayout(cmp_container)
-        nr = QHBoxLayout()
-        nr.addWidget(QLabel("Nc plot: ENC vs GC3 for all sequences"))
-        nr.addStretch()
-        self._btn_save_nc = QPushButton("Save Chart as PNG")
-        self._btn_save_nc.setEnabled(False)
-        nr.addWidget(self._btn_save_nc)
-        mv.addLayout(nr)
+        mv.addWidget(QLabel("Nc plot: ENC vs GC3 for all sequences"))
 
         self._cmp_table = QTableWidget(0, 7)
         self._cmp_table.setHorizontalHeaderLabels([
@@ -758,11 +736,12 @@ class CodonUsageTab(QWidget):
         self._cmp_table.setMaximumHeight(220)
         mv.addWidget(self._cmp_table)
 
-        nc_scroll = QScrollArea()
-        nc_scroll.setWidgetResizable(True)
-        self._nc_chart_label = QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        nc_scroll.setWidget(self._nc_chart_label)
-        mv.addWidget(nc_scroll)
+        self._nc_fig = Figure(tight_layout=True)
+        self._nc_canvas = FigureCanvas(self._nc_fig)
+        self._nc_canvas.setMinimumHeight(280)
+        self._nc_toolbar = NavigationToolbar(self._nc_canvas, cmp_container)
+        mv.addWidget(self._nc_toolbar)
+        mv.addWidget(self._nc_canvas)
         self._result_tabs.addTab(cmp_container, "Comparison")
 
         self._status_label = QLabel("Ready")
@@ -774,9 +753,6 @@ class CodonUsageTab(QWidget):
         self._chk_show_stop.stateChanged.connect(
             lambda _: self._apply_aa_filter(self._aa_filter.text())
         )
-        self._btn_save_rscu.clicked.connect(lambda: self._save_chart("rscu"))
-        self._btn_save_gc.clicked.connect(lambda: self._save_chart("gc"))
-        self._btn_save_nc.clicked.connect(lambda: self._save_chart("nc"))
 
         return w
 
@@ -866,9 +842,6 @@ class CodonUsageTab(QWidget):
         self._btn_cancel.setEnabled(True)
         self._btn_export_csv.setEnabled(False)
         self._btn_copy.setEnabled(False)
-        self._btn_save_rscu.setEnabled(False)
-        self._btn_save_gc.setEnabled(False)
-        self._btn_save_nc.setEnabled(False)
         self._set_status("Analyzing...")
 
         self._thread = QThread(self)
@@ -956,8 +929,6 @@ class CodonUsageTab(QWidget):
             self._fill_codon_table(r)
             self._draw_rscu_chart(r)
             self._draw_gc_chart(r)
-            self._btn_save_rscu.setEnabled(True)
-            self._btn_save_gc.setEnabled(True)
         except Exception as exc:
             QMessageBox.critical(self, "Display Error", str(exc))
             self._set_status("Display Error: " + str(exc)[:80])
@@ -1062,9 +1033,9 @@ class CodonUsageTab(QWidget):
         rscu_map = {row["codon"]: row["rscu"] for row in r["rows"]}
 
         n_total_codons = sum(len(c) for c in aa_to_codons.values())
-        chart_width = max(16, n_total_codons * 0.30)
-        fig, ax = plt.subplots(figsize=(chart_width, 6.5), dpi=96)
-        fig.patch.set_facecolor("#f9f9f9")
+        self._rscu_fig.clear()
+        self._rscu_fig.set_facecolor("#f9f9f9")
+        ax = self._rscu_fig.add_subplot(111)
         ax.set_facecolor("#f9f9f9")
 
         x = 0
@@ -1102,20 +1073,28 @@ class CodonUsageTab(QWidget):
 
         ax.set_xticks(xtick_pos)
         ax.set_xticklabels(xtick_lab, rotation=90, fontsize=7.5, fontfamily="monospace")
+        ax.tick_params(axis="x", pad=3)
         ax.axhline(1.0, color="#999", linestyle="--", linewidth=0.8)
         ax.set_ylabel("RSCU")
         ax.set_title(f"RSCU — {r['header'][:70]}")
 
-        y_min = ax.get_ylim()[0]
+        # Place AA labels below tick labels using a blended transform:
+        # x in data coordinates, y in axes fraction (negative = below axis).
+        # This prevents overlap regardless of the data y-scale.
+        from matplotlib.transforms import blended_transform_factory
+
+        blend = blended_transform_factory(ax.transData, ax.transAxes)
         for mid, aa in zip(aa_mid_x, aa_labels):
             ax.text(
                 mid,
-                y_min - 0.18,
+                -0.22,
                 aa,
+                transform=blend,
                 ha="center",
                 va="top",
                 fontsize=8,
                 fontweight="bold",
+                clip_on=False,
             )
 
         legend = [
@@ -1128,19 +1107,15 @@ class CodonUsageTab(QWidget):
         ]
         ax.legend(handles=legend, loc="upper right", fontsize=8, framealpha=0.85)
 
-        plt.tight_layout()
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight")
-        self._rscu_fig_buf = buf.getvalue()
-        buf.seek(0)
-        self._rscu_chart_label.setPixmap(self._buf_to_pixmap(buf.read()))
-        plt.close(fig)
+        # rect=[left, bottom, right, top] in figure fraction;
+        # bottom=0.18 reserves space for the AA label row beneath the codon tick labels.
+        self._rscu_fig.tight_layout(rect=[0, 0.18, 1, 1])
+        self._rscu_canvas.draw()
 
     def _draw_gc_chart(self, r: dict):
-        fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), dpi=96)
-        fig.patch.set_facecolor("#f9f9f9")
-
-        ax1 = axes[0]
+        self._gc_fig.clear()
+        self._gc_fig.set_facecolor("#f9f9f9")
+        ax1 = self._gc_fig.add_subplot(1, 2, 1)
         ax1.set_facecolor("#f9f9f9")
         cats = ["GC(All)", "GC1", "GC2", "GC3", "GC12"]
         vals = [r["gc_all"], r["gc1"], r["gc2"], r["gc3"], r["gc12"]]
@@ -1160,7 +1135,7 @@ class CodonUsageTab(QWidget):
                 fontsize=9.5,
             )
 
-        ax2 = axes[1]
+        ax2 = self._gc_fig.add_subplot(1, 2, 2)
         ax2.set_facecolor("#f9f9f9")
         if len(self._results) > 1:
             gc12s = [rs["gc12"] for rs in self._results]
@@ -1193,13 +1168,8 @@ class CodonUsageTab(QWidget):
         ax2.set_ylim(0, 100)
         ax2.legend(fontsize=8, framealpha=0.8)
 
-        plt.tight_layout()
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight")
-        self._gc_fig_buf = buf.getvalue()
-        buf.seek(0)
-        self._gc_chart_label.setPixmap(self._buf_to_pixmap(buf.read()))
-        plt.close(fig)
+        self._gc_fig.tight_layout()
+        self._gc_canvas.draw()
 
     def _fill_comparison(self):
         self._cmp_table.setSortingEnabled(False)
@@ -1216,11 +1186,11 @@ class CodonUsageTab(QWidget):
         self._cmp_table.setSortingEnabled(True)
 
         self._draw_nc_plot()
-        self._btn_save_nc.setEnabled(True)
 
     def _draw_nc_plot(self):
-        fig, ax = plt.subplots(figsize=(8, 5.5), dpi=96)
-        fig.patch.set_facecolor("#f9f9f9")
+        self._nc_fig.clear()
+        self._nc_fig.set_facecolor("#f9f9f9")
+        ax = self._nc_fig.add_subplot(111)
         ax.set_facecolor("#f9f9f9")
 
         gc3_theory = np.linspace(0.05, 0.95, 200)
@@ -1255,37 +1225,8 @@ class CodonUsageTab(QWidget):
         ax.set_ylim(20, 65)
         ax.legend(fontsize=8, framealpha=0.85)
 
-        plt.tight_layout()
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight")
-        self._nc_fig_buf = buf.getvalue()
-        buf.seek(0)
-        self._nc_chart_label.setPixmap(self._buf_to_pixmap(buf.read()))
-        plt.close(fig)
-
-    def _save_chart(self, which: str):
-        mp = {
-            "rscu": self._rscu_fig_buf,
-            "gc": self._gc_fig_buf,
-            "nc": self._nc_fig_buf,
-        }
-        buf = mp.get(which)
-        if not buf:
-            return
-
-        default = {"rscu": "rscu_chart.png", "gc": "gc_chart.png", "nc": "nc_plot.png"}[
-            which
-        ]
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Save Chart as PNG", default, "PNG Images (*.png)"
-        )
-        if path:
-            try:
-                with open(path, "wb") as f:
-                    f.write(buf)
-                self._set_status(f"Chart saved: {path}")
-            except Exception as e:
-                QMessageBox.critical(self, "Save Error", str(e))
+        self._nc_fig.tight_layout()
+        self._nc_canvas.draw()
 
     def _export_csv(self):
         if not self._results:
@@ -1354,11 +1295,6 @@ class CodonUsageTab(QWidget):
         if val < 2.0:
             return "#42a5f5"  # preferred
         return "#7e57c2"  # highly preferred
-
-    @staticmethod
-    def _buf_to_pixmap(data: bytes) -> QPixmap:
-        img = QImage.fromData(data)
-        return QPixmap.fromImage(img)
 
     def _show_help(self):
         dlg = QDialog(self)

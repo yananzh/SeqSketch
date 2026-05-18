@@ -179,6 +179,13 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, "Sanger Sequence Assembly")
         self.tabs.setCurrentWidget(tab)
 
+    def open_sanger_viewer_tab(self):
+        from modules.sanger_viewer_tab import SangerViewerTab
+
+        tab = SangerViewerTab()
+        self.tabs.addTab(tab, self.tr("Sanger Seq Viewer"))
+        self.tabs.setCurrentWidget(tab)
+
     def open_codon_usage_tab(self):
         from modules.codon_usage_tab import CodonUsageTab
 
