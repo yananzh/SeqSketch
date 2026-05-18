@@ -2,12 +2,43 @@
 Common worker base classes and components
 Reduce duplication and provide unified error handling and signals
 """
+
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-                           QTextEdit, QFileDialog, QMessageBox)
+from PyQt6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTextEdit,
+    QFileDialog,
+    QMessageBox,
+)
 from typing import Any, Dict, Optional
 import logging
 import os
+
+
+SEQUENCE_EDITOR_STYLE = """
+border: 1.5px solid #000000;
+border-radius: 8px;
+padding: 8px 10px;
+background: #fbfcfe;
+selection-background-color: #d9ebff;
+selection-color: #1a1a1a;
+"""
+
+READ_ONLY_SEQUENCE_EDITOR_STYLE = """
+background: #f7f9fc;
+"""
+
+
+def apply_sequence_editor_style(editor: QTextEdit) -> None:
+    editor.setProperty("sequenceEditorStyled", True)
+    style = SEQUENCE_EDITOR_STYLE
+    if editor.isReadOnly():
+        style += READ_ONLY_SEQUENCE_EDITOR_STYLE
+    editor.setStyleSheet(style)
 
 
 class BaseWorker(QObject):
@@ -15,19 +46,20 @@ class BaseWorker(QObject):
     通用工作线程基类
     所有后台任务继承此类，减少重复代码
     """
+
     finished = pyqtSignal(str)
     error = pyqtSignal(str)
     progress = pyqtSignal(str)
-    
+
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(self.__class__.__name__)
-    
+
     def emit_progress(self, message: str):
         """Emit progress message"""
         self.progress.emit(message)
         self.logger.info(f"Progress: {message}")
-    
+
     def emit_error(self, error_msg: str, exception: Optional[Exception] = None):
         """Emit error message"""
         if exception:
@@ -35,12 +67,12 @@ class BaseWorker(QObject):
         else:
             self.logger.error(error_msg)
         self.error.emit(error_msg)
-    
+
     def emit_finished(self, result_msg: str):
         """Emit finished message"""
         self.logger.info(f"Task finished: {result_msg}")
         self.finished.emit(result_msg)
-    
+
     def run(self):
         """Must be implemented by subclass"""
         raise NotImplementedError("Subclass must implement run()")
@@ -50,8 +82,9 @@ class DataWorker(BaseWorker):
     """
     Data worker base class for tasks returning processed data
     """
+
     data_finished = pyqtSignal(dict)
-    
+
     def emit_data_finished(self, data: Dict[str, Any], message: str = "Completed"):
         """Emit data finished signal"""
         self.logger.info(f"Data task completed: {message}")
@@ -63,7 +96,7 @@ class BaseTabWidget(QWidget):
     """
     Common Tab base class providing unified UI patterns and error handling
     """
-    
+
     def __init__(self, title: str = "Analysis Tools", tab_type: str = "file"):
         super().__init__()
         self.title = title
@@ -72,31 +105,31 @@ class BaseTabWidget(QWidget):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.init_common_ui()
         self.connect_common_signals()
-    
+
     def init_common_ui(self):
         """Initialize common UI components"""
         self.main_layout = QVBoxLayout(self)
-        
+
         # Content area for subclasses
         self.content_area = QVBoxLayout()
         self.main_layout.addLayout(self.content_area)
-        
+
         if self.tab_type == "sequence":
             # Create input/output areas for sequence tabs
             self.init_sequence_ui()
-        
+
         # Status area
         self.status_layout = QHBoxLayout()
         self.status_label = QLabel("Ready")
         self.status_layout.addWidget(QLabel("Status:"))
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
-        
+
         # Help button (for all modes)
         self.help_btn = QPushButton("Help")
         self.help_btn.clicked.connect(self.show_help)
         self.status_layout.addWidget(self.help_btn)
-        
+
         # Log area (file mode only)
         if self.tab_type == "file":
             self.log_area = QTextEdit()
@@ -104,16 +137,19 @@ class BaseTabWidget(QWidget):
             self.log_area.setReadOnly(True)
             self.log_area.setPlaceholderText("Operation logs will appear here...")
             self.main_layout.addWidget(self.log_area)
-        
+
         # 添加状态到布局
         self.main_layout.addLayout(self.status_layout)
-    
+
     def init_sequence_ui(self):
         """Initialize sequence processing UI"""
         # Input area
         self.input_label = QLabel("Input sequence or upload file:")
         self.input_text = QTextEdit()
-        self.input_text.setPlaceholderText("Paste DNA/RNA sequence, or upload a file...")
+        apply_sequence_editor_style(self.input_text)
+        self.input_text.setPlaceholderText(
+            "Paste DNA/RNA sequence, or upload a file..."
+        )
         self.upload_btn = QPushButton("Upload File")
         self.upload_btn.clicked.connect(self.open_file)
         self.input_hint = QLabel("")
@@ -129,6 +165,7 @@ class BaseTabWidget(QWidget):
         self.output_label = QLabel("Output:")
         self.output_text = QTextEdit()
         self.output_text.setReadOnly(True)
+        apply_sequence_editor_style(self.output_text)
         self.export_btn = QPushButton("Export Result")
         self.copy_btn = QPushButton("Copy to Clipboard")
         self.export_btn.clicked.connect(self.export_result)
@@ -158,17 +195,20 @@ class BaseTabWidget(QWidget):
         self.add_content_layout(input_layout)
         self.add_content_layout(output_layout)
         self.add_content_layout(ctrl_btn_layout)
-    
+
     def open_file(self):
         """Open file (sequence mode)"""
         from PyQt6.QtWidgets import QFileDialog, QMessageBox
+
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select sequence file", "", 
-            "FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)"
+            self,
+            "Select sequence file",
+            "",
+            "FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)",
         )
         if file_path:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 self.input_text.setPlainText(content)
                 self.input_hint.setText(f"Loaded file: {file_path}")
@@ -178,13 +218,16 @@ class BaseTabWidget(QWidget):
     def export_result(self):
         """Export result (sequence mode)"""
         from PyQt6.QtWidgets import QFileDialog, QMessageBox
+
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Export Result", "result.txt", 
-            "Text Files (*.txt);;FASTA Files (*.fasta);;CSV Files (*.csv)"
+            self,
+            "Export Result",
+            "result.txt",
+            "Text Files (*.txt);;FASTA Files (*.fasta);;CSV Files (*.csv)",
         )
         if file_path:
             try:
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(self.output_text.toPlainText())
                 self.status_label.setText(f"Exported: {file_path}")
             except Exception as e:
@@ -195,71 +238,69 @@ class BaseTabWidget(QWidget):
         self.output_text.selectAll()
         self.output_text.copy()
         self.status_label.setText("Copied to clipboard")
-    
+
     def run(self):
         """由子类实现的主要运行方法"""
         pass
-        
+
     def clear(self):
         """Clear content"""
-        if hasattr(self, 'input_text'):
+        if hasattr(self, "input_text"):
             self.input_text.clear()
-        if hasattr(self, 'output_text'):
+        if hasattr(self, "output_text"):
             self.output_text.clear()
-        if hasattr(self, 'input_hint'):
+        if hasattr(self, "input_hint"):
             self.input_hint.clear()
-        if hasattr(self, 'log_area'):
+        if hasattr(self, "log_area"):
             self.log_area.clear()
         self.show_status("Cleared")
-        
+
     def show_help(self):
         """Help method implemented by subclass"""
         pass
-    
+
     def add_content_layout(self, layout):
         """Add content layout"""
         self.content_area.addLayout(layout)
-    
+
     def add_content_widget(self, widget):
         """Add content widget"""
         self.content_area.addWidget(widget)
-    
+
     def connect_common_signals(self):
         """Connect common signals (optional override)"""
         pass
-    
+
     def show_status(self, message: str):
         """Show status message"""
         self.status_label.setText(message)
         self.logger.info(message)
-    
+
     def log_message(self, message: str, level: str = "INFO"):
         """Append log message (file mode only)"""
-        if not hasattr(self, 'log_area'):
+        if not hasattr(self, "log_area"):
             return
-            
-        prefix = {
-            "INFO": "[Info]",
-            "ERROR": "[Error]",
-            "WARNING": "[Warning]"
-        }.get(level, "[Info]")
-        
+
+        prefix = {"INFO": "[Info]", "ERROR": "[Error]", "WARNING": "[Warning]"}.get(
+            level, "[Info]"
+        )
+
         self.log_area.append(f"{prefix} {message}")
-        
+
         if level == "ERROR":
             self.logger.error(message)
         elif level == "WARNING":
             self.logger.warning(message)
         else:
             self.logger.info(message)
-    
+
     def set_running_state(self, running: bool):
         """设置运行状态 - 子类应重写以禁用特定按钮"""
         self.show_status("Processing..." if running else "Ready")
-    
+
     def handle_worker_finished(self, message: str):
         """处理工作线程完成"""
-        if hasattr(self, 'log_area'):
+        if hasattr(self, "log_area"):
             self.log_message(message)
         else:
             self.show_status("Completed")
@@ -268,10 +309,10 @@ class BaseTabWidget(QWidget):
             self.worker_thread.quit()
             self.worker_thread.wait()
             self.worker_thread = None
-    
+
     def handle_worker_error(self, error_msg: str):
         """处理工作线程错误"""
-        if hasattr(self, 'log_area'):
+        if hasattr(self, "log_area"):
             self.log_message(error_msg, "ERROR")
         else:
             self.show_status(f"Error: {error_msg}")
@@ -280,31 +321,31 @@ class BaseTabWidget(QWidget):
             self.worker_thread.quit()
             self.worker_thread.wait()
             self.worker_thread = None
-    
+
     def start_worker(self, worker: BaseWorker):
         """启动工作线程的通用方法"""
         if self.worker_thread and self.worker_thread.isRunning():
             error_msg = "A task is already running, please wait until it completes"
-            if hasattr(self, 'log_area'):
+            if hasattr(self, "log_area"):
                 self.log_message(error_msg, "WARNING")
             else:
                 self.show_status(error_msg)
             return False
-        
+
         self.worker_thread = QThread()
         worker.moveToThread(self.worker_thread)
-        
+
         # 连接信号
         self.worker_thread.started.connect(worker.run)
         worker.finished.connect(self.handle_worker_finished)
         worker.error.connect(self.handle_worker_error)
         worker.finished.connect(self.worker_thread.quit)
         worker.error.connect(self.worker_thread.quit)
-        
+
         # 如果有进度信号，连接到状态显示
-        if hasattr(worker, 'progress'):
+        if hasattr(worker, "progress"):
             worker.progress.connect(self.show_status)
-        
+
         self.set_running_state(True)
         self.worker_thread.start()
         return True
@@ -314,24 +355,24 @@ class FASTAWorker(BaseWorker):
     """
     FASTA文件处理专用工作线程基类
     """
-    
+
     def __init__(self, input_path: str, output_path: str):
         super().__init__()
         self.input_path = input_path
         self.output_path = output_path
-    
+
     def validate_files(self) -> bool:
         """验证输入输出文件路径"""
         import os
-        
+
         if not self.input_path or not os.path.isfile(self.input_path):
             self.emit_error("输入文件无效或不存在")
             return False
-        
+
         if not self.output_path:
             self.emit_error("输出文件路径不能为空")
             return False
-        
+
         # 检查输出目录是否存在，不存在则创建
         output_dir = os.path.dirname(self.output_path)
         if output_dir and not os.path.exists(output_dir):
@@ -340,13 +381,14 @@ class FASTAWorker(BaseWorker):
             except Exception as e:
                 self.emit_error(f"无法创建输出目录: {e}")
                 return False
-        
+
         return True
-    
+
     def load_fasta_processor(self):
         """加载FASTA处理器"""
         try:
             from modules.fasta_processor import FASTAProcessor
+
             processor = FASTAProcessor()
             if not processor.read_file(self.input_path):
                 self.emit_error("无法读取FASTA文件")
@@ -363,67 +405,67 @@ def setup_logging():
     import logging
     import os
     from datetime import datetime
-    
+
     log_dir = "logs"
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
-    
+
     log_file = os.path.join(log_dir, f"bioseq_{datetime.now().strftime('%Y%m%d')}.log")
-    
+
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.FileHandler(log_file, encoding='utf-8'),
-            logging.StreamHandler()
-        ]
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
     )
 
 
 def validate_input_path(path: str, file_types: list | None = None) -> tuple[bool, str]:
     """
     验证输入文件路径
-    
+
     Args:
         path: 文件路径
         file_types: 允许的文件扩展名列表，如 ['.fasta', '.fa', '.fas']
-    
+
     Returns:
         (是否有效, 错误消息)
     """
     import os
-    
+
     if not path or not path.strip():
         return False, "文件路径不能为空"
-    
+
     if not os.path.isfile(path):
         return False, "文件不存在或不是有效文件"
-    
+
     if file_types:
         ext = os.path.splitext(path)[1].lower()
         if ext not in file_types:
             return False, f"不支持的文件类型，请选择: {', '.join(file_types)}"
-    
+
     return True, ""
 
 
 def validate_output_path(path: str) -> tuple[bool, str]:
     """
     验证输出文件路径
-    
+
     Returns:
         (是否有效, 错误消息)
     """
     import os
-    
+
     if not path or not path.strip():
         return False, "输出路径不能为空"
-    
+
     output_dir = os.path.dirname(path)
     if output_dir and not os.path.exists(output_dir):
         try:
             os.makedirs(output_dir)
         except Exception as e:
             return False, f"无法创建输出目录: {e}"
-    
+
     return True, ""

@@ -10,6 +10,8 @@ from main_window import MainWindow
 from modules.complement_tab import ComplementTab
 from modules.codon_usage_tab import CodonUsageTab
 from modules.orf_tab import ORFTab
+from modules.rna_tab import RNATab
+from modules.sanger_tab import SangerTab
 from modules.translate_tab import TranslateTab
 
 
@@ -74,6 +76,28 @@ def test_translate_and_orf_warn_that_only_single_sequence_is_supported(qapp):
 
     assert "multi-sequence" in translate_tab.input_hint.text().lower()
     assert "single sequence only" in orf_tab.input_hint.text().lower()
+
+
+def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
+    sequence_tabs = [RNATab(), ComplementTab(), TranslateTab(), ORFTab()]
+
+    for tab in sequence_tabs:
+        for editor in (tab.input_text, tab.output_text):
+            assert editor.property("sequenceEditorStyled") is True
+            assert "border-radius" in editor.styleSheet()
+            assert "border: 1.5px solid #000000;" in editor.styleSheet()
+            assert not editor.styleSheet().lstrip().startswith("QTextEdit")
+
+    sanger_tab = SangerTab()
+    for editor in (
+        sanger_tab.fwd_edit,
+        sanger_tab.rev_edit,
+        sanger_tab.assembly_result,
+    ):
+        assert editor.property("sequenceEditorStyled") is True
+        assert "border-radius" in editor.styleSheet()
+        assert "border: 1.5px solid #000000;" in editor.styleSheet()
+        assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
 
 def test_codon_usage_summary_tables_are_taller_and_rscu_labels_are_tighter(qapp):

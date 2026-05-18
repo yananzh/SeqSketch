@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
+from utils.common_components import apply_sequence_editor_style
+
 
 class SangerTab(QWidget):
     def __init__(self, parent=None):
@@ -44,6 +46,7 @@ class SangerTab(QWidget):
         fwd_vbox = QVBoxLayout()
         fwd_label = QLabel("Forward Sequence (5' → 3'):")
         self.fwd_edit = QTextEdit()
+        apply_sequence_editor_style(self.fwd_edit)
         self.fwd_edit.setPlaceholderText(
             "Paste forward sequencing sequence...\nExample: ATGCGATCGATCG..."
         )
@@ -54,6 +57,7 @@ class SangerTab(QWidget):
         rev_vbox = QVBoxLayout()
         rev_label = QLabel("Reverse Sequence (auto reverse-complemented):")
         self.rev_edit = QTextEdit()
+        apply_sequence_editor_style(self.rev_edit)
         self.rev_edit.setPlaceholderText(
             "Paste reverse sequencing sequence...\nExample: CGACCGATCGCAT..."
         )
@@ -109,6 +113,7 @@ class SangerTab(QWidget):
 
         self.assembly_result = QTextEdit()
         self.assembly_result.setReadOnly(True)
+        apply_sequence_editor_style(self.assembly_result)
         self.assembly_result.setPlaceholderText(
             "Assembled sequence will appear here..."
         )
