@@ -505,14 +505,6 @@ class CodonUsageTab(QWidget):
         gi = QVBoxLayout(grp_input)
         gi.setSpacing(6)
 
-        hint = QLabel(
-            "Paste one or more CDS FASTA sequences, or load from a file.\n"
-            "Accepts DNA or RNA; multiple sequences are compared."
-        )
-        hint.setWordWrap(True)
-        hint.setStyleSheet("color:#555;font-size:13px;")
-        gi.addWidget(hint)
-
         self._input_text = QTextEdit()
         self._input_text.setPlaceholderText(
             ">gene1\nATGAAAGGGTTTCCCAAATAG\n\n>gene2\nATGGCATTTCGATGA"

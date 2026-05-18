@@ -126,9 +126,6 @@ class ORFTab(BaseTabWidget):
             ">seq1\n"
             "ATGAAACCCGGGTTTAAATAG"
         )
-        self.input_hint.setText(
-            "Single sequence only. ORF results include frame, position, length, nucleotide sequence, and translated peptide."
-        )
         self.output_text.setPlaceholderText("ORF results will appear here...")
         # Adjust minimum heights for better visibility
         self.input_text.setMinimumHeight(180)

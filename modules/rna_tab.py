@@ -51,9 +51,6 @@ class RNATab(BaseTabWidget):
             ">seq2\n"
             "TTAAGGCCTTAAGG"
         )
-        self.input_hint.setText(
-            "Supports raw DNA and multi-sequence FASTA input. Output keeps FASTA headers and converts T to U."
-        )
         self.output_text.setPlaceholderText("RNA sequences will appear here...")
         # Adjust minimum heights for better visibility
         self.input_text.setMinimumHeight(200)

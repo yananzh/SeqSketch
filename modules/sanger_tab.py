@@ -32,13 +32,6 @@ class SangerTab(QWidget):
         input_label.setStyleSheet("font-size: 11pt;")
         main_layout.addWidget(input_label)
 
-        input_hint = QLabel(
-            "Paste one forward read and one reverse read. The reverse read will be auto reverse-complemented before overlap assembly."
-        )
-        input_hint.setWordWrap(True)
-        input_hint.setStyleSheet("color: #666; font-size: 10pt;")
-        main_layout.addWidget(input_hint)
-
         # Forward and Reverse sequences side by side
         seqs_hbox = QHBoxLayout()
         seqs_hbox.setSpacing(12)

@@ -70,14 +70,6 @@ def test_dna_analysis_menu_uses_single_complement_tools_entry(qapp):
     assert "Reverse Complement" not in action_texts
 
 
-def test_translate_and_orf_warn_that_only_single_sequence_is_supported(qapp):
-    translate_tab = TranslateTab()
-    orf_tab = ORFTab()
-
-    assert "multi-sequence" in translate_tab.input_hint.text().lower()
-    assert "single sequence only" in orf_tab.input_hint.text().lower()
-
-
 def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
     sequence_tabs = [RNATab(), ComplementTab(), TranslateTab(), ORFTab()]
 

@@ -143,9 +143,6 @@ class TranslateTab(BaseTabWidget):
             ">seq2\n"
             "ATGAAATTTGGGTGA"
         )
-        self.input_hint.setText(
-            "Supports single or multi-sequence FASTA input. Each record is translated independently using the selected frame."
-        )
         self.output_text.setPlaceholderText(
             "Translated protein sequence will appear here..."
         )

@@ -57,9 +57,6 @@ class ComplementTab(BaseTabWidget):
             ">seq2\n"
             "TTAAGGCCTTAAGG"
         )
-        self.input_hint.setText(
-            "Supports raw DNA and multi-sequence FASTA input. Use Mode to switch between complement and reverse complement output."
-        )
         self._update_output_placeholder()
         self.input_text.setMinimumHeight(200)
         self.output_text.setMinimumHeight(200)
