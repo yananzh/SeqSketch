@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QApplication
 
 from main_window import MainWindow
 from modules.complement_tab import ComplementTab
+from modules.codon_usage_tab import CodonUsageTab
 from modules.orf_tab import ORFTab
 from modules.translate_tab import TranslateTab
 
@@ -73,3 +74,26 @@ def test_translate_and_orf_warn_that_only_single_sequence_is_supported(qapp):
 
     assert "multi-sequence" in translate_tab.input_hint.text().lower()
     assert "single sequence only" in orf_tab.input_hint.text().lower()
+
+
+def test_codon_usage_summary_tables_are_taller_and_rscu_labels_are_tighter(qapp):
+    tab = CodonUsageTab()
+
+    assert tab._stats_table.minimumHeight() >= 280
+    assert tab._top10_table.minimumHeight() >= 260
+
+    tab._draw_rscu_chart({
+        "header": "Example",
+        "rows": [
+            {"codon": "AAA", "rscu": 1.2},
+            {"codon": "AAG", "rscu": 0.8},
+            {"codon": "ATG", "rscu": 1.0},
+            {"codon": "TAA", "rscu": 0.4},
+        ],
+    })
+
+    ax = tab._rscu_fig.axes[0]
+    aa_label_ys = [text.get_position()[1] for text in ax.texts]
+
+    assert aa_label_ys
+    assert max(aa_label_ys) >= -0.18

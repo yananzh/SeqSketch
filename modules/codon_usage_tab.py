@@ -638,7 +638,8 @@ class CodonUsageTab(QWidget):
             QHeaderView.ResizeMode.Stretch
         )
         self._stats_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self._stats_table.setMaximumHeight(230)
+        self._stats_table.setMinimumHeight(280)
+        self._stats_table.setMaximumHeight(320)
         sv.addWidget(self._stats_table)
 
         sv.addSpacing(14)
@@ -655,7 +656,8 @@ class CodonUsageTab(QWidget):
             QHeaderView.ResizeMode.Stretch
         )
         self._top10_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self._top10_table.setMaximumHeight(220)
+        self._top10_table.setMinimumHeight(260)
+        self._top10_table.setMaximumHeight(300)
         sv.addWidget(self._top10_table)
         sv.addStretch()
         self._result_tabs.addTab(self._summary_widget, "Summary")
@@ -1087,7 +1089,7 @@ class CodonUsageTab(QWidget):
         for mid, aa in zip(aa_mid_x, aa_labels):
             ax.text(
                 mid,
-                -0.22,
+                -0.18,
                 aa,
                 transform=blend,
                 ha="center",
@@ -1108,8 +1110,8 @@ class CodonUsageTab(QWidget):
         ax.legend(handles=legend, loc="upper right", fontsize=8, framealpha=0.85)
 
         # rect=[left, bottom, right, top] in figure fraction;
-        # bottom=0.18 reserves space for the AA label row beneath the codon tick labels.
-        self._rscu_fig.tight_layout(rect=[0, 0.18, 1, 1])
+        # bottom=0.16 reserves tighter space for the AA label row beneath the codon tick labels.
+        self._rscu_fig.tight_layout(rect=[0, 0.16, 1, 1])
         self._rscu_canvas.draw()
 
     def _draw_gc_chart(self, r: dict):

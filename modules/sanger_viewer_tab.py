@@ -112,12 +112,9 @@ class SangerViewerTab(QWidget):
         file_row.addWidget(self._file_edit, 1)
         self._btn_browse = QPushButton(self.tr("Browse..."))
         self._btn_browse.setToolTip(
-            self.tr("Open a file browser to select an AB1 file")
+            self.tr("Open a file browser to select and load an AB1 file")
         )
         file_row.addWidget(self._btn_browse)
-        self._btn_load = QPushButton(self.tr("Load"))
-        self._btn_load.setToolTip(self.tr("Parse and display the selected AB1 file"))
-        file_row.addWidget(self._btn_load)
         outer.addLayout(file_row)
 
         # --- Options row ---
@@ -197,7 +194,6 @@ class SangerViewerTab(QWidget):
 
         # --- Signal connections ---
         self._btn_browse.clicked.connect(self._browse)
-        self._btn_load.clicked.connect(self._load)
         self._btn_copy.clicked.connect(self._copy_range)
         self._btn_help.clicked.connect(self._show_help)
         self._chk_quality.stateChanged.connect(lambda _: self._draw_chromatogram())
@@ -215,6 +211,7 @@ class SangerViewerTab(QWidget):
         )
         if path:
             self._file_edit.setText(path)
+            self._load()
 
     # ------------------------------------------------------------------
     # Drag-and-drop
@@ -243,7 +240,6 @@ class SangerViewerTab(QWidget):
                 self, self.tr("No File"), self.tr("Please select an AB1 file first.")
             )
             return
-        self._btn_load.setEnabled(False)
         self._btn_browse.setEnabled(False)
         self._btn_copy.setEnabled(False)
         self._set_status(self.tr("Loading\u2026"))
@@ -263,7 +259,6 @@ class SangerViewerTab(QWidget):
     def _cleanup_thread(self) -> None:
         self._worker = None
         self._thread = None
-        self._btn_load.setEnabled(True)
         self._btn_browse.setEnabled(True)
 
     def _on_loaded(self, abi_data: dict, sequence: str, quality: List[int]) -> None:
@@ -417,7 +412,7 @@ class SangerViewerTab(QWidget):
             self.tr("Sanger Seq Viewer \u2014 Help"),
             self.tr(
                 "<b>Loading a file</b><br>"
-                "Click <i>Browse...</i> to select an AB1 file, then click <i>Load</i>.<br>"
+                "Click <i>Browse...</i> to select an AB1 file — it loads automatically.<br>"
                 "You can also <b>drag and drop</b> a .ab1 file directly onto this window.<br><br>"
                 "<b>Chromatogram</b><br>"
                 "The four coloured traces show raw fluorescence for each base "
