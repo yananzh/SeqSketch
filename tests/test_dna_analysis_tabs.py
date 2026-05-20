@@ -89,18 +89,42 @@ def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
         if action.menu() is not None
     }
 
+    assert "Protein Annotation and Reference" in submenu_map
+    assert [
+        action.text()
+        for action in submenu_map["Protein Annotation and Reference"].actions()
+        if action.text()
+    ] == ["UniProtKB", "UniProt ID Mapping"]
     assert "Signal Peptide and Topology Prediction" in submenu_map
     assert [
         action.text()
         for action in submenu_map["Signal Peptide and Topology Prediction"].actions()
         if action.text()
     ] == ["SignalP 6.0", "DeepTMHMM 1.0"]
+    assert "Tertiary Structure Prediction" in submenu_map
+    assert [
+        action.text()
+        for action in submenu_map["Tertiary Structure Prediction"].actions()
+        if action.text()
+    ] == ["SWISS-MODEL", "AlphaFold Server"]
     assert "Domain and Motif Analysis" in submenu_map
     assert [
         action.text()
         for action in submenu_map["Domain and Motif Analysis"].actions()
         if action.text()
-    ] == ["InterPro", "MEME Suite"]
+    ] == ["InterPro", "MEME Suite", "ScanProsite", "NCBI CD-Search"]
+    assert "Tertiary Structure Reference" in submenu_map
+    assert [
+        action.text()
+        for action in submenu_map["Tertiary Structure Reference"].actions()
+        if action.text()
+    ] == ["AlphaFold DB", "RCSB PDB"]
+    assert "Protein Function and Interaction" in submenu_map
+    assert [
+        action.text()
+        for action in submenu_map["Protein Function and Interaction"].actions()
+        if action.text()
+    ] == ["STRING", "MobiDB"]
     assert "Pairwise Protein Structure Alignment" in submenu_map
     assert [
         action.text()
@@ -114,17 +138,33 @@ def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
     assert "Domain & Motif" not in submenu_map
     assert "Pairwise Structure Alignment" not in submenu_map
 
+    submenu_map["Protein Annotation and Reference"].actions()[0].trigger()
+    submenu_map["Protein Annotation and Reference"].actions()[1].trigger()
     submenu_map["Signal Peptide and Topology Prediction"].actions()[0].trigger()
     submenu_map["Signal Peptide and Topology Prediction"].actions()[1].trigger()
     submenu_map["Domain and Motif Analysis"].actions()[0].trigger()
     submenu_map["Domain and Motif Analysis"].actions()[1].trigger()
+    submenu_map["Domain and Motif Analysis"].actions()[2].trigger()
+    submenu_map["Domain and Motif Analysis"].actions()[3].trigger()
+    submenu_map["Tertiary Structure Reference"].actions()[0].trigger()
+    submenu_map["Tertiary Structure Reference"].actions()[1].trigger()
+    submenu_map["Protein Function and Interaction"].actions()[0].trigger()
+    submenu_map["Protein Function and Interaction"].actions()[1].trigger()
     submenu_map["Pairwise Protein Structure Alignment"].actions()[0].trigger()
 
     assert opened_urls == [
+        "https://www.uniprot.org/uniprotkb",
+        "https://www.uniprot.org/id-mapping",
         "https://services.healthtech.dtu.dk/services/SignalP-6.0/",
         "https://services.healthtech.dtu.dk/services/DeepTMHMM-1.0/",
         "https://www.ebi.ac.uk/interpro/",
         "https://meme-suite.org/meme/",
+        "https://prosite.expasy.org/scanprosite/",
+        "https://www.ncbi.nlm.nih.gov/Structure/cdd/wrpsb.cgi",
+        "https://alphafold.ebi.ac.uk/",
+        "https://www.rcsb.org/",
+        "https://string-db.org/",
+        "https://mobidb.org/",
         "https://www.rcsb.org/alignment",
     ]
 
