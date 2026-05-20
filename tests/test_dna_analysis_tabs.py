@@ -70,6 +70,65 @@ def test_dna_analysis_menu_uses_single_complement_tools_entry(qapp):
     assert "Reverse Complement" not in action_texts
 
 
+def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
+    qapp, monkeypatch
+):
+    window = MainWindow()
+    opened_urls = []
+    monkeypatch.setattr(window, "open_url_in_browser", opened_urls.append)
+
+    menu_bar = window.menuBar()
+    protein_menu = next(
+        action.menu()
+        for action in menu_bar.actions()
+        if action.text() == "Protein Analysis"
+    )
+    submenu_map = {
+        action.text(): action.menu()
+        for action in protein_menu.actions()
+        if action.menu() is not None
+    }
+
+    assert "Signal Peptide and Topology Prediction" in submenu_map
+    assert [
+        action.text()
+        for action in submenu_map["Signal Peptide and Topology Prediction"].actions()
+        if action.text()
+    ] == ["SignalP 6.0", "DeepTMHMM 1.0"]
+    assert "Domain and Motif Analysis" in submenu_map
+    assert [
+        action.text()
+        for action in submenu_map["Domain and Motif Analysis"].actions()
+        if action.text()
+    ] == ["InterPro", "MEME Suite"]
+    assert "Pairwise Protein Structure Alignment" in submenu_map
+    assert [
+        action.text()
+        for action in submenu_map["Pairwise Protein Structure Alignment"].actions()
+        if action.text()
+    ] == ["RCSB Pairwise Structure Alignment"]
+    assert "Signal Peptide" not in submenu_map
+    assert "Transmembrane Helices" not in submenu_map
+    assert "Domain Prediction" not in submenu_map
+    assert "Signal & Topology" not in submenu_map
+    assert "Domain & Motif" not in submenu_map
+    assert "Pairwise Structure Alignment" not in submenu_map
+
+    submenu_map["Signal Peptide and Topology Prediction"].actions()[0].trigger()
+    submenu_map["Signal Peptide and Topology Prediction"].actions()[1].trigger()
+    submenu_map["Domain and Motif Analysis"].actions()[0].trigger()
+    submenu_map["Domain and Motif Analysis"].actions()[1].trigger()
+    submenu_map["Pairwise Protein Structure Alignment"].actions()[0].trigger()
+
+    assert opened_urls == [
+        "https://services.healthtech.dtu.dk/services/SignalP-6.0/",
+        "https://services.healthtech.dtu.dk/services/DeepTMHMM-1.0/",
+        "https://www.ebi.ac.uk/interpro/",
+        "https://meme-suite.org/meme/",
+        "https://www.rcsb.org/alignment",
+    ]
+
+
 def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
     sequence_tabs = [RNATab(), ComplementTab(), TranslateTab(), ORFTab()]
 
