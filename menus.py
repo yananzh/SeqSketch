@@ -106,9 +106,7 @@ def create_menus(window):
     domain_menu.addAction(meme_suite_action)
     protein_menu.addMenu(domain_menu)
     # 6. Signal Peptide and Topology Prediction (submenu)
-    signal_menu = QMenu(
-        window.tr("Signal Peptide and Topology Prediction"), window
-    )
+    signal_menu = QMenu(window.tr("Signal Peptide and Topology Prediction"), window)
     signalp_action = QAction("SignalP 6.0", window)
     signalp_action.triggered.connect(
         lambda: window.open_url_in_browser(
