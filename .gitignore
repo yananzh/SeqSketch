@@ -2,3 +2,4 @@ softwares/
 .venv
 .vscode
 __pycache__
+dist/

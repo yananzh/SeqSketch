@@ -9,6 +9,7 @@ Run from the repository root on Windows:
 ```bash
 pip install -r requirements.txt
 python main.py
+py -m pytest tests/test_dna_analysis_tabs.py -q
 py -m pytest tests/test_fasta_tools_tabs.py -q
 ```
 
@@ -20,9 +21,14 @@ Build the Windows one-file executable with Nuitka:
 
 Notes:
 
-- `tests/test_fasta_tools_tabs.py` is the current focused regression suite for FASTA Tools tabs.
+- `tests/test_fasta_tools_tabs.py` covers the file-mode FASTA Tools tabs.
+- `tests/test_dna_analysis_tabs.py` covers sequence-mode DNA tabs plus `MainWindow` tab reuse and menu wiring.
 - The pytest suite sets `QT_QPA_PLATFORM=offscreen`, so prefer pytest over ad hoc GUI automation for FASTA Tools regressions.
 - `main.py` optionally shows a splash screen if `start_logo.png` exists in the repo root.
+
+## Scoped Instructions
+
+- Keep this file short. Put tab-editing specifics in [.github/instructions/pyqt-tabs.instructions.md](.github/instructions/pyqt-tabs.instructions.md).
 
 ## Architecture
 
@@ -46,6 +52,7 @@ tests/               -> Pytest regression coverage
 - Sequence-processing tabs should inherit `BaseTabWidget(..., "sequence")`.
 - New tab files follow `snake_case_tab.py`; tab classes follow `PascalCaseTab`; worker classes follow `PascalCaseWorker`.
 - New tabs must be wired in three places: the tab module under `modules/`, an `open_*_tab()` method in `main_window.py`, and a matching `QAction` in `menus.py`.
+- In `main_window.py`, preserve the nearby single-instance vs multi-instance behavior for each feature; do not normalize tab reuse patterns unless the task explicitly asks for it.
 - For file-mode tabs, add `self.content_area.addStretch()` after the main controls so the shared operation log stays anchored at the bottom.
 - Reuse `validate_input_path(...)` and `validate_output_path(...)` from `utils/common_components.py` for file validation instead of open-coded checks.
 
@@ -66,9 +73,11 @@ tests/               -> Pytest regression coverage
 
 ## Testing Guidance
 
-- When changing FASTA Tools tabs, start with the narrowest relevant pytest selection, then rerun the full FASTA Tools suite:
-- Focused: `py -m pytest tests/test_fasta_tools_tabs.py -k <tab_or_behavior> -q`
-- Full suite: `py -m pytest tests/test_fasta_tools_tabs.py -q`
+- When changing file-mode FASTA Tools tabs, start with the narrowest relevant pytest selection, then rerun the full FASTA Tools suite:
+- Focused FASTA Tools: `py -m pytest tests/test_fasta_tools_tabs.py -k <tab_or_behavior> -q`
+- Full FASTA Tools: `py -m pytest tests/test_fasta_tools_tabs.py -q`
+- Focused DNA analysis / window wiring: `py -m pytest tests/test_dna_analysis_tabs.py -k <tab_or_behavior> -q`
+- Full DNA analysis / window wiring: `py -m pytest tests/test_dna_analysis_tabs.py -q`
 - Prefer fixture-driven tests over live network or interactive GUI checks.
 - For NCBI-related code, keep default tests mock-based; live requests should stay optional.
 - Assert both output artifacts and log/status text for file-mode tabs.
