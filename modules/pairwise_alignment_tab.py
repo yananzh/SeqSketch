@@ -120,11 +120,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         row1.addSpacing(20)
         row1.addWidget(mode_label)
         row1.addWidget(self.mode_combo)
-        row1.addStretch()
-
-        # Row 2: substitution matrix
-        row2 = QHBoxLayout()
-        row2.setSpacing(20)
+        row1.addSpacing(20)
 
         matrix_label = QLabel("Substitution Matrix:")
         self.matrix_combo = QComboBox()
@@ -137,9 +133,9 @@ class PairwiseAlignmentTab(BaseTabWidget):
         )
         self.matrix_combo.currentIndexChanged.connect(self._on_matrix_changed)
 
-        row2.addWidget(matrix_label)
-        row2.addWidget(self.matrix_combo)
-        row2.addStretch()
+        row1.addWidget(matrix_label)
+        row1.addWidget(self.matrix_combo)
+        row1.addStretch()
 
         # Row 3: score parameters
         row3 = QHBoxLayout()
@@ -190,8 +186,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         row3.addStretch()
 
         self.content_area.insertLayout(2, row1)
-        self.content_area.insertLayout(3, row2)
-        self.content_area.insertLayout(4, row3)
+        self.content_area.insertLayout(3, row3)
 
     def _setup_output(self):
         # Output format row (inserted before output_label)
@@ -209,7 +204,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         fmt_row.addWidget(fmt_label)
         fmt_row.addWidget(self.fmt_combo)
         fmt_row.addStretch()
-        self.content_area.insertLayout(5, fmt_row)
+        self.content_area.insertLayout(4, fmt_row)
 
         self.output_label.setText("Alignment Result:")
         mono = QFont("Courier New", 10)
