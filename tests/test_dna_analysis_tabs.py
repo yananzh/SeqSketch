@@ -10,6 +10,7 @@ from main_window import MainWindow
 from modules.complement_tab import ComplementTab
 from modules.codon_usage_tab import CodonUsageTab
 from modules.orf_tab import ORFTab
+from modules.pairwise_alignment_tab import PairwiseAlignmentTab
 from modules.rna_tab import RNATab
 from modules.sanger_tab import SangerTab
 from modules.translate_tab import TranslateTab
@@ -184,6 +185,17 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
         sanger_tab.fwd_edit,
         sanger_tab.rev_edit,
         sanger_tab.assembly_result,
+    ):
+        assert editor.property("sequenceEditorStyled") is True
+        assert "border-radius" in editor.styleSheet()
+        assert "border: 1px solid #94a3b8;" in editor.styleSheet()
+        assert not editor.styleSheet().lstrip().startswith("QTextEdit")
+
+    pairwise_tab = PairwiseAlignmentTab()
+    for editor in (
+        pairwise_tab.input_text,
+        pairwise_tab.seq2_text,
+        pairwise_tab.output_text,
     ):
         assert editor.property("sequenceEditorStyled") is True
         assert "border-radius" in editor.styleSheet()

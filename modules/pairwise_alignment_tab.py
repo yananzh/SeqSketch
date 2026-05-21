@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QTextBrowser,
 )
 from PyQt6.QtGui import QFont
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, apply_sequence_editor_style
 from Bio import Align
 from Bio.Align import substitution_matrices
 import re
@@ -53,6 +53,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         # --- Seq2 (new widgets, same style) ---
         self.seq2_label = QLabel("Sequence 2:")
         self.seq2_text = QTextEdit()
+        apply_sequence_editor_style(self.seq2_text)
         self.seq2_text.setPlaceholderText(
             "Paste sequence 2 in FASTA format or raw sequence, or drag-and-drop a file...\n\n"
             "DNA example:\n>seq2\nATGCGTTCGATCGTAG\n\n"
@@ -104,9 +105,10 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
         mode_label = QLabel("Alignment Mode:")
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems(
-            ["Global (Needleman–Wunsch)", "Local (Smith–Waterman)"]
-        )
+        self.mode_combo.addItems([
+            "Global (Needleman–Wunsch)",
+            "Local (Smith–Waterman)",
+        ])
         self.mode_combo.setMinimumWidth(230)
         self.mode_combo.setToolTip(
             "Global: align full sequences end-to-end (best when similar length)\n"
@@ -126,7 +128,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
         matrix_label = QLabel("Substitution Matrix:")
         self.matrix_combo = QComboBox()
-        self.matrix_combo.addItems(["Simple (match/mismatch)", "BLOSUM62", "PAM250"])
+        self.matrix_combo.addItems(["BLOSUM62", "PAM250", "Simple (match/mismatch)"])
         self.matrix_combo.setMinimumWidth(220)
         self.matrix_combo.setToolTip(
             "Simple: explicit match/mismatch scores — good for DNA or quick checks\n"
@@ -213,6 +215,13 @@ class PairwiseAlignmentTab(BaseTabWidget):
         mono = QFont("Courier New", 10)
         mono.setStyleHint(QFont.StyleHint.Monospace)
         self.output_text.setFont(mono)
+        # styles.qss has a global `* { font-family: Segoe UI }` rule that
+        # overrides setFont().  Appending to the widget-level stylesheet gives
+        # higher CSS specificity and forces Courier New for column alignment.
+        self.output_text.setStyleSheet(
+            self.output_text.styleSheet()
+            + "font-family: 'Courier New', monospace; font-size: 10pt;"
+        )
         self.output_text.setMinimumHeight(200)
         self.run_btn.setText("Align")
 
@@ -405,7 +414,9 @@ class PairwiseAlignmentTab(BaseTabWidget):
                     f"  Score      : {score:.3f}",
                     sep,
                     "",
-                    best.format(),
+                    self._format_emboss_aligned(
+                        aln1, aln2, header1, header2, use_matrix, matrix_choice
+                    ),
                 ]
                 output = "\n".join(lines)
 
@@ -460,6 +471,59 @@ class PairwiseAlignmentTab(BaseTabWidget):
                 except (KeyError, IndexError):
                     pass
         return aln_len, identities, similarities, gaps
+
+    def _format_emboss_aligned(
+        self, aln1, aln2, header1, header2, use_matrix, matrix_choice
+    ):
+        """EMBOSS Needle-style block alignment; conservation line is indented only, no position counter."""
+        lbl1 = (header1 or "seq1")[:24]
+        lbl2 = (header2 or "seq2")[:24]
+        lbl_w = max(len(lbl1), len(lbl2))
+        col_width = 60
+        subst = substitution_matrices.load(matrix_choice) if use_matrix else None
+
+        num_w = max(
+            len(str(len(aln1.replace("-", "")))),
+            len(str(len(aln2.replace("-", "")))),
+            1,
+        )
+        # sequence characters start at: lbl_w + 4 spaces + num_w digits + 1 space
+        seq_offset = lbl_w + 4 + num_w + 1
+
+        lines = []
+        pos1 = pos2 = 0
+
+        for i in range(0, len(aln1), col_width):
+            c1 = aln1[i : i + col_width]
+            c2 = aln2[i : i + col_width]
+            cons = []
+            for a, b in zip(c1, c2):
+                if a == "-" or b == "-":
+                    cons.append(" ")
+                elif a == b:
+                    cons.append("|")
+                elif subst is not None:
+                    try:
+                        cons.append(":" if subst[a][b] > 0 else ".")
+                    except (KeyError, IndexError):
+                        cons.append(".")
+                else:
+                    cons.append(".")
+
+            new_pos1 = pos1 + len(c1.replace("-", ""))
+            new_pos2 = pos2 + len(c2.replace("-", ""))
+            s1 = pos1 + 1 if new_pos1 > pos1 else pos1
+            s2 = pos2 + 1 if new_pos2 > pos2 else pos2
+
+            lines.append(f"{lbl1:<{lbl_w}}    {s1:>{num_w}} {c1} {new_pos1}")
+            lines.append(f"{' ' * seq_offset}{''.join(cons)}")
+            lines.append(f"{lbl2:<{lbl_w}}    {s2:>{num_w}} {c2} {new_pos2}")
+            lines.append("")
+
+            pos1 = new_pos1
+            pos2 = new_pos2
+
+        return "\n".join(lines)
 
     def _format_fasta_aligned(self, aln1, aln2, header1, header2):
         """Return FASTA format with gap characters."""
