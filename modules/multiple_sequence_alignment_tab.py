@@ -359,6 +359,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         super().__init__("Multiple Sequence Alignment (Muscle5)", "sequence")
         self._worker: _MuscleWorker | None = None
         self._batch_worker: _MuscleBatchWorker | None = None
+        self._aligned_fasta = ""
         self._saved_muscle_path = self._load_saved_muscle_path()
         self._rebuild_input_area()
         self._setup_parameters()
@@ -406,9 +407,10 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         method_label = QLabel("Alignment Method:")
         self.method_combo = QComboBox()
-        self.method_combo.addItems(
-            ["Accurate (–align)", "Fast / Large datasets (–super5)"]
-        )
+        self.method_combo.addItems([
+            "Accurate (–align)",
+            "Fast / Large datasets (–super5)",
+        ])
         self.method_combo.setMinimumWidth(240)
         self.method_combo.setToolTip(
             "Accurate (–align): progressive alignment — best for ≤ a few hundred sequences\n"
@@ -482,6 +484,14 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         mono.setStyleHint(QFont.StyleHint.Monospace)
         self.output_text.setFont(mono)
         self.output_text.setMinimumHeight(220)
+        self.output_label.hide()
+        self.output_text.hide()
+        self.copy_btn.hide()
+        self.export_btn.setText("Export FASTA")
+        self.export_btn.setEnabled(False)
+        self.fmt_combo.clear()
+        self.fmt_combo.addItem("FASTA (aligned)")
+        self.fmt_combo.setEnabled(False)
         self.run_btn.setText("Align")
 
     def _setup_mode_tabs(self):
@@ -565,9 +575,10 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         row_params = QHBoxLayout()
         row_params.addWidget(QLabel("Alignment Method:"))
         self.batch_method_combo = QComboBox()
-        self.batch_method_combo.addItems(
-            ["Accurate (\u2013align)", "Fast / Large datasets (\u2013super5)"]
-        )
+        self.batch_method_combo.addItems([
+            "Accurate (\u2013align)",
+            "Fast / Large datasets (\u2013super5)",
+        ])
         self.batch_method_combo.setMinimumWidth(240)
         row_params.addWidget(self.batch_method_combo)
         row_params.addSpacing(20)
@@ -717,6 +728,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def clear(self):
         self.input_text.clear()
         self.output_text.clear()
+        self._aligned_fasta = ""
+        self.export_btn.setEnabled(False)
         self.input_hint.setText("")
         if hasattr(self, "batch_files_list"):
             self.batch_files_list.clear()
@@ -724,6 +737,35 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         if hasattr(self, "batch_log"):
             self.batch_log.clear()
         self.status_label.setText("Ready")
+
+    def export_result(self):
+        if not self._aligned_fasta:
+            QMessageBox.information(
+                self,
+                "Nothing to Export",
+                "Run the alignment first to export the aligned FASTA file.",
+            )
+            return
+
+        path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export Aligned FASTA",
+            "muscle_alignment.fasta",
+            "FASTA files (*.fasta *.fa);;All Files (*)",
+        )
+        if not path:
+            return
+
+        if not os.path.splitext(path)[1]:
+            if selected_filter.startswith("FASTA"):
+                path += ".fasta"
+
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(self._aligned_fasta)
+            self.status_label.setText(f"Aligned FASTA exported: {path}")
+        except Exception as e:
+            QMessageBox.warning(self, "Export Error", str(e))
 
     def _select_batch_files(self):
         paths, _ = QFileDialog.getOpenFileNames(
@@ -867,6 +909,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             )
             return
 
+        self._aligned_fasta = ""
+        self.export_btn.setEnabled(False)
         self.run_btn.setEnabled(False)
         self.status_label.setText(
             f"Running MUSCLE ({method}) on {len(seqs)} sequences…"
@@ -885,23 +929,18 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             self._on_alignment_error("MUSCLE produced empty output.")
             return
 
-        fmt = self.fmt_combo.currentText()
-        if fmt.startswith("CLUSTAL"):
-            output = self._to_clustal(seqs)
-        elif fmt == "Summary":
-            output = self._make_summary(seqs)
-        else:
-            output = aligned_fasta
-
-        self.output_text.setPlainText(output)
+        self._aligned_fasta = aligned_fasta
+        self.export_btn.setEnabled(True)
         n_seq = len(seqs)
         aln_len = len(next(iter(seqs.values())))
         self.status_label.setText(
-            f"Done — {n_seq} sequences | alignment length: {aln_len} bp/aa"
+            f"Done — {n_seq} sequences | alignment length: {aln_len} bp/aa | export FASTA to save"
         )
 
     def _on_alignment_error(self, msg: str):
         self.run_btn.setEnabled(True)
+        self._aligned_fasta = ""
+        self.export_btn.setEnabled(False)
         self.status_label.setText("Alignment failed.")
         QMessageBox.critical(self, "MUSCLE Error", msg)
 
@@ -1062,12 +1101,10 @@ on the command line.</p>
 
 <h4>Output Format</h4>
 <ul>
-  <li><b>FASTA (aligned)</b> — direct MUSCLE output; gap characters (<code>-</code>)
-      inserted, all sequences padded to the same length.</li>
-  <li><b>CLUSTAL</b> — block format with a conservation line
-      (<code>*</code> = fully conserved column).</li>
-  <li><b>Summary</b> — alignment statistics: conserved vs. variable columns,
-      gap content, individual sequence lengths.</li>
+  <li><b>Single-file</b> — aligned sequences are kept as <b>FASTA (aligned)</b>
+      only, then saved through <b>Export FASTA</b>.</li>
+  <li><b>Batch Multi-file</b> — still supports FASTA, CLUSTAL, and Summary
+      output modes when writing files to the selected output directory.</li>
 </ul>
 
 <h4>Threads</h4>
@@ -1075,7 +1112,8 @@ on the command line.</p>
 Defaults to min(4, available cores).</p>
 
 <h4>Export</h4>
-<p>Use <b>Export Result</b> to save the alignment to a text/FASTA file.
+<p>Use <b>Export FASTA</b> after alignment to save the single-file result as an
+aligned FASTA file.
 FASTA (aligned) output can be loaded directly into tree-building tools
 (FastTree, IQ-TREE) or visualisers (MEGA, Jalview).</p>
 """

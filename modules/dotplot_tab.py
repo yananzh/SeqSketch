@@ -4,7 +4,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QSpinBox,
-    QCheckBox,
     QFileDialog,
     QMessageBox,
 )
@@ -48,24 +47,21 @@ class DotPlotTab(BaseTabWidget):
             "ATGCGAGCTTGCTAGATAGC\n\n"
             "If only one sequence is provided, DotPlot performs self-comparison."
         )
-        self.output_text.setPlaceholderText(
-            "DotPlot summary will appear here (sequence length, matches, density)."
-        )
         self.input_text.setMinimumHeight(170)
-        self.output_text.setMinimumHeight(110)
+        self.output_label.hide()
+        self.output_text.hide()
+        self.copy_btn.hide()
 
     def _setup_parameters(self):
         # Comparison mode
         mode_row = QHBoxLayout()
         mode_lbl = QLabel("Comparison Mode:")
         self.mode_box = QComboBox()
-        self.mode_box.addItems(
-            [
-                "Auto (2 FASTA records -> pairwise; 1 record -> self)",
-                "Force self-comparison (use first sequence)",
-                "Force pairwise (use first two sequences)",
-            ]
-        )
+        self.mode_box.addItems([
+            "Auto (2 FASTA records -> pairwise; 1 record -> self)",
+            "Force self-comparison (use first sequence)",
+            "Force pairwise (use first two sequences)",
+        ])
         self.mode_box.setMinimumWidth(350)
         mode_row.addWidget(mode_lbl)
         mode_row.addWidget(self.mode_box)
@@ -85,18 +81,8 @@ class DotPlotTab(BaseTabWidget):
         word_row.addWidget(word_hint)
         word_row.addStretch()
 
-        # Optional reverse-complement
-        rc_row = QHBoxLayout()
-        self.rc_check = QCheckBox("Use reverse-complement of sequence B (DNA only)")
-        self.rc_check.setToolTip(
-            "Useful for checking inversion/antisense similarity between two DNA sequences."
-        )
-        rc_row.addWidget(self.rc_check)
-        rc_row.addStretch()
-
         self.add_content_layout(mode_row)
         self.add_content_layout(word_row)
-        self.add_content_layout(rc_row)
 
     def _setup_plot_canvas(self):
         self.figure = Figure(figsize=(7.5, 4.5), tight_layout=True)
@@ -159,10 +145,6 @@ class DotPlotTab(BaseTabWidget):
         seq = re.sub(r"\s+", "", seq)
         seq = re.sub(r"[^A-Z]", "", seq)
         return seq
-
-    def _reverse_complement(self, seq: str):
-        comp_map = str.maketrans("ACGTN", "TGCAN")
-        return seq.translate(comp_map)[::-1]
 
     def _build_dot_matrix(self, seq_a: str, seq_b: str, k: int):
         """
@@ -268,19 +250,6 @@ class DotPlotTab(BaseTabWidget):
                 seq_b_name, seq_b = records[0], records[0][1]
                 seq_b_name = seq_a_name + " (self)"
 
-        # reverse-complement option
-        if self.rc_check.isChecked():
-            non_dna = re.search(r"[^ACGTN]", seq_b)
-            if non_dna:
-                QMessageBox.warning(
-                    self,
-                    "Reverse-Complement Not Available",
-                    "Sequence B contains non-DNA characters. Reverse-complement requires DNA alphabet A/C/G/T/N.",
-                )
-                return
-            seq_b = self._reverse_complement(seq_b)
-            seq_b_name = seq_b_name + " (reverse-complement)"
-
         k = self.word_size_box.value()
         if len(seq_a) < k or len(seq_b) < k:
             self.status_label.setText(
@@ -307,15 +276,9 @@ class DotPlotTab(BaseTabWidget):
 
         dot_count = int(matrix.sum())
         density = (dot_count / matrix.size) * 100 if matrix.size else 0.0
-        summary = [
-            f"Sequence A: {seq_a_name} (length: {len(seq_a)} nt/aa)",
-            f"Sequence B: {seq_b_name} (length: {len(seq_b)} nt/aa)",
-            f"Word size (k-mer): {k}",
-            f"Dot count: {dot_count}",
-            f"Dot density: {density:.4f}%",
-        ]
-        self.output_text.setPlainText("\n".join(summary))
-        self.status_label.setText("DotPlot generated successfully.")
+        self.status_label.setText(
+            f"DotPlot generated: {dot_count} dots, density {density:.4f}%."
+        )
 
     def clear(self):
         super().clear()
@@ -357,7 +320,6 @@ class DotPlotTab(BaseTabWidget):
 <ul>
 <li><b>Comparison Mode:</b> Auto / force self / force pairwise.</li>
 <li><b>Word Size:</b> Exact k-mer match length. Larger values reduce noise.</li>
-<li><b>Reverse-complement:</b> DNA-only option for inversion/antisense checks.</li>
 </ul>
 
 <p><b>How to interpret:</b></p>

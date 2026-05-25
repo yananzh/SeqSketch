@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import QApplication
 from main_window import MainWindow
 from modules.complement_tab import ComplementTab
 from modules.codon_usage_tab import CodonUsageTab
+from modules.dotplot_tab import DotPlotTab
+from modules.multiple_sequence_alignment_tab import MultipleSequenceAlignmentTab
 from modules.orf_tab import ORFTab
 from modules.pairwise_alignment_tab import PairwiseAlignmentTab
 from modules.rna_tab import RNATab
@@ -201,6 +203,46 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
         assert "border-radius" in editor.styleSheet()
         assert "border: 1px solid #94a3b8;" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
+
+
+def test_dotplot_tab_hides_output_panel_and_removes_reverse_complement_option(qapp):
+    tab = DotPlotTab()
+
+    assert tab.output_label.isHidden()
+    assert tab.output_text.isHidden()
+    assert tab.copy_btn.isHidden()
+    assert not hasattr(tab, "rc_check")
+
+
+def test_msa_single_file_tab_hides_output_panel_and_locks_export_to_fasta(qapp):
+    tab = MultipleSequenceAlignmentTab()
+
+    assert tab.output_label.isHidden()
+    assert tab.output_text.isHidden()
+    assert tab.copy_btn.isHidden()
+    assert tab.fmt_combo.count() == 1
+    assert tab.fmt_combo.currentText() == "FASTA (aligned)"
+    assert not tab.fmt_combo.isEnabled()
+    assert not tab.export_btn.isEnabled()
+
+
+def test_msa_single_file_export_writes_aligned_fasta_only(qapp, monkeypatch, tmp_path):
+    tab = MultipleSequenceAlignmentTab()
+    aligned_fasta = ">seq1\nATG-C\n>seq2\nATGGC\n"
+    export_path = tmp_path / "aligned_output"
+
+    tab._on_alignment_done(aligned_fasta)
+
+    monkeypatch.setattr(
+        "modules.multiple_sequence_alignment_tab.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: (str(export_path), "FASTA files (*.fasta *.fa)"),
+    )
+
+    tab.export_result()
+
+    saved_path = export_path.with_suffix(".fasta")
+    assert saved_path.exists()
+    assert saved_path.read_text(encoding="utf-8") == aligned_fasta
 
 
 def test_codon_usage_summary_tables_are_taller_and_rscu_labels_are_tighter(qapp):
