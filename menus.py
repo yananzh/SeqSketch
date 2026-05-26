@@ -220,7 +220,7 @@ def create_menus(window):
     msa_action.triggered.connect(window.open_multiple_sequence_alignment_tab)
     align_menu.addAction(msa_action)
     # 4. MSA可视化 (本地)
-    msa_viz_action = QAction(window.tr("MSA Visualization"), window)
+    msa_viz_action = QAction(window.tr("MSA Visualization (pyMSAviz)"), window)
     msa_viz_action.triggered.connect(window.open_msa_visualization_tab)
     align_menu.addAction(msa_viz_action)
     # 5. 序列标识图 (本地)

@@ -273,7 +273,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = MSAVisualizationTab()
-        self.tabs.addTab(tab, self.tr("MSA Visualization"))
+        self.tabs.addTab(tab, self.tr("MSA Visualization (pyMSAviz)"))
         self.tabs.setCurrentWidget(tab)
 
     def open_sequence_logo_tab(self):

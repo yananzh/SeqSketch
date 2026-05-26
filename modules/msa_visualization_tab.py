@@ -54,7 +54,7 @@ class MSAVisualizationTab(BaseTabWidget):
     """MSA Visualization tab — renders aligned FASTA sequences with pyMSAviz."""
 
     def __init__(self, parent=None):
-        super().__init__("MSA Visualization", "sequence")
+        super().__init__("MSA Visualization (pyMSAviz)", "sequence")
         self._current_figure = None
 
         # Rewire base widgets
@@ -166,7 +166,7 @@ class MSAVisualizationTab(BaseTabWidget):
         row3.addWidget(QLabel("DPI:"))
         self.dpi_spin = QSpinBox()
         self.dpi_spin.setRange(72, 600)
-        self.dpi_spin.setValue(180)
+        self.dpi_spin.setValue(300)
         self.dpi_spin.setFixedWidth(90)
         self.dpi_spin.setToolTip(
             "Resolution used when rendering and exporting the figure."
@@ -474,7 +474,7 @@ sharper figures but take longer to render.</p>
 PNG, SVG, PDF, or TIFF, and to zoom, pan, and interactively explore the alignment.</p>
 """
         dlg = QDialog(self)
-        dlg.setWindowTitle("Help – MSA Visualization")
+        dlg.setWindowTitle("Help – MSA Visualization (pyMSAviz)")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(520)
         layout = QVBoxLayout()

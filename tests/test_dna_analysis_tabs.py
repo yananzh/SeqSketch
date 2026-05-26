@@ -489,14 +489,15 @@ def test_msa_visualization_tab_loads_input_without_showing_loaded_hint(
     assert tab.input_hint.text() == ""
 
 
-def test_msa_visualization_keeps_sequence_labels_visible_with_compact_default_dpi(qapp):
+def test_msa_visualization_keeps_sequence_labels_visible_with_default_dpi(qapp):
     tab = MSAVisualizationTab()
     headers = ["seq_alpha", "seq_beta"]
     tab.input_text.setPlainText(
         ">seq_alpha\nATGCATGCATGCATGC\n>seq_beta\nATGCATGCATGCATGC\n"
     )
 
-    assert tab.dpi_spin.value() == 180
+    assert tab.title == "MSA Visualization (pyMSAviz)"
+    assert tab.dpi_spin.value() == 300
 
     tab.run()
 
@@ -514,6 +515,28 @@ def test_msa_visualization_keeps_sequence_labels_visible_with_compact_default_dp
 
     assert texts
     assert min(text.get_window_extent(renderer).x0 for text in texts) >= 0
+
+
+def test_main_window_and_menu_use_msa_visualization_pymsaviz_label(qapp):
+    window = MainWindow()
+
+    window.open_msa_visualization_tab()
+
+    assert (
+        window.tabs.tabText(window.tabs.currentIndex())
+        == "MSA Visualization (pyMSAviz)"
+    )
+
+    menu_bar = window.menuBar()
+    alignment_menu = next(
+        action.menu()
+        for action in menu_bar.actions()
+        if action.text() == "Alignment"
+    )
+    action_texts = [action.text() for action in alignment_menu.actions() if action.text()]
+
+    assert "MSA Visualization (pyMSAviz)" in action_texts
+    assert "MSA Visualization" not in action_texts
 
 
 def test_sequence_logo_tab_hides_save_figure_button_and_uses_logomaker_title(qapp):
