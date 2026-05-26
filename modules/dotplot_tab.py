@@ -27,7 +27,6 @@ class DotPlotTab(BaseTabWidget):
         super().__init__("DotPlot", "sequence")
 
         self.run_btn.setText("Generate DotPlot")
-        self.export_btn.setText("Save Figure")
         self._matrix = None
         self._seq_a_name = "Sequence A"
         self._seq_b_name = "Sequence B"
@@ -48,8 +47,10 @@ class DotPlotTab(BaseTabWidget):
             "If only one sequence is provided, DotPlot performs self-comparison."
         )
         self.input_text.setMinimumHeight(170)
+        self.input_hint.hide()
         self.output_label.hide()
         self.output_text.hide()
+        self.export_btn.hide()
         self.copy_btn.hide()
 
     def _setup_parameters(self):
@@ -115,11 +116,27 @@ class DotPlotTab(BaseTabWidget):
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 self.input_text.setPlainText(content)
-                self.input_hint.setText(f"Loaded file: {file_path}")
+                self.input_hint.clear()
                 event.acceptProposedAction()
             except Exception as e:
                 self.status_label.setText(f"Error loading file: {e}")
                 event.ignore()
+
+    def open_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select sequence file",
+            "",
+            "FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)",
+        )
+        if file_path:
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.input_text.setPlainText(content)
+                self.input_hint.clear()
+            except Exception as e:
+                QMessageBox.warning(self, "File Read Error", str(e))
 
     def _parse_fasta_records(self, text: str):
         records = []
@@ -313,7 +330,7 @@ class DotPlotTab(BaseTabWidget):
 <li>Paste one sequence (self-comparison) or two sequences (pairwise) in FASTA format.</li>
 <li>Choose word size (k-mer). Start with <b>k=1</b> or <b>k=2</b>.</li>
 <li>Click <b>Generate DotPlot</b>.</li>
-<li>Use toolbar to zoom/pan, and <b>Save Figure</b> to export image.</li>
+<li>Use the toolbar to zoom, pan, or export the image if needed.</li>
 </ol>
 
 <p><b>Parameters:</b></p>

@@ -667,7 +667,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
 <h4>Identity and Similarity</h4>
 <ul>
-  <li><b>Identity</b> — fraction of aligned positions with identical residues (excluding gaps).</li>
+    <li><b>Identity</b> — fraction of aligned positions with identical residues.</li>
   <li><b>Similarity</b> — fraction of aligned positions that are identical <em>or</em> have
       a positive substitution-matrix score (for protein). Equals identity for DNA / Simple matrix.</li>
 </ul>

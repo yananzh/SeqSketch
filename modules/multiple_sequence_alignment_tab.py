@@ -202,6 +202,15 @@ def _summary_text(seqs: dict) -> str:
     return "\n".join(lines)
 
 
+def _dict_to_fasta_text(seqs: dict) -> str:
+    lines = []
+    for header, sequence in seqs.items():
+        lines.append(f">{header}")
+        for i in range(0, len(sequence), 60):
+            lines.append(sequence[i : i + 60])
+    return "\n".join(lines) + "\n"
+
+
 class _MuscleBatchWorker(QThread):
     finished = pyqtSignal(str)
     error = pyqtSignal(str)
@@ -217,6 +226,7 @@ class _MuscleBatchWorker(QThread):
         output_mode: str,
         naming_pattern: str,
         overwrite: bool,
+        sequence_order: str = "Input sequence order",
     ):
         super().__init__()
         self.input_files = input_files
@@ -227,20 +237,31 @@ class _MuscleBatchWorker(QThread):
         self.output_mode = output_mode
         self.naming_pattern = naming_pattern
         self.overwrite = overwrite
+        self.sequence_order = sequence_order
 
-    def _render_name(self, stem: str, index: int, ext: str) -> str:
-        safe_stem = (
-            re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_") or f"sample_{index:03d}"
-        )
+    def _render_name(self, stem: str, ext: str) -> str:
+        safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_") or "sample"
         name = self.naming_pattern.format(
             stem=safe_stem,
-            index=f"{index:03d}",
             method=self.method,
             ext=ext,
         )
         if not name.lower().endswith(f".{ext}"):
             name = f"{name}.{ext}"
         return name
+
+    def _apply_output_order(self, seqs: dict, input_order: list[str]) -> dict:
+        if self.sequence_order != "Input sequence order" or not input_order:
+            return seqs
+
+        ordered = {}
+        for header in input_order:
+            if header in seqs:
+                ordered[header] = seqs[header]
+        for header, sequence in seqs.items():
+            if header not in ordered:
+                ordered[header] = sequence
+        return ordered
 
     def _ensure_unique_path(self, base_path: str) -> str:
         if self.overwrite or not os.path.exists(base_path):
@@ -275,6 +296,7 @@ class _MuscleBatchWorker(QThread):
                 seqs = _parse_fasta_to_dict(raw)
                 if len(seqs) < 2:
                     raise ValueError("Need at least 2 sequences in FASTA")
+                input_order = list(seqs.keys())
 
                 with tempfile.NamedTemporaryFile(
                     mode="w", suffix=".fa", delete=False, encoding="utf-8"
@@ -308,6 +330,7 @@ class _MuscleBatchWorker(QThread):
                     aligned_fasta = fout.read()
 
                 out_seqs = _parse_fasta_to_dict(aligned_fasta)
+                out_seqs = self._apply_output_order(out_seqs, input_order)
                 if self.output_mode == "CLUSTAL":
                     out_text = _to_clustal_text(out_seqs)
                     ext = "aln"
@@ -315,11 +338,11 @@ class _MuscleBatchWorker(QThread):
                     out_text = _summary_text(out_seqs)
                     ext = "txt"
                 else:
-                    out_text = aligned_fasta
+                    out_text = _dict_to_fasta_text(out_seqs)
                     ext = "fasta"
 
                 stem = os.path.splitext(os.path.basename(in_path))[0]
-                out_name = self._render_name(stem, idx, ext)
+                out_name = self._render_name(stem, ext)
                 out_path = self._ensure_unique_path(
                     os.path.join(self.output_dir, out_name)
                 )
@@ -360,6 +383,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self._worker: _MuscleWorker | None = None
         self._batch_worker: _MuscleBatchWorker | None = None
         self._aligned_fasta = ""
+        self._input_sequence_order: list[str] = []
         self._saved_muscle_path = self._load_saved_muscle_path()
         self._rebuild_input_area()
         self._setup_parameters()
@@ -384,6 +408,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.input_text.setMinimumHeight(200)
         self.upload_btn.setText("Upload FASTA File")
         self.input_hint.setStyleSheet("color: #888;")
+        self.input_hint.hide()
 
     def _setup_parameters(self):
         # Divider
@@ -424,18 +449,20 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         row1.addWidget(self.method_combo)
         row1.addStretch()
 
-        # Row 2: output format  |  threads
+        # Row 2: sequence order  |  threads
         row2 = QHBoxLayout()
         row2.setSpacing(20)
 
-        fmt_label = QLabel("Output Format:")
-        self.fmt_combo = QComboBox()
-        self.fmt_combo.addItems(["FASTA (aligned)", "CLUSTAL", "Summary"])
-        self.fmt_combo.setMinimumWidth(200)
-        self.fmt_combo.setToolTip(
-            "FASTA (aligned): gap-containing sequences in FASTA format\n"
-            "CLUSTAL: block alignment with conservation annotation\n"
-            "Summary: alignment statistics (length, conserved & variable columns)"
+        order_label = QLabel("Sequence Order:")
+        self.order_combo = QComboBox()
+        self.order_combo.addItems([
+            "Input sequence order",
+            "MUSCLE output order",
+        ])
+        self.order_combo.setMinimumWidth(220)
+        self.order_combo.setToolTip(
+            "Input sequence order: reorder the aligned FASTA to match the original input order\n"
+            "MUSCLE output order: keep the order returned by MUSCLE"
         )
 
         threads_label = QLabel("Threads:")
@@ -447,16 +474,37 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             "Number of CPU threads passed to MUSCLE (-threads)"
         )
 
-        row2.addWidget(fmt_label)
-        row2.addWidget(self.fmt_combo)
+        row2.addWidget(order_label)
+        row2.addWidget(self.order_combo)
         row2.addSpacing(20)
         row2.addWidget(threads_label)
         row2.addWidget(self.threads_spin)
         row2.addStretch()
 
-        # Row 3: MUSCLE executable path
+        # Row 3: single-file output path
         row3 = QHBoxLayout()
         row3.setSpacing(10)
+
+        output_label = QLabel("Output File:")
+        self.output_file_edit = QLineEdit()
+        self.output_file_edit.setPlaceholderText(
+            "Choose aligned FASTA output path"
+        )
+        self.output_file_edit.setToolTip(
+            "Single-file mode writes the aligned FASTA directly to this path after the run finishes"
+        )
+
+        self.output_file_btn = QPushButton("Browse")
+        self.output_file_btn.setFixedWidth(80)
+        self.output_file_btn.clicked.connect(self._browse_output_file)
+
+        row3.addWidget(output_label)
+        row3.addWidget(self.output_file_edit)
+        row3.addWidget(self.output_file_btn)
+
+        # Row 4: MUSCLE executable path
+        row4 = QHBoxLayout()
+        row4.setSpacing(10)
 
         exe_label = QLabel("MUSCLE Path:")
         self.muscle_path_edit = QLineEdit()
@@ -470,13 +518,14 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.muscle_browse_btn.setFixedWidth(80)
         self.muscle_browse_btn.clicked.connect(self._browse_muscle_exe)
 
-        row3.addWidget(exe_label)
-        row3.addWidget(self.muscle_path_edit)
-        row3.addWidget(self.muscle_browse_btn)
+        row4.addWidget(exe_label)
+        row4.addWidget(self.muscle_path_edit)
+        row4.addWidget(self.muscle_browse_btn)
 
         self.content_area.insertLayout(2, row1)
         self.content_area.insertLayout(3, row2)
         self.content_area.insertLayout(4, row3)
+        self.content_area.insertLayout(5, row4)
 
     def _setup_output(self):
         self.output_label.setText("Alignment Result:")
@@ -487,11 +536,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.output_label.hide()
         self.output_text.hide()
         self.copy_btn.hide()
-        self.export_btn.setText("Export FASTA")
-        self.export_btn.setEnabled(False)
-        self.fmt_combo.clear()
-        self.fmt_combo.addItem("FASTA (aligned)")
-        self.fmt_combo.setEnabled(False)
+        self.export_btn.hide()
         self.run_btn.setText("Align")
 
     def _setup_mode_tabs(self):
@@ -552,20 +597,35 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         # Auto naming pattern
         row_name = QHBoxLayout()
         row_name.addWidget(QLabel("Auto Naming Pattern:"))
-        self.batch_name_pattern = QLineEdit("{stem}_muscle5_{method}_{index}.{ext}")
+        self.batch_name_pattern = QLineEdit("{stem}_muscle5_{method}.{ext}")
         self.batch_name_pattern.setToolTip(
-            "Placeholders: {stem}, {method}, {index}, {ext}\n"
-            "Example: {stem}_muscle5_{method}_{index}.{ext}"
+            "Placeholders: {stem}, {method}, {ext}\n"
+            "Example: {stem}_muscle5_{method}.{ext}"
         )
         row_name.addWidget(self.batch_name_pattern)
         bl.addLayout(row_name)
 
-        # Output format + overwrite
+        # Output format + sequence order + overwrite
         row_mode = QHBoxLayout()
         row_mode.addWidget(QLabel("Output Format:"))
         self.batch_fmt_combo = QComboBox()
         self.batch_fmt_combo.addItems(["FASTA (aligned)", "CLUSTAL", "Summary"])
         row_mode.addWidget(self.batch_fmt_combo)
+
+        row_mode.addSpacing(20)
+        row_mode.addWidget(QLabel("Sequence Order:"))
+        self.batch_order_combo = QComboBox()
+        self.batch_order_combo.addItems([
+            "Input sequence order",
+            "MUSCLE output order",
+        ])
+        self.batch_order_combo.setMinimumWidth(200)
+        self.batch_order_combo.setToolTip(
+            "Input sequence order: restore the aligned sequences to match the source FASTA order\n"
+            "MUSCLE output order: keep the order returned by MUSCLE"
+        )
+        row_mode.addWidget(self.batch_order_combo)
+
         self.batch_overwrite = QCheckBox("Overwrite existing")
         row_mode.addWidget(self.batch_overwrite)
         row_mode.addStretch()
@@ -648,7 +708,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         widget.setPlainText(f.read())
-                    hint.setText(f"Loaded: {path}")
+                    hint.clear()
                     e.acceptProposedAction()
                 except Exception as ex:
                     QMessageBox.warning(self, "File Read Error", str(ex))
@@ -667,6 +727,19 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         if path:
             self.muscle_path_edit.setText(path)
             self._save_muscle_path(path)
+
+    def _browse_output_file(self):
+        path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Select aligned FASTA output file",
+            self.output_file_edit.text().strip() or "muscle_alignment.fasta",
+            "FASTA files (*.fasta *.fa);;All Files (*)",
+        )
+        if not path:
+            return
+        if not os.path.splitext(path)[1] and selected_filter.startswith("FASTA"):
+            path += ".fasta"
+        self.output_file_edit.setText(path)
 
     def _browse_batch_muscle_exe(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -721,7 +794,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     self.input_text.setPlainText(f.read())
-                self.input_hint.setText(f"Loaded: {path}")
+                self.input_hint.clear()
             except Exception as e:
                 QMessageBox.warning(self, "File Read Error", str(e))
 
@@ -729,7 +802,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.input_text.clear()
         self.output_text.clear()
         self._aligned_fasta = ""
-        self.export_btn.setEnabled(False)
+        self._input_sequence_order = []
         self.input_hint.setText("")
         if hasattr(self, "batch_files_list"):
             self.batch_files_list.clear()
@@ -739,33 +812,11 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.status_label.setText("Ready")
 
     def export_result(self):
-        if not self._aligned_fasta:
-            QMessageBox.information(
-                self,
-                "Nothing to Export",
-                "Run the alignment first to export the aligned FASTA file.",
-            )
-            return
-
-        path, selected_filter = QFileDialog.getSaveFileName(
+        QMessageBox.information(
             self,
-            "Export Aligned FASTA",
-            "muscle_alignment.fasta",
-            "FASTA files (*.fasta *.fa);;All Files (*)",
+            "Automatic Output",
+            "Single-file mode writes the aligned FASTA directly after you click Align.",
         )
-        if not path:
-            return
-
-        if not os.path.splitext(path)[1]:
-            if selected_filter.startswith("FASTA"):
-                path += ".fasta"
-
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(self._aligned_fasta)
-            self.status_label.setText(f"Aligned FASTA exported: {path}")
-        except Exception as e:
-            QMessageBox.warning(self, "Export Error", str(e))
 
     def _select_batch_files(self):
         paths, _ = QFileDialog.getOpenFileNames(
@@ -814,7 +865,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             return
         # Validate placeholders quickly
         try:
-            _ = pattern.format(stem="sample", method=method, index="001", ext="fasta")
+            _ = pattern.format(stem="sample", method=method, ext="fasta")
         except Exception as exc:
             QMessageBox.warning(
                 self, "Naming Pattern Error", f"Invalid pattern:\n{exc}"
@@ -843,6 +894,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             output_mode=out_mode,
             naming_pattern=pattern,
             overwrite=self.batch_overwrite.isChecked(),
+            sequence_order=self.batch_order_combo.currentText(),
         )
         self._batch_worker.progress.connect(self._on_batch_progress)
         self._batch_worker.finished.connect(self._on_batch_finished)
@@ -872,6 +924,16 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             self.status_label.setText("Please enter or upload FASTA sequences.")
             return
 
+        output_path = self._normalized_output_file_path()
+        if not output_path:
+            QMessageBox.warning(
+                self,
+                "Output File Error",
+                "Please choose an output FASTA file for the single-file alignment.",
+            )
+            return
+        self.output_file_edit.setText(output_path)
+
         # Validate: need ≥ 2 sequences
         seqs = self._parse_fasta(raw)
         if len(seqs) < 2:
@@ -895,6 +957,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         # Normalise FASTA text (clean whitespace, uppercase)
         clean_fasta = self._build_clean_fasta(seqs)
+        self._input_sequence_order = list(seqs.keys())
 
         method = "accurate" if self.method_combo.currentIndex() == 0 else "fast"
         threads = self.threads_spin.value()
@@ -910,7 +973,6 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             return
 
         self._aligned_fasta = ""
-        self.export_btn.setEnabled(False)
         self.run_btn.setEnabled(False)
         self.status_label.setText(
             f"Running MUSCLE ({method}) on {len(seqs)} sequences…"
@@ -929,18 +991,29 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             self._on_alignment_error("MUSCLE produced empty output.")
             return
 
-        self._aligned_fasta = aligned_fasta
-        self.export_btn.setEnabled(True)
-        n_seq = len(seqs)
-        aln_len = len(next(iter(seqs.values())))
+        ordered_seqs = self._apply_single_file_output_order(seqs)
+        self._aligned_fasta = self._build_clean_fasta(ordered_seqs)
+
+        try:
+            saved_path = self._write_single_file_output(self._aligned_fasta)
+        except OSError as exc:
+            self.status_label.setText("Alignment finished but output save failed.")
+            QMessageBox.critical(
+                self,
+                "Output Save Error",
+                f"Alignment completed but the FASTA file could not be written:\n{exc}",
+            )
+            return
+
+        n_seq = len(ordered_seqs)
+        aln_len = len(next(iter(ordered_seqs.values())))
         self.status_label.setText(
-            f"Done — {n_seq} sequences | alignment length: {aln_len} bp/aa | export FASTA to save"
+            f"Done — {n_seq} sequences | alignment length: {aln_len} bp/aa | saved to {saved_path}"
         )
 
     def _on_alignment_error(self, msg: str):
         self.run_btn.setEnabled(True)
         self._aligned_fasta = ""
-        self.export_btn.setEnabled(False)
         self.status_label.setText("Alignment failed.")
         QMessageBox.critical(self, "MUSCLE Error", msg)
 
@@ -989,6 +1062,44 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             for i in range(0, len(seq), 60):
                 lines.append(seq[i : i + 60])
         return "\n".join(lines) + "\n"
+
+    def _normalized_output_file_path(self) -> str:
+        path = self.output_file_edit.text().strip()
+        if not path:
+            return ""
+        root, ext = os.path.splitext(path)
+        if not ext:
+            return path + ".fasta"
+        return path
+
+    def _apply_single_file_output_order(self, seqs: dict) -> dict:
+        if self.order_combo.currentText() != "Input sequence order":
+            return seqs
+        if not self._input_sequence_order:
+            return seqs
+
+        ordered = {}
+        for header in self._input_sequence_order:
+            if header in seqs:
+                ordered[header] = seqs[header]
+        for header, sequence in seqs.items():
+            if header not in ordered:
+                ordered[header] = sequence
+        return ordered
+
+    def _write_single_file_output(self, aligned_fasta: str) -> str:
+        path = self._normalized_output_file_path()
+        if not path:
+            raise OSError("Output FASTA path is empty.")
+
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(aligned_fasta)
+        self.output_file_edit.setText(path)
+        return path
 
     def _to_clustal(self, seqs: dict) -> str:
         """Convert aligned FASTA to CLUSTAL-W format."""
@@ -1099,12 +1210,25 @@ on the command line.</p>
       for thousands of sequences; faster but less accurate.</li>
 </ul>
 
+<h4>Sequence Order</h4>
+<ul>
+    <li><b>Input sequence order</b> — default for both single-file and batch multi-file; restore the aligned sequences to match the input order.</li>
+    <li><b>MUSCLE output order</b> — keep the sequence order returned by MUSCLE.</li>
+</ul>
+
+<h4>Batch Auto Naming Pattern</h4>
+<p>In batch multi-file mode, output names use placeholders <code>{stem}</code>, <code>{method}</code>, and <code>{ext}</code>.
+The default pattern is <code>{stem}_muscle5_{method}.{ext}</code>.</p>
+
+<h4>Output File</h4>
+<p>Choose the single-file output path before clicking <b>Align</b>.
+When the alignment finishes, the tab writes the result directly as aligned FASTA.</p>
+
 <h4>Output Format</h4>
 <ul>
-  <li><b>Single-file</b> — aligned sequences are kept as <b>FASTA (aligned)</b>
-      only, then saved through <b>Export FASTA</b>.</li>
-  <li><b>Batch Multi-file</b> — still supports FASTA, CLUSTAL, and Summary
-      output modes when writing files to the selected output directory.</li>
+    <li><b>Single-file</b> — aligned FASTA only, written directly to the chosen output path.</li>
+    <li><b>Batch Multi-file</b> — still supports FASTA, CLUSTAL, and Summary
+            output modes when writing files to the selected output directory.</li>
 </ul>
 
 <h4>Threads</h4>
@@ -1112,9 +1236,8 @@ on the command line.</p>
 Defaults to min(4, available cores).</p>
 
 <h4>Export</h4>
-<p>Use <b>Export FASTA</b> after alignment to save the single-file result as an
-aligned FASTA file.
-FASTA (aligned) output can be loaded directly into tree-building tools
+<p>The single-file workflow saves the aligned FASTA automatically when the run completes.
+FASTA output can be loaded directly into tree-building tools
 (FastTree, IQ-TREE) or visualisers (MEGA, Jalview).</p>
 """
         dlg = QDialog(self)

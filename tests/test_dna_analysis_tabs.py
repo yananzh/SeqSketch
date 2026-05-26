@@ -10,7 +10,10 @@ from main_window import MainWindow
 from modules.complement_tab import ComplementTab
 from modules.codon_usage_tab import CodonUsageTab
 from modules.dotplot_tab import DotPlotTab
-from modules.multiple_sequence_alignment_tab import MultipleSequenceAlignmentTab
+from modules.multiple_sequence_alignment_tab import (
+    MultipleSequenceAlignmentTab,
+    _MuscleBatchWorker,
+)
 from modules.orf_tab import ORFTab
 from modules.pairwise_alignment_tab import PairwiseAlignmentTab
 from modules.rna_tab import RNATab
@@ -210,8 +213,67 @@ def test_dotplot_tab_hides_output_panel_and_removes_reverse_complement_option(qa
 
     assert tab.output_label.isHidden()
     assert tab.output_text.isHidden()
+    assert tab.export_btn.isHidden()
     assert tab.copy_btn.isHidden()
     assert not hasattr(tab, "rc_check")
+
+
+def test_dotplot_tab_loads_files_without_showing_loaded_file_hint(
+    qapp, monkeypatch, tmp_path
+):
+    tab = DotPlotTab()
+    sample_text = ">seq1\nMKTFFVAG\n"
+    sample_file = tmp_path / "protein.txt"
+    sample_file.write_text(sample_text, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "modules.dotplot_tab.QFileDialog.getOpenFileName",
+        lambda *args, **kwargs: (str(sample_file), "Text files (*.txt)"),
+    )
+
+    tab.open_file()
+
+    assert tab.input_text.toPlainText() == sample_text
+    assert tab.input_hint.isHidden()
+    assert tab.input_hint.text() == ""
+
+    class _DummyUrl:
+        def __init__(self, path):
+            self._path = path
+
+        def toLocalFile(self):
+            return self._path
+
+    class _DummyMimeData:
+        def __init__(self, path):
+            self._path = path
+
+        def urls(self):
+            return [_DummyUrl(self._path)]
+
+    class _DummyEvent:
+        def __init__(self, path):
+            self._accepted = False
+            self._path = path
+
+        def mimeData(self):
+            return _DummyMimeData(self._path)
+
+        def acceptProposedAction(self):
+            self._accepted = True
+
+        def ignore(self):
+            self._accepted = False
+
+    tab.input_hint.setText("stale")
+    event = _DummyEvent(str(sample_file))
+
+    tab._drop_event(event)
+
+    assert event._accepted is True
+    assert tab.input_text.toPlainText() == sample_text
+    assert tab.input_hint.isHidden()
+    assert tab.input_hint.text() == ""
 
 
 def test_pairwise_alignment_defaults_gap_open_penalty_to_ten_for_both_modes(qapp):
@@ -231,29 +293,133 @@ def test_msa_single_file_tab_hides_output_panel_and_locks_export_to_fasta(qapp):
     assert tab.output_label.isHidden()
     assert tab.output_text.isHidden()
     assert tab.copy_btn.isHidden()
-    assert tab.fmt_combo.count() == 1
-    assert tab.fmt_combo.currentText() == "FASTA (aligned)"
-    assert not tab.fmt_combo.isEnabled()
-    assert not tab.export_btn.isEnabled()
+    assert tab.export_btn.isHidden()
+    assert tab.input_hint.isHidden()
+    assert tab.order_combo.currentText() == "Input sequence order"
+    assert tab.output_file_edit.text() == ""
 
 
-def test_msa_single_file_export_writes_aligned_fasta_only(qapp, monkeypatch, tmp_path):
+def test_msa_single_file_loads_input_without_showing_loaded_hint(
+    qapp, monkeypatch, tmp_path
+):
     tab = MultipleSequenceAlignmentTab()
-    aligned_fasta = ">seq1\nATG-C\n>seq2\nATGGC\n"
-    export_path = tmp_path / "aligned_output"
+    sample_text = ">seq1\nATG-C\n>seq2\nATGGC\n"
+    sample_file = tmp_path / "msa_input.fasta"
+    sample_file.write_text(sample_text, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "modules.multiple_sequence_alignment_tab.QFileDialog.getOpenFileName",
+        lambda *args, **kwargs: (str(sample_file), "FASTA files (*.fasta)"),
+    )
+
+    tab.open_file()
+
+    assert tab.input_text.toPlainText() == sample_text
+    assert tab.input_hint.isHidden()
+    assert tab.input_hint.text() == ""
+
+    class _DummyUrl:
+        def __init__(self, path):
+            self._path = path
+
+        def toLocalFile(self):
+            return self._path
+
+    class _DummyMimeData:
+        def __init__(self, path):
+            self._path = path
+
+        def urls(self):
+            return [_DummyUrl(self._path)]
+
+    class _DummyEvent:
+        def __init__(self, path):
+            self._accepted = False
+            self._path = path
+
+        def mimeData(self):
+            return _DummyMimeData(self._path)
+
+        def acceptProposedAction(self):
+            self._accepted = True
+
+        def ignore(self):
+            self._accepted = False
+
+    tab.input_hint.setText("stale")
+    event = _DummyEvent(str(sample_file))
+
+    tab.input_text.clear()
+    tab.input_text.dropEvent(event)
+
+    assert event._accepted is True
+    assert tab.input_text.toPlainText() == sample_text
+    assert tab.input_hint.isHidden()
+    assert tab.input_hint.text() == ""
+
+
+def test_msa_single_file_alignment_done_writes_output_file_in_input_order(
+    qapp, tmp_path
+):
+    tab = MultipleSequenceAlignmentTab()
+    output_path = tmp_path / "aligned_output"
+    aligned_fasta = ">seqA\nATG-C\n>seqB\nATGGC\n"
+
+    tab.output_file_edit.setText(str(output_path))
+    tab._input_sequence_order = ["seqB", "seqA"]
 
     tab._on_alignment_done(aligned_fasta)
 
-    monkeypatch.setattr(
-        "modules.multiple_sequence_alignment_tab.QFileDialog.getSaveFileName",
-        lambda *args, **kwargs: (str(export_path), "FASTA files (*.fasta *.fa)"),
+    saved_path = output_path.with_suffix(".fasta")
+    assert saved_path.exists()
+    assert (
+        saved_path.read_text(encoding="utf-8")
+        == ">seqB\nATGGC\n>seqA\nATG-C\n"
     )
 
-    tab.export_result()
 
-    saved_path = export_path.with_suffix(".fasta")
+def test_msa_single_file_can_keep_muscle_output_order_when_selected(qapp, tmp_path):
+    tab = MultipleSequenceAlignmentTab()
+    output_path = tmp_path / "aligned_output_keep_order"
+    aligned_fasta = ">seqA\nATG-C\n>seqB\nATGGC\n"
+
+    tab.order_combo.setCurrentText("MUSCLE output order")
+    tab.output_file_edit.setText(str(output_path))
+    tab._input_sequence_order = ["seqB", "seqA"]
+
+    tab._on_alignment_done(aligned_fasta)
+
+    saved_path = output_path.with_suffix(".fasta")
     assert saved_path.exists()
     assert saved_path.read_text(encoding="utf-8") == aligned_fasta
+
+
+def test_msa_batch_tab_defaults_to_input_order_without_index_placeholder(qapp):
+    tab = MultipleSequenceAlignmentTab()
+
+    assert tab.batch_name_pattern.text() == "{stem}_muscle5_{method}.{ext}"
+    assert tab.batch_order_combo.currentText() == "Input sequence order"
+
+
+def test_msa_batch_worker_can_restore_input_sequence_order():
+    worker = _MuscleBatchWorker(
+        input_files=[],
+        output_dir="",
+        method="accurate",
+        threads=1,
+        muscle_exe="muscle.exe",
+        output_mode="FASTA (aligned)",
+        naming_pattern="{stem}_muscle5_{method}.{ext}",
+        overwrite=True,
+    )
+    worker.sequence_order = "Input sequence order"
+
+    ordered = worker._apply_output_order(
+        {"seqA": "ATG-C", "seqB": "ATGGC"},
+        ["seqB", "seqA"],
+    )
+
+    assert list(ordered.keys()) == ["seqB", "seqA"]
 
 
 def test_codon_usage_summary_tables_are_taller_and_rscu_labels_are_tighter(qapp):
