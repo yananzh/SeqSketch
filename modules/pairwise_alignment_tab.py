@@ -162,7 +162,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.gap_open_spin.setRange(0.0, 50.0)
         self.gap_open_spin.setDecimals(1)
         self.gap_open_spin.setSingleStep(0.5)
-        self.gap_open_spin.setValue(5.0)
+        self.gap_open_spin.setValue(10.0)
         self.gap_open_spin.setToolTip("Penalty for opening a new gap")
 
         gap_extend_label = QLabel("Gap Extend Penalty:")

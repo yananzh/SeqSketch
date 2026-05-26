@@ -214,6 +214,17 @@ def test_dotplot_tab_hides_output_panel_and_removes_reverse_complement_option(qa
     assert not hasattr(tab, "rc_check")
 
 
+def test_pairwise_alignment_defaults_gap_open_penalty_to_ten_for_both_modes(qapp):
+    tab = PairwiseAlignmentTab()
+
+    assert tab.mode_combo.currentText() == "Global (Needleman–Wunsch)"
+    assert tab.gap_open_spin.value() == 10.0
+
+    tab.mode_combo.setCurrentText("Local (Smith–Waterman)")
+
+    assert tab.gap_open_spin.value() == 10.0
+
+
 def test_msa_single_file_tab_hides_output_panel_and_locks_export_to_fasta(qapp):
     tab = MultipleSequenceAlignmentTab()
 
