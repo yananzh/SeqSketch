@@ -224,7 +224,7 @@ def create_menus(window):
     msa_viz_action.triggered.connect(window.open_msa_visualization_tab)
     align_menu.addAction(msa_viz_action)
     # 5. 序列标识图 (本地)
-    seq_logo_action = QAction(window.tr("Sequence Logo"), window)
+    seq_logo_action = QAction(window.tr("Sequence Logo (Logomaker)"), window)
     seq_logo_action.triggered.connect(window.open_sequence_logo_tab)
     align_menu.addAction(seq_logo_action)
     # 5. BLAST

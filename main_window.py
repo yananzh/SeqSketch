@@ -284,7 +284,7 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
                 return
         tab = SequenceLogoTab()
-        self.tabs.addTab(tab, self.tr("Sequence Logo"))
+        self.tabs.addTab(tab, self.tr("Sequence Logo (Logomaker)"))
         self.tabs.setCurrentWidget(tab)
 
     # BLAST分析相关槽函数

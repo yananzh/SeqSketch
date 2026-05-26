@@ -1,3 +1,4 @@
+import math
 import os
 import tempfile
 
@@ -59,6 +60,7 @@ class MSAVisualizationTab(BaseTabWidget):
         # Rewire base widgets
         self.run_btn.setText("Visualize")
         self.export_btn.setText("Save Figure")
+        self.export_btn.hide()
         self.copy_btn.hide()
         self.output_text.hide()
         self.output_label.hide()
@@ -76,6 +78,7 @@ class MSAVisualizationTab(BaseTabWidget):
         self.input_text.setMaximumHeight(150)
         self.upload_btn.setText("Upload FASTA File")
         self.input_hint.setStyleSheet("color: #888;")
+        self.input_hint.hide()
 
         self._setup_parameters()
         self._add_canvas()
@@ -163,7 +166,7 @@ class MSAVisualizationTab(BaseTabWidget):
         row3.addWidget(QLabel("DPI:"))
         self.dpi_spin = QSpinBox()
         self.dpi_spin.setRange(72, 600)
-        self.dpi_spin.setValue(300)
+        self.dpi_spin.setValue(180)
         self.dpi_spin.setFixedWidth(90)
         self.dpi_spin.setToolTip(
             "Resolution used when rendering and exporting the figure."
@@ -219,7 +222,7 @@ class MSAVisualizationTab(BaseTabWidget):
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         w.setPlainText(f.read())
-                    self.input_hint.setText(f"Loaded: {path}")
+                    self._clear_loaded_hint()
                     e.acceptProposedAction()
                 except Exception as ex:
                     QMessageBox.warning(self, "File Read Error", str(ex))
@@ -241,7 +244,7 @@ class MSAVisualizationTab(BaseTabWidget):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     self.input_text.setPlainText(f.read())
-                self.input_hint.setText(f"Loaded: {path}")
+                self._clear_loaded_hint()
             except Exception as e:
                 QMessageBox.warning(self, "File Read Error", str(e))
 
@@ -287,9 +290,32 @@ class MSAVisualizationTab(BaseTabWidget):
 
     def clear(self):
         self.input_text.clear()
-        self.input_hint.setText("")
+        self._clear_loaded_hint()
         self._clear_canvas()
         self.status_label.setText("Ready")
+
+    def _clear_loaded_hint(self):
+        self.input_hint.clear()
+        self.input_hint.hide()
+
+    def _parse_headers(self, text: str) -> list[str]:
+        headers = []
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith(">"):
+                headers.append(line[1:].strip() or f"seq{len(headers) + 1}")
+        return headers
+
+    def _reserve_label_space(self, fig, headers: list[str]):
+        if not headers:
+            return
+
+        header_set = set(headers)
+        label_space = max(6, math.ceil(max(len(header) for header in headers) * 0.95))
+        for ax in fig.axes:
+            if any(text.get_text() in header_set for text in ax.texts):
+                left, right = ax.get_xlim()
+                ax.set_xlim(left - label_space, right)
 
     def _clear_canvas(self):
         if self.canvas is not None:
@@ -313,6 +339,7 @@ class MSAVisualizationTab(BaseTabWidget):
         if not raw:
             self.status_label.setText("Please enter or upload an aligned FASTA file.")
             return
+        headers = self._parse_headers(raw)
 
         # Validate: at least 2 sequences
         n_seq = raw.count(">")
@@ -357,6 +384,7 @@ class MSAVisualizationTab(BaseTabWidget):
                 )
 
             fig = mv.plotfig(dpi=self.dpi_spin.value())
+            self._reserve_label_space(fig, headers)
 
             self._clear_canvas()
             self._current_figure = fig
@@ -442,9 +470,8 @@ Set to <b>0</b> for a single, continuous (unwrapped) row.</p>
 sharper figures but take longer to render.</p>
 
 <h4>Export</h4>
-<p>Click <b>Save Figure</b> to export the current visualization as
-PNG, SVG, PDF, or TIFF. Use the toolbar above the figure to zoom,
-pan, and interactively explore the alignment.</p>
+<p>Use the toolbar above the figure to save/export the current visualization as
+PNG, SVG, PDF, or TIFF, and to zoom, pan, and interactively explore the alignment.</p>
 """
         dlg = QDialog(self)
         dlg.setWindowTitle("Help – MSA Visualization")

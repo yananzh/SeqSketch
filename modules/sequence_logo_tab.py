@@ -24,14 +24,14 @@ class SequenceLogoTab(BaseTabWidget):
     """Sequence Logo Tab - Generate sequence logos for DNA or protein sequences"""
 
     def __init__(self, parent=None):
-        super().__init__("Sequence Logo", "sequence")
+        super().__init__("Sequence Logo (Logomaker)", "sequence")
 
         # Customize UI elements
         self.run_btn.setText("Generate Logo")
         if hasattr(self, "copy_btn"):
             self.copy_btn.hide()  # Hide copy button for this tab
         if hasattr(self, "export_btn"):
-            self.export_btn.setText("Save Figure")
+            self.export_btn.hide()
 
         # Update placeholders
         self.input_text.setPlaceholderText(
@@ -48,6 +48,7 @@ class SequenceLogoTab(BaseTabWidget):
         )
         self.output_text.hide()  # Hide text output area
         self.output_label.hide()
+        self.input_hint.hide()
 
         # Add sequence type selector and mode selector
         self.add_sequence_type_selector()
@@ -61,6 +62,14 @@ class SequenceLogoTab(BaseTabWidget):
 
         # Store current figure for export
         self.current_figure = None
+
+    def _clear_loaded_hint(self):
+        self.input_hint.clear()
+        self.input_hint.hide()
+
+    def open_file(self):
+        super().open_file()
+        self._clear_loaded_hint()
 
     def add_sequence_type_selector(self):
         """Add sequence type selector"""
@@ -339,7 +348,7 @@ class SequenceLogoTab(BaseTabWidget):
     def clear(self):
         """Clear input, output and figure"""
         self.input_text.clear()
-        self.input_hint.setText("")
+        self._clear_loaded_hint()
         self.figure.clear()
         self.canvas.draw()
         self.current_figure = None
@@ -396,7 +405,7 @@ ATGCATGT
 
         # Create custom dialog with wider width
         dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Sequence Logo")
+        dialog.setWindowTitle("Help - Sequence Logo (Logomaker)")
         dialog.setMinimumWidth(700)
         dialog.setMinimumHeight(500)
 
@@ -440,7 +449,7 @@ ATGCATGT
                     with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
                     self.input_text.setPlainText(content)
-                    self.input_hint.setText(f"Loaded file: {file_path}")
+                    self._clear_loaded_hint()
                 except Exception as ex:
                     QMessageBox.warning(self, "File Read Error", str(ex))
 

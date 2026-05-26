@@ -10,6 +10,7 @@ from main_window import MainWindow
 from modules.complement_tab import ComplementTab
 from modules.codon_usage_tab import CodonUsageTab
 from modules.dotplot_tab import DotPlotTab
+from modules.msa_visualization_tab import MSAVisualizationTab
 from modules.multiple_sequence_alignment_tab import (
     MultipleSequenceAlignmentTab,
     _MuscleBatchWorker,
@@ -18,6 +19,7 @@ from modules.orf_tab import ORFTab
 from modules.pairwise_alignment_tab import PairwiseAlignmentTab
 from modules.rna_tab import RNATab
 from modules.sanger_tab import SangerTab
+from modules.sequence_logo_tab import SequenceLogoTab
 from modules.translate_tab import TranslateTab
 
 
@@ -420,6 +422,182 @@ def test_msa_batch_worker_can_restore_input_sequence_order():
     )
 
     assert list(ordered.keys()) == ["seqB", "seqA"]
+
+
+def test_msa_visualization_tab_hides_save_figure_button(qapp):
+    tab = MSAVisualizationTab()
+
+    assert tab.export_btn.isHidden()
+
+
+def test_msa_visualization_tab_loads_input_without_showing_loaded_hint(
+    qapp, monkeypatch, tmp_path
+):
+    tab = MSAVisualizationTab()
+    sample_text = ">seq_alpha\nATGCATGC\n>seq_beta\nATGCATGC\n"
+    sample_file = tmp_path / "aligned_input.fasta"
+    sample_file.write_text(sample_text, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "modules.msa_visualization_tab.QFileDialog.getOpenFileName",
+        lambda *args, **kwargs: (str(sample_file), "FASTA files (*.fasta)"),
+    )
+
+    tab.open_file()
+
+    assert tab.input_text.toPlainText() == sample_text
+    assert tab.input_hint.isHidden()
+    assert tab.input_hint.text() == ""
+
+    class _DummyUrl:
+        def __init__(self, path):
+            self._path = path
+
+        def toLocalFile(self):
+            return self._path
+
+    class _DummyMimeData:
+        def __init__(self, path):
+            self._path = path
+
+        def urls(self):
+            return [_DummyUrl(self._path)]
+
+    class _DummyEvent:
+        def __init__(self, path):
+            self._accepted = False
+            self._path = path
+
+        def mimeData(self):
+            return _DummyMimeData(self._path)
+
+        def acceptProposedAction(self):
+            self._accepted = True
+
+        def ignore(self):
+            self._accepted = False
+
+    tab.input_hint.setText("stale")
+    event = _DummyEvent(str(sample_file))
+
+    tab.input_text.clear()
+    tab.input_text.dropEvent(event)
+
+    assert event._accepted is True
+    assert tab.input_text.toPlainText() == sample_text
+    assert tab.input_hint.isHidden()
+    assert tab.input_hint.text() == ""
+
+
+def test_msa_visualization_keeps_sequence_labels_visible_with_compact_default_dpi(qapp):
+    tab = MSAVisualizationTab()
+    headers = ["seq_alpha", "seq_beta"]
+    tab.input_text.setPlainText(
+        ">seq_alpha\nATGCATGCATGCATGC\n>seq_beta\nATGCATGCATGCATGC\n"
+    )
+
+    assert tab.dpi_spin.value() == 180
+
+    tab.run()
+
+    assert tab._current_figure is not None
+
+    fig = tab._current_figure
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    texts = [
+        text
+        for ax in fig.axes
+        for text in ax.texts
+        if text.get_text() in headers
+    ]
+
+    assert texts
+    assert min(text.get_window_extent(renderer).x0 for text in texts) >= 0
+
+
+def test_sequence_logo_tab_hides_save_figure_button_and_uses_logomaker_title(qapp):
+    tab = SequenceLogoTab()
+
+    assert tab.export_btn.isHidden()
+    assert tab.title == "Sequence Logo (Logomaker)"
+
+
+def test_sequence_logo_tab_loads_input_without_showing_loaded_hint(
+    qapp, monkeypatch, tmp_path
+):
+    tab = SequenceLogoTab()
+    sample_text = ">seq1\nATGC\n>seq2\nATGC\n"
+    sample_file = tmp_path / "sequence_logo_input.fasta"
+    sample_file.write_text(sample_text, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "utils.common_components.QFileDialog.getOpenFileName",
+        lambda *args, **kwargs: (str(sample_file), "FASTA files (*.fasta)"),
+    )
+
+    tab.open_file()
+
+    assert tab.input_text.toPlainText() == sample_text
+    assert tab.input_hint.isHidden()
+    assert tab.input_hint.text() == ""
+
+    class _DummyUrl:
+        def __init__(self, path):
+            self._path = path
+
+        def toLocalFile(self):
+            return self._path
+
+    class _DummyMimeData:
+        def __init__(self, path):
+            self._path = path
+
+        def urls(self):
+            return [_DummyUrl(self._path)]
+
+    class _DummyEvent:
+        def __init__(self, path):
+            self._accepted = False
+            self._path = path
+
+        def mimeData(self):
+            return _DummyMimeData(self._path)
+
+        def acceptProposedAction(self):
+            self._accepted = True
+
+        def ignore(self):
+            self._accepted = False
+
+    tab.input_hint.setText("stale")
+    event = _DummyEvent(str(sample_file))
+
+    tab.input_text.clear()
+    tab.input_text.dropEvent(event)
+
+    assert tab.input_text.toPlainText() == sample_text
+    assert tab.input_hint.isHidden()
+    assert tab.input_hint.text() == ""
+
+
+def test_main_window_and_menu_use_sequence_logo_logomaker_label(qapp):
+    window = MainWindow()
+
+    window.open_sequence_logo_tab()
+
+    assert window.tabs.tabText(window.tabs.currentIndex()) == "Sequence Logo (Logomaker)"
+
+    menu_bar = window.menuBar()
+    alignment_menu = next(
+        action.menu()
+        for action in menu_bar.actions()
+        if action.text() == "Alignment"
+    )
+    action_texts = [action.text() for action in alignment_menu.actions() if action.text()]
+
+    assert "Sequence Logo (Logomaker)" in action_texts
+    assert "Sequence Logo" not in action_texts
 
 
 def test_codon_usage_summary_tables_are_taller_and_rscu_labels_are_tighter(qapp):
