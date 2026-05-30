@@ -178,7 +178,9 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_conversion)
         self.clear_btn.clicked.connect(self.clear_all)
-        self.output_format_combo.currentTextChanged.connect(self._update_output_extension)
+        self.output_format_combo.currentTextChanged.connect(
+            self._update_output_extension
+        )
         if hasattr(self.input_edit, "file_dropped"):
             self.input_edit.file_dropped.connect(self.handle_input_file_selected)
 

@@ -326,7 +326,9 @@ class _MafftBatchWorker(QThread):
         for idx, in_path in enumerate(self.input_files, start=1):
             tmp_in = None
             try:
-                self.progress.emit(f"[{idx}/{total}] Reading: {os.path.basename(in_path)}")
+                self.progress.emit(
+                    f"[{idx}/{total}] Reading: {os.path.basename(in_path)}"
+                )
                 with open(in_path, "r", encoding="utf-8", errors="replace") as f:
                     raw = f.read().strip()
                 seqs = _parse_fasta_to_dict(raw)
@@ -388,7 +390,9 @@ class _MafftBatchWorker(QThread):
 
                 stem = os.path.splitext(os.path.basename(in_path))[0]
                 out_name = self._render_name(stem, ext)
-                out_path = self._ensure_unique_path(os.path.join(self.output_dir, out_name))
+                out_path = self._ensure_unique_path(
+                    os.path.join(self.output_dir, out_name)
+                )
                 with open(out_path, "w", encoding="utf-8") as fw:
                     fw.write(out_text)
 
@@ -396,7 +400,9 @@ class _MafftBatchWorker(QThread):
                 ok += 1
             except Exception as exc:
                 fail_msgs.append(f"{os.path.basename(in_path)} -> {exc}")
-                self.progress.emit(f"[{idx}/{total}] Failed: {os.path.basename(in_path)}")
+                self.progress.emit(
+                    f"[{idx}/{total}] Failed: {os.path.basename(in_path)}"
+                )
             finally:
                 if tmp_in and os.path.exists(tmp_in):
                     try:
@@ -791,9 +797,13 @@ class MafftAlignmentTab(BaseTabWidget):
             )
             return
         try:
-            _ = pattern.format(stem="sample", method=_strategy_key(strategy), ext="fasta")
+            _ = pattern.format(
+                stem="sample", method=_strategy_key(strategy), ext="fasta"
+            )
         except Exception as exc:
-            QMessageBox.warning(self, "Naming Pattern Error", f"Invalid pattern:\n{exc}")
+            QMessageBox.warning(
+                self, "Naming Pattern Error", f"Invalid pattern:\n{exc}"
+            )
             return
         if not os.path.isfile(mafft_exe):
             QMessageBox.warning(
