@@ -265,6 +265,28 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, self.tr("Multiple Sequence Alignment (Muscle5)"))
         self.tabs.setCurrentWidget(tab)
 
+    def open_mafft_alignment_tab(self):
+        from modules.mafft_alignment_tab import MafftAlignmentTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), MafftAlignmentTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = MafftAlignmentTab()
+        self.tabs.addTab(tab, self.tr("Multiple Sequence Alignment (MAFFT)"))
+        self.tabs.setCurrentWidget(tab)
+
+    def open_alignment_format_converter_tab(self):
+        from modules.alignment_format_converter_tab import AlignmentFormatConverterTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), AlignmentFormatConverterTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = AlignmentFormatConverterTab()
+        self.tabs.addTab(tab, self.tr("Alignment Format Converter"))
+        self.tabs.setCurrentWidget(tab)
+
     def open_msa_visualization_tab(self):
         from modules.msa_visualization_tab import MSAVisualizationTab
 
@@ -317,6 +339,9 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, "Local BLAST")
         self.tabs.setCurrentWidget(tab)
         tab.switch_to(sub_index)
+
+    def open_blast_local_tab(self):
+        self._open_blast_local_tab(sub_index=0)
 
     def open_blast_make_db_dialog(self):
         self._open_blast_local_tab(sub_index=0)

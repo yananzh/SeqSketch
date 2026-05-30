@@ -1,4 +1,5 @@
 import os
+from types import SimpleNamespace
 from typing import cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -7,9 +8,11 @@ import pytest
 from PyQt6.QtWidgets import QApplication
 
 from main_window import MainWindow
+from modules.alignment_format_converter_tab import AlignmentFormatConverterTab
 from modules.complement_tab import ComplementTab
 from modules.codon_usage_tab import CodonUsageTab
 from modules.dotplot_tab import DotPlotTab
+from modules.mafft_alignment_tab import MafftAlignmentTab, _MafftWorker
 from modules.msa_visualization_tab import MSAVisualizationTab
 from modules.multiple_sequence_alignment_tab import (
     MultipleSequenceAlignmentTab,
@@ -374,10 +377,7 @@ def test_msa_single_file_alignment_done_writes_output_file_in_input_order(
 
     saved_path = output_path.with_suffix(".fasta")
     assert saved_path.exists()
-    assert (
-        saved_path.read_text(encoding="utf-8")
-        == ">seqB\nATGGC\n>seqA\nATG-C\n"
-    )
+    assert saved_path.read_text(encoding="utf-8") == ">seqB\nATGGC\n>seqA\nATG-C\n"
 
 
 def test_msa_single_file_can_keep_muscle_output_order_when_selected(qapp, tmp_path):
@@ -428,6 +428,63 @@ def test_msa_visualization_tab_hides_save_figure_button(qapp):
     tab = MSAVisualizationTab()
 
     assert tab.export_btn.isHidden()
+
+
+def test_mafft_worker_emits_aligned_fasta_with_auto_strategy(monkeypatch, tmp_path):
+    mafft_exe = tmp_path / "mafft.bat"
+    mafft_exe.write_text("@echo off\n", encoding="utf-8")
+    worker = _MafftWorker(
+        fasta_text=">seq1\nATGC\n>seq2\nATGT\n",
+        strategy="Auto",
+        threads=4,
+        mafft_exe=str(mafft_exe),
+        output_format="FASTA",
+    )
+    commands = []
+    results = []
+
+    def fake_run(cmd, *args, **kwargs):
+        commands.append(cmd)
+        return SimpleNamespace(
+            returncode=0,
+            stdout=">seq1\nATG-C\n>seq2\nATGTC\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr("modules.mafft_alignment_tab.subprocess.run", fake_run)
+    worker.finished.connect(results.append)
+
+    worker.run()
+
+    assert commands
+    assert commands[0][0] == str(mafft_exe)
+    assert "--auto" in commands[0]
+    assert "--thread" in commands[0]
+    assert "--clustalout" not in commands[0]
+    assert results == [">seq1\nATG-C\n>seq2\nATGTC\n"]
+
+
+def test_mafft_single_file_tab_hides_output_panel_and_uses_mode_subtabs(qapp):
+    tab = MafftAlignmentTab()
+
+    assert tab.mode_tabs.count() == 2
+    assert [tab.mode_tabs.tabText(i) for i in range(tab.mode_tabs.count())] == [
+        "Single-file",
+        "Batch Multi-file",
+    ]
+    assert tab.output_label.isHidden()
+    assert tab.output_text.isHidden()
+    assert tab.copy_btn.isHidden()
+    assert tab.export_btn.isHidden()
+    assert tab.input_hint.isHidden()
+    assert tab.output_file_edit.text() == ""
+
+
+def test_mafft_batch_tab_defaults_to_input_order_with_mafft_pattern(qapp):
+    tab = MafftAlignmentTab()
+
+    assert tab.batch_name_pattern.text() == "{stem}_mafft_{method}.{ext}"
+    assert tab.batch_order_combo.currentText() == "Input sequence order"
 
 
 def test_msa_visualization_tab_loads_input_without_showing_loaded_hint(
@@ -506,12 +563,7 @@ def test_msa_visualization_keeps_sequence_labels_visible_with_default_dpi(qapp):
     fig = tab._current_figure
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
-    texts = [
-        text
-        for ax in fig.axes
-        for text in ax.texts
-        if text.get_text() in headers
-    ]
+    texts = [text for ax in fig.axes for text in ax.texts if text.get_text() in headers]
 
     assert texts
     assert min(text.get_window_extent(renderer).x0 for text in texts) >= 0
@@ -529,14 +581,35 @@ def test_main_window_and_menu_use_msa_visualization_pymsaviz_label(qapp):
 
     menu_bar = window.menuBar()
     alignment_menu = next(
-        action.menu()
-        for action in menu_bar.actions()
-        if action.text() == "Alignment"
+        action.menu() for action in menu_bar.actions() if action.text() == "Alignment"
     )
-    action_texts = [action.text() for action in alignment_menu.actions() if action.text()]
+    action_texts = [
+        action.text() for action in alignment_menu.actions() if action.text()
+    ]
 
     assert "MSA Visualization (pyMSAviz)" in action_texts
     assert "MSA Visualization" not in action_texts
+
+
+def test_main_window_and_menu_use_mafft_label(qapp):
+    window = MainWindow()
+
+    window.open_mafft_alignment_tab()
+
+    assert (
+        window.tabs.tabText(window.tabs.currentIndex())
+        == "Multiple Sequence Alignment (MAFFT)"
+    )
+
+    menu_bar = window.menuBar()
+    alignment_menu = next(
+        action.menu() for action in menu_bar.actions() if action.text() == "Alignment"
+    )
+    action_texts = [
+        action.text() for action in alignment_menu.actions() if action.text()
+    ]
+
+    assert "Multiple Sequence Alignment (MAFFT)" in action_texts
 
 
 def test_sequence_logo_tab_hides_save_figure_button_and_uses_logomaker_title(qapp):
@@ -609,18 +682,61 @@ def test_main_window_and_menu_use_sequence_logo_logomaker_label(qapp):
 
     window.open_sequence_logo_tab()
 
-    assert window.tabs.tabText(window.tabs.currentIndex()) == "Sequence Logo (Logomaker)"
+    assert (
+        window.tabs.tabText(window.tabs.currentIndex()) == "Sequence Logo (Logomaker)"
+    )
 
     menu_bar = window.menuBar()
     alignment_menu = next(
-        action.menu()
-        for action in menu_bar.actions()
-        if action.text() == "Alignment"
+        action.menu() for action in menu_bar.actions() if action.text() == "Alignment"
     )
-    action_texts = [action.text() for action in alignment_menu.actions() if action.text()]
+    action_texts = [
+        action.text() for action in alignment_menu.actions() if action.text()
+    ]
 
     assert "Sequence Logo (Logomaker)" in action_texts
     assert "Sequence Logo" not in action_texts
+
+
+def test_alignment_format_converter_happy_path(qapp, tmp_path):
+    input_path = tmp_path / "aligned_input.fasta"
+    output_path = tmp_path / "aligned_output.aln"
+    input_path.write_text(
+        ">seq1\nATG-C\n>seq2\nATGGC\n",
+        encoding="utf-8",
+    )
+    tab = AlignmentFormatConverterTab()
+
+    tab.input_edit.setText(str(input_path))
+    tab.output_edit.setText(str(output_path))
+    tab.input_format_combo.setCurrentText("FASTA")
+    tab.output_format_combo.setCurrentText("CLUSTAL")
+    tab.run_conversion()
+
+    assert output_path.exists()
+    assert output_path.read_text(encoding="utf-8").startswith("CLUSTAL")
+    assert "Converted 1 alignment(s)" in tab.log_area.toPlainText()
+    assert tab.status_label.text() == "Ready"
+
+
+def test_main_window_and_menu_use_alignment_format_converter_label(qapp):
+    window = MainWindow()
+
+    window.open_alignment_format_converter_tab()
+
+    assert (
+        window.tabs.tabText(window.tabs.currentIndex()) == "Alignment Format Converter"
+    )
+
+    menu_bar = window.menuBar()
+    alignment_menu = next(
+        action.menu() for action in menu_bar.actions() if action.text() == "Alignment"
+    )
+    action_texts = [
+        action.text() for action in alignment_menu.actions() if action.text()
+    ]
+
+    assert "Alignment Format Converter" in action_texts
 
 
 def test_codon_usage_summary_tables_are_taller_and_rscu_labels_are_tighter(qapp):
