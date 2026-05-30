@@ -29,6 +29,7 @@ Notes:
 ## Scoped Instructions
 
 - Keep this file short. Put tab-editing specifics in [.github/instructions/pyqt-tabs.instructions.md](.github/instructions/pyqt-tabs.instructions.md).
+- Put bundled-resource, per-user runtime file, and external-tool launcher specifics in [.github/instructions/runtime-paths.instructions.md](.github/instructions/runtime-paths.instructions.md).
 
 ## Architecture
 
@@ -85,6 +86,9 @@ tests/               -> Pytest regression coverage
 ## Paths, Resources, and External Tools
 
 - Prefer `utils/app_paths.py` helpers such as `resource_path(...)` and `user_data_file(...)` for runtime file lookup, especially for bundled resources and executables.
+- Use `user_data_file(...)` / `user_data_dir(...)` for writable settings and user data; avoid writing mutable runtime state into the repo root or bundled resource tree.
+- `modules/blast_config.py` still reads the repo-root `config.ini` as a legacy fallback, then persists the resolved value into the per-user config file. Preserve equivalent migration behavior if you move or add persisted settings.
+- If you touch `main.py`, `main_window.py`, or launcher tabs that still derive paths from `__file__`, prefer moving toward `resource_path(...)` instead of copying legacy path-building patterns into new code.
 - External tool binaries live under `softwares/` by default:
 - BLAST: `softwares/ncbi-blast-2.17.0+/bin/`
 - IQTree: `softwares/iqtree-3.0.1-Windows/bin/`
