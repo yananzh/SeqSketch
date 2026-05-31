@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QListWidget,
+    QMessageBox,
     QPushButton,
     QTextEdit,
     QWidget,
@@ -278,8 +279,30 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         worker.start()
 
     def show_help(self) -> None:
-        self.log_message(
+        QMessageBox.information(
+            self,
+            self.tr("One Step MultiGenePhy Help"),
             self.tr(
-                "Load workbook columns, review the import summary, and use Run Workflow to launch the full multigene phylogeny pipeline."
-            )
+                "One Step MultiGenePhy imports a gene-by-gene workbook and runs download/normalize, alignment, trimming, concatenation, and tree building in one workflow.\n\n"
+                "Workbook format:\n"
+                "- The first row must be the header row in the selected Excel sheet.\n"
+                "- One column contains the strain name, usually Strain.\n"
+                "- Each remaining selected gene column contains either an accession, a raw sequence, or a blank cell.\n"
+                "- Public data should be provided as accession values; your own data can be pasted directly as sequences.\n\n"
+                "Recommended steps:\n"
+                "1. Select the Excel workbook and confirm the sheet name.\n"
+                "2. Enter the strain column name and click Preview Columns.\n"
+                "3. Review the detected gene columns and import summary.\n"
+                "4. Enter an NCBI email if any gene cells use accession values.\n"
+                "5. Select an output directory and click Run Workflow.\n\n"
+                "Pipeline outputs:\n"
+                "- Per-gene normalized, aligned, and trimmed FASTA files\n"
+                "- Concatenated alignment and partition definitions when usable genes remain\n"
+                "- IQ-TREE result files, including the final tree when tree building succeeds\n"
+                "- A run_manifest.json summary plus a text report in the reports folder\n\n"
+                "Notes:\n"
+                "- Genes with too few usable sequences can be skipped with a warning.\n"
+                "- The step monitor shows the current stage, while the log records warnings and failures.\n"
+                "- If every gene fails before concatenation, the workflow stops and reports the reason."
+            ),
         )
