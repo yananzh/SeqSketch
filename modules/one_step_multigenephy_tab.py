@@ -56,7 +56,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.summary_view = QTextEdit()
         self.summary_view.setReadOnly(True)
         self.summary_view.setMaximumHeight(120)
-        self.summary_view.setPlaceholderText(self.tr("Imported workbook summary will appear here."))
+        self.summary_view.setPlaceholderText(
+            self.tr("Imported workbook summary will appear here.")
+        )
 
         browse_excel_btn = QPushButton(self.tr("Browse"))
         preview_columns_btn = QPushButton(self.tr("Preview Columns"))
@@ -136,7 +138,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
         if not excel_path:
             self.show_status(self.tr("Select an Excel file first"))
-            self.log_message(self.tr("Select an Excel file before previewing columns."), "WARNING")
+            self.log_message(
+                self.tr("Select an Excel file before previewing columns."), "WARNING"
+            )
             return
 
         try:
@@ -162,28 +166,24 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
     def _render_import_summary(self, summary: dict[str, int]) -> None:
         self.summary_view.setPlainText(
-            "\n".join(
-                [
-                    self.tr("Strains: {count}").format(
-                        count=summary.get("strain_count", 0)
-                    ),
-                    self.tr("Genes: {count}").format(
-                        count=summary.get("gene_count", 0)
-                    ),
-                    self.tr("Accessions: {count}").format(
-                        count=summary.get("accession_count", 0)
-                    ),
-                    self.tr("Raw sequences: {count}").format(
-                        count=summary.get("sequence_count", 0)
-                    ),
-                    self.tr("Missing: {count}").format(
-                        count=summary.get("missing_count", 0)
-                    ),
-                    self.tr("Invalid: {count}").format(
-                        count=summary.get("invalid_count", 0)
-                    ),
-                ]
-            )
+            "\n".join([
+                self.tr("Strains: {count}").format(
+                    count=summary.get("strain_count", 0)
+                ),
+                self.tr("Genes: {count}").format(count=summary.get("gene_count", 0)),
+                self.tr("Accessions: {count}").format(
+                    count=summary.get("accession_count", 0)
+                ),
+                self.tr("Raw sequences: {count}").format(
+                    count=summary.get("sequence_count", 0)
+                ),
+                self.tr("Missing: {count}").format(
+                    count=summary.get("missing_count", 0)
+                ),
+                self.tr("Invalid: {count}").format(
+                    count=summary.get("invalid_count", 0)
+                ),
+            ])
         )
 
     def _handle_step_update(self, step_name: str, status: str) -> None:
@@ -199,7 +199,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             return
 
         self.step_status_view.setPlainText(
-            "\n".join(f"{step_name}: {status}" for step_name, status in step_status.items())
+            "\n".join(
+                f"{step_name}: {status}" for step_name, status in step_status.items()
+            )
         )
 
     def _append_log(self, line: str) -> None:
@@ -258,9 +260,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             output_dir=output_dir,
             ncbi_email=ncbi_email,
         )
-        runner = OneStepMultiGenePhyRunner(
-            adapters=build_default_tool_adapters()
-        )
+        runner = OneStepMultiGenePhyRunner(adapters=build_default_tool_adapters())
         worker = WorkflowWorker(
             runner,
             project,
@@ -280,6 +280,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     def show_help(self) -> None:
         self.log_message(
             self.tr(
-                "Load workbook columns, review the import summary, and use Run Workflow once orchestration is connected in a later task."
+                "Load workbook columns, review the import summary, and use Run Workflow to launch the full multigene phylogeny pipeline."
             )
         )

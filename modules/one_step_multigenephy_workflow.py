@@ -89,14 +89,15 @@ def _run_command(cmd: list[str], cwd: str | None = None) -> subprocess.Completed
     )
     if result.returncode != 0:
         details = (result.stderr or result.stdout or "").strip()
-        raise RuntimeError(details or f"Command failed with exit code {result.returncode}")
+        raise RuntimeError(
+            details or f"Command failed with exit code {result.returncode}"
+        )
     return result
 
 
 def _write_sequences_file(path: Path, sequences: dict[str, str]) -> None:
     content = "".join(
-        f">{strain_name}\n{sequence}\n"
-        for strain_name, sequence in sequences.items()
+        f">{strain_name}\n{sequence}\n" for strain_name, sequence in sequences.items()
     )
     path.write_text(content, encoding="utf-8")
 
@@ -267,8 +268,7 @@ def _write_fasta(
 ) -> None:
     ordered = _ordered_sequences(sequences, strain_order)
     content = "".join(
-        f">{strain_name}\n{sequence}\n"
-        for strain_name, sequence in ordered.items()
+        f">{strain_name}\n{sequence}\n" for strain_name, sequence in ordered.items()
     )
     path.write_text(content, encoding="utf-8")
 
@@ -440,10 +440,15 @@ class OneStepMultiGenePhyRunner:
                 for cell in dataset.cells:
                     if cell.value_type == "accession" and cell.accession:
                         try:
-                            sequence = self.adapters.fetch_accession(
-                                cell.accession,
-                                project.ncbi_email,
-                            ).strip().upper()
+                            sequence = (
+                                self.adapters
+                                .fetch_accession(
+                                    cell.accession,
+                                    project.ncbi_email,
+                                )
+                                .strip()
+                                .upper()
+                            )
                         except Exception as exc:
                             fetch_warning = True
                             cell.status = "warning"
@@ -463,8 +468,12 @@ class OneStepMultiGenePhyRunner:
                         cell.status = "succeeded"
 
                 if dataset.normalized_sequences:
-                    normalized_path = stage_dirs["normalized"] / f"{dataset.gene_name}.fasta"
-                    _write_fasta(normalized_path, dataset.normalized_sequences, strain_order)
+                    normalized_path = (
+                        stage_dirs["normalized"] / f"{dataset.gene_name}.fasta"
+                    )
+                    _write_fasta(
+                        normalized_path, dataset.normalized_sequences, strain_order
+                    )
                     dataset.artifacts["normalized"] = str(normalized_path)
                     artifacts.normalized_files[dataset.gene_name] = str(normalized_path)
 
@@ -479,7 +488,9 @@ class OneStepMultiGenePhyRunner:
             trimming_warning = False
             trimmed_gene_count = 0
             for dataset in datasets.values():
-                usable_sequences = _ordered_sequences(dataset.normalized_sequences, strain_order)
+                usable_sequences = _ordered_sequences(
+                    dataset.normalized_sequences, strain_order
+                )
                 if len(usable_sequences) < 2:
                     alignment_warning = True
                     dataset.status = "warning"
@@ -520,7 +531,9 @@ class OneStepMultiGenePhyRunner:
                     continue
 
                 current_step = "Align per Gene"
-                ordered_trimmed_sequences = _ordered_sequences(trimmed_sequences, strain_order)
+                ordered_trimmed_sequences = _ordered_sequences(
+                    trimmed_sequences, strain_order
+                )
                 if not ordered_trimmed_sequences:
                     trimming_warning = True
                     dataset.status = "warning"
@@ -536,7 +549,11 @@ class OneStepMultiGenePhyRunner:
                 dataset.status = "succeeded"
 
             set_step("Align per Gene", "warning" if alignment_warning else "succeeded")
-            trim_status = "warning" if trimming_warning or trimmed_gene_count == 0 else "succeeded"
+            trim_status = (
+                "warning"
+                if trimming_warning or trimmed_gene_count == 0
+                else "succeeded"
+            )
             set_step("Trim per Gene", trim_status)
 
             current_step = "Concatenate"

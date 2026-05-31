@@ -49,16 +49,14 @@ def test_tab_renders_import_summary_and_gene_list(qapp):
     tab = OneStepMultiGenePhyTab()
     tab._populate_gene_columns(["ITS", "TEF1", "RPB2"])
 
-    tab._render_import_summary(
-        {
-            "strain_count": 2,
-            "gene_count": 3,
-            "accession_count": 4,
-            "sequence_count": 2,
-            "missing_count": 1,
-            "invalid_count": 0,
-        }
-    )
+    tab._render_import_summary({
+        "strain_count": 2,
+        "gene_count": 3,
+        "accession_count": 4,
+        "sequence_count": 2,
+        "missing_count": 1,
+        "invalid_count": 0,
+    })
 
     text = tab.summary_view.toPlainText()
 
@@ -77,16 +75,14 @@ def test_tab_renders_import_summary_with_translated_labels(qapp, monkeypatch):
     monkeypatch.setattr(OneStepMultiGenePhyTab, "tr", lambda self, text: f"T::{text}")
 
     tab = OneStepMultiGenePhyTab()
-    tab._render_import_summary(
-        {
-            "strain_count": 2,
-            "gene_count": 3,
-            "accession_count": 4,
-            "sequence_count": 2,
-            "missing_count": 1,
-            "invalid_count": 0,
-        }
-    )
+    tab._render_import_summary({
+        "strain_count": 2,
+        "gene_count": 3,
+        "accession_count": 4,
+        "sequence_count": 2,
+        "missing_count": 1,
+        "invalid_count": 0,
+    })
 
     assert tab.summary_view.toPlainText().splitlines() == [
         "T::Strains: 2",
@@ -155,7 +151,9 @@ def test_tab_updates_status_log_step_summary_and_artifacts_after_mocked_run(qapp
     assert tab.artifact_list.item(0).text() == "F:/run/05_iqtree/final.treefile"
 
 
-def test_start_run_parses_sheet_builds_runner_and_starts_worker(qapp, monkeypatch, tmp_path):
+def test_start_run_parses_sheet_builds_runner_and_starts_worker(
+    qapp, monkeypatch, tmp_path
+):
     excel_path = tmp_path / "input.xlsx"
     output_dir = tmp_path / "run"
     parsed = SimpleNamespace(

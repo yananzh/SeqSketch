@@ -226,8 +226,8 @@ def test_runner_continues_when_one_gene_fails_alignment(tmp_path):
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: str(
-            tmp_path / "final.treefile"
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+            str(tmp_path / "final.treefile")
         ),
     )
 
@@ -256,11 +256,16 @@ def test_runner_fails_when_no_gene_reaches_concatenation(tmp_path):
 
     adapters = ToolAdapters(
         fetch_accession=lambda accession, email: "ATGC",
-        run_alignment=lambda gene_name, sequences, output_dir, mode: (_ for _ in ()).throw(
-            RuntimeError("alignment failed")
+        run_alignment=lambda gene_name, sequences, output_dir, mode: (
+            _ for _ in ()
+        ).throw(RuntimeError("alignment failed")),
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            "",
         ),
-        run_trimming=lambda gene_name, sequences, output_dir, mode: (dict(sequences), ""),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: "",
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+            ""
+        ),
     )
 
     runner = OneStepMultiGenePhyRunner(adapters=adapters)
@@ -312,9 +317,9 @@ def test_runner_writes_failed_run_state_when_iqtree_raises(tmp_path):
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (_ for _ in ()).throw(
-            RuntimeError("iqtree failed")
-        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+            _ for _ in ()
+        ).throw(RuntimeError("iqtree failed")),
     )
 
     runner = OneStepMultiGenePhyRunner(adapters=adapters)
@@ -339,7 +344,9 @@ def test_runner_writes_failed_run_state_when_iqtree_raises(tmp_path):
     assert "- Build Tree failed: iqtree failed" in summary
 
 
-def test_runner_preserves_original_failure_when_manifest_write_raises(tmp_path, monkeypatch):
+def test_runner_preserves_original_failure_when_manifest_write_raises(
+    tmp_path, monkeypatch
+):
     project = ProjectInput(
         excel_path="input.xlsx",
         sheet_name="Sheet1",
@@ -363,9 +370,9 @@ def test_runner_preserves_original_failure_when_manifest_write_raises(tmp_path, 
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (_ for _ in ()).throw(
-            RuntimeError("iqtree failed")
-        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+            _ for _ in ()
+        ).throw(RuntimeError("iqtree failed")),
     )
 
     def fail_manifest_write(path, payload):
@@ -414,8 +421,8 @@ def test_runner_marks_summarize_failed_when_summary_write_raises(tmp_path, monke
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: str(
-            tmp_path / "final.treefile"
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+            str(tmp_path / "final.treefile")
         ),
     )
 
@@ -472,8 +479,8 @@ def test_runner_persists_summarize_succeeded_on_success(tmp_path):
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: str(
-            tmp_path / "final.treefile"
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+            str(tmp_path / "final.treefile")
         ),
     )
 
@@ -515,7 +522,9 @@ def test_runner_marks_empty_trimmed_output_as_warning(tmp_path):
             {strain_name: "" for strain_name in sequences},
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: "",
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+            ""
+        ),
     )
 
     runner = OneStepMultiGenePhyRunner(adapters=adapters)
@@ -571,7 +580,9 @@ def test_build_default_tool_adapters_fetch_accession_uses_entrez_email(monkeypat
     )
 
 
-def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_path, monkeypatch):
+def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(
+    tmp_path, monkeypatch
+):
     mafft_exe = tmp_path / "mafft.bat"
     trimal_exe = tmp_path / "trimal.exe"
     iqtree_exe = tmp_path / "iqtree3.exe"
@@ -580,7 +591,9 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
 
     resource_paths = {
         ("softwares", "mafft-win", "mafft.bat"): str(mafft_exe),
-        ("softwares", "mafft-win", "mafft-signed.ps1"): str(tmp_path / "missing-mafft.ps1"),
+        ("softwares", "mafft-win", "mafft-signed.ps1"): str(
+            tmp_path / "missing-mafft.ps1"
+        ),
         ("softwares", "trimAl_Windows_x86-64", "trimal.exe"): str(trimal_exe),
         ("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe"): str(iqtree_exe),
     }
@@ -620,7 +633,9 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
             return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
         if executable_name == "iqtree3.exe":
             prefix = cmd[cmd.index("--prefix") + 1]
-            Path(f"{prefix}.treefile").write_text("(strain_a,strain_b);\n", encoding="utf-8")
+            Path(f"{prefix}.treefile").write_text(
+                "(strain_a,strain_b);\n", encoding="utf-8"
+            )
             return type("Result", (), {"returncode": 0, "stdout": "ok", "stderr": ""})()
         raise AssertionError(f"Unexpected command: {cmd}")
 
@@ -656,9 +671,7 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
     assert Path(treefile_path).exists()
 
     no_window = (
-        subprocess.CREATE_NO_WINDOW
-        if hasattr(subprocess, "CREATE_NO_WINDOW")
-        else 0
+        subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
     )
     assert calls[0]["cmd"][0] == str(mafft_exe)
     assert calls[0]["creationflags"] == no_window
@@ -668,6 +681,7 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
     assert calls[2]["cmd"][0] == str(iqtree_exe)
     assert calls[2]["cmd"][calls[2]["cmd"].index("-T") + 1] == "AUTO"
     assert calls[2]["cmd"][calls[2]["cmd"].index("-B") + 1] == "1000"
+
 
 def test_runner_concatenates_in_project_gene_column_order(tmp_path):
     project = ProjectInput(
@@ -695,8 +709,8 @@ def test_runner_concatenates_in_project_gene_column_order(tmp_path):
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: str(
-            tmp_path / "final.treefile"
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+            str(tmp_path / "final.treefile")
         ),
     )
 
@@ -711,7 +725,10 @@ def test_runner_concatenates_in_project_gene_column_order(tmp_path):
         "  charset TEF1 = 1-2;",
         "  charset ITS = 3-4;",
     ]
-    assert supermatrix_path.read_text(encoding="utf-8") == ">strain_a\nGGAA\n>strain_b\nGAAT\n"
+    assert (
+        supermatrix_path.read_text(encoding="utf-8")
+        == ">strain_a\nGGAA\n>strain_b\nGAAT\n"
+    )
 
 
 def test_workflow_worker_emits_runner_progress_signals(tmp_path):

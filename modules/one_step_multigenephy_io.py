@@ -42,11 +42,11 @@ def parse_excel_sheet(
         raise ValueError(f"Missing strain column: {strain_column}")
     if not gene_columns:
         raise ValueError("At least one gene column is required")
-    missing_gene_columns = [gene_name for gene_name in gene_columns if gene_name not in df.columns]
+    missing_gene_columns = [
+        gene_name for gene_name in gene_columns if gene_name not in df.columns
+    ]
     if missing_gene_columns:
-        raise ValueError(
-            f"Missing gene column: {', '.join(missing_gene_columns)}"
-        )
+        raise ValueError(f"Missing gene column: {', '.join(missing_gene_columns)}")
 
     strain_names = df[strain_column].fillna("").astype(str).str.strip().tolist()
     if any(not name for name in strain_names):
