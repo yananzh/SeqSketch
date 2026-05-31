@@ -61,7 +61,7 @@ def parse_excel_sheet(
     for _, row in df.iterrows():
         strain_name = str(row[strain_column]).strip()
         for gene_name in gene_columns:
-            raw_value = row.get(gene_name, "")
+            raw_value = row[gene_name]
             value_type, payload, source = classify_cell_value(raw_value)
             summary[f"{value_type}_count"] += 1
             raw_text = (
