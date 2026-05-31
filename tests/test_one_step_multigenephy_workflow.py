@@ -1,7 +1,16 @@
+import json
+
 import pandas as pd
 import pytest
 
-from modules.one_step_multigenephy_io import parse_excel_sheet, read_excel_columns
+from modules.one_step_multigenephy_io import (
+    build_gene_datasets,
+    concatenate_gene_alignments,
+    parse_excel_sheet,
+    read_excel_columns,
+    write_run_manifest,
+)
+from modules.one_step_multigenephy_models import GeneCell
 
 
 def test_parse_excel_sheet_classifies_mixed_cells(tmp_path):
@@ -79,3 +88,44 @@ def test_read_excel_columns_uses_header_row(tmp_path):
     columns = read_excel_columns(str(excel_path), sheet_name="Sheet1")
 
     assert columns == ["Strain", "ITS", "TEF1"]
+
+
+def test_concatenate_gene_alignments_gap_fills_missing_genes():
+    cells = [
+        GeneCell("strain_a", "ITS", "ON123", "sequence", normalized_sequence="AA"),
+        GeneCell("strain_b", "ITS", "AT", "sequence", normalized_sequence="AT"),
+        GeneCell("strain_a", "TEF1", "GG", "sequence", normalized_sequence="GG"),
+        GeneCell("strain_b", "TEF1", "", "missing"),
+    ]
+
+    datasets = build_gene_datasets(cells, ["strain_a", "strain_b"])
+    datasets["ITS"].trimmed_sequences = {"strain_a": "AA", "strain_b": "AT"}
+    datasets["TEF1"].trimmed_sequences = {"strain_a": "GG"}
+
+    concatenated, partitions = concatenate_gene_alignments(
+        datasets,
+        strain_order=["strain_a", "strain_b"],
+    )
+
+    assert concatenated["strain_a"] == "AAGG"
+    assert concatenated["strain_b"] == "AT--"
+    assert partitions == [("ITS", 1, 2), ("TEF1", 3, 4)]
+
+
+def test_write_run_manifest_persists_stage_and_artifact_metadata(tmp_path):
+    manifest_path = tmp_path / "run_manifest.json"
+
+    write_run_manifest(
+        manifest_path,
+        {
+            "summary": {"strain_count": 2},
+            "steps": {"Import": "succeeded", "Build Tree": "warning"},
+            "artifacts": {"treefile": "05_iqtree/final.treefile"},
+        },
+    )
+
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert payload["summary"]["strain_count"] == 2
+    assert payload["steps"]["Build Tree"] == "warning"
+    assert payload["artifacts"]["treefile"].endswith("final.treefile")

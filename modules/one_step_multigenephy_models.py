@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -35,3 +35,28 @@ class ParsedExcelSheet:
     strain_order: list[str]
     cells: list[GeneCell]
     summary: dict[str, int]
+
+
+@dataclass(slots=True)
+class GeneDataset:
+    gene_name: str
+    strain_order: list[str]
+    cells: list[GeneCell] = field(default_factory=list)
+    missing_strains: list[str] = field(default_factory=list)
+    invalid_cells: list[GeneCell] = field(default_factory=list)
+    normalized_sequences: dict[str, str] = field(default_factory=dict)
+    trimmed_sequences: dict[str, str] = field(default_factory=dict)
+    artifacts: dict[str, str] = field(default_factory=dict)
+    status: str = "pending"
+
+
+@dataclass(slots=True)
+class RunArtifacts:
+    root_dir: str
+    manifest_path: str = ""
+    report_path: str = ""
+    treefile_path: str = ""
+    normalized_files: dict[str, str] = field(default_factory=dict)
+    aligned_files: dict[str, str] = field(default_factory=dict)
+    trimmed_files: dict[str, str] = field(default_factory=dict)
+    extra_paths: dict[str, str] = field(default_factory=dict)

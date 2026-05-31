@@ -1,8 +1,14 @@
 import re
+import json
+from pathlib import Path
 
 import pandas as pd
 
-from modules.one_step_multigenephy_models import GeneCell, ParsedExcelSheet
+from modules.one_step_multigenephy_models import (
+    GeneCell,
+    GeneDataset,
+    ParsedExcelSheet,
+)
 
 
 _ACCESSION_RE = re.compile(r"^[A-Z]{1,4}_?\d+(?:\.\d+)?$", re.IGNORECASE)
@@ -97,3 +103,60 @@ def parse_excel_sheet(
 def read_excel_columns(excel_path: str, sheet_name: str) -> list[str]:
     df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0, nrows=0)
     return [str(column) for column in df.columns]
+
+
+def build_gene_datasets(
+    cells: list[GeneCell],
+    strain_order: list[str],
+) -> dict[str, GeneDataset]:
+    datasets: dict[str, GeneDataset] = {}
+
+    for cell in cells:
+        dataset = datasets.setdefault(
+            cell.gene_name,
+            GeneDataset(gene_name=cell.gene_name, strain_order=list(strain_order)),
+        )
+        dataset.cells.append(cell)
+
+        if cell.value_type == "invalid":
+            dataset.invalid_cells.append(cell)
+        elif cell.value_type == "missing":
+            dataset.missing_strains.append(cell.strain_name)
+
+        if cell.normalized_sequence:
+            dataset.normalized_sequences[cell.strain_name] = cell.normalized_sequence
+
+    return datasets
+
+
+def concatenate_gene_alignments(
+    datasets: dict[str, GeneDataset],
+    strain_order: list[str],
+) -> tuple[dict[str, str], list[tuple[str, int, int]]]:
+    concatenated = {strain_name: "" for strain_name in strain_order}
+    partitions: list[tuple[str, int, int]] = []
+    position = 1
+
+    for gene_name, dataset in datasets.items():
+        if not dataset.trimmed_sequences:
+            continue
+
+        gene_length = len(next(iter(dataset.trimmed_sequences.values())))
+        start = position
+        end = position + gene_length - 1
+        gap_fill = "-" * gene_length
+
+        for strain_name in strain_order:
+            concatenated[strain_name] += dataset.trimmed_sequences.get(
+                strain_name,
+                gap_fill,
+            )
+
+        partitions.append((gene_name, start, end))
+        position = end + 1
+
+    return concatenated, partitions
+
+
+def write_run_manifest(path: str | Path, payload: dict) -> None:
+    Path(path).write_text(json.dumps(payload, indent=2), encoding="utf-8")
