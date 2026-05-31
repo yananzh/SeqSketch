@@ -35,7 +35,14 @@ from utils.common_components import apply_sequence_editor_style
 # Reuse thread classes and config from the existing dialog modules
 from .blast_make_db_dialog import _MakeDbThread
 from .blast_run_dialog import _RunBlastThread, _PROG_TIPS
-from .blast_config import get_blast_bin_dir, set_blast_bin_dir
+from .blast_config import (
+    get_blast_bin_dir,
+    infer_blast_db_type,
+    list_blast_databases,
+    remember_blast_database,
+    set_blast_bin_dir,
+    validate_query_program_selection,
+)
 
 
 _LOCAL_BLAST_STYLE = """
@@ -296,10 +303,17 @@ class _DropTextEdit(QTextEdit):
 
 
 class _BuildDbWidget(QWidget):
-    def __init__(self, status_callback=None, blast_bin_dir_getter=None, parent=None):
+    def __init__(
+        self,
+        status_callback=None,
+        blast_bin_dir_getter=None,
+        database_callback=None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.status_callback = status_callback
         self._blast_bin_dir_getter = blast_bin_dir_getter or get_blast_bin_dir
+        self._database_callback = database_callback
         self._thread = None
         self._build_ui()
 
@@ -417,9 +431,9 @@ class _BuildDbWidget(QWidget):
         self.build_btn = QPushButton(self.tr("Build Database"))
         _set_action_role(self.build_btn, "primary")
         self.build_btn.clicked.connect(self._start_build)
-        btn_row.addWidget(help_btn)
-        btn_row.addStretch()
         btn_row.addWidget(self.build_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(help_btn)
         root.addLayout(btn_row)
 
         root.addStretch()
@@ -499,6 +513,15 @@ class _BuildDbWidget(QWidget):
         if self.status_callback:
             self.status_callback("")
         if success:
+            outpath = os.path.join(self.outdir_edit.text(), self.name_edit.text())
+            remember_blast_database(
+                outpath,
+                db_type="nucl" if self.nucl_radio.isChecked() else "prot",
+                source_fasta=self.fasta_edit.text().strip(),
+                name=self.name_edit.text().strip(),
+            )
+            if self._database_callback:
+                self._database_callback()
             self.status_lbl.setText(
                 f"✔ Database built successfully  →  {self.outdir_edit.text()}/{self.name_edit.text()}"
             )
@@ -605,6 +628,25 @@ class _RunQueryWidget(QWidget):
         self.search_top_row.addWidget(db_lbl)
         self.search_top_row.addWidget(db_holder, 1)
         search_layout.addLayout(self.search_top_row)
+
+        library_row = QHBoxLayout()
+        library_row.setSpacing(8)
+        library_label = QLabel(self.tr("Recent databases"))
+        self.db_library_combo = QComboBox()
+        self.db_library_combo.currentIndexChanged.connect(self._use_selected_database)
+        self.pin_db_btn = QPushButton(self.tr("Pin Current"))
+        _set_action_role(self.pin_db_btn, "secondary")
+        self.pin_db_btn.setFixedWidth(108)
+        self.pin_db_btn.clicked.connect(self._pin_current_database)
+        refresh_btn = QPushButton(self.tr("Refresh"))
+        _set_action_role(refresh_btn, "secondary")
+        refresh_btn.setFixedWidth(96)
+        refresh_btn.clicked.connect(self.refresh_database_library)
+        library_row.addWidget(library_label)
+        library_row.addWidget(self.db_library_combo, 1)
+        library_row.addWidget(self.pin_db_btn)
+        library_row.addWidget(refresh_btn)
+        search_layout.addLayout(library_row)
         root.addWidget(search_card)
 
         settings_card, settings_layout = _make_card(
@@ -690,12 +732,13 @@ class _RunQueryWidget(QWidget):
         self.run_btn = QPushButton(self.tr("Run BLAST Search"))
         _set_action_role(self.run_btn, "primary")
         self.run_btn.clicked.connect(self._start_run)
-        btn_row.addWidget(help_btn)
-        btn_row.addStretch()
         btn_row.addWidget(self.run_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(help_btn)
         root.addLayout(btn_row)
 
         root.addStretch()
+        self.refresh_database_library()
 
     # ── slots ──────────────────────────────────────────────────────────────
 
@@ -707,6 +750,7 @@ class _RunQueryWidget(QWidget):
 
     def _on_db_dropped(self, path: str):
         """Strip extension so BLAST receives the base database path."""
+        db_type = infer_blast_db_type(path)
         base = path
         for ext in (
             ".nhr",
@@ -724,6 +768,55 @@ class _RunQueryWidget(QWidget):
                 base = base[: -len(ext)]
                 break
         self.db_edit.setText(base)
+        remember_blast_database(base, db_type=db_type)
+        self.refresh_database_library(current_path=base)
+
+    def refresh_database_library(self, current_path: str = ""):
+        selected = current_path or self.db_edit.text().strip()
+        self.db_library_combo.blockSignals(True)
+        self.db_library_combo.clear()
+        self.db_library_combo.addItem(self.tr("Choose a saved database..."), "")
+
+        for record in list_blast_databases():
+            label = str(record["name"])
+            db_type = str(record["db_type"])
+            if db_type:
+                label = f"{label} ({db_type})"
+            if record["pinned"]:
+                label = f"{label} [Pinned]"
+            self.db_library_combo.addItem(label, str(record["base_path"]))
+
+        if selected:
+            for index in range(1, self.db_library_combo.count()):
+                if self.db_library_combo.itemData(index) == selected:
+                    self.db_library_combo.setCurrentIndex(index)
+                    break
+
+        self.db_library_combo.blockSignals(False)
+
+    def _use_selected_database(self, index: int):
+        if index <= 0:
+            return
+        base_path = str(self.db_library_combo.itemData(index) or "")
+        if not base_path:
+            return
+        self.db_edit.setText(base_path)
+
+    def _pin_current_database(self):
+        base_path = self.db_edit.text().strip()
+        if not base_path:
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                "Please choose a database before pinning it.",
+            )
+            return
+        remember_blast_database(
+            base_path,
+            db_type=infer_blast_db_type(base_path),
+            pinned=True,
+        )
+        self.refresh_database_library(current_path=base_path)
 
     def _choose_db(self):
         f, _ = QFileDialog.getOpenFileName(
@@ -782,6 +875,14 @@ class _RunQueryWidget(QWidget):
                 self, "Input Error", "Please specify an output file path."
             )
             return
+        is_valid, validation_message = validate_query_program_selection(
+            query_seq,
+            program,
+            db,
+        )
+        if not is_valid:
+            QMessageBox.warning(self, "Program Mismatch", validation_message)
+            return
         if not bin_dir:
             QMessageBox.warning(
                 self,
@@ -789,6 +890,9 @@ class _RunQueryWidget(QWidget):
                 "Please select a valid BLAST+ bin directory above.",
             )
             return
+
+        remember_blast_database(db, db_type=infer_blast_db_type(db))
+        self.refresh_database_library(current_path=db)
 
         self.run_btn.setEnabled(False)
         self.status_lbl.setText("Running BLAST, please wait…")
@@ -881,6 +985,7 @@ class BlastLocalTab(QWidget):
         self._build_tab = _BuildDbWidget(
             status_callback=status_callback,
             blast_bin_dir_getter=self._get_blast_bin_dir,
+            database_callback=lambda: self._run_tab.refresh_database_library(),
         )
         self._run_tab = _RunQueryWidget(
             status_callback=status_callback,

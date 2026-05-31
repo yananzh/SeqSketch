@@ -11,6 +11,9 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QFrame,
+    QDoubleSpinBox,
+    QLineEdit,
+    QSpinBox,
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
@@ -73,6 +76,35 @@ class BlastResultTab(QWidget):
         )
         self._title_lbl.setStyleSheet("color: #444; padding: 2px 0;")
         root.addWidget(self._title_lbl)
+        root.addWidget(self._hline())
+
+        filter_row = QHBoxLayout()
+        filter_row.setSpacing(8)
+        filter_row.addWidget(QLabel("Min identity %"))
+        self.min_identity_spin = QDoubleSpinBox()
+        self.min_identity_spin.setRange(0.0, 100.0)
+        self.min_identity_spin.setDecimals(1)
+        self.min_identity_spin.setSingleStep(5.0)
+        self.min_identity_spin.valueChanged.connect(self._apply_filters)
+        filter_row.addWidget(self.min_identity_spin)
+
+        filter_row.addWidget(QLabel("Max e-value"))
+        self.max_evalue_edit = QLineEdit()
+        self.max_evalue_edit.setPlaceholderText("Any")
+        self.max_evalue_edit.textChanged.connect(self._apply_filters)
+        filter_row.addWidget(self.max_evalue_edit)
+
+        filter_row.addWidget(QLabel("Min align len"))
+        self.min_length_spin = QSpinBox()
+        self.min_length_spin.setRange(0, 1000000)
+        self.min_length_spin.valueChanged.connect(self._apply_filters)
+        filter_row.addWidget(self.min_length_spin)
+
+        self.reset_filters_btn = QPushButton("Reset Filters")
+        self.reset_filters_btn.clicked.connect(self._reset_filters)
+        filter_row.addWidget(self.reset_filters_btn)
+        filter_row.addStretch()
+        root.addLayout(filter_row)
         root.addWidget(self._hline())
 
         # ── splitter: table on top, detail panel below ────────────────────
@@ -170,15 +202,19 @@ class BlastResultTab(QWidget):
             QMessageBox.critical(self, "File Error", f"Could not read TSV:\n{exc}")
             return
 
-        self.table.setRowCount(len(self._rows))
-        for r, row in enumerate(self._rows):
+        self._apply_filters()
+
+    def _populate_table(self, rows: list[list[str]]):
+        self.table.setSortingEnabled(False)
+        self.table.setRowCount(len(rows))
+        for r, row in enumerate(rows):
             for c, val in enumerate(row):
                 item = QTableWidgetItem(val)
                 if c in _NUM_COLS:
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
                     )
-                if c == 2:  # identity column
+                if c == 2:
                     bg = _identity_color(val)
                     if bg:
                         item.setBackground(bg)
@@ -187,15 +223,58 @@ class BlastResultTab(QWidget):
         self.table.setSortingEnabled(True)
         self.table.resizeColumnsToContents()
 
-        n = len(self._rows)
-        if n:
+    def _matches_filters(self, row: list[str]) -> bool:
+        try:
+            identity = float(row[2])
+        except ValueError:
+            identity = 0.0
+        if identity < self.min_identity_spin.value():
+            return False
+
+        try:
+            align_len = int(float(row[3]))
+        except ValueError:
+            align_len = 0
+        if align_len < self.min_length_spin.value():
+            return False
+
+        max_evalue_text = self.max_evalue_edit.text().strip()
+        if max_evalue_text:
+            try:
+                max_evalue = float(max_evalue_text)
+                evalue = float(row[10])
+            except ValueError:
+                return False
+            if evalue > max_evalue:
+                return False
+
+        return True
+
+    def _apply_filters(self):
+        visible_rows = [row for row in self._rows if self._matches_filters(row)]
+        self._populate_table(visible_rows)
+
+        total = len(self._rows)
+        visible = len(visible_rows)
+        if visible:
             self._stat_lbl.setText(
-                f"{n} hit{'s' if n != 1 else ''} loaded.  "
+                f"Showing {visible} / {total} hit{'s' if total != 1 else ''}.  "
                 "Identity colour: green ≥ 90 %, yellow ≥ 60 %, red < 60 %."
             )
             self.table.selectRow(0)
         else:
-            self._stat_lbl.setText("No hits found in this file.")
+            if total:
+                self._stat_lbl.setText(
+                    f"Showing 0 / {total} hits. Adjust the filters to see more results."
+                )
+            else:
+                self._stat_lbl.setText("No hits found in this file.")
+            self.detail_text.clear()
+
+    def _reset_filters(self):
+        self.min_identity_spin.setValue(0.0)
+        self.max_evalue_edit.clear()
+        self.min_length_spin.setValue(0)
 
     # ---------------------------------------------------------------- slots
 
@@ -241,14 +320,10 @@ class BlastResultTab(QWidget):
                 writer = csv.writer(fh, delimiter=sep)
                 writer.writerow(_HDR)
                 for r in range(self.table.rowCount()):
-                    writer.writerow(
-                        [
-                            self.table.item(r, c).text()
-                            if self.table.item(r, c)
-                            else ""
-                            for c in range(12)
-                        ]
-                    )
+                    writer.writerow([
+                        self.table.item(r, c).text() if self.table.item(r, c) else ""
+                        for c in range(12)
+                    ])
             QMessageBox.information(self, "Exported", f"Results saved to:\n{f}")
         except Exception as exc:
             QMessageBox.critical(self, "Export Error", str(exc))
