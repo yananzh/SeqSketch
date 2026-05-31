@@ -268,7 +268,11 @@ def create_menus(window):
     primer_menu.addAction(open_primer_action)
     # 7. Phylogenetic Tree
     evolution_menu = menubar.addMenu(window.tr("Phylogenetic Tree"))
-    # 7.1 Sequence Concatenation & Partition (first)
+    # 7.1 Alignment Trimming (trimAl)
+    trimal_action = QAction(window.tr("Alignment Trimming (trimAl)"), window)
+    trimal_action.triggered.connect(window.open_alignment_trimming_tab)
+    evolution_menu.addAction(trimal_action)
+    # 7.2 Sequence Concatenation & Partition
     partition_action = QAction(
         window.tr("Sequence Concatenation and Partition Models"), window
     )
@@ -279,10 +283,6 @@ def create_menus(window):
         window.open_one_step_multigenephy_tab
     )
     evolution_menu.addAction(one_step_multigenephy_action)
-    # 7.2 Alignment Trimming (trimAl)
-    trimal_action = QAction(window.tr("Alignment Trimming (trimAl)"), window)
-    trimal_action.triggered.connect(window.open_alignment_trimming_tab)
-    evolution_menu.addAction(trimal_action)
     # 7.3 Local IQ-TREE tab
     iqtree_local_action = QAction(window.tr("Tree Construction (IQ-TREE)"), window)
     iqtree_local_action.triggered.connect(window.open_iqtree_tab)

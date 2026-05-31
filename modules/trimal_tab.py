@@ -9,9 +9,7 @@ Unified single interface:
   • N files → trims all, one output per file, with progress bar
 
 Supported trimming methods:
-  Automated:  -automated1, -gappyout, -strict, -strictplus
-  Manual:     -gt (gap threshold), -st (similarity threshold),
-              -cons (min conservation %), -w (window size)
+    Automated:  -automated1, -gappyout, -strict, -strictplus
 
 Output formats: FASTA (default), CLUSTAL, PHYLIP, NEXUS, PIR, MEGA, HTML
 
@@ -26,11 +24,10 @@ import subprocess
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QFont, QPainter
 from PyQt6.QtWidgets import (
-    QCheckBox,
+    QButtonGroup,
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -42,16 +39,13 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QRadioButton,
-    QButtonGroup,
-    QScrollArea,
-    QSpinBox,
     QTextBrowser,
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QProgressBar,
 )
 
 # ── bundled trimAl path ────────────────────────────────────────────────────
@@ -124,17 +118,6 @@ and saved in the output folder.</p>
   large, heterogeneous datasets.</td>
 </tr>
 </table>
-
-<hr>
-<h3>Manual Threshold Method</h3>
-<ul>
-  <li><b>Gap threshold (gt)</b> — Keep columns where gap fraction ≤ this value (0.0–1.0).
-      E.g. <code>0.1</code> = max 10% gaps.</li>
-  <li><b>Similarity threshold (st)</b> — Keep columns where avg similarity ≥ this value (0.0–1.0).</li>
-  <li><b>Conservation % (cons)</b> — Minimum percentage of columns to retain (prevents over-trimming).</li>
-  <li><b>Window size (w)</b> — Evaluate columns in sliding blocks of this size (1 = no windowing).</li>
-</ul>
-<p>You may combine <b>gt</b> and <b>st</b>; a column must satisfy all enabled thresholds.</p>
 
 <hr>
 <h3>Output Formats</h3>
@@ -317,20 +300,8 @@ class AlignmentTrimmingTab(QWidget):
     # ── UI construction ───────────────────────────────────────────────────
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setSpacing(12)
-        root.setContentsMargins(16, 16, 16, 16)
-
-        # banner
-        banner = QLabel(
-            "<b>Alignment Trimming (trimAl)</b><br>"
-            "Add one or more alignment files. Each file is trimmed and saved as "
-            "<i>&lt;name&gt;.trimmed&lt;ext&gt;</i> in the output folder. "
-            "Multiple files are processed in batch with a progress bar."
-        )
-        banner.setWordWrap(True)
-        banner.setStyleSheet("color: #555; padding: 4px 0;")
-        root.addWidget(banner)
-        root.addWidget(_hline())
+        root.setSpacing(10)
+        root.setContentsMargins(12, 12, 12, 12)
 
         # ── file list ─────────────────────────────────────────────────────
         files_lbl = QLabel("Input alignment files:")
@@ -340,7 +311,7 @@ class AlignmentTrimmingTab(QWidget):
         self.file_list = _DropFileList(
             "Drag & drop alignment files here, or use the buttons below"
         )
-        self.file_list.setMinimumHeight(120)
+        self.file_list.setMinimumHeight(96)
         self.file_list.itemSelectionChanged.connect(self._update_count_lbl)
         root.addWidget(self.file_list)
 
@@ -388,28 +359,15 @@ class AlignmentTrimmingTab(QWidget):
         root.addLayout(out_form)
         root.addWidget(_hline())
 
-        # ── parameters (scroll area) ──────────────────────────────────────
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        params_widget = QWidget()
-        params_layout = QVBoxLayout(params_widget)
+        # ── parameters ────────────────────────────────────────────────────
+        params_layout = QVBoxLayout()
         params_layout.setSpacing(10)
-        params_layout.setContentsMargins(0, 0, 0, 0)
 
         # trimming method group
         method_box = QGroupBox("Trimming Method")
         method_layout = QVBoxLayout(method_box)
-        method_layout.setSpacing(14)
-        method_layout.setContentsMargins(12, 14, 12, 14)
-
-        # --- Automated section header ---
-        auto_hdr = QLabel(
-            "<b>Automated</b> — trimAl selects thresholds automatically"
-            "  <span style='color:#888; font-size:11px;'>(recommended for most users)</span>"
-        )
-        auto_hdr.setWordWrap(True)
-        method_layout.addWidget(auto_hdr)
+        method_layout.setSpacing(10)
+        method_layout.setContentsMargins(12, 12, 12, 12)
 
         self._method_grp = QButtonGroup(self)
 
@@ -418,134 +376,31 @@ class AlignmentTrimmingTab(QWidget):
         self.rb_strict = QRadioButton("strict")
         self.rb_strictplus = QRadioButton("strictplus")
 
-        # descriptions shown beneath each radio button
-        _auto_descs = {
-            self.rb_gappyout: "Removes columns with unusually\nhigh gap rates. Fast and effective\n— <b>good default choice</b>.",
-            self.rb_auto1: "Auto-selects the best method from\nalignment statistics. Uses <i>strictplus</i>\nfor large datasets, <i>strict</i> otherwise.",
-            self.rb_strict: "Applies gap and similarity thresholds\nderived from alignment statistics.\nMore aggressive than <i>gappyout</i>.",
-            self.rb_strictplus: "Like <i>strict</i> but also removes\nsequence fragments. Best for large,\nheterogeneous datasets.",
+        _auto_tooltips = {
+            self.rb_gappyout: "Good default for most alignments.",
+            self.rb_auto1: "Auto-selects trimAl strategy from alignment statistics.",
+            self.rb_strict: "More aggressive trimming based on alignment statistics.",
+            self.rb_strictplus: "Aggressive trimming plus fragment filtering.",
         }
 
-        for rb, desc in _auto_descs.items():
-            rb.setToolTip(
-                desc.replace("<b>", "")
-                .replace("</b>", "")
-                .replace("<i>", "")
-                .replace("</i>", "")
-            )
+        for rb, desc in _auto_tooltips.items():
+            rb.setToolTip(desc)
             self._method_grp.addButton(rb)
 
-        # 2×2 grid: radio button + desc label per cell
+        # 2x2 grid of automated methods
         auto_grid = QGridLayout()
-        auto_grid.setSpacing(10)
+        auto_grid.setHorizontalSpacing(12)
+        auto_grid.setVerticalSpacing(8)
         auto_grid.setColumnStretch(0, 1)
         auto_grid.setColumnStretch(1, 1)
 
-        _cells = [
-            (self.rb_gappyout, _auto_descs[self.rb_gappyout], 0, 0),
-            (self.rb_auto1, _auto_descs[self.rb_auto1], 0, 1),
-            (self.rb_strict, _auto_descs[self.rb_strict], 1, 0),
-            (self.rb_strictplus, _auto_descs[self.rb_strictplus], 1, 1),
-        ]
-        for rb, desc, row, col in _cells:
-            cell = QVBoxLayout()
-            cell.setSpacing(2)
-            cell.addWidget(rb)
-            desc_lbl = QLabel(desc)
-            desc_lbl.setWordWrap(True)
-            desc_lbl.setStyleSheet("color: #666; font-size: 11px; margin-left: 20px;")
-            cell.addWidget(desc_lbl)
-            container = QWidget()
-            container.setLayout(cell)
-            auto_grid.addWidget(container, row, col)
+        auto_grid.addWidget(self.rb_gappyout, 0, 0)
+        auto_grid.addWidget(self.rb_auto1, 0, 1)
+        auto_grid.addWidget(self.rb_strict, 1, 0)
+        auto_grid.addWidget(self.rb_strictplus, 1, 1)
 
         method_layout.addLayout(auto_grid)
         self.rb_gappyout.setChecked(True)
-
-        method_layout.addWidget(_hline())
-
-        # --- Manual section header ---
-        manual_hdr = QLabel(
-            "<b>Manual Thresholds</b> — set your own cutoffs"
-            "  <span style='color:#888; font-size:11px;'>(for advanced users)</span>"
-        )
-        manual_hdr.setWordWrap(True)
-        method_layout.addWidget(manual_hdr)
-
-        self.rb_manual = QRadioButton("Use manual threshold(s)")
-        self.rb_manual.setToolTip("Enable one or more threshold checkboxes below.")
-        self._method_grp.addButton(self.rb_manual)
-        method_layout.addWidget(self.rb_manual)
-
-        manual_form = QFormLayout()
-        manual_form.setSpacing(8)
-        manual_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-
-        # gt
-        self.gt_check = QCheckBox("Gap threshold (gt):")
-        self.gt_check.setToolTip(
-            "Keep columns where gap fraction ≤ this value (0.0–1.0)."
-        )
-        self.gt_spin = QDoubleSpinBox()
-        self.gt_spin.setRange(0.0, 1.0)
-        self.gt_spin.setSingleStep(0.05)
-        self.gt_spin.setValue(0.1)
-        self.gt_spin.setDecimals(2)
-        self.gt_spin.setFixedWidth(90)
-        gt_row = QHBoxLayout()
-        gt_row.addWidget(self.gt_spin)
-        gt_row.addWidget(QLabel("(0.0–1.0,  e.g. 0.1 = max 10% gaps per column)"))
-        gt_row.addStretch()
-        manual_form.addRow(self.gt_check, gt_row)
-
-        # st
-        self.st_check = QCheckBox("Similarity threshold (st):")
-        self.st_check.setToolTip(
-            "Keep columns where avg similarity ≥ this value (0.0–1.0)."
-        )
-        self.st_spin = QDoubleSpinBox()
-        self.st_spin.setRange(0.0, 1.0)
-        self.st_spin.setSingleStep(0.05)
-        self.st_spin.setValue(0.0)
-        self.st_spin.setDecimals(2)
-        self.st_spin.setFixedWidth(90)
-        st_row = QHBoxLayout()
-        st_row.addWidget(self.st_spin)
-        st_row.addWidget(QLabel("(0.0–1.0,  higher = stricter similarity required)"))
-        st_row.addStretch()
-        manual_form.addRow(self.st_check, st_row)
-
-        # cons
-        self.cons_check = QCheckBox("Min. conservation % (cons):")
-        self.cons_check.setToolTip(
-            "Minimum % of alignment columns to keep (prevents over-trimming)."
-        )
-        self.cons_spin = QSpinBox()
-        self.cons_spin.setRange(0, 100)
-        self.cons_spin.setValue(0)
-        self.cons_spin.setFixedWidth(90)
-        cons_row = QHBoxLayout()
-        cons_row.addWidget(self.cons_spin)
-        cons_row.addWidget(QLabel("% of original columns to retain  (0 = no minimum)"))
-        cons_row.addStretch()
-        manual_form.addRow(self.cons_check, cons_row)
-
-        # w
-        self.w_check = QCheckBox("Window size (w):")
-        self.w_check.setToolTip(
-            "Evaluate columns in sliding blocks of this size (1 = no windowing)."
-        )
-        self.w_spin = QSpinBox()
-        self.w_spin.setRange(1, 100)
-        self.w_spin.setValue(1)
-        self.w_spin.setFixedWidth(90)
-        w_row = QHBoxLayout()
-        w_row.addWidget(self.w_spin)
-        w_row.addWidget(QLabel("columns per window  (1 = column-by-column)"))
-        w_row.addStretch()
-        manual_form.addRow(self.w_check, w_row)
-
-        method_layout.addLayout(manual_form)
         params_layout.addWidget(method_box)
 
         # output format group
@@ -553,9 +408,15 @@ class AlignmentTrimmingTab(QWidget):
         fmt_layout = QHBoxLayout(fmt_box)
         fmt_lbl = QLabel("Format:")
         self.fmt_combo = QComboBox()
-        self.fmt_combo.addItems(
-            ["FASTA", "CLUSTAL", "PHYLIP", "NEXUS", "PIR", "MEGA", "HTML"]
-        )
+        self.fmt_combo.addItems([
+            "FASTA",
+            "CLUSTAL",
+            "PHYLIP",
+            "NEXUS",
+            "PIR",
+            "MEGA",
+            "HTML",
+        ])
         self.fmt_combo.setFixedWidth(120)
         self.fmt_combo.setToolTip(
             "FASTA   — default, compatible with most tools\n"
@@ -567,13 +428,7 @@ class AlignmentTrimmingTab(QWidget):
         fmt_layout.addWidget(self.fmt_combo)
         fmt_layout.addStretch()
         params_layout.addWidget(fmt_box)
-
-        scroll.setWidget(params_widget)
-        root.addWidget(scroll, 1)
-
-        # wire up manual enable/disable
-        self._method_grp.buttonToggled.connect(self._on_method_changed)
-        self._on_method_changed()
+        root.addLayout(params_layout)
 
         root.addWidget(_hline())
 
@@ -588,7 +443,7 @@ class AlignmentTrimmingTab(QWidget):
         self.log_edit = QTextEdit()
         self.log_edit.setReadOnly(True)
         self.log_edit.setFont(QFont("Consolas", 9))
-        self.log_edit.setMaximumHeight(120)
+        self.log_edit.setMaximumHeight(96)
         self.log_edit.setPlaceholderText("trimAl output will appear here…")
         root.addWidget(log_lbl)
         root.addWidget(self.log_edit)
@@ -597,22 +452,17 @@ class AlignmentTrimmingTab(QWidget):
         btn_row = QHBoxLayout()
         self.status_lbl = QLabel("")
         self.status_lbl.setStyleSheet("color: #888;")
+        self.run_btn = QPushButton("▶  Run trimAl")
+        self.run_btn.clicked.connect(self._run)
         help_btn = QPushButton("Help")
         help_btn.setFixedWidth(70)
         help_btn.clicked.connect(
             lambda: _show_help(self, "Alignment Trimming — Help", _HELP_HTML)
         )
-        self.stop_btn = QPushButton("■  Stop")
-        self.stop_btn.setFixedWidth(90)
-        self.stop_btn.setEnabled(False)
-        self.stop_btn.clicked.connect(self._stop)
-        self.run_btn = QPushButton("▶  Run trimAl")
-        self.run_btn.clicked.connect(self._run)
-        btn_row.addWidget(help_btn)
+        btn_row.addWidget(self.run_btn)
         btn_row.addWidget(self.status_lbl)
         btn_row.addStretch()
-        btn_row.addWidget(self.stop_btn)
-        btn_row.addWidget(self.run_btn)
+        btn_row.addWidget(help_btn)
         root.addLayout(btn_row)
 
     # ── file management ───────────────────────────────────────────────────
@@ -682,20 +532,6 @@ class AlignmentTrimmingTab(QWidget):
             self.outdir_edit.setText(d)
 
     # ── parameter helpers ─────────────────────────────────────────────────
-    def _on_method_changed(self, *_):
-        manual = self.rb_manual.isChecked()
-        for w in (
-            self.gt_check,
-            self.gt_spin,
-            self.st_check,
-            self.st_spin,
-            self.cons_check,
-            self.cons_spin,
-            self.w_check,
-            self.w_spin,
-        ):
-            w.setEnabled(manual)
-
     def _build_flags(self) -> list[str]:
         flags: list[str] = []
         if self.rb_auto1.isChecked():
@@ -704,17 +540,8 @@ class AlignmentTrimmingTab(QWidget):
             flags.append("-gappyout")
         elif self.rb_strict.isChecked():
             flags.append("-strict")
-        elif self.rb_strictplus.isChecked():
+        else:
             flags.append("-strictplus")
-        else:  # manual
-            if self.gt_check.isChecked():
-                flags += ["-gt", str(self.gt_spin.value())]
-            if self.st_check.isChecked():
-                flags += ["-st", str(self.st_spin.value())]
-            if self.cons_check.isChecked():
-                flags += ["-cons", str(self.cons_spin.value())]
-            if self.w_check.isChecked():
-                flags += ["-w", str(self.w_spin.value())]
         fmt_map = {
             "CLUSTAL": "-clustal",
             "PHYLIP": "-phylip",
@@ -739,25 +566,6 @@ class AlignmentTrimmingTab(QWidget):
             "HTML": ".html",
         }.get(self.fmt_combo.currentText(), ".fasta")
 
-    def _validate_manual(self) -> str | None:
-        if not self.rb_manual.isChecked():
-            return None
-        if not any(
-            [
-                self.gt_check.isChecked(),
-                self.st_check.isChecked(),
-                self.cons_check.isChecked(),
-            ]
-        ):
-            return (
-                "Manual mode is selected but no threshold is enabled.\n\n"
-                "Please tick at least one of:\n"
-                "  • Gap threshold (gt)\n"
-                "  • Similarity threshold (st)\n"
-                "  • Min. conservation % (cons)"
-            )
-        return None
-
     # ── run / stop ────────────────────────────────────────────────────────
     def _run(self):
         if self.file_list.count() == 0:
@@ -781,11 +589,6 @@ class AlignmentTrimmingTab(QWidget):
                 )
                 return
 
-        err = self._validate_manual()
-        if err:
-            QMessageBox.warning(self, "Parameter Error", err)
-            return
-
         if not os.path.isfile(TRIMAL_EXE):
             QMessageBox.critical(
                 self,
@@ -806,9 +609,10 @@ class AlignmentTrimmingTab(QWidget):
             in_path = item.data(256)
             base = os.path.splitext(os.path.basename(in_path))[0]
             out_path = os.path.join(outdir, base + ".trimmed" + ext)
-            tasks.append(
-                ([TRIMAL_EXE, "-in", in_path, "-out", out_path] + flags, out_path)
-            )
+            tasks.append((
+                [TRIMAL_EXE, "-in", in_path, "-out", out_path] + flags,
+                out_path,
+            ))
 
         total = len(tasks)
         self.log_edit.clear()
@@ -821,7 +625,6 @@ class AlignmentTrimmingTab(QWidget):
         self.progress_bar.setVisible(total > 1)
 
         self.run_btn.setEnabled(False)
-        self.stop_btn.setEnabled(True)
         msg = "Running trimAl…" if total == 1 else f"Batch trimming {total} files…"
         self.status_lbl.setText(msg)
         if self.status_callback:
@@ -832,12 +635,6 @@ class AlignmentTrimmingTab(QWidget):
         self._thread.file_done.connect(self._on_file_done)
         self._thread.all_done.connect(self._on_all_done)
         self._thread.start()
-
-    def _stop(self):
-        if self._thread:
-            self._thread.stop()
-        self.stop_btn.setEnabled(False)
-        self.status_lbl.setText("Stopping…")
 
     # ── thread callbacks ──────────────────────────────────────────────────
     def _on_progress(self, current: int, total: int, fname: str):
@@ -861,7 +658,6 @@ class AlignmentTrimmingTab(QWidget):
         total = succeeded + failed
         self.progress_bar.setValue(total)
         self.run_btn.setEnabled(True)
-        self.stop_btn.setEnabled(False)
         if self.status_callback:
             self.status_callback("")
 

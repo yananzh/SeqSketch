@@ -5,7 +5,7 @@ from typing import cast
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
 from main_window import MainWindow
 from modules.alignment_format_converter_tab import AlignmentFormatConverterTab
@@ -24,6 +24,7 @@ from modules.pairwise_alignment_tab import PairwiseAlignmentTab
 from modules.rna_tab import RNATab
 from modules.sanger_tab import SangerTab
 from modules.sequence_logo_tab import SequenceLogoTab
+from modules.trimal_tab import AlignmentTrimmingTab
 from modules.translate_tab import TranslateTab
 
 
@@ -125,6 +126,55 @@ def test_phylogenetic_tree_menu_includes_one_step_multigenephy(qapp):
 
     assert window.tabs.count() == 1
     assert window.tabs.currentWidget() is first_tab
+
+
+def test_phylogenetic_tree_menu_shows_alignment_trimming_first(qapp):
+    window = MainWindow()
+    menu_bar = window.menuBar()
+    tree_menu = next(
+        action.menu()
+        for action in menu_bar.actions()
+        if action.text() == "Phylogenetic Tree"
+    )
+    action_texts = [action.text() for action in tree_menu.actions() if action.text()]
+
+    assert action_texts[0] == "Alignment Trimming (trimAl)"
+
+
+def test_alignment_trimming_tab_uses_simplified_parameter_layout(qapp):
+    tab = AlignmentTrimmingTab()
+
+    assert not hasattr(tab, "rb_manual")
+    assert not hasattr(tab, "gt_check")
+    assert not hasattr(tab, "st_check")
+    assert not hasattr(tab, "cons_check")
+    assert not hasattr(tab, "w_check")
+    assert tab.findChildren(type(tab.file_list))
+    assert tab.findChildren(type(tab.fmt_combo))
+
+
+def test_alignment_trimming_tab_uses_compact_automated_controls(qapp):
+    tab = AlignmentTrimmingTab()
+    label_texts = [label.text() for label in tab.findChildren(QLabel)]
+
+    assert all("recommended for most users" not in text for text in label_texts)
+    assert all("Removes columns with unusually" not in text for text in label_texts)
+    assert all("Auto-selects the best method" not in text for text in label_texts)
+    assert tab.file_list.minimumHeight() <= 100
+    assert tab.log_edit.maximumHeight() <= 100
+
+
+def test_alignment_trimming_tab_places_run_left_help_right_without_stop(qapp):
+    tab = AlignmentTrimmingTab()
+    bottom_row = tab.layout().itemAt(tab.layout().count() - 1).layout()
+    button_texts = [
+        bottom_row.itemAt(index).widget().text()
+        for index in range(bottom_row.count())
+        if isinstance(bottom_row.itemAt(index).widget(), QPushButton)
+    ]
+
+    assert button_texts == ["▶  Run trimAl", "Help"]
+    assert not hasattr(tab, "stop_btn")
 
 
 def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
