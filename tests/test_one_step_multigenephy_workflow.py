@@ -50,6 +50,23 @@ def test_parse_excel_sheet_rejects_duplicate_strain_names(tmp_path):
         )
 
 
+def test_parse_excel_sheet_rejects_missing_gene_column(tmp_path):
+    df = pd.DataFrame({
+        "Strain": ["strain_a"],
+        "ITS": ["ON123456.1"],
+    })
+    excel_path = tmp_path / "missing_gene_column.xlsx"
+    df.to_excel(excel_path, index=False)
+
+    with pytest.raises(ValueError, match="Missing gene column"):
+        parse_excel_sheet(
+            str(excel_path),
+            sheet_name="Sheet1",
+            strain_column="Strain",
+            gene_columns=["ITS", "TEF1"],
+        )
+
+
 def test_read_excel_columns_uses_header_row(tmp_path):
     df = pd.DataFrame({
         "Strain": ["strain_a"],
