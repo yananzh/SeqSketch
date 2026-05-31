@@ -533,7 +533,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
         single_page = QWidget()
         sf_layout = QVBoxLayout(single_page)
-        sf_layout.setContentsMargins(0, 0, 0, 0)
+        sf_layout.setContentsMargins(8, 8, 8, 8)
         sf_layout.setSpacing(6)
 
         while self.content_area.count():

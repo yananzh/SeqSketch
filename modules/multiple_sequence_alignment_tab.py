@@ -487,9 +487,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         output_label = QLabel("Output File:")
         self.output_file_edit = QLineEdit()
-        self.output_file_edit.setPlaceholderText(
-            "Choose aligned FASTA output path"
-        )
+        self.output_file_edit.setPlaceholderText("Choose aligned FASTA output path")
         self.output_file_edit.setToolTip(
             "Single-file mode writes the aligned FASTA directly to this path after the run finishes"
         )
@@ -549,7 +547,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         # ── Single-file tab: drain every item from content_area ──────────
         single_page = QWidget()
         sf_layout = QVBoxLayout(single_page)
-        sf_layout.setContentsMargins(0, 0, 0, 0)
+        sf_layout.setContentsMargins(8, 8, 8, 8)
         sf_layout.setSpacing(6)
 
         while self.content_area.count():

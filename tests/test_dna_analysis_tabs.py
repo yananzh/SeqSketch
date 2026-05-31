@@ -304,6 +304,14 @@ def test_msa_single_file_tab_hides_output_panel_and_locks_export_to_fasta(qapp):
     assert tab.output_file_edit.text() == ""
 
 
+def test_msa_single_file_tab_adds_left_padding_inside_subpage(qapp):
+    tab = MultipleSequenceAlignmentTab()
+    single_page_layout = tab.mode_tabs.widget(0).layout()
+
+    assert single_page_layout is not None
+    assert single_page_layout.contentsMargins().left() >= 8
+
+
 def test_msa_single_file_loads_input_without_showing_loaded_hint(
     qapp, monkeypatch, tmp_path
 ):
@@ -478,6 +486,14 @@ def test_mafft_single_file_tab_hides_output_panel_and_uses_mode_subtabs(qapp):
     assert tab.export_btn.isHidden()
     assert tab.input_hint.isHidden()
     assert tab.output_file_edit.text() == ""
+
+
+def test_mafft_single_file_tab_adds_left_padding_inside_subpage(qapp):
+    tab = MafftAlignmentTab()
+    single_page_layout = tab.mode_tabs.widget(0).layout()
+
+    assert single_page_layout is not None
+    assert single_page_layout.contentsMargins().left() >= 8
 
 
 def test_mafft_batch_tab_defaults_to_input_order_with_mafft_pattern(qapp):
