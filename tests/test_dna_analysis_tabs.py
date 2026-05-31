@@ -107,9 +107,24 @@ def test_phylogenetic_tree_menu_includes_one_step_multigenephy(qapp):
         for action in menu_bar.actions()
         if action.text() == "Phylogenetic Tree"
     )
-    action_texts = [action.text() for action in tree_menu.actions() if action.text()]
+    one_step_action = next(
+        action
+        for action in tree_menu.actions()
+        if action.text() == "One Step MultiGenePhy"
+    )
 
-    assert "One Step MultiGenePhy" in action_texts
+    one_step_action.trigger()
+
+    assert window.tabs.count() == 1
+    assert window.tabs.tabText(0) == "One Step MultiGenePhy"
+
+    first_tab = window.tabs.widget(0)
+    assert isinstance(first_tab, OneStepMultiGenePhyTab)
+
+    one_step_action.trigger()
+
+    assert window.tabs.count() == 1
+    assert window.tabs.currentWidget() is first_tab
 
 
 def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
