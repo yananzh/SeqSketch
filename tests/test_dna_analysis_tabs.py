@@ -19,6 +19,7 @@ from modules.multiple_sequence_alignment_tab import (
     _MuscleBatchWorker,
 )
 from modules.orf_tab import ORFTab
+from modules.one_step_multigenephy_tab import OneStepMultiGenePhyTab
 from modules.pairwise_alignment_tab import PairwiseAlignmentTab
 from modules.rna_tab import RNATab
 from modules.sanger_tab import SangerTab
@@ -79,6 +80,36 @@ def test_dna_analysis_menu_uses_single_complement_tools_entry(qapp):
 
     assert "Complement/Reverse Complement" in action_texts
     assert "Reverse Complement" not in action_texts
+
+
+def test_main_window_reuses_single_one_step_multigenephy_tab(qapp):
+    window = MainWindow()
+
+    window.open_one_step_multigenephy_tab()
+
+    assert window.tabs.count() == 1
+    assert window.tabs.tabText(0) == "One Step MultiGenePhy"
+
+    first_tab = window.tabs.widget(0)
+    assert isinstance(first_tab, OneStepMultiGenePhyTab)
+
+    window.open_one_step_multigenephy_tab()
+
+    assert window.tabs.count() == 1
+    assert window.tabs.currentWidget() is first_tab
+
+
+def test_phylogenetic_tree_menu_includes_one_step_multigenephy(qapp):
+    window = MainWindow()
+    menu_bar = window.menuBar()
+    tree_menu = next(
+        action.menu()
+        for action in menu_bar.actions()
+        if action.text() == "Phylogenetic Tree"
+    )
+    action_texts = [action.text() for action in tree_menu.actions() if action.text()]
+
+    assert "One Step MultiGenePhy" in action_texts
 
 
 def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(

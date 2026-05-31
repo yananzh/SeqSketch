@@ -274,6 +274,11 @@ def create_menus(window):
     )
     partition_action.triggered.connect(window.open_partition_concat_tab)
     evolution_menu.addAction(partition_action)
+    one_step_multigenephy_action = QAction(window.tr("One Step MultiGenePhy"), window)
+    one_step_multigenephy_action.triggered.connect(
+        window.open_one_step_multigenephy_tab
+    )
+    evolution_menu.addAction(one_step_multigenephy_action)
     # 7.2 Alignment Trimming (trimAl)
     trimal_action = QAction(window.tr("Alignment Trimming (trimAl)"), window)
     trimal_action.triggered.connect(window.open_alignment_trimming_tab)

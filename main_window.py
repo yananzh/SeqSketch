@@ -375,6 +375,19 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, self.tr("Sequence Concatenation and Partition Models"))
         self.tabs.setCurrentWidget(tab)
 
+    def open_one_step_multigenephy_tab(self):
+        """Open (or focus) the One Step MultiGenePhy tab."""
+        from modules.one_step_multigenephy_tab import OneStepMultiGenePhyTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), OneStepMultiGenePhyTab):
+                self.tabs.setCurrentIndex(i)
+                return
+
+        tab = OneStepMultiGenePhyTab(status_callback=self.status.showMessage)
+        self.tabs.addTab(tab, self.tr("One Step MultiGenePhy"))
+        self.tabs.setCurrentWidget(tab)
+
     def open_tree_visualization_tab(self):
         """Open (or focus) the Tree Visualization tab."""
         from modules.tree_visualization_tab import TreeVisualizationTab
