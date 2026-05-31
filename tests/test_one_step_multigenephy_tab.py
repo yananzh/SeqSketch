@@ -49,6 +49,31 @@ def test_tab_renders_import_summary_and_gene_list(qapp):
     ]
 
 
+def test_tab_renders_import_summary_with_translated_labels(qapp, monkeypatch):
+    monkeypatch.setattr(OneStepMultiGenePhyTab, "tr", lambda self, text: f"T::{text}")
+
+    tab = OneStepMultiGenePhyTab()
+    tab._render_import_summary(
+        {
+            "strain_count": 2,
+            "gene_count": 3,
+            "accession_count": 4,
+            "sequence_count": 2,
+            "missing_count": 1,
+            "invalid_count": 0,
+        }
+    )
+
+    assert tab.summary_view.toPlainText().splitlines() == [
+        "T::Strains: 2",
+        "T::Genes: 3",
+        "T::Accessions: 4",
+        "T::Raw sequences: 2",
+        "T::Missing: 1",
+        "T::Invalid: 0",
+    ]
+
+
 def test_tab_loads_gene_columns_from_excel_header(qapp, monkeypatch, tmp_path):
     excel_path = tmp_path / "multigene.xlsx"
 

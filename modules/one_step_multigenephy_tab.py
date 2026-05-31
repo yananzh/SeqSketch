@@ -157,12 +157,24 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.summary_view.setPlainText(
             "\n".join(
                 [
-                    f"Strains: {summary.get('strain_count', 0)}",
-                    f"Genes: {summary.get('gene_count', 0)}",
-                    f"Accessions: {summary.get('accession_count', 0)}",
-                    f"Raw sequences: {summary.get('sequence_count', 0)}",
-                    f"Missing: {summary.get('missing_count', 0)}",
-                    f"Invalid: {summary.get('invalid_count', 0)}",
+                    self.tr("Strains: {count}").format(
+                        count=summary.get("strain_count", 0)
+                    ),
+                    self.tr("Genes: {count}").format(
+                        count=summary.get("gene_count", 0)
+                    ),
+                    self.tr("Accessions: {count}").format(
+                        count=summary.get("accession_count", 0)
+                    ),
+                    self.tr("Raw sequences: {count}").format(
+                        count=summary.get("sequence_count", 0)
+                    ),
+                    self.tr("Missing: {count}").format(
+                        count=summary.get("missing_count", 0)
+                    ),
+                    self.tr("Invalid: {count}").format(
+                        count=summary.get("invalid_count", 0)
+                    ),
                 ]
             )
         )
