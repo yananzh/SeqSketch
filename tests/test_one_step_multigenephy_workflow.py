@@ -1,4 +1,6 @@
 import json
+import subprocess
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -16,6 +18,7 @@ from modules.one_step_multigenephy_workflow import (
     OneStepMultiGenePhyRunner,
     ToolAdapters,
     WorkflowWorker,
+    build_default_tool_adapters,
 )
 
 
@@ -530,6 +533,141 @@ def test_runner_marks_empty_trimmed_output_as_warning(tmp_path):
     ]
     assert manifest["artifacts"]["trimmed"] == {}
 
+
+def test_build_default_tool_adapters_fetch_accession_uses_entrez_email(monkeypatch):
+    calls = {}
+
+    class FakeHandle:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return ">ON123456.1 sample\nATGC\n"
+
+    class FakeEntrez:
+        email = ""
+
+        @staticmethod
+        def efetch(db, id, rettype, retmode):
+            calls["request"] = (db, id, rettype, retmode, FakeEntrez.email)
+            return FakeHandle()
+
+    monkeypatch.setattr(workflow_module, "Entrez", FakeEntrez)
+
+    adapters = build_default_tool_adapters()
+
+    sequence = adapters.fetch_accession("ON123456.1", "user@example.com")
+
+    assert sequence == "ATGC"
+    assert calls["request"] == (
+        "nucleotide",
+        "ON123456.1",
+        "fasta",
+        "text",
+        "user@example.com",
+    )
+
+
+def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_path, monkeypatch):
+    mafft_exe = tmp_path / "mafft.bat"
+    trimal_exe = tmp_path / "trimal.exe"
+    iqtree_exe = tmp_path / "iqtree3.exe"
+    for path in (mafft_exe, trimal_exe, iqtree_exe):
+        path.write_text("echo", encoding="utf-8")
+
+    resource_paths = {
+        ("softwares", "mafft-win", "mafft.bat"): str(mafft_exe),
+        ("softwares", "mafft-win", "mafft-signed.ps1"): str(tmp_path / "missing-mafft.ps1"),
+        ("softwares", "trimAl_Windows_x86-64", "trimal.exe"): str(trimal_exe),
+        ("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe"): str(iqtree_exe),
+    }
+    calls = []
+
+    def fake_resource_path(*parts):
+        return resource_paths[parts]
+
+    def fake_run(
+        cmd,
+        stdout=None,
+        stderr=None,
+        text=None,
+        encoding=None,
+        errors=None,
+        creationflags=None,
+        cwd=None,
+    ):
+        calls.append({"cmd": list(cmd), "creationflags": creationflags, "cwd": cwd})
+        executable_name = Path(cmd[0]).name.lower()
+        if executable_name == "mafft.bat":
+            return type(
+                "Result",
+                (),
+                {
+                    "returncode": 0,
+                    "stdout": ">strain_a\nAA-\n>strain_b\nAT-\n",
+                    "stderr": "",
+                },
+            )()
+        if executable_name == "trimal.exe":
+            output_path = Path(cmd[cmd.index("-out") + 1])
+            output_path.write_text(
+                ">strain_a\nAA\n>strain_b\nAT\n",
+                encoding="utf-8",
+            )
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        if executable_name == "iqtree3.exe":
+            prefix = cmd[cmd.index("--prefix") + 1]
+            Path(f"{prefix}.treefile").write_text("(strain_a,strain_b);\n", encoding="utf-8")
+            return type("Result", (), {"returncode": 0, "stdout": "ok", "stderr": ""})()
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(workflow_module, "resource_path", fake_resource_path)
+    monkeypatch.setattr(workflow_module.subprocess, "run", fake_run)
+
+    adapters = build_default_tool_adapters()
+
+    aligned_sequences, aligned_path = adapters.run_alignment(
+        "ITS",
+        {"strain_a": "AA", "strain_b": "AT"},
+        str(tmp_path / "alignments"),
+        "--auto",
+    )
+    trimmed_sequences, trimmed_path = adapters.run_trimming(
+        "ITS",
+        aligned_sequences,
+        str(tmp_path / "trimmed"),
+        "automated1",
+    )
+    treefile_path = adapters.run_iqtree(
+        str(tmp_path / "concat" / "supermatrix.fasta"),
+        str(tmp_path / "concat" / "partitions.nex"),
+        str(tmp_path / "iqtree"),
+        1000,
+        "AUTO",
+    )
+
+    assert aligned_sequences == {"strain_a": "AA-", "strain_b": "AT-"}
+    assert trimmed_sequences == {"strain_a": "AA", "strain_b": "AT"}
+    assert Path(aligned_path).exists()
+    assert Path(trimmed_path).exists()
+    assert Path(treefile_path).exists()
+
+    no_window = (
+        subprocess.CREATE_NO_WINDOW
+        if hasattr(subprocess, "CREATE_NO_WINDOW")
+        else 0
+    )
+    assert calls[0]["cmd"][0] == str(mafft_exe)
+    assert calls[0]["creationflags"] == no_window
+    assert "--auto" in calls[0]["cmd"]
+    assert calls[1]["cmd"][0] == str(trimal_exe)
+    assert "-automated1" in calls[1]["cmd"]
+    assert calls[2]["cmd"][0] == str(iqtree_exe)
+    assert calls[2]["cmd"][calls[2]["cmd"].index("-T") + 1] == "AUTO"
+    assert calls[2]["cmd"][calls[2]["cmd"].index("-B") + 1] == "1000"
 
 def test_runner_concatenates_in_project_gene_column_order(tmp_path):
     project = ProjectInput(

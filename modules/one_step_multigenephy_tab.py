@@ -13,7 +13,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from modules.one_step_multigenephy_io import read_excel_columns
+from modules.one_step_multigenephy_io import parse_excel_sheet, read_excel_columns
+from modules.one_step_multigenephy_models import ProjectInput
+from modules.one_step_multigenephy_workflow import (
+    OneStepMultiGenePhyRunner,
+    WorkflowWorker,
+    build_default_tool_adapters,
+)
 from utils.common_components import BaseTabWidget
 
 
@@ -27,6 +33,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     def __init__(self, status_callback=None):
         self._status_callback = status_callback
         self.gene_columns: list[str] = []
+        self._worker: WorkflowWorker | None = None
         super().__init__("One Step MultiGenePhy", "file")
         self._build_ui()
 
@@ -198,6 +205,12 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     def _append_log(self, line: str) -> None:
         self.log_message(line)
 
+    def _handle_run_failed(self, message: str) -> None:
+        self.show_status(self.tr("Workflow failed"))
+        self.log_message(message, "ERROR")
+        if self._status_callback is not None:
+            self._status_callback(message)
+
     def _handle_run_completed(self, result) -> None:
         self._render_step_status(dict(getattr(result, "step_status", {})))
         self.artifact_list.clear()
@@ -217,8 +230,52 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             self.log_message(warning, "WARNING")
 
     def start_run(self) -> None:
-        self.log_message(self.tr("Workflow start requested"))
-        self.show_status(self.tr("Mock workflow request queued"))
+        excel_path = self.excel_path_edit.text().strip()
+        sheet_name = self.sheet_name_edit.text().strip() or "Sheet1"
+        strain_column = self.strain_column_edit.text().strip()
+        output_dir = self.output_dir_edit.text().strip()
+        ncbi_email = self.email_edit.text().strip()
+
+        try:
+            parsed = parse_excel_sheet(
+                excel_path,
+                sheet_name,
+                strain_column,
+                list(self.gene_columns),
+            )
+        except Exception as exc:
+            self.show_status(self.tr("Failed to parse workbook"))
+            self.log_message(str(exc), "ERROR")
+            return
+
+        self._render_import_summary(parsed.summary)
+
+        project = ProjectInput(
+            excel_path=excel_path,
+            sheet_name=sheet_name,
+            strain_column=strain_column,
+            gene_columns=list(self.gene_columns),
+            output_dir=output_dir,
+            ncbi_email=ncbi_email,
+        )
+        runner = OneStepMultiGenePhyRunner(
+            adapters=build_default_tool_adapters()
+        )
+        worker = WorkflowWorker(
+            runner,
+            project,
+            parsed.cells,
+            parsed.strain_order,
+        )
+        worker.completed.connect(self._handle_run_completed)
+        worker.failed.connect(self._handle_run_failed)
+        worker.step_changed.connect(self._handle_step_update)
+        worker.log_line.connect(self._append_log)
+
+        self._worker = worker
+        self.show_status(self.tr("Workflow running"))
+        self.log_message(self.tr("Workflow started"))
+        worker.start()
 
     def show_help(self) -> None:
         self.log_message(

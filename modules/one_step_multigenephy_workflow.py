@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import os
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
 from PyQt6.QtCore import QThread, pyqtSignal
+
+try:
+    from Bio import Entrez
+except ImportError:  # pragma: no cover - dependency is expected in normal runs
+    Entrez = None
 
 from modules.one_step_multigenephy_io import (
     build_gene_datasets,
@@ -12,6 +19,215 @@ from modules.one_step_multigenephy_io import (
     write_run_manifest,
 )
 from modules.one_step_multigenephy_models import RunArtifacts, WorkflowRunResult
+from utils.app_paths import resource_path
+
+
+def _creation_flags() -> int:
+    if os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW"):
+        return subprocess.CREATE_NO_WINDOW
+    return 0
+
+
+def _parse_fasta_text(text: str) -> dict[str, str]:
+    sequences: dict[str, str] = {}
+    header: str | None = None
+    chunks: list[str] = []
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith(">"):
+            if header is not None:
+                sequences[header] = "".join(chunks).upper()
+            header = line[1:].strip().split()[0] or f"seq{len(sequences) + 1}"
+            chunks = []
+            continue
+        chunks.append(line)
+
+    if header is not None:
+        sequences[header] = "".join(chunks).upper()
+
+    return sequences
+
+
+def _read_fasta_file(path: Path) -> dict[str, str]:
+    return _parse_fasta_text(path.read_text(encoding="utf-8"))
+
+
+def _mafft_executable() -> str:
+    for name in ("mafft.bat", "mafft-signed.ps1"):
+        candidate = resource_path("softwares", "mafft-win", name)
+        if os.path.isfile(candidate):
+            return candidate
+    return resource_path("softwares", "mafft-win", "mafft.bat")
+
+
+def _trimal_executable() -> str:
+    return resource_path("softwares", "trimAl_Windows_x86-64", "trimal.exe")
+
+
+def _iqtree_executable() -> str:
+    return resource_path("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
+
+
+def _ensure_executable(path: str, tool_name: str) -> None:
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"{tool_name} executable not found: {path}")
+
+
+def _run_command(cmd: list[str], cwd: str | None = None) -> subprocess.CompletedProcess:
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        creationflags=_creation_flags(),
+        cwd=cwd,
+    )
+    if result.returncode != 0:
+        details = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(details or f"Command failed with exit code {result.returncode}")
+    return result
+
+
+def _write_sequences_file(path: Path, sequences: dict[str, str]) -> None:
+    content = "".join(
+        f">{strain_name}\n{sequence}\n"
+        for strain_name, sequence in sequences.items()
+    )
+    path.write_text(content, encoding="utf-8")
+
+
+def build_default_tool_adapters() -> ToolAdapters:
+    def fetch_accession(accession: str, email: str) -> str:
+        if Entrez is None:
+            raise RuntimeError("Biopython Entrez is not available")
+        if not email:
+            raise ValueError("NCBI email is required to fetch accession sequences")
+
+        Entrez.email = email
+        with Entrez.efetch(
+            db="nucleotide",
+            id=accession,
+            rettype="fasta",
+            retmode="text",
+        ) as handle:
+            sequences = _parse_fasta_text(handle.read())
+
+        if not sequences:
+            raise RuntimeError(f"No FASTA sequence returned for {accession}")
+        return next(iter(sequences.values()))
+
+    def run_alignment(
+        gene_name: str,
+        sequences: dict[str, str],
+        output_dir: str,
+        mode: str,
+    ) -> tuple[dict[str, str], str]:
+        mafft_exe = _mafft_executable()
+        _ensure_executable(mafft_exe, "MAFFT")
+
+        stage_dir = Path(output_dir)
+        stage_dir.mkdir(parents=True, exist_ok=True)
+        input_path = stage_dir / f"{gene_name}.input.fasta"
+        output_path = stage_dir / f"{gene_name}.aligned.fasta"
+        _write_sequences_file(input_path, sequences)
+
+        cmd = [mafft_exe]
+        mode_tokens = (mode or "--auto").split()
+        cmd.extend(mode_tokens or ["--auto"])
+        cmd.extend(["--thread", "1", str(input_path)])
+
+        result = _run_command(cmd)
+        aligned_text = (result.stdout or "").strip()
+        if not aligned_text:
+            raise RuntimeError("MAFFT produced no alignment output")
+
+        aligned_sequences = _parse_fasta_text(aligned_text)
+        if not aligned_sequences:
+            raise RuntimeError("MAFFT output could not be parsed as FASTA")
+
+        _write_sequences_file(
+            output_path,
+            _ordered_sequences(aligned_sequences, list(sequences)),
+        )
+        return aligned_sequences, str(output_path)
+
+    def run_trimming(
+        gene_name: str,
+        sequences: dict[str, str],
+        output_dir: str,
+        mode: str,
+    ) -> tuple[dict[str, str], str]:
+        trimal_exe = _trimal_executable()
+        _ensure_executable(trimal_exe, "trimAl")
+
+        stage_dir = Path(output_dir)
+        stage_dir.mkdir(parents=True, exist_ok=True)
+        input_path = stage_dir / f"{gene_name}.aligned.fasta"
+        output_path = stage_dir / f"{gene_name}.trimmed.fasta"
+        _write_sequences_file(input_path, sequences)
+
+        cmd = [trimal_exe, "-in", str(input_path), "-out", str(output_path)]
+        normalized_mode = (mode or "automated1").strip()
+        if normalized_mode:
+            if normalized_mode.startswith("-"):
+                cmd.extend(normalized_mode.split())
+            else:
+                cmd.append(f"-{normalized_mode}")
+
+        _run_command(cmd)
+
+        if not output_path.is_file():
+            raise RuntimeError("trimAl did not produce an output FASTA")
+
+        trimmed_sequences = _read_fasta_file(output_path)
+        return trimmed_sequences, str(output_path)
+
+    def run_iqtree(
+        concat_path: str,
+        partition_path: str,
+        output_dir: str,
+        bootstrap: int,
+        threads: str,
+    ) -> str:
+        iqtree_exe = _iqtree_executable()
+        _ensure_executable(iqtree_exe, "IQ-TREE")
+
+        stage_dir = Path(output_dir)
+        stage_dir.mkdir(parents=True, exist_ok=True)
+        prefix = stage_dir / "final"
+        cmd = [
+            iqtree_exe,
+            "-s",
+            concat_path,
+            "-p",
+            partition_path,
+            "-T",
+            str(threads),
+            "--prefix",
+            str(prefix),
+            "-redo",
+        ]
+        if bootstrap:
+            cmd.extend(["-B", str(bootstrap)])
+
+        _run_command(cmd, cwd=str(stage_dir))
+
+        treefile_path = Path(f"{prefix}.treefile")
+        if not treefile_path.is_file():
+            raise RuntimeError("IQ-TREE did not produce a treefile")
+        return str(treefile_path)
+
+    return ToolAdapters(
+        fetch_accession=fetch_accession,
+        run_alignment=run_alignment,
+        run_trimming=run_trimming,
+        run_iqtree=run_iqtree,
+    )
 
 
 def _build_manifest_payload(
