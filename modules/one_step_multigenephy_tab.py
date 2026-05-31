@@ -81,17 +81,21 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         run_monitor_group = QGroupBox(self.tr("Run Monitor"))
         run_monitor_layout = QFormLayout(run_monitor_group)
 
-        self.step_summary_label = QLabel(
-            self.tr(
-                "Import -> Fetch/Normalize -> Align per Gene -> Trim per Gene -> Concatenate -> Build Tree -> Summarize"
-            )
+        self.current_step_label = QLabel(self.tr("No step updates yet."))
+        self.step_status_view = QTextEdit()
+        self.step_status_view.setReadOnly(True)
+        self.step_status_view.setMaximumHeight(120)
+        self.step_status_view.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        self.step_status_view.setPlaceholderText(
+            self.tr("Per-step workflow results will appear here.")
         )
         self.artifact_list = QListWidget()
         self.artifact_list.setMinimumHeight(90)
         self.run_workflow_btn = QPushButton(self.tr("Run Workflow"))
         self.run_workflow_btn.clicked.connect(self.start_run)
 
-        run_monitor_layout.addRow(self.tr("Step summary:"), self.step_summary_label)
+        run_monitor_layout.addRow(self.tr("Current step:"), self.current_step_label)
+        run_monitor_layout.addRow(self.tr("Step results:"), self.step_status_view)
         run_monitor_layout.addRow(self.tr("Artifacts:"), self.artifact_list)
         run_monitor_layout.addRow(QWidget(), self.run_workflow_btn)
 
@@ -165,15 +169,25 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
     def _handle_step_update(self, step_name: str, status: str) -> None:
         message = f"{step_name}: {status}"
-        self.step_summary_label.setText(message)
+        self.current_step_label.setText(message)
         self.show_status(message)
         if self._status_callback is not None:
             self._status_callback(message)
+
+    def _render_step_status(self, step_status: dict[str, str]) -> None:
+        if not step_status:
+            self.step_status_view.clear()
+            return
+
+        self.step_status_view.setPlainText(
+            "\n".join(f"{step_name}: {status}" for step_name, status in step_status.items())
+        )
 
     def _append_log(self, line: str) -> None:
         self.log_message(line)
 
     def _handle_run_completed(self, result) -> None:
+        self._render_step_status(dict(getattr(result, "step_status", {})))
         self.artifact_list.clear()
         for path in (
             getattr(result.artifacts, "treefile_path", ""),
