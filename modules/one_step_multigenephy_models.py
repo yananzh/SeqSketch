@@ -60,3 +60,10 @@ class RunArtifacts:
     aligned_files: dict[str, str] = field(default_factory=dict)
     trimmed_files: dict[str, str] = field(default_factory=dict)
     extra_paths: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class WorkflowRunResult:
+    step_status: dict[str, str]
+    warnings: list[str]
+    artifacts: RunArtifacts

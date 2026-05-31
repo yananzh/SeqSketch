@@ -10,7 +10,11 @@ from modules.one_step_multigenephy_io import (
     read_excel_columns,
     write_run_manifest,
 )
-from modules.one_step_multigenephy_models import GeneCell
+from modules.one_step_multigenephy_models import GeneCell, ProjectInput
+from modules.one_step_multigenephy_workflow import (
+    OneStepMultiGenePhyRunner,
+    ToolAdapters,
+)
 
 
 def test_parse_excel_sheet_classifies_mixed_cells(tmp_path):
@@ -187,3 +191,74 @@ def test_write_run_manifest_persists_stage_and_artifact_metadata(tmp_path):
     assert payload["summary"]["strain_count"] == 2
     assert payload["steps"]["Build Tree"] == "warning"
     assert payload["artifacts"]["treefile"].endswith("final.treefile")
+
+
+def test_runner_continues_when_one_gene_fails_alignment(tmp_path):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS", "TEF1"],
+        output_dir=str(tmp_path / "run"),
+        ncbi_email="user@example.com",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "ON123456.1", "accession", accession="ON123456.1"),
+        GeneCell("strain_b", "ITS", "ATGT", "sequence", normalized_sequence="ATGT"),
+        GeneCell("strain_a", "TEF1", "GGGG", "sequence", normalized_sequence="GGGG"),
+        GeneCell("strain_b", "TEF1", "GGGA", "sequence", normalized_sequence="GGGA"),
+    ]
+
+    def fake_align(gene_name, sequences, output_dir, mode):
+        if gene_name == "TEF1":
+            raise RuntimeError("simulated MAFFT failure")
+        return dict(sequences), str(tmp_path / f"{gene_name}.aln")
+
+    adapters = ToolAdapters(
+        fetch_accession=lambda accession, email: "ATGC",
+        run_alignment=fake_align,
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.trimmed.fasta"),
+        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: str(
+            tmp_path / "final.treefile"
+        ),
+    )
+
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    assert result.step_status["Align per Gene"] == "warning"
+    assert any("TEF1" in warning for warning in result.warnings)
+    assert result.artifacts.treefile_path.endswith("final.treefile")
+
+
+def test_runner_fails_when_no_gene_reaches_concatenation(tmp_path):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(tmp_path / "run"),
+        ncbi_email="user@example.com",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "ATGC", "sequence", normalized_sequence="ATGC"),
+        GeneCell("strain_b", "ITS", "ATGA", "sequence", normalized_sequence="ATGA"),
+    ]
+
+    adapters = ToolAdapters(
+        fetch_accession=lambda accession, email: "ATGC",
+        run_alignment=lambda gene_name, sequences, output_dir, mode: (_ for _ in ()).throw(
+            RuntimeError("alignment failed")
+        ),
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (dict(sequences), ""),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: "",
+    )
+
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    with pytest.raises(RuntimeError, match="No genes remain usable for concatenation"):
+        runner.run(project, cells, strain_order=["strain_a", "strain_b"])
