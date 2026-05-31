@@ -336,6 +336,57 @@ def test_runner_writes_failed_run_state_when_iqtree_raises(tmp_path):
     assert "- Build Tree failed: iqtree failed" in summary
 
 
+def test_runner_preserves_original_failure_when_manifest_write_raises(tmp_path, monkeypatch):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(tmp_path / "run"),
+        ncbi_email="user@example.com",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "ATGC", "sequence", normalized_sequence="ATGC"),
+        GeneCell("strain_b", "ITS", "ATGA", "sequence", normalized_sequence="ATGA"),
+    ]
+
+    adapters = ToolAdapters(
+        fetch_accession=lambda accession, email: "ATGC",
+        run_alignment=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.aln"),
+        ),
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.trimmed.fasta"),
+        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (_ for _ in ()).throw(
+            RuntimeError("iqtree failed")
+        ),
+    )
+
+    def fail_manifest_write(path, payload):
+        raise OSError("manifest disk full")
+
+    monkeypatch.setattr(workflow_module, "write_run_manifest", fail_manifest_write)
+
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    with pytest.raises(RuntimeError, match="iqtree failed"):
+        runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    reports_dir = tmp_path / "run" / "06_reports"
+    summary_path = reports_dir / "summary.txt"
+
+    assert not (reports_dir / "run_manifest.json").exists()
+    assert summary_path.exists()
+    summary = summary_path.read_text(encoding="utf-8")
+    assert "- Build Tree: failed" in summary
+    assert "- Summarize: failed" in summary
+    assert "- Build Tree failed: iqtree failed" in summary
+    assert "- Summarize failed: manifest disk full" in summary
+
+
 def test_runner_marks_summarize_failed_when_summary_write_raises(tmp_path, monkeypatch):
     project = ProjectInput(
         excel_path="input.xlsx",
@@ -477,6 +528,7 @@ def test_runner_marks_empty_trimmed_output_as_warning(tmp_path):
         "ITS: trimming produced no usable output",
         "Concatenate failed: No genes remain usable for concatenation",
     ]
+    assert manifest["artifacts"]["trimmed"] == {}
 
 
 def test_runner_concatenates_in_project_gene_column_order(tmp_path):
@@ -554,3 +606,28 @@ def test_workflow_worker_emits_runner_progress_signals(tmp_path):
     assert steps == [("Import", "running")]
     assert lines == ["starting import"]
     assert completed == [{"ok": True}]
+
+
+def test_workflow_worker_emits_failed_on_runner_exception(tmp_path):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(tmp_path / "run"),
+    )
+    failed: list[str] = []
+    completed: list[object] = []
+
+    class FakeRunner:
+        def run(self, project, cells, strain_order, step_changed=None, log_line=None):
+            raise RuntimeError("runner exploded")
+
+    worker = WorkflowWorker(FakeRunner(), project, [], [])
+    worker.failed.connect(failed.append)
+    worker.completed.connect(completed.append)
+
+    worker.run()
+
+    assert failed == ["runner exploded"]
+    assert completed == []

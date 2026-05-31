@@ -154,37 +154,56 @@ class OneStepMultiGenePhyRunner:
             warnings.append(message)
             log_line(message)
 
-        def persist_run_outputs() -> None:
+        def persist_run_outputs(suppress_errors: bool = False) -> None:
             set_step("Summarize", "running")
             manifest_written = False
+            persistence_errors: list[Exception] = []
             persisted_step_status = dict(step_status)
             persisted_step_status["Summarize"] = "succeeded"
+
+            def handle_persistence_error(exc: Exception) -> None:
+                failure_message = f"Summarize failed: {exc}"
+                if failure_message not in warnings:
+                    add_warning(failure_message)
+                if step_status["Summarize"] != "failed":
+                    set_step("Summarize", "failed")
+                persistence_errors.append(exc)
+
             try:
                 write_run_manifest(
                     artifacts.manifest_path,
                     _build_manifest_payload(persisted_step_status, warnings, artifacts),
                 )
                 manifest_written = True
+            except Exception as exc:
+                handle_persistence_error(exc)
+
+            try:
+                summary_step_status = (
+                    dict(step_status) if persistence_errors else persisted_step_status
+                )
                 _write_summary(
                     artifacts.report_path,
-                    persisted_step_status,
+                    summary_step_status,
                     warnings,
                     artifacts,
                 )
             except Exception as exc:
-                failure_message = f"Summarize failed: {exc}"
-                if failure_message not in warnings:
-                    add_warning(failure_message)
-                set_step("Summarize", "failed")
-                if manifest_written:
-                    try:
-                        write_run_manifest(
-                            artifacts.manifest_path,
-                            _build_manifest_payload(step_status, warnings, artifacts),
-                        )
-                    except Exception:
-                        pass
-                raise
+                handle_persistence_error(exc)
+
+            if manifest_written and persistence_errors:
+                try:
+                    write_run_manifest(
+                        artifacts.manifest_path,
+                        _build_manifest_payload(step_status, warnings, artifacts),
+                    )
+                except Exception:
+                    pass
+
+            if persistence_errors:
+                if suppress_errors:
+                    return
+                raise persistence_errors[-1]
 
             set_step("Summarize", "succeeded")
 
@@ -339,7 +358,7 @@ class OneStepMultiGenePhyRunner:
         except Exception as exc:
             set_step(current_step, "failed")
             add_warning(f"{current_step} failed: {exc}")
-            persist_run_outputs()
+            persist_run_outputs(suppress_errors=True)
             raise
 
         persist_run_outputs()
