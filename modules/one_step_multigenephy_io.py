@@ -132,12 +132,28 @@ def build_gene_datasets(
 def concatenate_gene_alignments(
     datasets: dict[str, GeneDataset],
     strain_order: list[str],
+    gene_order: list[str] | None = None,
 ) -> tuple[dict[str, str], list[tuple[str, int, int]]]:
     concatenated = {strain_name: "" for strain_name in strain_order}
     partitions: list[tuple[str, int, int]] = []
     position = 1
 
-    for gene_name, dataset in datasets.items():
+    ordered_gene_names: list[str]
+    if gene_order is None:
+        ordered_gene_names = list(datasets)
+    else:
+        ordered_gene_names = []
+        seen: set[str] = set()
+        for gene_name in gene_order:
+            if gene_name in datasets and gene_name not in seen:
+                ordered_gene_names.append(gene_name)
+                seen.add(gene_name)
+        for gene_name in datasets:
+            if gene_name not in seen:
+                ordered_gene_names.append(gene_name)
+
+    for gene_name in ordered_gene_names:
+        dataset = datasets[gene_name]
         if not dataset.trimmed_sequences:
             continue
 

@@ -14,6 +14,7 @@ from modules.one_step_multigenephy_models import GeneCell, ProjectInput
 from modules.one_step_multigenephy_workflow import (
     OneStepMultiGenePhyRunner,
     ToolAdapters,
+    WorkflowWorker,
 )
 
 
@@ -262,3 +263,143 @@ def test_runner_fails_when_no_gene_reaches_concatenation(tmp_path):
 
     with pytest.raises(RuntimeError, match="No genes remain usable for concatenation"):
         runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
+    summary_path = tmp_path / "run" / "06_reports" / "summary.txt"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert manifest["steps"]["Align per Gene"] == "warning"
+    assert manifest["steps"]["Concatenate"] == "failed"
+    assert manifest["warnings"] == [
+        "ITS: alignment failed",
+    ]
+    assert summary_path.exists()
+
+
+def test_runner_writes_failed_run_state_when_iqtree_raises(tmp_path):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS", "TEF1"],
+        output_dir=str(tmp_path / "run"),
+        ncbi_email="user@example.com",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "ATGC", "sequence", normalized_sequence="ATGC"),
+        GeneCell("strain_b", "ITS", "ATGA", "sequence", normalized_sequence="ATGA"),
+        GeneCell("strain_a", "TEF1", "GGGG", "sequence", normalized_sequence="GGGG"),
+        GeneCell("strain_b", "TEF1", "GGGA", "sequence", normalized_sequence="GGGA"),
+    ]
+
+    def fake_align(gene_name, sequences, output_dir, mode):
+        if gene_name == "TEF1":
+            raise RuntimeError("simulated MAFFT failure")
+        return dict(sequences), str(tmp_path / f"{gene_name}.aln")
+
+    adapters = ToolAdapters(
+        fetch_accession=lambda accession, email: "ATGC",
+        run_alignment=fake_align,
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.trimmed.fasta"),
+        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (_ for _ in ()).throw(
+            RuntimeError("iqtree failed")
+        ),
+    )
+
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    with pytest.raises(RuntimeError, match="iqtree failed"):
+        runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
+    summary_path = tmp_path / "run" / "06_reports" / "summary.txt"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert manifest["steps"]["Align per Gene"] == "warning"
+    assert manifest["steps"]["Build Tree"] == "failed"
+    assert manifest["warnings"] == [
+        "TEF1: simulated MAFFT failure",
+    ]
+    assert manifest["artifacts"]["supermatrix"].endswith("supermatrix.fasta")
+    assert manifest["artifacts"]["treefile"] == ""
+    assert summary_path.exists()
+
+
+def test_runner_concatenates_in_project_gene_column_order(tmp_path):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["TEF1", "ITS"],
+        output_dir=str(tmp_path / "run"),
+        ncbi_email="user@example.com",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "AA", "sequence", normalized_sequence="AA"),
+        GeneCell("strain_b", "ITS", "AT", "sequence", normalized_sequence="AT"),
+        GeneCell("strain_a", "TEF1", "GG", "sequence", normalized_sequence="GG"),
+        GeneCell("strain_b", "TEF1", "GA", "sequence", normalized_sequence="GA"),
+    ]
+
+    adapters = ToolAdapters(
+        fetch_accession=lambda accession, email: "ATGC",
+        run_alignment=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.aln"),
+        ),
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.trimmed.fasta"),
+        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: str(
+            tmp_path / "final.treefile"
+        ),
+    )
+
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    partition_path = tmp_path / "run" / "04_concat" / "partitions.nex"
+    supermatrix_path = tmp_path / "run" / "04_concat" / "supermatrix.fasta"
+
+    assert partition_path.read_text(encoding="utf-8").splitlines()[2:4] == [
+        "  charset TEF1 = 1-2;",
+        "  charset ITS = 3-4;",
+    ]
+    assert supermatrix_path.read_text(encoding="utf-8") == ">strain_a\nGGAA\n>strain_b\nGAAT\n"
+
+
+def test_workflow_worker_emits_runner_progress_signals(tmp_path):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(tmp_path / "run"),
+    )
+    steps: list[tuple[str, str]] = []
+    lines: list[str] = []
+    completed: list[object] = []
+
+    class FakeRunner:
+        def run(self, project, cells, strain_order, step_changed=None, log_line=None):
+            assert step_changed is not None
+            assert log_line is not None
+            step_changed("Import", "running")
+            log_line("starting import")
+            return {"ok": True}
+
+    worker = WorkflowWorker(FakeRunner(), project, [], [])
+    worker.step_changed.connect(lambda step, status: steps.append((step, status)))
+    worker.log_line.connect(lines.append)
+    worker.completed.connect(completed.append)
+
+    worker.run()
+
+    assert steps == [("Import", "running")]
+    assert lines == ["starting import"]
+    assert completed == [{"ok": True}]

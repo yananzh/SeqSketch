@@ -14,6 +14,25 @@ from modules.one_step_multigenephy_io import (
 from modules.one_step_multigenephy_models import RunArtifacts, WorkflowRunResult
 
 
+def _build_manifest_payload(
+    step_status: dict[str, str],
+    warnings: list[str],
+    artifacts: RunArtifacts,
+) -> dict:
+    return {
+        "steps": step_status,
+        "warnings": warnings,
+        "artifacts": {
+            "normalized": artifacts.normalized_files,
+            "aligned": artifacts.aligned_files,
+            "trimmed": artifacts.trimmed_files,
+            "supermatrix": artifacts.extra_paths.get("supermatrix", ""),
+            "partitions": artifacts.extra_paths.get("partitions", ""),
+            "treefile": artifacts.treefile_path,
+        },
+    }
+
+
 def _ordered_sequences(
     sequences: dict[str, str],
     strain_order: list[str],
@@ -85,7 +104,19 @@ class OneStepMultiGenePhyRunner:
     def __init__(self, adapters: ToolAdapters):
         self.adapters = adapters
 
-    def run(self, project, cells, strain_order: list[str]) -> WorkflowRunResult:
+    def run(
+        self,
+        project,
+        cells,
+        strain_order: list[str],
+        step_changed: Callable[[str, str], None] | None = None,
+        log_line: Callable[[str], None] | None = None,
+    ) -> WorkflowRunResult:
+        if step_changed is None:
+            step_changed = lambda step, status: None
+        if log_line is None:
+            log_line = lambda line: None
+
         root_dir = Path(project.output_dir)
         stage_dirs = {
             "import": root_dir / "00_import",
@@ -99,16 +130,15 @@ class OneStepMultiGenePhyRunner:
         for directory in stage_dirs.values():
             directory.mkdir(parents=True, exist_ok=True)
 
-        datasets = build_gene_datasets(cells, strain_order)
         warnings: list[str] = []
         step_status = {
-            "Import": "succeeded",
-            "Fetch/Normalize": "succeeded",
-            "Align per Gene": "succeeded",
-            "Trim per Gene": "succeeded",
-            "Concatenate": "succeeded",
-            "Build Tree": "succeeded",
-            "Summarize": "succeeded",
+            "Import": "pending",
+            "Fetch/Normalize": "pending",
+            "Align per Gene": "pending",
+            "Trim per Gene": "pending",
+            "Concatenate": "pending",
+            "Build Tree": "pending",
+            "Summarize": "pending",
         }
         artifacts = RunArtifacts(
             root_dir=str(root_dir),
@@ -116,129 +146,167 @@ class OneStepMultiGenePhyRunner:
             report_path=str(stage_dirs["reports"] / "summary.txt"),
         )
 
-        fetch_warning = False
-        for dataset in datasets.values():
-            for cell in dataset.cells:
-                if cell.value_type == "accession" and cell.accession:
-                    try:
-                        sequence = self.adapters.fetch_accession(
-                            cell.accession,
-                            project.ncbi_email,
-                        ).strip().upper()
-                    except Exception as exc:
-                        fetch_warning = True
-                        cell.status = "warning"
-                        cell.message = str(exc)
-                        warnings.append(
-                            f"{dataset.gene_name}: failed to fetch {cell.accession}: {exc}"
-                        )
-                        continue
+        def set_step(step_name: str, status: str) -> None:
+            step_status[step_name] = status
+            step_changed(step_name, status)
 
-                    cell.normalized_sequence = sequence
-                    dataset.normalized_sequences[cell.strain_name] = sequence
-                    cell.status = "succeeded"
-                elif cell.value_type == "sequence" and cell.normalized_sequence:
-                    normalized = cell.normalized_sequence.strip().upper()
-                    cell.normalized_sequence = normalized
-                    dataset.normalized_sequences[cell.strain_name] = normalized
-                    cell.status = "succeeded"
+        def add_warning(message: str) -> None:
+            warnings.append(message)
+            log_line(message)
 
-            if dataset.normalized_sequences:
-                normalized_path = stage_dirs["normalized"] / f"{dataset.gene_name}.fasta"
-                _write_fasta(normalized_path, dataset.normalized_sequences, strain_order)
-                dataset.artifacts["normalized"] = str(normalized_path)
-                artifacts.normalized_files[dataset.gene_name] = str(normalized_path)
+        current_step = "Import"
 
-        if fetch_warning:
-            step_status["Fetch/Normalize"] = "warning"
+        try:
+            set_step("Import", "running")
+            log_line("Importing gene cells")
+            datasets = build_gene_datasets(cells, strain_order)
+            set_step("Import", "succeeded")
 
-        alignment_warning = False
-        trimming_warning = False
-        for dataset in datasets.values():
-            usable_sequences = _ordered_sequences(dataset.normalized_sequences, strain_order)
-            if len(usable_sequences) < 2:
-                alignment_warning = True
-                dataset.status = "warning"
-                warnings.append(
-                    f"{dataset.gene_name}: skipped because fewer than 2 usable sequences remain"
-                )
-                continue
+            current_step = "Fetch/Normalize"
+            set_step("Fetch/Normalize", "running")
+            log_line("Fetching and normalizing sequences")
 
-            try:
-                aligned_sequences, aligned_path = self.adapters.run_alignment(
-                    dataset.gene_name,
-                    usable_sequences,
-                    str(stage_dirs["alignments"]),
-                    project.mafft_mode,
-                )
-            except Exception as exc:
-                alignment_warning = True
-                dataset.status = "warning"
-                warnings.append(f"{dataset.gene_name}: {exc}")
-                continue
+            fetch_warning = False
+            for dataset in datasets.values():
+                for cell in dataset.cells:
+                    if cell.value_type == "accession" and cell.accession:
+                        try:
+                            sequence = self.adapters.fetch_accession(
+                                cell.accession,
+                                project.ncbi_email,
+                            ).strip().upper()
+                        except Exception as exc:
+                            fetch_warning = True
+                            cell.status = "warning"
+                            cell.message = str(exc)
+                            add_warning(
+                                f"{dataset.gene_name}: failed to fetch {cell.accession}: {exc}"
+                            )
+                            continue
 
-            dataset.artifacts["aligned"] = aligned_path
-            artifacts.aligned_files[dataset.gene_name] = aligned_path
+                        cell.normalized_sequence = sequence
+                        dataset.normalized_sequences[cell.strain_name] = sequence
+                        cell.status = "succeeded"
+                    elif cell.value_type == "sequence" and cell.normalized_sequence:
+                        normalized = cell.normalized_sequence.strip().upper()
+                        cell.normalized_sequence = normalized
+                        dataset.normalized_sequences[cell.strain_name] = normalized
+                        cell.status = "succeeded"
 
-            try:
-                trimmed_sequences, trimmed_path = self.adapters.run_trimming(
-                    dataset.gene_name,
-                    _ordered_sequences(aligned_sequences, strain_order),
-                    str(stage_dirs["trimmed"]),
-                    project.trimal_mode,
-                )
-            except Exception as exc:
-                trimming_warning = True
-                dataset.status = "warning"
-                warnings.append(f"{dataset.gene_name}: {exc}")
-                continue
+                if dataset.normalized_sequences:
+                    normalized_path = stage_dirs["normalized"] / f"{dataset.gene_name}.fasta"
+                    _write_fasta(normalized_path, dataset.normalized_sequences, strain_order)
+                    dataset.artifacts["normalized"] = str(normalized_path)
+                    artifacts.normalized_files[dataset.gene_name] = str(normalized_path)
 
-            dataset.trimmed_sequences = _ordered_sequences(trimmed_sequences, strain_order)
-            dataset.artifacts["trimmed"] = trimmed_path
-            artifacts.trimmed_files[dataset.gene_name] = trimmed_path
-            dataset.status = "succeeded"
+            set_step("Fetch/Normalize", "warning" if fetch_warning else "succeeded")
 
-        if alignment_warning:
-            step_status["Align per Gene"] = "warning"
-        if trimming_warning:
-            step_status["Trim per Gene"] = "warning"
+            current_step = "Align per Gene"
+            set_step("Align per Gene", "running")
+            set_step("Trim per Gene", "running")
+            log_line("Aligning and trimming per-gene sequences")
 
-        concatenated, partitions = concatenate_gene_alignments(datasets, strain_order)
-        if not partitions:
-            step_status["Concatenate"] = "failed"
-            raise RuntimeError("No genes remain usable for concatenation")
+            alignment_warning = False
+            trimming_warning = False
+            for dataset in datasets.values():
+                usable_sequences = _ordered_sequences(dataset.normalized_sequences, strain_order)
+                if len(usable_sequences) < 2:
+                    alignment_warning = True
+                    dataset.status = "warning"
+                    add_warning(
+                        f"{dataset.gene_name}: skipped because fewer than 2 usable sequences remain"
+                    )
+                    continue
 
-        concat_path = stage_dirs["concat"] / "supermatrix.fasta"
-        partition_path = stage_dirs["concat"] / "partitions.nex"
-        _write_fasta(concat_path, concatenated, strain_order)
-        _write_partitions(partition_path, partitions)
-        artifacts.extra_paths["supermatrix"] = str(concat_path)
-        artifacts.extra_paths["partitions"] = str(partition_path)
+                try:
+                    aligned_sequences, aligned_path = self.adapters.run_alignment(
+                        dataset.gene_name,
+                        usable_sequences,
+                        str(stage_dirs["alignments"]),
+                        project.mafft_mode,
+                    )
+                except Exception as exc:
+                    alignment_warning = True
+                    dataset.status = "warning"
+                    add_warning(f"{dataset.gene_name}: {exc}")
+                    continue
 
-        treefile_path = self.adapters.run_iqtree(
-            str(concat_path),
-            str(partition_path),
-            str(stage_dirs["iqtree"]),
-            project.iqtree_bootstrap,
-            project.threads,
-        )
-        artifacts.treefile_path = treefile_path
-        artifacts.extra_paths["iqtree_dir"] = str(stage_dirs["iqtree"])
+                dataset.artifacts["aligned"] = aligned_path
+                artifacts.aligned_files[dataset.gene_name] = aligned_path
 
+                current_step = "Trim per Gene"
+                try:
+                    trimmed_sequences, trimmed_path = self.adapters.run_trimming(
+                        dataset.gene_name,
+                        _ordered_sequences(aligned_sequences, strain_order),
+                        str(stage_dirs["trimmed"]),
+                        project.trimal_mode,
+                    )
+                except Exception as exc:
+                    trimming_warning = True
+                    dataset.status = "warning"
+                    add_warning(f"{dataset.gene_name}: {exc}")
+                    current_step = "Align per Gene"
+                    continue
+
+                current_step = "Align per Gene"
+                dataset.trimmed_sequences = _ordered_sequences(trimmed_sequences, strain_order)
+                dataset.artifacts["trimmed"] = trimmed_path
+                artifacts.trimmed_files[dataset.gene_name] = trimmed_path
+                dataset.status = "succeeded"
+
+            set_step("Align per Gene", "warning" if alignment_warning else "succeeded")
+            set_step("Trim per Gene", "warning" if trimming_warning else "succeeded")
+
+            current_step = "Concatenate"
+            set_step("Concatenate", "running")
+            log_line("Concatenating trimmed gene alignments")
+            concatenated, partitions = concatenate_gene_alignments(
+                datasets,
+                strain_order,
+                gene_order=project.gene_columns,
+            )
+            if not partitions:
+                raise RuntimeError("No genes remain usable for concatenation")
+
+            concat_path = stage_dirs["concat"] / "supermatrix.fasta"
+            partition_path = stage_dirs["concat"] / "partitions.nex"
+            _write_fasta(concat_path, concatenated, strain_order)
+            _write_partitions(partition_path, partitions)
+            artifacts.extra_paths["supermatrix"] = str(concat_path)
+            artifacts.extra_paths["partitions"] = str(partition_path)
+            set_step("Concatenate", "succeeded")
+
+            current_step = "Build Tree"
+            set_step("Build Tree", "running")
+            log_line("Running IQ-TREE")
+            treefile_path = self.adapters.run_iqtree(
+                str(concat_path),
+                str(partition_path),
+                str(stage_dirs["iqtree"]),
+                project.iqtree_bootstrap,
+                project.threads,
+            )
+            artifacts.treefile_path = treefile_path
+            artifacts.extra_paths["iqtree_dir"] = str(stage_dirs["iqtree"])
+            set_step("Build Tree", "succeeded")
+        except Exception as exc:
+            set_step(current_step, "failed")
+            log_line(f"{current_step} failed: {exc}")
+            set_step("Summarize", "running")
+            set_step("Summarize", "succeeded")
+            write_run_manifest(
+                artifacts.manifest_path,
+                _build_manifest_payload(step_status, warnings, artifacts),
+            )
+            _write_summary(artifacts.report_path, step_status, warnings, artifacts)
+            raise
+
+        set_step("Summarize", "running")
+        set_step("Summarize", "succeeded")
         write_run_manifest(
             artifacts.manifest_path,
-            {
-                "steps": step_status,
-                "warnings": warnings,
-                "artifacts": {
-                    "normalized": artifacts.normalized_files,
-                    "aligned": artifacts.aligned_files,
-                    "trimmed": artifacts.trimmed_files,
-                    "supermatrix": str(concat_path),
-                    "partitions": str(partition_path),
-                    "treefile": treefile_path,
-                },
-            },
+            _build_manifest_payload(step_status, warnings, artifacts),
         )
         _write_summary(artifacts.report_path, step_status, warnings, artifacts)
 
@@ -264,7 +332,13 @@ class WorkflowWorker(QThread):
 
     def run(self) -> None:
         try:
-            result = self.runner.run(self.project, self.cells, self.strain_order)
+            result = self.runner.run(
+                self.project,
+                self.cells,
+                self.strain_order,
+                step_changed=self.step_changed.emit,
+                log_line=self.log_line.emit,
+            )
         except Exception as exc:
             self.failed.emit(str(exc))
             return
