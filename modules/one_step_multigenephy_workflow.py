@@ -157,13 +157,20 @@ class OneStepMultiGenePhyRunner:
         def persist_run_outputs() -> None:
             set_step("Summarize", "running")
             manifest_written = False
+            persisted_step_status = dict(step_status)
+            persisted_step_status["Summarize"] = "succeeded"
             try:
                 write_run_manifest(
                     artifacts.manifest_path,
-                    _build_manifest_payload(step_status, warnings, artifacts),
+                    _build_manifest_payload(persisted_step_status, warnings, artifacts),
                 )
                 manifest_written = True
-                _write_summary(artifacts.report_path, step_status, warnings, artifacts)
+                _write_summary(
+                    artifacts.report_path,
+                    persisted_step_status,
+                    warnings,
+                    artifacts,
+                )
             except Exception as exc:
                 failure_message = f"Summarize failed: {exc}"
                 if failure_message not in warnings:
@@ -278,7 +285,16 @@ class OneStepMultiGenePhyRunner:
                     continue
 
                 current_step = "Align per Gene"
-                dataset.trimmed_sequences = _ordered_sequences(trimmed_sequences, strain_order)
+                ordered_trimmed_sequences = _ordered_sequences(trimmed_sequences, strain_order)
+                if not ordered_trimmed_sequences:
+                    trimming_warning = True
+                    dataset.status = "warning"
+                    add_warning(
+                        f"{dataset.gene_name}: trimming produced no usable output"
+                    )
+                    continue
+
+                dataset.trimmed_sequences = ordered_trimmed_sequences
                 dataset.artifacts["trimmed"] = trimmed_path
                 artifacts.trimmed_files[dataset.gene_name] = trimmed_path
                 trimmed_gene_count += 1

@@ -394,6 +394,91 @@ def test_runner_marks_summarize_failed_when_summary_write_raises(tmp_path, monke
     ]
 
 
+def test_runner_persists_summarize_succeeded_on_success(tmp_path):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(tmp_path / "run"),
+        ncbi_email="user@example.com",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "ATGC", "sequence", normalized_sequence="ATGC"),
+        GeneCell("strain_b", "ITS", "ATGA", "sequence", normalized_sequence="ATGA"),
+    ]
+
+    adapters = ToolAdapters(
+        fetch_accession=lambda accession, email: "ATGC",
+        run_alignment=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.aln"),
+        ),
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.trimmed.fasta"),
+        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: str(
+            tmp_path / "final.treefile"
+        ),
+    )
+
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
+    summary_path = tmp_path / "run" / "06_reports" / "summary.txt"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    summary = summary_path.read_text(encoding="utf-8")
+
+    assert result.step_status["Summarize"] == "succeeded"
+    assert manifest["steps"]["Summarize"] == "succeeded"
+    assert "- Summarize: succeeded" in summary
+
+
+def test_runner_marks_empty_trimmed_output_as_warning(tmp_path):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(tmp_path / "run"),
+        ncbi_email="user@example.com",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "ATGC", "sequence", normalized_sequence="ATGC"),
+        GeneCell("strain_b", "ITS", "ATGA", "sequence", normalized_sequence="ATGA"),
+    ]
+
+    adapters = ToolAdapters(
+        fetch_accession=lambda accession, email: "ATGC",
+        run_alignment=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.aln"),
+        ),
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (
+            {strain_name: "" for strain_name in sequences},
+            str(tmp_path / f"{gene_name}.trimmed.fasta"),
+        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: "",
+    )
+
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    with pytest.raises(RuntimeError, match="No genes remain usable for concatenation"):
+        runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert manifest["steps"]["Trim per Gene"] == "warning"
+    assert manifest["warnings"] == [
+        "ITS: trimming produced no usable output",
+        "Concatenate failed: No genes remain usable for concatenation",
+    ]
+
+
 def test_runner_concatenates_in_project_gene_column_order(tmp_path):
     project = ProjectInput(
         excel_path="input.xlsx",
