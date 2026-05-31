@@ -148,6 +148,28 @@ def test_concatenate_gene_alignments_rejects_mismatched_trimmed_lengths():
         concatenate_gene_alignments(datasets, strain_order=["strain_a", "strain_b"])
 
 
+def test_concatenate_gene_alignments_skips_zero_length_trimmed_gene():
+    datasets = build_gene_datasets(
+        [
+            GeneCell("strain_a", "ITS", "", "sequence", normalized_sequence=""),
+            GeneCell("strain_b", "ITS", "", "sequence", normalized_sequence=""),
+            GeneCell("strain_a", "TEF1", "GG", "sequence", normalized_sequence="GG"),
+            GeneCell("strain_b", "TEF1", "GA", "sequence", normalized_sequence="GA"),
+        ],
+        ["strain_a", "strain_b"],
+    )
+    datasets["ITS"].trimmed_sequences = {"strain_a": "", "strain_b": ""}
+    datasets["TEF1"].trimmed_sequences = {"strain_a": "GG", "strain_b": "GA"}
+
+    concatenated, partitions = concatenate_gene_alignments(
+        datasets,
+        strain_order=["strain_a", "strain_b"],
+    )
+
+    assert concatenated == {"strain_a": "GG", "strain_b": "GA"}
+    assert partitions == [("TEF1", 1, 2)]
+
+
 def test_write_run_manifest_persists_stage_and_artifact_metadata(tmp_path):
     manifest_path = tmp_path / "run_manifest.json"
 

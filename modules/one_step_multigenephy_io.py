@@ -156,6 +156,9 @@ def concatenate_gene_alignments(
             )
 
         gene_length = len(next(iter(dataset.trimmed_sequences.values())))
+        if gene_length == 0:
+            continue
+
         start = position
         end = position + gene_length - 1
         gap_fill = "-" * gene_length
