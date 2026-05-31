@@ -141,6 +141,20 @@ def concatenate_gene_alignments(
         if not dataset.trimmed_sequences:
             continue
 
+        trimmed_lengths = {
+            strain_name: len(sequence)
+            for strain_name, sequence in dataset.trimmed_sequences.items()
+        }
+        unique_lengths = set(trimmed_lengths.values())
+        if len(unique_lengths) != 1:
+            details = ", ".join(
+                f"{strain_name}={length}"
+                for strain_name, length in trimmed_lengths.items()
+            )
+            raise ValueError(
+                f"Gene {gene_name} has inconsistent trimmed sequence lengths: {details}"
+            )
+
         gene_length = len(next(iter(dataset.trimmed_sequences.values())))
         start = position
         end = position + gene_length - 1

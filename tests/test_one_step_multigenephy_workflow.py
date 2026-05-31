@@ -90,6 +90,28 @@ def test_read_excel_columns_uses_header_row(tmp_path):
     assert columns == ["Strain", "ITS", "TEF1"]
 
 
+def test_build_gene_datasets_tracks_missing_invalid_and_normalized_sequences():
+    cells = [
+        GeneCell("strain_a", "ITS", "ATGC", "sequence", normalized_sequence="ATGC"),
+        GeneCell("strain_b", "ITS", "", "missing"),
+        GeneCell("strain_c", "ITS", "bad-value", "invalid"),
+        GeneCell("strain_a", "TEF1", "ON123456.1", "accession", accession="ON123456.1"),
+        GeneCell("strain_b", "TEF1", "GGTT", "sequence", normalized_sequence="GGTT"),
+    ]
+
+    datasets = build_gene_datasets(cells, ["strain_a", "strain_b", "strain_c"])
+
+    its_dataset = datasets["ITS"]
+    tef1_dataset = datasets["TEF1"]
+
+    assert its_dataset.missing_strains == ["strain_b"]
+    assert its_dataset.invalid_cells == [cells[2]]
+    assert its_dataset.normalized_sequences == {"strain_a": "ATGC"}
+    assert tef1_dataset.missing_strains == []
+    assert tef1_dataset.invalid_cells == []
+    assert tef1_dataset.normalized_sequences == {"strain_b": "GGTT"}
+
+
 def test_concatenate_gene_alignments_gap_fills_missing_genes():
     cells = [
         GeneCell("strain_a", "ITS", "ON123", "sequence", normalized_sequence="AA"),
@@ -110,6 +132,20 @@ def test_concatenate_gene_alignments_gap_fills_missing_genes():
     assert concatenated["strain_a"] == "AAGG"
     assert concatenated["strain_b"] == "AT--"
     assert partitions == [("ITS", 1, 2), ("TEF1", 3, 4)]
+
+
+def test_concatenate_gene_alignments_rejects_mismatched_trimmed_lengths():
+    datasets = build_gene_datasets(
+        [
+            GeneCell("strain_a", "ITS", "AAA", "sequence", normalized_sequence="AAA"),
+            GeneCell("strain_b", "ITS", "AA", "sequence", normalized_sequence="AA"),
+        ],
+        ["strain_a", "strain_b"],
+    )
+    datasets["ITS"].trimmed_sequences = {"strain_a": "AAA", "strain_b": "AA"}
+
+    with pytest.raises(ValueError, match="ITS.*trimmed sequence lengths"):
+        concatenate_gene_alignments(datasets, strain_order=["strain_a", "strain_b"])
 
 
 def test_write_run_manifest_persists_stage_and_artifact_metadata(tmp_path):
