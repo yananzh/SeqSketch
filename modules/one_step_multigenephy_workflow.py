@@ -154,6 +154,33 @@ class OneStepMultiGenePhyRunner:
             warnings.append(message)
             log_line(message)
 
+        def persist_run_outputs() -> None:
+            set_step("Summarize", "running")
+            manifest_written = False
+            try:
+                write_run_manifest(
+                    artifacts.manifest_path,
+                    _build_manifest_payload(step_status, warnings, artifacts),
+                )
+                manifest_written = True
+                _write_summary(artifacts.report_path, step_status, warnings, artifacts)
+            except Exception as exc:
+                failure_message = f"Summarize failed: {exc}"
+                if failure_message not in warnings:
+                    add_warning(failure_message)
+                set_step("Summarize", "failed")
+                if manifest_written:
+                    try:
+                        write_run_manifest(
+                            artifacts.manifest_path,
+                            _build_manifest_payload(step_status, warnings, artifacts),
+                        )
+                    except Exception:
+                        pass
+                raise
+
+            set_step("Summarize", "succeeded")
+
         current_step = "Import"
 
         try:
@@ -208,6 +235,7 @@ class OneStepMultiGenePhyRunner:
 
             alignment_warning = False
             trimming_warning = False
+            trimmed_gene_count = 0
             for dataset in datasets.values():
                 usable_sequences = _ordered_sequences(dataset.normalized_sequences, strain_order)
                 if len(usable_sequences) < 2:
@@ -253,10 +281,12 @@ class OneStepMultiGenePhyRunner:
                 dataset.trimmed_sequences = _ordered_sequences(trimmed_sequences, strain_order)
                 dataset.artifacts["trimmed"] = trimmed_path
                 artifacts.trimmed_files[dataset.gene_name] = trimmed_path
+                trimmed_gene_count += 1
                 dataset.status = "succeeded"
 
             set_step("Align per Gene", "warning" if alignment_warning else "succeeded")
-            set_step("Trim per Gene", "warning" if trimming_warning else "succeeded")
+            trim_status = "warning" if trimming_warning or trimmed_gene_count == 0 else "succeeded"
+            set_step("Trim per Gene", trim_status)
 
             current_step = "Concatenate"
             set_step("Concatenate", "running")
@@ -292,23 +322,11 @@ class OneStepMultiGenePhyRunner:
             set_step("Build Tree", "succeeded")
         except Exception as exc:
             set_step(current_step, "failed")
-            log_line(f"{current_step} failed: {exc}")
-            set_step("Summarize", "running")
-            set_step("Summarize", "succeeded")
-            write_run_manifest(
-                artifacts.manifest_path,
-                _build_manifest_payload(step_status, warnings, artifacts),
-            )
-            _write_summary(artifacts.report_path, step_status, warnings, artifacts)
+            add_warning(f"{current_step} failed: {exc}")
+            persist_run_outputs()
             raise
 
-        set_step("Summarize", "running")
-        set_step("Summarize", "succeeded")
-        write_run_manifest(
-            artifacts.manifest_path,
-            _build_manifest_payload(step_status, warnings, artifacts),
-        )
-        _write_summary(artifacts.report_path, step_status, warnings, artifacts)
+        persist_run_outputs()
 
         return WorkflowRunResult(
             step_status=step_status,

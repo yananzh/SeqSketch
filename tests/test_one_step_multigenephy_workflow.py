@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import pytest
 
+import modules.one_step_multigenephy_workflow as workflow_module
 from modules.one_step_multigenephy_io import (
     build_gene_datasets,
     concatenate_gene_alignments,
@@ -267,13 +268,17 @@ def test_runner_fails_when_no_gene_reaches_concatenation(tmp_path):
     manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
     summary_path = tmp_path / "run" / "06_reports" / "summary.txt"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    summary = summary_path.read_text(encoding="utf-8")
 
     assert manifest["steps"]["Align per Gene"] == "warning"
+    assert manifest["steps"]["Trim per Gene"] == "warning"
     assert manifest["steps"]["Concatenate"] == "failed"
     assert manifest["warnings"] == [
         "ITS: alignment failed",
+        "Concatenate failed: No genes remain usable for concatenation",
     ]
     assert summary_path.exists()
+    assert "- Concatenate failed: No genes remain usable for concatenation" in summary
 
 
 def test_runner_writes_failed_run_state_when_iqtree_raises(tmp_path):
@@ -317,15 +322,76 @@ def test_runner_writes_failed_run_state_when_iqtree_raises(tmp_path):
     manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
     summary_path = tmp_path / "run" / "06_reports" / "summary.txt"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    summary = summary_path.read_text(encoding="utf-8")
 
     assert manifest["steps"]["Align per Gene"] == "warning"
     assert manifest["steps"]["Build Tree"] == "failed"
     assert manifest["warnings"] == [
         "TEF1: simulated MAFFT failure",
+        "Build Tree failed: iqtree failed",
     ]
     assert manifest["artifacts"]["supermatrix"].endswith("supermatrix.fasta")
     assert manifest["artifacts"]["treefile"] == ""
     assert summary_path.exists()
+    assert "- Build Tree failed: iqtree failed" in summary
+
+
+def test_runner_marks_summarize_failed_when_summary_write_raises(tmp_path, monkeypatch):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(tmp_path / "run"),
+        ncbi_email="user@example.com",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "ATGC", "sequence", normalized_sequence="ATGC"),
+        GeneCell("strain_b", "ITS", "ATGA", "sequence", normalized_sequence="ATGA"),
+    ]
+
+    adapters = ToolAdapters(
+        fetch_accession=lambda accession, email: "ATGC",
+        run_alignment=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.aln"),
+        ),
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.trimmed.fasta"),
+        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: str(
+            tmp_path / "final.treefile"
+        ),
+    )
+
+    def fail_summary_write(path, step_status, warnings, artifacts):
+        raise OSError("summary disk full")
+
+    monkeypatch.setattr(workflow_module, "_write_summary", fail_summary_write)
+
+    transitions = []
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    with pytest.raises(OSError, match="summary disk full"):
+        runner.run(
+            project,
+            cells,
+            strain_order=["strain_a", "strain_b"],
+            step_changed=lambda step, status: transitions.append((step, status)),
+        )
+
+    manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert [status for step, status in transitions if step == "Summarize"] == [
+        "running",
+        "failed",
+    ]
+    assert manifest["steps"]["Summarize"] == "failed"
+    assert manifest["warnings"] == [
+        "Summarize failed: summary disk full",
+    ]
 
 
 def test_runner_concatenates_in_project_gene_column_order(tmp_path):
