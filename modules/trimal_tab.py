@@ -20,8 +20,12 @@ Reference:
 
 import os
 import subprocess
+import tempfile
 
+from Bio import AlignIO
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
+
+from utils.app_paths import resource_path
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QFont, QPainter
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -49,8 +53,20 @@ from PyQt6.QtWidgets import (
 )
 
 # ── bundled trimAl path ────────────────────────────────────────────────────
-_HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TRIMAL_EXE = os.path.join(_HERE, "softwares", "trimAl_Windows_x86-64", "trimal.exe")
+TRIMAL_EXE = resource_path("softwares", "trimAl_Windows_x86-64", "trimal.exe")
+
+_ALIGN_FORMATS = {
+    ".fasta": "fasta",
+    ".fa": "fasta",
+    ".faa": "fasta",
+    ".fna": "fasta",
+    ".aln": "clustal",
+    ".clustal": "clustal",
+    ".phy": "phylip-relaxed",
+    ".phylip": "phylip-relaxed",
+    ".nex": "nexus",
+    ".nexus": "nexus",
+}
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
@@ -59,6 +75,39 @@ def _hline() -> QFrame:
     line.setFrameShape(QFrame.Shape.HLine)
     line.setFrameShadow(QFrame.Shadow.Sunken)
     return line
+
+
+def _cleanup_file(path: str | None) -> None:
+    if not path:
+        return
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+    except OSError:
+        pass
+
+
+def _prepare_trimal_input(input_path: str) -> tuple[str, str | None]:
+    fmt = _ALIGN_FORMATS.get(os.path.splitext(input_path)[1].lower())
+    if fmt in (None, "fasta"):
+        return input_path, None
+
+    with open(input_path, "r", encoding="utf-8", errors="replace") as handle:
+        alignments = list(AlignIO.parse(handle, fmt))
+    if not alignments:
+        raise ValueError(
+            f"No alignment records found in {os.path.basename(input_path)}"
+        )
+
+    fd, temp_path = tempfile.mkstemp(prefix="trimal_", suffix=".fasta")
+    os.close(fd)
+    with open(temp_path, "w", encoding="utf-8") as handle:
+        AlignIO.write(alignments, handle, "fasta")
+    return temp_path, temp_path
+
+
+def _format_command(cmd: list[str]) -> str:
+    return subprocess.list2cmdline(cmd)
 
 
 def _show_help(parent: QWidget, title: str, html: str) -> None:
@@ -229,7 +278,7 @@ class _BatchTrimThread(QThread):
     file_done = pyqtSignal(bool, str, str)  # success, out_path, log_snippet
     all_done = pyqtSignal(int, int)  # succeeded, failed
 
-    def __init__(self, tasks: list[tuple[list[str], str]]):
+    def __init__(self, tasks: list[tuple[list[str], str, str | None]]):
         super().__init__()
         self.tasks = tasks
         self._killed = False
@@ -240,7 +289,7 @@ class _BatchTrimThread(QThread):
     def run(self):
         total = len(self.tasks)
         succeeded = failed = 0
-        for idx, (cmd, out_path) in enumerate(self.tasks):
+        for idx, (cmd, out_path, cleanup_input) in enumerate(self.tasks):
             if self._killed:
                 break
             fname = os.path.basename(out_path)
@@ -253,16 +302,25 @@ class _BatchTrimThread(QThread):
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                 )
                 raw_out, _ = proc.communicate()
-                log = raw_out.decode("utf-8", errors="replace")
-                if proc.returncode == 0:
+                log = raw_out.decode("utf-8", errors="replace").strip()
+                output_exists = os.path.isfile(out_path)
+                if proc.returncode == 0 and output_exists:
                     succeeded += 1
                     self.file_done.emit(True, out_path, log)
                 else:
                     failed += 1
+                    if proc.returncode != 0 and not log:
+                        log = f"trimAl exited with code {proc.returncode}."
+                    if proc.returncode == 0 and not output_exists:
+                        log = (
+                            f"{log}\n" if log else ""
+                        ) + f"trimAl did not create output file:\n{out_path}"
                     self.file_done.emit(False, out_path, log)
             except Exception as exc:
                 failed += 1
                 self.file_done.emit(False, out_path, f"Error: {exc}")
+            finally:
+                _cleanup_file(cleanup_input)
         self.all_done.emit(succeeded, failed)
 
 
@@ -302,6 +360,21 @@ class AlignmentTrimmingTab(QWidget):
         root = QVBoxLayout(self)
         root.setSpacing(10)
         root.setContentsMargins(12, 12, 12, 12)
+
+        # ── exe path ──────────────────────────────────────────────────────────
+        exe_row = QHBoxLayout()
+        self._exe_edit = _DropLineEdit(TRIMAL_EXE)
+        self._exe_edit.setPlaceholderText("Path to trimal.exe …")
+        self._exe_edit.setToolTip("Path to the trimAl executable")
+        exe_chg = QPushButton("⚙")
+        exe_chg.setFixedWidth(30)
+        exe_chg.setToolTip("Choose trimal.exe manually")
+        exe_chg.clicked.connect(self._choose_exe)
+        exe_row.addWidget(QLabel("trimAl exe:"))
+        exe_row.addWidget(self._exe_edit, 1)
+        exe_row.addWidget(exe_chg)
+        root.addLayout(exe_row)
+        root.addWidget(_hline())
 
         # ── file list ─────────────────────────────────────────────────────
         files_lbl = QLabel("Input alignment files:")
@@ -531,6 +604,13 @@ class AlignmentTrimmingTab(QWidget):
         if d:
             self.outdir_edit.setText(d)
 
+    def _choose_exe(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select trimAl executable", "", "Executables (*.exe);;All Files (*)"
+        )
+        if path:
+            self._exe_edit.setText(path)
+
     # ── parameter helpers ─────────────────────────────────────────────────
     def _build_flags(self) -> list[str]:
         flags: list[str] = []
@@ -589,35 +669,66 @@ class AlignmentTrimmingTab(QWidget):
                 )
                 return
 
-        if not os.path.isfile(TRIMAL_EXE):
+        exe = self._exe_edit.text().strip() or TRIMAL_EXE
+        if not os.path.isfile(exe):
             QMessageBox.critical(
                 self,
                 "trimAl Not Found",
-                f"trimAl executable not found at:\n{TRIMAL_EXE}\n\n"
-                "Please verify that softwares/trimAl_Windows_x86-64/ is present.",
+                f"trimAl executable not found at:\n{exe}\n\n"
+                "Please use the ⚙ button to browse for trimal.exe, "
+                "or verify that softwares/trimAl_Windows_x86-64/ is present.",
             )
             return
 
         flags = self._build_flags()
         ext = self._out_ext()
 
-        tasks: list[tuple[list[str], str]] = []
-        for i in range(self.file_list.count()):
-            item = self.file_list.item(i)
-            if item is None:
-                continue
-            in_path = item.data(256)
-            base = os.path.splitext(os.path.basename(in_path))[0]
-            out_path = os.path.join(outdir, base + ".trimmed" + ext)
-            tasks.append((
-                [TRIMAL_EXE, "-in", in_path, "-out", out_path] + flags,
-                out_path,
-            ))
+        self.log_edit.clear()
+        self.log_edit.append(f"trimAl executable: {exe}")
+        self.log_edit.append(f"Output folder: {outdir}")
+
+        tasks: list[tuple[list[str], str, str | None]] = []
+        prepared_inputs: list[str] = []
+        preparation_notes: list[str] = []
+        try:
+            for i in range(self.file_list.count()):
+                item = self.file_list.item(i)
+                if item is None:
+                    continue
+                in_path = item.data(256)
+                prepared_input, cleanup_input = _prepare_trimal_input(in_path)
+                if cleanup_input:
+                    prepared_inputs.append(cleanup_input)
+                    preparation_notes.append(
+                        "Prepared FASTA input for trimAl: "
+                        f"{os.path.basename(in_path)} -> {prepared_input}"
+                    )
+                base = os.path.splitext(os.path.basename(in_path))[0]
+                out_path = os.path.join(outdir, base + ".trimmed" + ext)
+                tasks.append((
+                    [exe, "-in", prepared_input, "-out", out_path] + flags,
+                    out_path,
+                    cleanup_input,
+                ))
+        except Exception as exc:
+            for path in prepared_inputs:
+                _cleanup_file(path)
+            QMessageBox.critical(
+                self,
+                "Input Error",
+                f"Failed to prepare alignment input for trimAl:\n{exc}",
+            )
+            return
 
         total = len(tasks)
-        self.log_edit.clear()
-        self.log_edit.append(f"Output folder: {outdir}")
-        self.log_edit.append(f"Files to trim: {total}\n")
+        self.log_edit.append(f"Files to trim: {total}")
+        if preparation_notes:
+            for note in preparation_notes:
+                self.log_edit.append(note)
+        self.log_edit.append("")
+        for index, (cmd, _, _) in enumerate(tasks, start=1):
+            self.log_edit.append(f"Command {index}: {_format_command(cmd)}")
+        self.log_edit.append("")
 
         # show progress bar only for batch (>1 file)
         self.progress_bar.setMaximum(total)
@@ -649,9 +760,12 @@ class AlignmentTrimmingTab(QWidget):
         fname = os.path.basename(out_path)
         if success:
             self.log_edit.append(f"✔  {fname}")
+            if log:
+                for line in log[:300].splitlines():
+                    self.log_edit.append(f"   {line}")
         else:
             self.log_edit.append(f"✘  {fname}  — FAILED")
-            for line in log.strip()[:300].splitlines():
+            for line in log[:300].splitlines():
                 self.log_edit.append(f"   {line}")
 
     def _on_all_done(self, succeeded: int, failed: int):

@@ -24,7 +24,11 @@ from modules.pairwise_alignment_tab import PairwiseAlignmentTab
 from modules.rna_tab import RNATab
 from modules.sanger_tab import SangerTab
 from modules.sequence_logo_tab import SequenceLogoTab
-from modules.trimal_tab import AlignmentTrimmingTab
+from modules.trimal_tab import (
+    AlignmentTrimmingTab,
+    _BatchTrimThread,
+    _prepare_trimal_input,
+)
 from modules.translate_tab import TranslateTab
 
 
@@ -175,6 +179,101 @@ def test_alignment_trimming_tab_places_run_left_help_right_without_stop(qapp):
 
     assert button_texts == ["▶  Run trimAl", "Help"]
     assert not hasattr(tab, "stop_btn")
+
+
+def test_alignment_trimming_prepares_phylip_input_as_temp_fasta(tmp_path):
+    input_path = tmp_path / "aligned_input.phy"
+    input_path.write_text(
+        "2 5\nseq1  ATG-C\nseq2  ATGGC\n",
+        encoding="utf-8",
+    )
+
+    prepared_path, cleanup_path = _prepare_trimal_input(str(input_path))
+
+    assert prepared_path != str(input_path)
+    assert cleanup_path == prepared_path
+    assert os.path.exists(prepared_path)
+    assert ">seq1" in open(prepared_path, encoding="utf-8").read()
+
+    os.remove(prepared_path)
+
+
+def test_alignment_trimming_worker_reports_missing_output_as_failure(
+    qapp, monkeypatch, tmp_path
+):
+    class FakeProcess:
+        returncode = 0
+
+        def communicate(self):
+            return b"", None
+
+    monkeypatch.setattr(
+        "modules.trimal_tab.subprocess.Popen", lambda *args, **kwargs: FakeProcess()
+    )
+
+    out_path = tmp_path / "missing.trimmed.fasta"
+    thread = _BatchTrimThread([
+        (
+            ["trimal.exe", "-in", "input.fasta", "-out", str(out_path)],
+            str(out_path),
+            None,
+        )
+    ])
+    results = []
+    totals = []
+    thread.file_done.connect(
+        lambda success, path, log: results.append((success, path, log))
+    )
+    thread.all_done.connect(
+        lambda succeeded, failed: totals.append((succeeded, failed))
+    )
+
+    thread.run()
+
+    assert results == [
+        (
+            False,
+            str(out_path),
+            f"trimAl did not create output file:\n{out_path}",
+        )
+    ]
+    assert totals == [(0, 1)]
+
+
+def test_alignment_trimming_logs_full_command_before_start(qapp, monkeypatch, tmp_path):
+    exe_path = tmp_path / "trimal.exe"
+    exe_path.write_text("", encoding="utf-8")
+    input_path = tmp_path / "aligned_input.phy"
+    input_path.write_text("placeholder", encoding="utf-8")
+    prepared_input = tmp_path / "prepared_input.fasta"
+    outdir = tmp_path / "trimmed"
+    outdir.mkdir()
+
+    monkeypatch.setattr(
+        "modules.trimal_tab._prepare_trimal_input",
+        lambda path: (str(prepared_input), str(prepared_input)),
+    )
+    monkeypatch.setattr(
+        "modules.trimal_tab._BatchTrimThread.start",
+        lambda self: None,
+    )
+
+    tab = AlignmentTrimmingTab()
+    tab._exe_edit.setText(str(exe_path))
+    tab.outdir_edit.setText(str(outdir))
+    tab.file_list._add_path(str(input_path))
+
+    tab._run()
+
+    log_text = tab.log_edit.toPlainText()
+    expected_output = outdir / "aligned_input.trimmed.fasta"
+
+    assert "Prepared FASTA input for trimAl:" in log_text
+    assert "Command 1:" in log_text
+    assert str(exe_path) in log_text
+    assert str(prepared_input) in log_text
+    assert str(expected_output) in log_text
+    assert "-gappyout" in log_text
 
 
 def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
