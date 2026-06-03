@@ -108,6 +108,19 @@ QPlainTextEdit[sequenceEditorStyled="true"][readOnly="true"],
 QPlainTextEdit[sequenceEditorStyled="true"][readOnly="true"]:focus {
     background: #f7f9fc;
 }
+QLabel[logSectionTitle="true"] {
+    color: #334155;
+    font-weight: 600;
+    padding-top: 2px;
+}
+QTextEdit[logViewer="true"],
+QTextEdit[logViewer="true"]:focus {
+    border: none;
+    padding: 8px 10px;
+    background: #ffffff;
+    color: #1e293b;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+}
 QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
     background: #f0f0f0;
     color: #999999;
@@ -135,6 +148,16 @@ QGroupBox::title {
     left: 10px;
     padding: 0 4px;
     color: #1976d2;
+}
+QGroupBox[logGroup="true"] {
+    margin-top: 4px;
+    padding-top: 8px;
+}
+QGroupBox[logGroup="true"]::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 8px;
+    padding: 0 2px;
 }
 
 /* 深色主题（可切换） */

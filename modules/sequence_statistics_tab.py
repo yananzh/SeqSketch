@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QFileDialog,
     QGridLayout,
+    QGroupBox,
     QSizePolicy,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -351,7 +352,8 @@ class SequenceStatisticsTab(BaseTabWidget):
         output_layout.setSpacing(8)
 
         # 全局统计信息显示区
-        stats_layout = QGridLayout()
+        self.stats_group = QGroupBox(self.tr("Summary Statistics"))
+        self.stats_layout = QGridLayout(self.stats_group)
         self.stat_labels = {}
         stats = [
             ("Detected Type", "sequence_type"),
@@ -372,14 +374,14 @@ class SequenceStatisticsTab(BaseTabWidget):
             l = QLabel(f"{label}: ")
             v = QLabel("--")
             v.setStyleSheet("font-weight: bold; color: #2196F3;")
-            stats_layout.addWidget(l, row, col)
-            stats_layout.addWidget(v, row, col + 1)
+            self.stats_layout.addWidget(l, row, col)
+            self.stats_layout.addWidget(v, row, col + 1)
             self.stat_labels[key] = v
         # Flexible value columns and nicer spacing
-        stats_layout.setColumnStretch(1, 1)
-        stats_layout.setColumnStretch(3, 1)
-        stats_layout.setHorizontalSpacing(16)
-        stats_layout.setVerticalSpacing(6)
+        self.stats_layout.setColumnStretch(1, 1)
+        self.stats_layout.setColumnStretch(3, 1)
+        self.stats_layout.setHorizontalSpacing(16)
+        self.stats_layout.setVerticalSpacing(6)
 
         # 控制按钮
         control_layout = QHBoxLayout()
@@ -393,7 +395,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         # 添加到内容区域
         self.add_content_layout(input_layout)
         self.add_content_layout(output_layout)
-        self.add_content_layout(stats_layout)
+        self.add_content_widget(self.stats_group)
         self.add_content_layout(control_layout)
         self.content_area.addStretch()
 

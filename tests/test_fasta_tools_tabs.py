@@ -1,11 +1,12 @@
 import os
 from pathlib import Path
+import re
 from typing import cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QGroupBox
 
 from modules.batch_rename_ids_tab import BatchRenameIDsTab
 from modules.download_from_ncbi_tab import DownloadFromNCBITab
@@ -98,6 +99,70 @@ def log_text(tab) -> str:
     return tab.log_area.toPlainText()
 
 
+@pytest.mark.parametrize(
+    "tab_class",
+    [
+        SequenceStatisticsTab,
+        SimplifyIDsTab,
+        ExtractByIDTab,
+        ExtractByRegexTab,
+        DownloadFromNCBITab,
+        BatchRenameIDsTab,
+    ],
+)
+def test_fasta_tools_tabs_share_a_clear_labeled_log_area(qapp, tab_class):
+    tab = tab_class()
+
+    assert tab.log_group.title() == "Operation Log"
+    assert tab.log_group.property("logGroup") is True
+    assert tab.log_area.isReadOnly()
+    assert tab.log_area.property("logViewer") is True
+    assert tab.log_area.placeholderText() == (
+        "Run a FASTA tool to see progress and results here..."
+    )
+    assert tab.log_area.minimumHeight() >= 120
+    assert tab.log_area.lineWrapMode() == tab.log_area.LineWrapMode.NoWrap
+
+
+def test_fasta_tools_log_viewer_uses_borderless_inner_style(qapp):
+    tab = SequenceStatisticsTab()
+    style = tab.log_area.styleSheet()
+
+    assert "border: none;" in style
+    assert "background: #ffffff;" in style
+    assert tab.log_area.viewport().styleSheet() == "background: transparent;"
+
+
+def test_fasta_tools_log_viewer_uses_shared_borderless_style():
+    qss_text = Path("styles.qss").read_text(encoding="utf-8")
+    match = re.search(
+        r'QTextEdit\[logViewer="true"\],\s*QTextEdit\[logViewer="true"\]:focus\s*\{(?P<body>.*?)\}',
+        qss_text,
+        re.S,
+    )
+
+    assert match is not None
+    body = match.group("body")
+    assert "border: none;" in body
+
+
+def test_fasta_tools_log_group_uses_tight_embedded_title_style():
+    qss_text = Path("styles.qss").read_text(encoding="utf-8")
+    match = re.search(
+        r'QGroupBox\[logGroup="true"\]\s*\{(?P<body>.*?)\}\s*QGroupBox\[logGroup="true"\]::title\s*\{(?P<title>.*?)\}',
+        qss_text,
+        re.S,
+    )
+
+    assert match is not None
+    body = match.group("body")
+    title = match.group("title")
+    assert "margin-top: 4px;" in body
+    assert "padding-top: 8px;" in body
+    assert "left: 8px;" in title
+    assert "padding: 0 2px;" in title
+
+
 def test_fasta_tools_plain_text_editors_have_border_style(qapp):
     """Filter by IDs and NCBI Download plain-text inputs share the sequence editor border style."""
     extract_tab = ExtractByIDTab()
@@ -145,6 +210,14 @@ def test_sequence_statistics_happy_path(qapp, sample_fasta_file: Path, tmp_path:
     assert "Statistics complete!" in log_text(tab)
     assert tab.status_label.text() == "Ready"
     print("[Sequence Statistics] finished successfully")
+
+
+def test_sequence_statistics_wraps_summary_metrics_in_group_box(qapp):
+    tab = SequenceStatisticsTab()
+
+    assert isinstance(tab.stats_group, QGroupBox)
+    assert tab.stats_group.title() == "Summary Statistics"
+    assert tab.stats_group.layout() is tab.stats_layout
 
 
 def test_sequence_statistics_protein_input_marks_nucleotide_metrics_na(

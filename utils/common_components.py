@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
+    QGroupBox,
     QPushButton,
     QTextEdit,
     QFileDialog,
@@ -29,6 +30,13 @@ SEQUENCE_EDITOR_STYLE = (
 )
 
 READ_ONLY_SEQUENCE_EDITOR_STYLE = "background: #f7f9fc;"
+LOG_VIEWER_STYLE = (
+    "border: none;"
+    "padding: 8px 10px;"
+    "background: #ffffff;"
+    "color: #1e293b;"
+    'font-family: "Cascadia Mono", "Consolas", monospace;'
+)
 
 
 def apply_sequence_editor_style(editor: QTextEdit) -> None:
@@ -39,6 +47,12 @@ def apply_sequence_editor_style(editor: QTextEdit) -> None:
     editor.setStyleSheet(style)
     # Make the viewport transparent so the outer frame's rounded corners and
     # background colour are visible instead of being covered by a white rectangle.
+    editor.viewport().setStyleSheet("background: transparent;")
+
+
+def apply_log_viewer_style(editor: QTextEdit) -> None:
+    editor.setProperty("logViewer", True)
+    editor.setStyleSheet(LOG_VIEWER_STYLE)
     editor.viewport().setStyleSheet("background: transparent;")
 
 
@@ -133,11 +147,23 @@ class BaseTabWidget(QWidget):
 
         # Log area (file mode only)
         if self.tab_type == "file":
+            self.log_group = QGroupBox(self.tr("Operation Log"))
+            self.log_group.setProperty("logGroup", True)
             self.log_area = QTextEdit()
-            self.log_area.setMaximumHeight(100)
             self.log_area.setReadOnly(True)
-            self.log_area.setPlaceholderText("Operation logs will appear here...")
-            self.main_layout.addWidget(self.log_area)
+            apply_log_viewer_style(self.log_area)
+            self.log_area.setMinimumHeight(120)
+            self.log_area.setMaximumHeight(160)
+            self.log_area.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+            self.log_area.setPlaceholderText(
+                self.tr("Run a FASTA tool to see progress and results here...")
+            )
+
+            log_layout = QVBoxLayout(self.log_group)
+            log_layout.setContentsMargins(10, 6, 10, 10)
+            log_layout.setSpacing(0)
+            log_layout.addWidget(self.log_area)
+            self.main_layout.addWidget(self.log_group)
 
         # 添加状态到布局
         self.main_layout.addLayout(self.status_layout)
