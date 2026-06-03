@@ -23,6 +23,7 @@ from modules.one_step_multigenephy_tab import OneStepMultiGenePhyTab
 from modules.pairwise_alignment_tab import PairwiseAlignmentTab
 from modules.rna_tab import RNATab
 from modules.sanger_tab import SangerTab
+from modules.sanger_viewer_tab import SangerViewerTab
 from modules.sequence_logo_tab import SequenceLogoTab
 from modules.trimal_tab import (
     AlignmentTrimmingTab,
@@ -379,18 +380,14 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
     sequence_tabs = [RNATab(), ComplementTab(), TranslateTab(), ORFTab()]
 
     for tab in sequence_tabs:
-        for editor in (tab.input_text, tab.output_text):
-            assert editor.property("sequenceEditorStyled") is True
-            assert "border-radius" in editor.styleSheet()
-            assert "border: 1px solid #94a3b8;" in editor.styleSheet()
-            assert not editor.styleSheet().lstrip().startswith("QTextEdit")
+        editor = tab.input_text
+        assert editor.property("sequenceEditorStyled") is True
+        assert "border-radius" in editor.styleSheet()
+        assert "border: 1px solid #94a3b8;" in editor.styleSheet()
+        assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
     sanger_tab = SangerTab()
-    for editor in (
-        sanger_tab.fwd_edit,
-        sanger_tab.rev_edit,
-        sanger_tab.assembly_result,
-    ):
+    for editor in (sanger_tab.fwd_edit, sanger_tab.rev_edit):
         assert editor.property("sequenceEditorStyled") is True
         assert "border-radius" in editor.styleSheet()
         assert "border: 1px solid #94a3b8;" in editor.styleSheet()
@@ -406,6 +403,34 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
         assert "border-radius" in editor.styleSheet()
         assert "border: 1px solid #94a3b8;" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
+
+
+def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
+    sequence_tabs = [RNATab(), ComplementTab(), TranslateTab(), ORFTab()]
+
+    for tab in sequence_tabs:
+        assert "background: transparent;" in tab.output_text.styleSheet()
+        assert "border: none;" in tab.output_text.styleSheet()
+        assert "border: 1px solid #94a3b8;" not in tab.output_text.styleSheet()
+        assert "#f7f9fc" not in tab.output_text.styleSheet()
+        assert tab.output_text.viewport().styleSheet() == "background: transparent;"
+
+    sanger_tab = SangerTab()
+    assert "background: transparent;" in sanger_tab.assembly_result.styleSheet()
+    assert "border: none;" in sanger_tab.assembly_result.styleSheet()
+    assert "border: 1px solid #94a3b8;" not in sanger_tab.assembly_result.styleSheet()
+    assert "#f7f9fc" not in sanger_tab.assembly_result.styleSheet()
+    assert (
+        sanger_tab.assembly_result.viewport().styleSheet() == "background: transparent;"
+    )
+
+    sanger_viewer_tab = SangerViewerTab()
+    assert "background: transparent;" in sanger_viewer_tab._seq_edit.styleSheet()
+    assert "border: none;" in sanger_viewer_tab._seq_edit.styleSheet()
+    assert (
+        sanger_viewer_tab._seq_edit.viewport().styleSheet()
+        == "background: transparent;"
+    )
 
 
 def test_dotplot_tab_hides_output_panel_and_removes_reverse_complement_option(qapp):

@@ -1,4 +1,7 @@
-from utils.common_components import BaseTabWidget
+from utils.common_components import (
+    BaseTabWidget,
+    apply_transparent_text_edit_background,
+)
 import re
 from PyQt6.QtWidgets import QMessageBox, QComboBox, QHBoxLayout, QLabel
 from PyQt6.QtCore import Qt
@@ -146,6 +149,7 @@ class TranslateTab(BaseTabWidget):
         self.output_text.setPlaceholderText(
             "Translated protein sequence will appear here..."
         )
+        apply_transparent_text_edit_background(self.output_text)
         # Adjust minimum heights for better visibility
         self.input_text.setMinimumHeight(180)
         self.output_text.setMinimumHeight(180)

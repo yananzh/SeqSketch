@@ -1,4 +1,7 @@
-from utils.common_components import BaseTabWidget
+from utils.common_components import (
+    BaseTabWidget,
+    apply_transparent_text_edit_background,
+)
 import re
 from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel
 from PyQt6.QtCore import Qt
@@ -58,6 +61,7 @@ class ComplementTab(BaseTabWidget):
             "TTAAGGCCTTAAGG"
         )
         self._update_output_placeholder()
+        apply_transparent_text_edit_background(self.output_text)
         self.input_text.setMinimumHeight(200)
         self.output_text.setMinimumHeight(200)
 

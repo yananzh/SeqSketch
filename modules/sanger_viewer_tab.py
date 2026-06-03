@@ -26,6 +26,8 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
+from utils.common_components import apply_transparent_text_edit_background
+
 # Pixels per raw scan when sizing the canvas (1 scan ≈ 1 px gives good peak clarity)
 _PX_PER_SCAN = 1
 _MIN_CANVAS_W = 800  # px — minimum canvas width before any data is loaded
@@ -152,6 +154,7 @@ class SangerViewerTab(QWidget):
         self._seq_edit = QTextEdit()
         self._seq_edit.setReadOnly(True)
         self._seq_edit.setFont(QFont("Courier New", 10))
+        apply_transparent_text_edit_background(self._seq_edit)
         self._seq_edit.setMaximumHeight(90)
         seq_vbox.addWidget(self._seq_edit)
 

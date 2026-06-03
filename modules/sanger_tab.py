@@ -14,7 +14,10 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-from utils.common_components import apply_sequence_editor_style
+from utils.common_components import (
+    apply_sequence_editor_style,
+    apply_transparent_text_edit_background,
+)
 
 
 class SangerTab(QWidget):
@@ -102,6 +105,7 @@ class SangerTab(QWidget):
         self.assembly_result = QTextEdit()
         self.assembly_result.setReadOnly(True)
         apply_sequence_editor_style(self.assembly_result)
+        apply_transparent_text_edit_background(self.assembly_result)
         self.assembly_result.setPlaceholderText(
             "Assembled sequence will appear here..."
         )
