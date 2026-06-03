@@ -434,6 +434,16 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
         == "background: transparent; border: none;"
     )
 
+    pairwise_tab = PairwiseAlignmentTab()
+    assert "background: transparent;" in pairwise_tab.output_text.styleSheet()
+    assert "border: 1px solid #94a3b8;" in pairwise_tab.output_text.styleSheet()
+    assert "border-radius: 6px;" in pairwise_tab.output_text.styleSheet()
+    assert "#f7f9fc" not in pairwise_tab.output_text.styleSheet()
+    assert (
+        pairwise_tab.output_text.viewport().styleSheet()
+        == "background: transparent; border: none;"
+    )
+
 
 def test_dotplot_tab_hides_output_panel_and_removes_reverse_complement_option(qapp):
     tab = DotPlotTab()

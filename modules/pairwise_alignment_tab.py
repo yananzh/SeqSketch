@@ -13,7 +13,11 @@ from PyQt6.QtWidgets import (
     QTextBrowser,
 )
 from PyQt6.QtGui import QFont
-from utils.common_components import BaseTabWidget, apply_sequence_editor_style
+from utils.common_components import (
+    BaseTabWidget,
+    apply_sequence_editor_style,
+    apply_transparent_text_edit_background,
+)
 from Bio import Align
 from Bio.Align import substitution_matrices
 import re
@@ -217,6 +221,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
             self.output_text.styleSheet()
             + "font-family: 'Courier New', monospace; font-size: 10pt;"
         )
+        apply_transparent_text_edit_background(self.output_text)
         self.output_text.setMinimumHeight(200)
         self.run_btn.setText("Align")
 

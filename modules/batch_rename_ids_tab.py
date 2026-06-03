@@ -333,8 +333,8 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.mapping_btn = QPushButton("Choose Mapping File")
         self.export_ids_btn = QPushButton("Export Current IDs")
         mapping_layout.addWidget(self.mapping_edit)
-        mapping_layout.addWidget(self.mapping_btn)
         mapping_layout.addWidget(self.export_ids_btn)
+        mapping_layout.addWidget(self.mapping_btn)
 
         # 映射文件选项
         option_layout = QHBoxLayout()

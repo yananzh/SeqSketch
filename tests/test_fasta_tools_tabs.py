@@ -805,6 +805,15 @@ def test_batch_rename_ids_placeholder_explicitly_mentions_excel_support(qapp):
     assert ".xls" in placeholder
 
 
+def test_batch_rename_ids_places_export_button_before_mapping_picker(qapp):
+    tab = BatchRenameIDsTab()
+
+    mapping_layout = tab.content_area.itemAt(1).layout()
+
+    assert mapping_layout.itemAt(2).widget().text() == "Export Current IDs"
+    assert mapping_layout.itemAt(3).widget().text() == "Choose Mapping File"
+
+
 def test_batch_rename_ids_exports_current_ids_template_to_excel(
     qapp, sample_fasta_file: Path, tmp_path: Path
 ):
