@@ -53,15 +53,17 @@ def apply_sequence_editor_style(editor: QTextEdit) -> None:
 
 def apply_transparent_text_edit_background(editor: QTextEdit) -> None:
     style = editor.styleSheet()
-    style = style.replace("border: 1px solid #94a3b8;", "")
-    style = style.replace("border-radius: 6px;", "")
     style = style.replace("background: #ffffff;", "")
     style = style.replace(READ_ONLY_SEQUENCE_EDITOR_STYLE, "")
     style = style.replace("border: none;", "")
     style = style.replace("background: transparent;", "")
+    if "border: 1px solid #94a3b8;" not in style:
+        style += "border: 1px solid #94a3b8;"
+    if "border-radius: 6px;" not in style:
+        style += "border-radius: 6px;"
     editor.setFrameShape(QFrame.Shape.NoFrame)
-    editor.setStyleSheet(style + "border: none;background: transparent;")
-    editor.viewport().setStyleSheet("background: transparent;")
+    editor.setStyleSheet(style + "background: transparent;")
+    editor.viewport().setStyleSheet("background: transparent; border: none;")
 
 
 def apply_log_viewer_style(editor: QTextEdit) -> None:

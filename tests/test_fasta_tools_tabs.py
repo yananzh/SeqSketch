@@ -5,8 +5,9 @@ from typing import cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+import pandas as pd
 import pytest
-from PyQt6.QtWidgets import QApplication, QGroupBox
+from PyQt6.QtWidgets import QApplication, QFileDialog, QGroupBox
 
 from modules.batch_rename_ids_tab import BatchRenameIDsTab
 from modules.download_from_ncbi_tab import DownloadFromNCBITab
@@ -741,6 +742,88 @@ def test_batch_rename_ids_happy_path(
     assert "renamed 2" in log_text(tab)
     assert tab.status_label.text() == "Ready"
     print("[Batch Rename IDs] finished successfully")
+
+
+def test_batch_rename_ids_reads_excel_mapping_file(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    mapping_path = tmp_path / "mapping.xlsx"
+    output_path = tmp_path / "renamed_from_excel.fasta"
+    tab = BatchRenameIDsTab()
+
+    pd.DataFrame(
+        [
+            {"old_id": "seq1", "new_id": "renamed_seq1"},
+            {"old_id": "gene_alpha", "new_id": "renamed_gene_alpha"},
+        ]
+    ).to_excel(mapping_path, index=False)
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.mapping_edit.setText(str(mapping_path))
+    tab.output_edit.setText(str(output_path))
+    tab.header_checkbox.setChecked(True)
+    tab.run_rename()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == [
+        "renamed_seq1 alpha description",
+        "seq2 beta description",
+        "renamed_gene_alpha product_x",
+        "chr10_sample annotation",
+    ]
+    assert "Loaded 2 ID mappings" in log_text(tab)
+    assert "renamed 2" in log_text(tab)
+
+
+def test_batch_rename_ids_mapping_file_dialog_offers_excel_filters(
+    qapp, tmp_path: Path, monkeypatch
+):
+    mapping_path = tmp_path / "mapping.xlsx"
+    captured = {}
+    tab = BatchRenameIDsTab()
+
+    def fake_get_open_file_name(parent, title, directory, selected_filter):
+        captured["title"] = title
+        captured["filter"] = selected_filter
+        return str(mapping_path), "Excel Files (*.xlsx *.xls)"
+
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", fake_get_open_file_name)
+
+    tab.select_mapping_file()
+
+    assert "Excel Files (*.xlsx *.xls)" in captured["filter"]
+    assert tab.mapping_edit.text() == str(mapping_path)
+
+
+def test_batch_rename_ids_placeholder_explicitly_mentions_excel_support(qapp):
+    tab = BatchRenameIDsTab()
+
+    placeholder = tab.mapping_edit.placeholderText()
+
+    assert "Excel" in placeholder
+    assert ".xlsx" in placeholder
+    assert ".xls" in placeholder
+
+
+def test_batch_rename_ids_exports_current_ids_template_to_excel(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    template_path = tmp_path / "current_ids_template.xlsx"
+    tab = BatchRenameIDsTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+
+    export_template = getattr(tab, "export_current_ids_template", None)
+    assert callable(export_template)
+
+    export_template(str(template_path))
+
+    assert template_path.exists()
+    df = pd.read_excel(template_path)
+    assert list(df.columns) == ["old_id", "new_id"]
+    assert df["old_id"].tolist() == ["seq1", "seq2", "gene_alpha", "chr10_sample"]
+    assert df["new_id"].fillna("").tolist() == ["", "", "", ""]
+    assert "Exported 4 current FASTA IDs to:" in log_text(tab)
 
 
 def test_batch_rename_ids_exports_report_and_logs_unused_mapping_ids(

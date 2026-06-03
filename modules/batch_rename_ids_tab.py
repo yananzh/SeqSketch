@@ -25,6 +25,49 @@ def rename_report_path_for_output(output_path: str) -> str:
     return f"{base}_rename_report.tsv"
 
 
+def build_mapping_template_rows(records) -> list[dict[str, str]]:
+    return [{"old_id": record.header, "new_id": ""} for record in records]
+
+
+def write_mapping_template_file(output_path: str, rows: list[dict[str, str]]) -> None:
+    ext = os.path.splitext(output_path)[1].lower()
+    if ext in [".xlsx", ".xls"]:
+        try:
+            import pandas as pd
+        except Exception as exc:
+            raise ImportError(
+                "Excel export requires pandas. Install with: pip install pandas openpyxl, or save as CSV/TSV."
+            ) from exc
+
+        df = pd.DataFrame(rows, columns=["old_id", "new_id"])
+        df.to_excel(output_path, index=False)
+        return
+
+    if ext in [".csv", ".tsv", ".txt"]:
+        import csv
+
+        delimiter = "," if ext == ".csv" else "\t"
+        with open(output_path, "w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["old_id", "new_id"], delimiter=delimiter)
+            writer.writeheader()
+            writer.writerows(rows)
+        return
+
+    raise ValueError(
+        "Unsupported template format. Use Excel (.xlsx/.xls), CSV (.csv) or TSV (.tsv/.txt)."
+    )
+
+
+def normalize_template_output_path(output_path: str, selected_filter: str) -> str:
+    if os.path.splitext(output_path)[1]:
+        return output_path
+    if "Excel" in selected_filter:
+        return f"{output_path}.xlsx"
+    if "CSV" in selected_filter:
+        return f"{output_path}.csv"
+    return f"{output_path}.tsv"
+
+
 def parse_mapping_entries(rows) -> tuple[dict[str, str], dict]:
     mapping = {}
     skipped_rows = 0
@@ -280,14 +323,18 @@ class BatchRenameIDsTab(BaseTabWidget):
                     return False
 
         self.mapping_edit = MappingDropLineEdit()
-        self.mapping_edit.setPlaceholderText("Select or drop a CSV/TSV mapping file...")
+        self.mapping_edit.setPlaceholderText(
+            "Select or drop a mapping file (Excel .xlsx/.xls, CSV, TSV, or TXT)..."
+        )
         self.mapping_edit.setMinimumWidth(320)
         self.mapping_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         self.mapping_btn = QPushButton("Choose Mapping File")
+        self.export_ids_btn = QPushButton("Export Current IDs")
         mapping_layout.addWidget(self.mapping_edit)
         mapping_layout.addWidget(self.mapping_btn)
+        mapping_layout.addWidget(self.export_ids_btn)
 
         # 映射文件选项
         option_layout = QHBoxLayout()
@@ -337,6 +384,7 @@ class BatchRenameIDsTab(BaseTabWidget):
     def connect_signals(self):
         self.input_btn.clicked.connect(self.select_input_file)
         self.mapping_btn.clicked.connect(self.select_mapping_file)
+        self.export_ids_btn.clicked.connect(self.select_template_output_file)
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_rename)
         self.clear_btn.clicked.connect(self.clear_all)
@@ -368,7 +416,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             self,
             "Select ID mapping file",
             "",
-            "CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)",
+            "Excel Files (*.xlsx *.xls);;CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)",
         )
         if file_path:
             self.handle_mapping_file_selected(file_path)
@@ -377,7 +425,70 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.mapping_edit.setText(file_path)
         ext = os.path.splitext(file_path)[1].lower()
         if ext in [".xls", ".xlsx"]:
-            self.log_message("Excel selected. Requires pandas, or save as CSV/TSV.")
+            self.log_message("Excel mapping file selected.")
+
+    def select_template_output_file(self):
+        input_path = self.input_edit.text().strip()
+        base_name = "current_ids_template"
+        if input_path:
+            base_name = os.path.splitext(os.path.basename(input_path))[0] + "_id_mapping"
+
+        output_path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export current FASTA IDs",
+            base_name,
+            "Excel Files (*.xlsx);;CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)",
+        )
+        if output_path:
+            self.export_current_ids_template(
+                normalize_template_output_path(output_path, selected_filter)
+            )
+
+    def export_current_ids_template(self, output_path: str) -> bool:
+        from utils.common_components import validate_input_path, validate_output_path
+
+        input_path = self.input_edit.text().strip()
+        valid, error = validate_input_path(input_path, [".fasta", ".fa", ".fas"])
+        if not valid:
+            self.log_message(error, "ERROR")
+            return False
+
+        valid, error = validate_output_path(output_path)
+        if not valid:
+            self.log_message(error, "ERROR")
+            return False
+
+        self.set_running_state(True)
+        self.show_status("Exporting current IDs...")
+        try:
+            from modules.fasta_processor import FASTAProcessor
+
+            processor = FASTAProcessor()
+            if not processor.read_file(input_path):
+                self.log_message("Unable to read FASTA file", "ERROR")
+                self.show_status("Error")
+                return False
+
+            if not processor.records:
+                self.log_message("No sequences found in FASTA file", "ERROR")
+                self.show_status("Error")
+                return False
+
+            write_mapping_template_file(
+                output_path, build_mapping_template_rows(processor.records)
+            )
+            self.log_message(
+                f"Exported {len(processor.records)} current FASTA IDs to: {output_path}",
+                "INFO",
+            )
+            self.show_status("Template exported")
+            return True
+        except Exception as exc:
+            self.log_message(f"Failed to export current IDs: {exc}", "ERROR")
+            self.show_status("Error")
+            return False
+        finally:
+            self.set_running_state(False)
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -616,6 +727,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.run_btn.setEnabled(not running)
         self.input_btn.setEnabled(not running)
         self.mapping_btn.setEnabled(not running)
+        self.export_ids_btn.setEnabled(not running)
         self.output_btn.setEnabled(not running)
         self.header_checkbox.setEnabled(not running)
         self.export_report_checkbox.setEnabled(not running)
@@ -656,6 +768,7 @@ class BatchRenameIDsTab(BaseTabWidget):
     <p><b>Typical workflow:</b></p>
     <ol>
     <li>Select the input FASTA file</li>
+    <li>Optional: click <b>Export Current IDs</b> to create a reusable CSV/TSV/Excel mapping template from the current FASTA IDs</li>
     <li>Select the mapping file</li>
     <li>Choose whether the mapping file contains a header row</li>
     <li>Optionally enable <b>Export rename report</b></li>

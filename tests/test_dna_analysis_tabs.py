@@ -410,26 +410,28 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
 
     for tab in sequence_tabs:
         assert "background: transparent;" in tab.output_text.styleSheet()
-        assert "border: none;" in tab.output_text.styleSheet()
-        assert "border: 1px solid #94a3b8;" not in tab.output_text.styleSheet()
+        assert "border: 1px solid #94a3b8;" in tab.output_text.styleSheet()
+        assert "border-radius: 6px;" in tab.output_text.styleSheet()
         assert "#f7f9fc" not in tab.output_text.styleSheet()
-        assert tab.output_text.viewport().styleSheet() == "background: transparent;"
+        assert tab.output_text.viewport().styleSheet() == "background: transparent; border: none;"
 
     sanger_tab = SangerTab()
     assert "background: transparent;" in sanger_tab.assembly_result.styleSheet()
-    assert "border: none;" in sanger_tab.assembly_result.styleSheet()
-    assert "border: 1px solid #94a3b8;" not in sanger_tab.assembly_result.styleSheet()
+    assert "border: 1px solid #94a3b8;" in sanger_tab.assembly_result.styleSheet()
+    assert "border-radius: 6px;" in sanger_tab.assembly_result.styleSheet()
     assert "#f7f9fc" not in sanger_tab.assembly_result.styleSheet()
     assert (
-        sanger_tab.assembly_result.viewport().styleSheet() == "background: transparent;"
+        sanger_tab.assembly_result.viewport().styleSheet()
+        == "background: transparent; border: none;"
     )
 
     sanger_viewer_tab = SangerViewerTab()
     assert "background: transparent;" in sanger_viewer_tab._seq_edit.styleSheet()
-    assert "border: none;" in sanger_viewer_tab._seq_edit.styleSheet()
+    assert "border: 1px solid #94a3b8;" in sanger_viewer_tab._seq_edit.styleSheet()
+    assert "border-radius: 6px;" in sanger_viewer_tab._seq_edit.styleSheet()
     assert (
         sanger_viewer_tab._seq_edit.viewport().styleSheet()
-        == "background: transparent;"
+        == "background: transparent; border: none;"
     )
 
 
