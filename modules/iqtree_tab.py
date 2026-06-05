@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QFrame,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -238,7 +239,12 @@ class IqTreeTab(QWidget):
         root.setContentsMargins(10, 10, 10, 10)
         root.setSpacing(8)
 
-        # ── exe path row ────────────────────────────────────────────────
+        # ── Input section ──
+        input_group = QGroupBox("Input")
+        input_form = QFormLayout(input_group)
+        input_form.setSpacing(8)
+
+        # exe path row
         exe_row = QHBoxLayout()
         self._exe_edit = _DropLineEdit(IQTREE_EXE)
         self._exe_edit.setPlaceholderText("Path to iqtree3.exe …")
@@ -247,23 +253,9 @@ class IqTreeTab(QWidget):
         exe_chg.setFixedWidth(90)
         exe_chg.setToolTip("Choose iqtree3.exe manually")
         exe_chg.clicked.connect(self._choose_exe)
-        exe_row.addWidget(QLabel("IQ-TREE exe:"))
         exe_row.addWidget(self._exe_edit, 1)
         exe_row.addWidget(exe_chg)
-        root.addLayout(exe_row)
-
-        root.addWidget(_hline())
-
-        # ── form ────────────────────────────────────────────────────────
-        form_scroll = QScrollArea()
-        form_scroll.setWidgetResizable(True)
-        form_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        form_widget = QWidget()
-        form = QFormLayout(form_widget)
-        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
-        form.setSpacing(8)
-        form_scroll.setWidget(form_widget)
-        root.addWidget(form_scroll)
+        input_form.addRow("IQ-TREE exe:", exe_row)
 
         # Input alignment
         in_row = QHBoxLayout()
@@ -274,12 +266,7 @@ class IqTreeTab(QWidget):
         in_browse.clicked.connect(self._browse_input)
         in_row.addWidget(self._input_edit, 1)
         in_row.addWidget(in_browse)
-        form.addRow("Input alignment:", in_row)
-
-        # Sequence type
-        self._seqtype_combo = QComboBox()
-        self._seqtype_combo.addItems(["AUTO", "DNA", "AA", "CODON", "BIN", "MORPH"])
-        form.addRow("Sequence type:", self._seqtype_combo)
+        input_form.addRow("Alignment:", in_row)
 
         # Partition file
         part_row = QHBoxLayout()
@@ -296,7 +283,20 @@ class IqTreeTab(QWidget):
         part_browse.clicked.connect(self._browse_partition)
         part_row.addWidget(self._partition_edit, 1)
         part_row.addWidget(part_browse)
-        form.addRow("Partition file:", part_row)
+        input_form.addRow("Partition:", part_row)
+
+        root.addWidget(input_group)
+
+        # ── Parameters section ──
+        param_group = QGroupBox("Parameters")
+        form = QFormLayout(param_group)
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        form.setSpacing(8)
+
+        # Sequence type
+        self._seqtype_combo = QComboBox()
+        self._seqtype_combo.addItems(["AUTO", "DNA", "AA", "CODON", "BIN", "MORPH"])
+        form.addRow("Sequence type:", self._seqtype_combo)
 
         # Model
         self._model_edit = QLineEdit("TEST")
@@ -380,26 +380,26 @@ class IqTreeTab(QWidget):
         out_row.addWidget(self._prefix_edit, 1)
         form.addRow("Output prefix:", out_row)
 
-        root.addWidget(_hline())
+        root.addWidget(param_group)
 
         # ── Log output ──────────────────────────────────────────────────
-        root.addWidget(QLabel("<b>IQ-TREE log output:</b>"))
+        log_group = QGroupBox("IQ-TREE log output")
+        log_layout = QVBoxLayout(log_group)
         self._log_edit = QTextEdit()
         self._log_edit.setReadOnly(True)
         self._log_edit.setFont(QFont("Courier New", 8))
         self._log_edit.setPlaceholderText("IQ-TREE stdout/stderr will appear here…")
-        root.addWidget(self._log_edit, 1)
+        log_layout.addWidget(self._log_edit)
+        root.addWidget(log_group, 1)
 
         # ── Status label ────────────────────────────────────────────────
         self._status_lbl = QLabel("")
         self._status_lbl.setStyleSheet("color:#555;font-style:italic;")
         root.addWidget(self._status_lbl)
 
-        root.addWidget(_hline())
-
-        # ── Run / Stop / Help buttons ───────────────────────────────────
+        # ── Run / Stop / Help buttons (bottom-left) ────────────────────
         btn_row = QHBoxLayout()
-        self._run_btn = QPushButton("▶  Run IQ-TREE")
+        self._run_btn = QPushButton("▶  Run")
         self._run_btn.setMinimumHeight(34)
         self._run_btn.setStyleSheet(
             "QPushButton{background:#1976d2;color:white;border-radius:4px;font-weight:bold;}"
@@ -421,6 +421,7 @@ class IqTreeTab(QWidget):
         help_btn.clicked.connect(self._show_help)
         btn_row.addWidget(self._run_btn)
         btn_row.addWidget(self._stop_btn)
+        btn_row.addStretch()
         btn_row.addWidget(help_btn)
         root.addLayout(btn_row)
 

@@ -507,15 +507,15 @@ class AlignmentTrimmingTab(QWidget):
         root.addWidget(self.progress_bar)
 
         # log
-        log_lbl = QLabel("Log:")
-        log_lbl.setStyleSheet("font-weight: bold;")
+        log_group = QGroupBox("Log")
+        log_layout = QVBoxLayout(log_group)
         self.log_edit = QTextEdit()
         self.log_edit.setReadOnly(True)
         self.log_edit.setFont(QFont("Consolas", 9))
         self.log_edit.setMaximumHeight(96)
         self.log_edit.setPlaceholderText("trimAl output will appear here…")
-        root.addWidget(log_lbl)
-        root.addWidget(self.log_edit)
+        log_layout.addWidget(self.log_edit)
+        root.addWidget(log_group)
 
         # bottom buttons
         btn_row = QHBoxLayout()

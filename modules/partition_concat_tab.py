@@ -393,7 +393,7 @@ class PartitionConcatTab(BaseTabWidget):
 
         self.add_content_widget(param_group)
 
-        # ---- Primary actions ----
+        # ---- Primary actions (bottom) ----
         action_row = QHBoxLayout()
         self.run_btn = QPushButton(self.tr("▶  Run Concatenation"))
         self.run_btn.setMinimumHeight(36)
@@ -402,11 +402,15 @@ class PartitionConcatTab(BaseTabWidget):
         self.clear_btn.clicked.connect(self.clear)
         action_row.addWidget(self.run_btn)
         action_row.addWidget(self.clear_btn)
+        # Replace status area with action buttons at bottom
+        self.main_layout.removeItem(self.status_layout)
+        for i in range(self.status_layout.count()):
+            w = self.status_layout.itemAt(i).widget()
+            if w and w is not self.help_btn:
+                w.hide()
         action_row.addStretch()
-        self.add_content_layout(action_row)
-
-        # Anchor log at bottom
-        self.content_area.addStretch()
+        action_row.addWidget(self.help_btn)
+        self.main_layout.addLayout(action_row)
 
     # ------------------------------------------------------------------
     # Slots
