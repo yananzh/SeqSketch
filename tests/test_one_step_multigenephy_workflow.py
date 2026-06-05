@@ -226,7 +226,7 @@ def test_runner_continues_when_one_gene_fails_alignment(tmp_path):
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
             str(tmp_path / "final.treefile")
         ),
     )
@@ -263,7 +263,7 @@ def test_runner_fails_when_no_gene_reaches_concatenation(tmp_path):
             dict(sequences),
             "",
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
             ""
         ),
     )
@@ -317,7 +317,7 @@ def test_runner_writes_failed_run_state_when_iqtree_raises(tmp_path):
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
             _ for _ in ()
         ).throw(RuntimeError("iqtree failed")),
     )
@@ -370,7 +370,7 @@ def test_runner_preserves_original_failure_when_manifest_write_raises(
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
             _ for _ in ()
         ).throw(RuntimeError("iqtree failed")),
     )
@@ -421,7 +421,7 @@ def test_runner_marks_summarize_failed_when_summary_write_raises(tmp_path, monke
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
             str(tmp_path / "final.treefile")
         ),
     )
@@ -479,7 +479,7 @@ def test_runner_persists_summarize_succeeded_on_success(tmp_path):
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
             str(tmp_path / "final.treefile")
         ),
     )
@@ -522,7 +522,7 @@ def test_runner_marks_empty_trimmed_output_as_warning(tmp_path):
             {strain_name: "" for strain_name in sequences},
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
             ""
         ),
     )
@@ -709,7 +709,7 @@ def test_runner_concatenates_in_project_gene_column_order(tmp_path):
             dict(sequences),
             str(tmp_path / f"{gene_name}.trimmed.fasta"),
         ),
-        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads: (
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
             str(tmp_path / "final.treefile")
         ),
     )
@@ -802,3 +802,4 @@ def test_workflow_worker_emits_failed_on_runner_exception(tmp_path):
 
     assert failed == ["runner exploded"]
     assert completed == []
+

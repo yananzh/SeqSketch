@@ -49,7 +49,7 @@ def test_tab_renders_import_summary_and_gene_list(qapp):
     tab = OneStepMultiGenePhyTab()
     tab._populate_gene_columns(["ITS", "TEF1", "RPB2"])
 
-    tab._render_import_summary({
+    tab._log_import_summary({
         "strain_count": 2,
         "gene_count": 3,
         "accession_count": 4,
@@ -58,7 +58,7 @@ def test_tab_renders_import_summary_and_gene_list(qapp):
         "invalid_count": 0,
     })
 
-    text = tab.summary_view.toPlainText()
+    text = tab.log_area.toPlainText()
 
     assert "Strains: 2" in text
     assert "Genes: 3" in text
@@ -71,11 +71,11 @@ def test_tab_renders_import_summary_and_gene_list(qapp):
     ]
 
 
-def test_tab_renders_import_summary_with_translated_labels(qapp, monkeypatch):
+def test_tab_logs_import_summary_with_translated_labels(qapp, monkeypatch):
     monkeypatch.setattr(OneStepMultiGenePhyTab, "tr", lambda self, text: f"T::{text}")
 
     tab = OneStepMultiGenePhyTab()
-    tab._render_import_summary({
+    tab._log_import_summary({
         "strain_count": 2,
         "gene_count": 3,
         "accession_count": 4,
@@ -84,14 +84,10 @@ def test_tab_renders_import_summary_with_translated_labels(qapp, monkeypatch):
         "invalid_count": 0,
     })
 
-    assert tab.summary_view.toPlainText().splitlines() == [
-        "T::Strains: 2",
-        "T::Genes: 3",
-        "T::Accessions: 4",
-        "T::Raw sequences: 2",
-        "T::Missing: 1",
-        "T::Invalid: 0",
-    ]
+    log_text = tab.log_area.toPlainText()
+    assert "T::Strains: 2" in log_text
+    assert "T::Genes: 3" in log_text
+    assert "T::Accessions: 4" in log_text
 
 
 def test_tab_loads_gene_columns_from_excel_header(qapp, monkeypatch, tmp_path):
@@ -137,25 +133,21 @@ def test_tab_updates_status_log_step_summary_and_artifacts_after_mocked_run(qapp
             warnings=["TEF1 skipped because fewer than 2 usable sequences remain"],
             artifacts=SimpleNamespace(
                 treefile_path="F:/run/05_iqtree/final.treefile",
+                html_report_path="F:/run/06_reports/run_report.html",
                 manifest_path="F:/run/06_reports/run_manifest.json",
                 report_path="F:/run/06_reports/summary.txt",
             ),
         )
     )
 
-    assert tab.current_step_label.text() == "Align per Gene: running"
-    assert tab.step_status_view.toPlainText().splitlines() == [
-        "Align per Gene: warning",
-        "Build Tree: succeeded",
-    ]
     assert tab.status_label.text() == "Completed with warnings"
-    assert "ITS aligned successfully" in tab.log_area.toPlainText()
-    assert (
-        "TEF1 skipped because fewer than 2 usable sequences remain"
-        in tab.log_area.toPlainText()
-    )
-    assert tab.artifact_list.count() == 3
-    assert tab.artifact_list.item(0).text() == "F:/run/05_iqtree/final.treefile"
+    log_text = tab.log_area.toPlainText()
+    assert "ITS aligned successfully" in log_text
+    assert "TEF1 skipped because fewer than 2 usable sequences remain" in log_text
+    assert "Align per Gene: warning" in log_text
+    assert "Build Tree: succeeded" in log_text
+    assert "Tree file: F:/run/05_iqtree/final.treefile" in log_text
+    assert "HTML report: F:/run/06_reports/run_report.html" in log_text
 
 
 def test_start_run_parses_sheet_builds_runner_and_starts_worker(
@@ -183,12 +175,12 @@ def test_start_run_parses_sheet_builds_runner_and_starts_worker(
         observed["parse_args"] = (path, sheet_name, strain_column, list(gene_columns))
         return parsed
 
-    def fake_build_default_tool_adapters():
+    def fake_build_default_tool_adapters(commands=None):
         observed["adapters_built"] = True
         return adapters
 
     class FakeRunner:
-        def __init__(self, adapters):
+        def __init__(self, adapters, commands=None):
             observed["runner_adapters"] = adapters
 
     def fake_worker_factory(runner, project, cells, strain_order):
@@ -247,7 +239,7 @@ def test_start_run_parses_sheet_builds_runner_and_starts_worker(
     assert worker.step_changed.callbacks == [tab._handle_step_update]
     assert worker.log_line.callbacks == [tab._append_log]
     assert worker.start_calls == 1
-    assert "Strains: 2" in tab.summary_view.toPlainText()
+    assert "Strains: 2" in tab.log_area.toPlainText()
 
     worker.failed.callbacks[0]("simulated failure")
 

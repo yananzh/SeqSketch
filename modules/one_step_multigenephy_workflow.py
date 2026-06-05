@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -102,8 +103,15 @@ def _write_sequences_file(path: Path, sequences: dict[str, str]) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def build_default_tool_adapters() -> ToolAdapters:
+def build_default_tool_adapters(
+    commands: list[str] | None = None,
+) -> ToolAdapters:
+    if commands is None:
+        commands = []
     import time
+
+    def _track(cmd_parts: list[str]) -> None:
+        commands.append(" ".join(cmd_parts))
 
     def fetch_accession(accession: str, email: str) -> str:
         if Entrez is None:
@@ -155,6 +163,7 @@ def build_default_tool_adapters() -> ToolAdapters:
         cmd.extend(mode_tokens or ["--auto"])
         cmd.extend(["--thread", "1", str(input_path)])
 
+        _track(cmd)
         result = _run_command(cmd)
         aligned_text = (result.stdout or "").strip()
         if not aligned_text:
@@ -193,6 +202,7 @@ def build_default_tool_adapters() -> ToolAdapters:
             else:
                 cmd.append(f"-{normalized_mode}")
 
+        _track(cmd)
         _run_command(cmd)
 
         if not output_path.is_file():
@@ -207,6 +217,7 @@ def build_default_tool_adapters() -> ToolAdapters:
         output_dir: str,
         bootstrap: int,
         threads: str,
+        bootstrap_mode: str = "ufboot",
     ) -> str:
         iqtree_exe = _iqtree_executable()
         _ensure_executable(iqtree_exe, "IQ-TREE")
@@ -227,8 +238,14 @@ def build_default_tool_adapters() -> ToolAdapters:
             "-redo",
         ]
         if bootstrap:
-            cmd.extend(["-B", str(bootstrap)])
+            if bootstrap_mode == "standard":
+                cmd.extend(["-b", str(bootstrap)])
+            elif bootstrap_mode == "ufboot_shalrt":
+                cmd.extend(["-B", str(bootstrap), "-alrt", str(bootstrap)])
+            else:
+                cmd.extend(["-B", str(bootstrap)])
 
+        _track(cmd)
         _run_command(cmd, cwd=str(stage_dir))
 
         treefile_path = Path(f"{prefix}.treefile")
@@ -318,7 +335,106 @@ def _write_summary(
     lines.append(f"- treefile: {artifacts.treefile_path or 'not generated'}")
     lines.append(f"- manifest: {artifacts.manifest_path}")
     lines.append(f"- report: {artifacts.report_path}")
+    lines.append(f"- HTML report: {artifacts.html_report_path}")
     Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_html_report(
+    path: str,
+    step_status: dict[str, str],
+    warnings: list[str],
+    artifacts: RunArtifacts,
+    commands: list[str],
+    gene_stats: dict[str, dict] | None = None,
+) -> None:
+    if gene_stats is None:
+        gene_stats = {}
+    status_color = {
+        "succeeded": "#2e7d32",
+        "warning": "#e65100",
+        "failed": "#c62828",
+        "running": "#1565c0",
+        "pending": "#9e9e9e",
+    }
+    steps_html = "".join(
+        '<tr><td>{step}</td>'
+        "<td style='color:{color};font-weight:bold'>{status}</td></tr>".format(
+            step=step,
+            color=status_color.get(status, "#333"),
+            status=status,
+        )
+        for step, status in step_status.items()
+    )
+    genes_html = "".join(
+        "<tr>"
+        f"<td>{gene_name}</td>"
+        f"<td>{gs.get('accessions', 0)}</td>"
+        f"<td style='color:#2e7d32'>{gs.get('fetched', 0)}</td>"
+        f"<td style='color:{'#c62828' if gs.get('failed', 0) else '#333'}'>{gs.get('failed', 0)}</td>"
+        f"<td>{gs.get('sequences', 0)}</td>"
+        f"<td>{'✓' if gs.get('aligned') else '—'}</td>"
+        f"<td>{'✓' if gs.get('trimmed') else '—'}</td>"
+        f"<td>{'✓' if gs.get('included') else '—'}</td>"
+        f"<td>{', '.join(gs.get('missing_strains', [])) or '—'}</td>"
+        "</tr>"
+        for gene_name, gs in gene_stats.items()
+    )
+    warnings_html = (
+        "".join(f"<li>{w}</li>" for w in warnings) if warnings else "<li>None</li>"
+    )
+    commands_html = (
+        "".join(f"<li><code>{c}</code></li>" for c in commands)
+        if commands
+        else "<li>No commands recorded</li>"
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>One Step MultiGenePhy Report</title>
+<style>
+body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; color: #333; }}
+h1 {{ color: #1a5276; border-bottom: 2px solid #2980b9; padding-bottom: 6px; }}
+h2 {{ color: #2c3e50; margin-top: 28px; }}
+table {{ border-collapse: collapse; width: 100%; max-width: 500px; }}
+td, th {{ border: 1px solid #ddd; padding: 8px 14px; text-align: left; }}
+th {{ background: #ecf0f1; }}
+ul {{ line-height: 1.8; }}
+code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 0.92em; }}
+</style>
+</head>
+<body>
+<h1>One Step MultiGenePhy — Run Report</h1>
+
+<h2>Step Status</h2>
+<table><tr><th>Step</th><th>Status</th></tr>{steps_html}</table>
+
+<h2>Per-Gene Details</h2>
+<table>
+<tr><th>Gene</th><th>Accessions</th><th>Fetched</th><th>Failed</th><th>Sequences</th><th>Aligned</th><th>Trimmed</th><th>Included</th><th>Missing Strains</th></tr>
+{genes_html}
+</table>
+
+<h2>Warnings</h2>
+<ul>{warnings_html}</ul>
+
+<h2>Tool Commands</h2>
+<ul>{commands_html}</ul>
+
+<h2>Artifacts</h2>
+<ul>
+<li><b>Tree file:</b> {artifacts.treefile_path or 'not generated'}</li>
+<li><b>Supermatrix:</b> {artifacts.extra_paths.get('supermatrix', '')}</li>
+<li><b>Partitions:</b> {artifacts.extra_paths.get('partitions', '')}</li>
+<li><b>Manifest:</b> {artifacts.manifest_path}</li>
+<li><b>Text report:</b> {artifacts.report_path}</li>
+</ul>
+
+<p><em>Generated by BioSeqAnalyzer — One Step MultiGenePhy workflow</em></p>
+</body>
+</html>"""
+    Path(path).write_text(html, encoding="utf-8")
 
 
 @dataclass(slots=True)
@@ -326,12 +442,13 @@ class ToolAdapters:
     fetch_accession: Callable[[str, str], str]
     run_alignment: Callable[[str, dict[str, str], str, str], tuple[dict[str, str], str]]
     run_trimming: Callable[[str, dict[str, str], str, str], tuple[dict[str, str], str]]
-    run_iqtree: Callable[[str, str, str, int, str], str]
+    run_iqtree: Callable[[str, str, str, int, str, str], str]
 
 
 class OneStepMultiGenePhyRunner:
-    def __init__(self, adapters: ToolAdapters):
+    def __init__(self, adapters: ToolAdapters, commands: list[str] | None = None):
         self.adapters = adapters
+        self.commands = commands if commands is not None else []
 
     def run(
         self,
@@ -367,6 +484,7 @@ class OneStepMultiGenePhyRunner:
             directory.mkdir(parents=True, exist_ok=True)
 
         warnings: list[str] = []
+        gene_stats: dict[str, dict] = {}
         step_status = {
             "Import": "pending",
             "Fetch/Normalize": "pending",
@@ -380,6 +498,7 @@ class OneStepMultiGenePhyRunner:
             root_dir=str(root_dir),
             manifest_path=str(stage_dirs["reports"] / "run_manifest.json"),
             report_path=str(stage_dirs["reports"] / "summary.txt"),
+            html_report_path=str(stage_dirs["reports"] / "run_report.html"),
         )
 
         def set_step(step_name: str, status: str) -> None:
@@ -427,6 +546,18 @@ class OneStepMultiGenePhyRunner:
             except Exception as exc:
                 handle_persistence_error(exc)
 
+            try:
+                _write_html_report(
+                    artifacts.html_report_path,
+                    dict(step_status),
+                    warnings,
+                    artifacts,
+                    self.commands,
+                    dict(gene_stats),
+                )
+            except Exception as exc:
+                handle_persistence_error(exc)
+
             if manifest_written and persistence_errors:
                 try:
                     write_run_manifest(
@@ -449,6 +580,32 @@ class OneStepMultiGenePhyRunner:
             set_step("Import", "running")
             log_line("Importing gene cells")
             datasets = build_gene_datasets(cells, strain_order)
+
+            # Write import summary to 00_import/
+            import_payload = {
+                "strain_count": len(strain_order),
+                "strains": strain_order,
+                "gene_count": len(datasets),
+                "genes": list(datasets),
+                "per_gene": {
+                    name: {
+                        "total_cells": len(ds.cells),
+                        "accessions": sum(
+                            1 for c in ds.cells if c.value_type == "accession"
+                        ),
+                        "sequences": sum(
+                            1 for c in ds.cells if c.value_type == "sequence"
+                        ),
+                        "missing": len(ds.missing_strains),
+                        "invalid": len(ds.invalid_cells),
+                    }
+                    for name, ds in datasets.items()
+                },
+            }
+            (stage_dirs["import"] / "import_summary.json").write_text(
+                json.dumps(import_payload, indent=2), encoding="utf-8"
+            )
+
             set_step("Import", "succeeded")
 
             _check_abort()
@@ -458,7 +615,12 @@ class OneStepMultiGenePhyRunner:
 
             fetch_warning = False
             for dataset in datasets.values():
-                log_line(f"  Normalizing gene: {dataset.gene_name}")
+                gene_name = dataset.gene_name
+                acc_total = sum(1 for c in dataset.cells if c.value_type == "accession")
+                seq_total = sum(1 for c in dataset.cells if c.value_type == "sequence")
+                acc_fetched = 0
+                acc_failed = 0
+                log_line(f"  Normalizing gene: {gene_name} ({acc_total} accessions, {seq_total} sequences)")
                 for cell in dataset.cells:
                     if cell.value_type == "accession" and cell.accession:
                         try:
@@ -473,12 +635,15 @@ class OneStepMultiGenePhyRunner:
                             )
                         except Exception as exc:
                             fetch_warning = True
+                            acc_failed += 1
                             cell.status = "warning"
                             cell.message = str(exc)
                             add_warning(
-                                f"{dataset.gene_name}: failed to fetch {cell.accession}: {exc}"
+                                f"{gene_name}: failed to fetch {cell.accession}: {exc}"
                             )
                             continue
+
+                        acc_fetched += 1
 
                         cell.normalized_sequence = sequence
                         dataset.normalized_sequences[cell.strain_name] = sequence
@@ -489,9 +654,20 @@ class OneStepMultiGenePhyRunner:
                         dataset.normalized_sequences[cell.strain_name] = normalized
                         cell.status = "succeeded"
 
+                gene_stats[gene_name] = {
+                    "accessions": acc_total,
+                    "fetched": acc_fetched,
+                    "failed": acc_failed,
+                    "sequences": seq_total,
+                    "aligned": False,
+                    "trimmed": False,
+                    "missing_strains": [],
+                    "included": False,
+                }
+
                 if dataset.normalized_sequences:
                     normalized_path = (
-                        stage_dirs["normalized"] / f"{dataset.gene_name}.fasta"
+                        stage_dirs["normalized"] / f"{gene_name}.fasta"
                     )
                     _write_fasta(
                         normalized_path, dataset.normalized_sequences, strain_order
@@ -500,6 +676,14 @@ class OneStepMultiGenePhyRunner:
                     artifacts.normalized_files[dataset.gene_name] = str(normalized_path)
 
             set_step("Fetch/Normalize", "warning" if fetch_warning else "succeeded")
+            # Log per-gene accession summary
+            log_line("── Fetch Summary ──")
+            for gene_name, gs in sorted(gene_stats.items()):
+                log_line(
+                    f"  {gene_name}: {gs['fetched']}/{gs['accessions']} accessions fetched"
+                    + (f", {gs['failed']} failed" if gs.get('failed') else "")
+                    + f", {gs['sequences']} raw sequences"
+                )
 
             current_step = "Align per Gene"
             set_step("Align per Gene", "running")
@@ -511,6 +695,7 @@ class OneStepMultiGenePhyRunner:
             trimmed_gene_count = 0
             for dataset in datasets.values():
                 _check_abort()
+                gs = gene_stats.setdefault(dataset.gene_name, {})
                 log_line(f"  Processing gene: {dataset.gene_name}")
                 usable_sequences = _ordered_sequences(
                     dataset.normalized_sequences, strain_order
@@ -524,6 +709,7 @@ class OneStepMultiGenePhyRunner:
                     continue
 
                 try:
+                    gs["aligned"] = True
                     aligned_sequences, aligned_path = self.adapters.run_alignment(
                         dataset.gene_name,
                         usable_sequences,
@@ -566,6 +752,7 @@ class OneStepMultiGenePhyRunner:
                     )
                     continue
 
+                gs["trimmed"] = True
                 dataset.trimmed_sequences = ordered_trimmed_sequences
                 dataset.artifacts["trimmed"] = trimmed_path
                 artifacts.trimmed_files[dataset.gene_name] = trimmed_path
@@ -589,6 +776,19 @@ class OneStepMultiGenePhyRunner:
                 strain_order,
                 gene_order=project.gene_columns,
             )
+            # Track which genes are included and missing strains
+            for gene_name, gs in gene_stats.items():
+                if gene_name in datasets and datasets[gene_name].trimmed_sequences:
+                    gs["included"] = True
+                    trimmed_set = set(datasets[gene_name].trimmed_sequences)
+                    gs["missing_strains"] = [
+                        s for s in strain_order if s not in trimmed_set
+                    ]
+            log_line(
+                "Genes in concatenation: {n}".format(
+                    n=len(partitions)
+                )
+            )
             if not partitions:
                 raise RuntimeError("No genes remain usable for concatenation")
 
@@ -610,6 +810,7 @@ class OneStepMultiGenePhyRunner:
                 str(stage_dirs["iqtree"]),
                 project.iqtree_bootstrap,
                 project.threads,
+                getattr(project, "iqtree_bootstrap_mode", "ufboot"),
             )
             artifacts.treefile_path = treefile_path
             artifacts.extra_paths["iqtree_dir"] = str(stage_dirs["iqtree"])

@@ -32,6 +32,9 @@ from modules.one_step_multigenephy_models import ProjectInput
 from modules.one_step_multigenephy_workflow import (
     OneStepMultiGenePhyRunner,
     WorkflowWorker,
+    _iqtree_executable,
+    _mafft_executable,
+    _trimal_executable,
     build_default_tool_adapters,
 )
 from utils.common_components import BaseTabWidget
@@ -83,13 +86,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.gene_list.setMaximumHeight(64)
         self.gene_list.setSpacing(4)
 
-        self.summary_view = QTextEdit()
-        self.summary_view.setReadOnly(True)
-        self.summary_view.setMaximumHeight(120)
-        self.summary_view.setPlaceholderText(
-            self.tr("Imported workbook summary will appear here.")
-        )
-
         browse_excel_btn = QPushButton(self.tr("Browse"))
         browse_output_btn = QPushButton(self.tr("Browse"))
 
@@ -130,7 +126,15 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
         input_form.addRow(self.tr("Gene list:"), self.gene_list)
         input_form.addRow(self.tr("Output directory:"), _wrap_layout(output_row))
-        input_form.addRow(self.tr("Import summary:"), self.summary_view)
+
+        # Validate button row
+        validate_btn = QPushButton(self.tr("🔍  Validate Inputs"))
+        validate_btn.clicked.connect(self._check_inputs)
+        validate_row = QHBoxLayout()
+        validate_row.setContentsMargins(0, 0, 0, 0)
+        validate_row.addWidget(validate_btn)
+        validate_row.addStretch()
+        input_form.addRow(QWidget(), _wrap_layout(validate_row))
 
         self.add_content_widget(input_group)
 
@@ -174,14 +178,31 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         param_form.addRow(self.tr("trimAl mode:"), self.trimal_mode_combo)
 
         # IQ-TREE bootstrap
+        self.bootstrap_mode_combo = QComboBox()
+        self.bootstrap_mode_combo.addItems([
+            self.tr("UFBoot (ultrafast bootstrap)"),
+            self.tr("UFBoot + SH-aLRT"),
+            self.tr("Standard nonparametric bootstrap"),
+        ])
+        self.bootstrap_mode_combo.setCurrentIndex(0)
+        self.bootstrap_mode_combo.setToolTip(
+            self.tr(
+                "UFBoot: ultrafast (-B); UFBoot+SH-aLRT: ultrafast + branch test (-B -alrt); "
+                "Standard: nonparametric (-b)"
+            )
+        )
         self.bootstrap_spin = QSpinBox()
         self.bootstrap_spin.setRange(0, 10000)
         self.bootstrap_spin.setValue(1000)
         self.bootstrap_spin.setSpecialValueText(self.tr("0 (disabled)"))
         self.bootstrap_spin.setToolTip(
-            self.tr("Number of ultrafast bootstrap replicates (0 = skip bootstrap)")
+            self.tr("Number of bootstrap replicates (0 = skip)")
         )
-        param_form.addRow(self.tr("Bootstrap:"), self.bootstrap_spin)
+        boot_row = QHBoxLayout()
+        boot_row.setContentsMargins(0, 0, 0, 0)
+        boot_row.addWidget(self.bootstrap_mode_combo, 1)
+        boot_row.addWidget(self.bootstrap_spin)
+        param_form.addRow(self.tr("IQ-TREE Bootstrap:"), _wrap_layout(boot_row))
 
         # Thread count
         self.threads_spin = QSpinBox()
@@ -201,31 +222,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         param_form.addRow(self.tr("Intermediate files:"), self.keep_intermediates_check)
 
         self.add_content_widget(param_group)
-
-        # ── Run Monitor section ──
-        run_monitor_group = QGroupBox(self.tr("Run Monitor"))
-        run_monitor_layout = QFormLayout(run_monitor_group)
-
-        self.current_step_label = QLabel(self.tr("No step updates yet."))
-        self.step_status_view = QTextEdit()
-        self.step_status_view.setReadOnly(True)
-        self.step_status_view.setMaximumHeight(120)
-        self.step_status_view.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self.step_status_view.setPlaceholderText(
-            self.tr("Per-step workflow results will appear here.")
-        )
-        self.artifact_list = QListWidget()
-        self.artifact_list.setMinimumHeight(90)
-        self.artifact_list.itemDoubleClicked.connect(self._open_artifact)
-        self.artifact_list.setToolTip(
-            self.tr("Double-click an artifact to open it")
-        )
-
-        run_monitor_layout.addRow(self.tr("Current step:"), self.current_step_label)
-        run_monitor_layout.addRow(self.tr("Step results:"), self.step_status_view)
-        run_monitor_layout.addRow(self.tr("Artifacts:"), self.artifact_list)
-
-        self.add_content_widget(run_monitor_group)
 
         # ── Actions row (bottom-left) ──
         actions_row = QHBoxLayout()
@@ -333,45 +329,43 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             if self.gene_list.item(i).checkState() == Qt.CheckState.Checked
         ]
 
-    def _render_import_summary(self, summary: dict[str, int]) -> None:
-        self.summary_view.setPlainText(
-            "\n".join([
-                self.tr("Strains: {count}").format(
-                    count=summary.get("strain_count", 0)
-                ),
-                self.tr("Genes: {count}").format(count=summary.get("gene_count", 0)),
-                self.tr("Accessions: {count}").format(
-                    count=summary.get("accession_count", 0)
-                ),
-                self.tr("Raw sequences: {count}").format(
-                    count=summary.get("sequence_count", 0)
-                ),
-                self.tr("Missing: {count}").format(
-                    count=summary.get("missing_count", 0)
-                ),
-                self.tr("Invalid: {count}").format(
-                    count=summary.get("invalid_count", 0)
-                ),
-            ])
+    def _log_import_summary(self, summary: dict[str, int]) -> None:
+        self.log_message(self.tr("── Import Summary ──"))
+        self.log_message(
+            self.tr("Strains: {count}").format(
+                count=summary.get("strain_count", 0)
+            )
+        )
+        self.log_message(
+            self.tr("Genes: {count}").format(count=summary.get("gene_count", 0))
+        )
+        self.log_message(
+            self.tr("Accessions: {count}").format(
+                count=summary.get("accession_count", 0)
+            )
+        )
+        self.log_message(
+            self.tr("Raw sequences: {count}").format(
+                count=summary.get("sequence_count", 0)
+            )
+        )
+        self.log_message(
+            self.tr("Missing: {count}").format(
+                count=summary.get("missing_count", 0)
+            )
+        )
+        self.log_message(
+            self.tr("Invalid: {count}").format(
+                count=summary.get("invalid_count", 0)
+            )
         )
 
     def _handle_step_update(self, step_name: str, status: str) -> None:
         message = f"{step_name}: {status}"
-        self.current_step_label.setText(message)
         self.show_status(message)
+        self.log_message(message)
         if self._status_callback is not None:
             self._status_callback(message)
-
-    def _render_step_status(self, step_status: dict[str, str]) -> None:
-        if not step_status:
-            self.step_status_view.clear()
-            return
-
-        self.step_status_view.setPlainText(
-            "\n".join(
-                f"{step_name}: {status}" for step_name, status in step_status.items()
-            )
-        )
 
     def _append_log(self, line: str) -> None:
         self.log_message(line)
@@ -384,15 +378,24 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             self._status_callback(message)
 
     def _handle_run_completed(self, result) -> None:
-        self._render_step_status(dict(getattr(result, "step_status", {})))
-        self.artifact_list.clear()
-        for path in (
-            getattr(result.artifacts, "treefile_path", ""),
-            getattr(result.artifacts, "manifest_path", ""),
-            getattr(result.artifacts, "report_path", ""),
-        ):
-            if path:
-                self.artifact_list.addItem(path)
+        step_status = dict(getattr(result, "step_status", {}))
+        self.log_message(self.tr("── Run Summary ──"))
+        for step_name, status in step_status.items():
+            self.log_message(f"  {step_name}: {status}")
+
+        # Log artifact paths
+        artifacts = getattr(result, "artifacts", None)
+        if artifacts:
+            self.log_message(self.tr("── Artifacts ──"))
+            for label, attr in [
+                ("Tree file", "treefile_path"),
+                ("HTML report", "html_report_path"),
+                ("Manifest", "manifest_path"),
+                ("Text report", "report_path"),
+            ]:
+                path = getattr(artifacts, attr, "")
+                if path:
+                    self.log_message(f"  {label}: {path}")
 
         warnings = list(getattr(result, "warnings", []))
         self.show_status(
@@ -454,6 +457,99 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         return True
 
     # ------------------------------------------------------------------
+    # Input validation & tool checks
+    # ------------------------------------------------------------------
+    def _check_inputs(self) -> None:
+        """Validate file format and external tool availability."""
+        excel_path = self.excel_path_edit.text().strip()
+        sheet_name = self.sheet_name_combo.currentText().strip() or "Sheet1"
+        strain_column = self.strain_column_combo.currentText().strip()
+
+        self.log_message(self.tr("── Input Validation ──"))
+
+        # 1. Check Excel file
+        if not excel_path or not os.path.isfile(excel_path):
+            self.log_message(self.tr("✗ Excel file not found"), "ERROR")
+            self.show_status(self.tr("Validation failed"))
+            return
+        self.log_message(self.tr("✓ Excel file: {path}").format(path=excel_path))
+
+        # 2. Check strain names for spaces / special chars
+        try:
+            import pandas as pd
+            df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
+            if strain_column not in df.columns:
+                self.log_message(
+                    self.tr("✗ Strain column \"{col}\" not found").format(
+                        col=strain_column
+                    ),
+                    "ERROR",
+                )
+                self.show_status(self.tr("Validation failed"))
+                return
+
+            strain_names = df[strain_column].fillna("").astype(str).str.strip()
+            bad_names: list[str] = []
+            for name in strain_names:
+                if not name:
+                    bad_names.append("(blank)")
+                elif name != name.replace(" ", "_").replace("/", "_").replace("\\", "_"):
+                    bad_names.append(name)
+            if bad_names:
+                self.log_message(
+                    self.tr(
+                        "⚠ {count} strain name(s) contain spaces or special chars "
+                        "(may cause issues with downstream tools):"
+                    ).format(count=len(bad_names)),
+                    "WARNING",
+                )
+                for name in bad_names[:10]:
+                    self.log_message(f"    • {name}", "WARNING")
+                if len(bad_names) > 10:
+                    self.log_message(
+                        self.tr("    … and {n} more").format(
+                            n=len(bad_names) - 10
+                        ),
+                        "WARNING",
+                    )
+            else:
+                self.log_message(self.tr("✓ Strain names: all valid"))
+        except Exception as exc:
+            self.log_message(
+                self.tr("⚠ Could not check strain names: {error}").format(error=exc),
+                "WARNING",
+            )
+
+        # 3. Check external tools
+        self.log_message(self.tr("── Tool Availability ──"))
+        tools = [
+            ("MAFFT", _mafft_executable()),
+            ("trimAl", _trimal_executable()),
+            ("IQ-TREE", _iqtree_executable()),
+        ]
+        all_ok = True
+        for tool_name, tool_path in tools:
+            if os.path.isfile(tool_path):
+                self.log_message(
+                    self.tr("✓ {tool}: {path}").format(
+                        tool=tool_name, path=tool_path
+                    )
+                )
+            else:
+                self.log_message(
+                    self.tr("✗ {tool}: NOT FOUND ({path})").format(
+                        tool=tool_name, path=tool_path
+                    ),
+                    "ERROR",
+                )
+                all_ok = False
+
+        if all_ok:
+            self.show_status(self.tr("Validation passed"))
+        else:
+            self.show_status(self.tr("Validation failed — see log"))
+
+    # ------------------------------------------------------------------
     # Cancel support
     # ------------------------------------------------------------------
     def _cancel_workflow(self) -> None:
@@ -470,23 +566,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 self._worker._abort = True
                 self._worker.wait(5000)
             self._worker = None
-
-    # ------------------------------------------------------------------
-    # Artifact interaction
-    # ------------------------------------------------------------------
-    def _open_artifact(self, item: QListWidgetItem) -> None:
-        path = item.text()
-        if not path or not os.path.exists(path):
-            self.log_message(
-                self.tr("Artifact not found: {path}").format(path=path), "WARNING"
-            )
-            return
-        try:
-            os.startfile(path)
-        except Exception as exc:
-            self.log_message(
-                self.tr("Failed to open artifact: {error}").format(error=exc), "ERROR"
-            )
 
     # ------------------------------------------------------------------
     # Run workflow
@@ -514,7 +593,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             self.log_message(str(exc), "ERROR")
             return
 
-        self._render_import_summary(parsed.summary)
+        self._log_import_summary(parsed.summary)
 
         project = ProjectInput(
             excel_path=excel_path,
@@ -526,12 +605,19 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             mafft_mode=self.mafft_mode_combo.currentText(),
             trimal_mode=self.trimal_mode_combo.currentText(),
             iqtree_bootstrap=self.bootstrap_spin.value(),
+            iqtree_bootstrap_mode=["ufboot", "ufboot_shalrt", "standard"][
+                self.bootstrap_mode_combo.currentIndex()
+            ],
             threads=str(self.threads_spin.value())
             if self.threads_spin.value() > 0
             else "AUTO",
             keep_intermediates=self.keep_intermediates_check.isChecked(),
         )
-        runner = OneStepMultiGenePhyRunner(adapters=build_default_tool_adapters())
+        commands: list[str] = []
+        runner = OneStepMultiGenePhyRunner(
+            adapters=build_default_tool_adapters(commands=commands),
+            commands=commands,
+        )
         worker = WorkflowWorker(
             runner,
             project,
@@ -546,9 +632,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self._cleanup_worker()
         self._worker = worker
         self._set_running_state(True)
-        self.step_status_view.clear()
-        self.artifact_list.clear()
-        self.current_step_label.setText(self.tr("Starting workflow…"))
         self.show_status(self.tr("Workflow running"))
         self.log_message(self.tr("Workflow started"))
         worker.start()
@@ -558,26 +641,28 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             self,
             self.tr("One Step MultiGenePhy Help"),
             self.tr(
-                "One Step MultiGenePhy imports a gene-by-gene workbook and runs download/normalize, alignment, trimming, concatenation, and tree building in one workflow.\n\n"
+                "One Step MultiGenePhy imports a gene-by-gene Excel workbook and runs "
+                "download/normalize, alignment, trimming, concatenation, and tree building "
+                "in one automated workflow.\n\n"
                 "Workbook format:\n"
-                "- The first row must be the header row in the selected Excel sheet.\n"
-                "- One column contains the strain name, usually Strain.\n"
-                "- Each remaining selected gene column contains either an accession, a raw sequence, or a blank cell.\n"
-                "- Public data should be provided as accession values; your own data can be pasted directly as sequences.\n\n"
-                "Recommended steps:\n"
-                "1. Select the Excel workbook and confirm the sheet name.\n"
-                "2. Enter the strain column name and click Preview Columns.\n"
-                "3. Review the detected gene columns and import summary.\n"
-                "4. Enter an NCBI email if any gene cells use accession values.\n"
-                "5. Select an output directory and click Start Workflow.\n\n"
-                "Pipeline outputs:\n"
-                "- Per-gene normalized, aligned, and trimmed FASTA files\n"
-                "- Concatenated alignment and partition definitions when usable genes remain\n"
-                "- IQ-TREE result files, including the final tree when tree building succeeds\n"
-                "- A run_manifest.json summary plus a text report in the reports folder\n\n"
+                "- First row = header; one column = strain IDs; remaining columns = genes.\n"
+                "- Each gene cell: NCBI accession (e.g. ON123456.1), raw DNA sequence, or blank.\n\n"
+                "Quick start:\n"
+                "1. Browse to select an Excel workbook → sheet & strain column auto-populate.\n"
+                "2. Check/uncheck gene columns as needed.\n"
+                "3. Enter NCBI email if using accessions.\n"
+                "4. (Optional) Click Validate Inputs to check file format and tool availability.\n"
+                "5. Adjust pipeline options if desired (MAFFT, trimAl, IQ-TREE bootstrap).\n"
+                "6. Select an output directory and click Start Workflow.\n\n"
+                "Pipeline outputs (in <output>/06_reports/):\n"
+                "- run_report.html — full HTML report with step status, warnings, and tool commands\n"
+                "- summary.txt — plain-text summary\n"
+                "- run_manifest.json — machine-readable manifest\n\n"
                 "Notes:\n"
-                "- Genes with too few usable sequences can be skipped with a warning.\n"
-                "- The step monitor shows the current stage, while the log records warnings and failures.\n"
-                "- If every gene fails before concatenation, the workflow stops and reports the reason."
+                "- Strain names with spaces or special characters are flagged by Validate Inputs; "
+                "IQ-TREE requires clean names (alphanumeric + underscore).\n"
+                "- Genes with fewer than 2 usable sequences are skipped with a warning.\n"
+                "- Intermediate files (normalized/aligned/trimmed) are preserved by default.\n"
+                "- The Operation Log records all progress, warnings, and errors."
             ),
         )

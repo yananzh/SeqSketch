@@ -14,6 +14,7 @@ class ProjectInput:
     mafft_mode: str = "--auto"
     trimal_mode: str = "automated1"
     iqtree_bootstrap: int = 1000
+    iqtree_bootstrap_mode: str = "ufboot"
     threads: str = "AUTO"
 
 
@@ -55,6 +56,7 @@ class RunArtifacts:
     root_dir: str
     manifest_path: str = ""
     report_path: str = ""
+    html_report_path: str = ""
     treefile_path: str = ""
     normalized_files: dict[str, str] = field(default_factory=dict)
     aligned_files: dict[str, str] = field(default_factory=dict)
