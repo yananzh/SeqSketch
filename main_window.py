@@ -363,7 +363,7 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(tab)
 
     def open_partition_concat_tab(self):
-        """Open (or focus) the Sequence Concatenation & Partition tab."""
+        """Open (or focus) the Sequence Concatenation tab."""
         from modules.partition_concat_tab import PartitionConcatTab
 
         for i in range(self.tabs.count()):
@@ -372,7 +372,7 @@ class MainWindow(QMainWindow):
                 return
 
         tab = PartitionConcatTab(status_callback=self.status.showMessage)
-        self.tabs.addTab(tab, self.tr("Sequence Concatenation and Partition Models"))
+        self.tabs.addTab(tab, self.tr("Sequence Concatenation"))
         self.tabs.setCurrentWidget(tab)
 
     def open_one_step_multigenephy_tab(self):

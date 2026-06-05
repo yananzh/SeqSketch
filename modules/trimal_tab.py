@@ -366,15 +366,14 @@ class AlignmentTrimmingTab(QWidget):
         self._exe_edit = _DropLineEdit(TRIMAL_EXE)
         self._exe_edit.setPlaceholderText("Path to trimal.exe …")
         self._exe_edit.setToolTip("Path to the trimAl executable")
-        exe_chg = QPushButton("⚙")
-        exe_chg.setFixedWidth(30)
+        exe_chg = QPushButton("Browse")
+        exe_chg.setFixedWidth(90)
         exe_chg.setToolTip("Choose trimal.exe manually")
         exe_chg.clicked.connect(self._choose_exe)
         exe_row.addWidget(QLabel("trimAl exe:"))
         exe_row.addWidget(self._exe_edit, 1)
         exe_row.addWidget(exe_chg)
         root.addLayout(exe_row)
-        root.addWidget(_hline())
 
         # ── file list ─────────────────────────────────────────────────────
         files_lbl = QLabel("Input alignment files:")
@@ -421,7 +420,7 @@ class AlignmentTrimmingTab(QWidget):
         self.outdir_edit.setPlaceholderText(
             "Output folder  (auto-filled when files are added,  or drag & drop a folder here)"
         )
-        outdir_btn = QPushButton("Browse…")
+        outdir_btn = QPushButton("Browse")
         outdir_btn.setFixedWidth(90)
         outdir_btn.clicked.connect(self._choose_outdir)
         out_row.addWidget(self.outdir_edit)
@@ -430,7 +429,6 @@ class AlignmentTrimmingTab(QWidget):
         out_lbl.setToolTip("Trimmed files saved here as <original_name>.trimmed<ext>")
         out_form.addRow(out_lbl, out_row)
         root.addLayout(out_form)
-        root.addWidget(_hline())
 
         # ── parameters ────────────────────────────────────────────────────
         params_layout = QVBoxLayout()
@@ -502,8 +500,6 @@ class AlignmentTrimmingTab(QWidget):
         fmt_layout.addStretch()
         params_layout.addWidget(fmt_box)
         root.addLayout(params_layout)
-
-        root.addWidget(_hline())
 
         # progress bar (hidden when trimming a single file)
         self.progress_bar = QProgressBar()

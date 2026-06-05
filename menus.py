@@ -272,21 +272,19 @@ def create_menus(window):
     trimal_action = QAction(window.tr("Alignment Trimming (trimAl)"), window)
     trimal_action.triggered.connect(window.open_alignment_trimming_tab)
     evolution_menu.addAction(trimal_action)
-    # 7.2 Sequence Concatenation & Partition
-    partition_action = QAction(
-        window.tr("Sequence Concatenation and Partition Models"), window
-    )
+    # 7.2 Sequence Concatenation
+    partition_action = QAction(window.tr("Sequence Concatenation"), window)
     partition_action.triggered.connect(window.open_partition_concat_tab)
     evolution_menu.addAction(partition_action)
+    # 7.3 Tree Construction (IQ-TREE)
+    iqtree_local_action = QAction(window.tr("Tree Construction (IQ-TREE)"), window)
+    iqtree_local_action.triggered.connect(window.open_iqtree_tab)
+    evolution_menu.addAction(iqtree_local_action)
     one_step_multigenephy_action = QAction(window.tr("One Step MultiGenePhy"), window)
     one_step_multigenephy_action.triggered.connect(
         window.open_one_step_multigenephy_tab
     )
     evolution_menu.addAction(one_step_multigenephy_action)
-    # 7.3 Local IQ-TREE tab
-    iqtree_local_action = QAction(window.tr("Tree Construction (IQ-TREE)"), window)
-    iqtree_local_action.triggered.connect(window.open_iqtree_tab)
-    evolution_menu.addAction(iqtree_local_action)
     # 7.4 Tree Visualization (local, phytreeviz)
     tree_vis_action = QAction(window.tr("Tree Visualization"), window)
     tree_vis_action.triggered.connect(window.open_tree_visualization_tab)

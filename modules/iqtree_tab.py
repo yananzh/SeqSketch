@@ -238,24 +238,13 @@ class IqTreeTab(QWidget):
         root.setContentsMargins(10, 10, 10, 10)
         root.setSpacing(8)
 
-        # ── top hint banner ────────────────────────────────────────────
-        banner = QLabel(
-            "⚙  Runs IQ-TREE 3 locally  ·  "
-            "supports DNA / AA / CODON / BIN / MORPH alignments"
-        )
-        banner.setStyleSheet(
-            "background:#e8f4fc;border:1px solid #90caf9;"
-            "border-radius:4px;padding:6px 10px;"
-        )
-        root.addWidget(banner)
-
         # ── exe path row ────────────────────────────────────────────────
         exe_row = QHBoxLayout()
         self._exe_edit = _DropLineEdit(IQTREE_EXE)
         self._exe_edit.setPlaceholderText("Path to iqtree3.exe …")
         self._exe_edit.setToolTip("Path to the IQ-TREE executable")
-        exe_chg = QPushButton("⚙")
-        exe_chg.setFixedWidth(30)
+        exe_chg = QPushButton("Browse")
+        exe_chg.setFixedWidth(90)
         exe_chg.setToolTip("Choose iqtree3.exe manually")
         exe_chg.clicked.connect(self._choose_exe)
         exe_row.addWidget(QLabel("IQ-TREE exe:"))
@@ -391,44 +380,20 @@ class IqTreeTab(QWidget):
         out_row.addWidget(self._prefix_edit, 1)
         form.addRow("Output prefix:", out_row)
 
-        # Extra args
-        self._extra_edit = QLineEdit()
-        self._extra_edit.setPlaceholderText(
-            "e.g.  -alrt 1000 -bnni  (space-separated, advanced users)"
-        )
-        form.addRow("Extra arguments:", self._extra_edit)
-
         root.addWidget(_hline())
 
-        # ── Command preview ─────────────────────────────────────────────
-        root.addWidget(QLabel("<b>Command preview:</b>"))
-        self._cmd_preview = QLineEdit()
-        self._cmd_preview.setReadOnly(True)
-        self._cmd_preview.setFont(QFont("Courier New", 8))
-        self._cmd_preview.setToolTip("Full command that will be executed")
-        self._cmd_preview.setStyleSheet(
-            "background:#f5f5f5;color:#333;border:1px solid #ccc;border-radius:3px;"
-        )
-        root.addWidget(self._cmd_preview)
+        # ── Log output ──────────────────────────────────────────────────
+        root.addWidget(QLabel("<b>IQ-TREE log output:</b>"))
+        self._log_edit = QTextEdit()
+        self._log_edit.setReadOnly(True)
+        self._log_edit.setFont(QFont("Courier New", 8))
+        self._log_edit.setPlaceholderText("IQ-TREE stdout/stderr will appear here…")
+        root.addWidget(self._log_edit, 1)
 
-        # Connect all parameter widgets to refresh preview
-        for sig in [
-            self._input_edit.textChanged,
-            self._seqtype_combo.currentIndexChanged,
-            self._model_edit.textChanged,
-            self._bootstrap_spin.valueChanged,
-            self._ufboot_check.stateChanged,
-            self._alrt_check.stateChanged,
-            self._alrt_spin.valueChanged,
-            self._threads_spin.valueChanged,
-            self._outdir_edit.textChanged,
-            self._prefix_edit.textChanged,
-            self._extra_edit.textChanged,
-            self._partition_edit.textChanged,
-            self._exe_edit.textChanged,
-        ]:
-            sig.connect(self._refresh_cmd_preview)
-        self._refresh_cmd_preview()
+        # ── Status label ────────────────────────────────────────────────
+        self._status_lbl = QLabel("")
+        self._status_lbl.setStyleSheet("color:#555;font-style:italic;")
+        root.addWidget(self._status_lbl)
 
         root.addWidget(_hline())
 
@@ -458,21 +423,6 @@ class IqTreeTab(QWidget):
         btn_row.addWidget(self._stop_btn)
         btn_row.addWidget(help_btn)
         root.addLayout(btn_row)
-
-        # ── Status label ────────────────────────────────────────────────
-        self._status_lbl = QLabel("")
-        self._status_lbl.setStyleSheet("color:#555;font-style:italic;")
-        root.addWidget(self._status_lbl)
-
-        root.addWidget(_hline())
-
-        # ── Log output ──────────────────────────────────────────────────
-        root.addWidget(QLabel("<b>IQ-TREE log output:</b>"))
-        self._log_edit = QTextEdit()
-        self._log_edit.setReadOnly(True)
-        self._log_edit.setFont(QFont("Courier New", 8))
-        self._log_edit.setPlaceholderText("IQ-TREE stdout/stderr will appear here…")
-        root.addWidget(self._log_edit, 1)
 
     # ------------------------------------------------------------------
     # Slots / helpers
@@ -565,17 +515,7 @@ class IqTreeTab(QWidget):
             else:
                 full_prefix = prefix
             cmd += ["--prefix", full_prefix]
-        # Extra args
-        extra = self._extra_edit.text().strip()
-        if extra:
-            cmd += extra.split()
         return cmd
-
-    def _refresh_cmd_preview(self):
-        """Update the command preview line."""
-        cmd = self._build_cmd()
-        self._cmd_preview.setText(" ".join(cmd))
-        self._cmd_preview.setCursorPosition(0)
 
     def _show_help(self):
         dlg = _HelpDialog(self)
