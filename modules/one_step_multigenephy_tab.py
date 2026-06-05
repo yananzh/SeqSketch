@@ -101,9 +101,12 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
         # MAFFT alignment mode
         self.mafft_mode_combo = QComboBox()
-        self.mafft_mode_combo.addItems(
-            ["--auto", "--localpair", "--globalpair", "--genafpair"]
-        )
+        self.mafft_mode_combo.addItems([
+            "--auto",
+            "--localpair",
+            "--globalpair",
+            "--genafpair",
+        ])
         self.mafft_mode_combo.setCurrentText("--auto")
         self.mafft_mode_combo.setToolTip(
             self.tr(
@@ -115,9 +118,13 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
         # trimAl trimming strategy
         self.trimal_mode_combo = QComboBox()
-        self.trimal_mode_combo.addItems(
-            ["automated1", "nogaps", "gappyout", "strict", "strictplus"]
-        )
+        self.trimal_mode_combo.addItems([
+            "automated1",
+            "nogaps",
+            "gappyout",
+            "strict",
+            "strictplus",
+        ])
         self.trimal_mode_combo.setCurrentText("automated1")
         self.trimal_mode_combo.setToolTip(
             self.tr(

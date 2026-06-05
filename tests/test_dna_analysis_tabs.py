@@ -419,7 +419,10 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
         assert "border: 1px solid #94a3b8;" in tab.output_text.styleSheet()
         assert "border-radius: 6px;" in tab.output_text.styleSheet()
         assert "#f7f9fc" not in tab.output_text.styleSheet()
-        assert tab.output_text.viewport().styleSheet() == "background: transparent; border: none;"
+        assert (
+            tab.output_text.viewport().styleSheet()
+            == "background: transparent; border: none;"
+        )
 
     sanger_tab = SangerTab()
     assert "background: transparent;" in sanger_tab.assembly_result.styleSheet()
