@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -582,28 +581,27 @@ class OneStepMultiGenePhyRunner:
             datasets = build_gene_datasets(cells, strain_order)
 
             # Write import summary to 00_import/
-            import_payload = {
-                "strain_count": len(strain_order),
-                "strains": strain_order,
-                "gene_count": len(datasets),
-                "genes": list(datasets),
-                "per_gene": {
-                    name: {
-                        "total_cells": len(ds.cells),
-                        "accessions": sum(
-                            1 for c in ds.cells if c.value_type == "accession"
-                        ),
-                        "sequences": sum(
-                            1 for c in ds.cells if c.value_type == "sequence"
-                        ),
-                        "missing": len(ds.missing_strains),
-                        "invalid": len(ds.invalid_cells),
-                    }
-                    for name, ds in datasets.items()
-                },
-            }
-            (stage_dirs["import"] / "import_summary.json").write_text(
-                json.dumps(import_payload, indent=2), encoding="utf-8"
+            lines = [
+                "One Step MultiGenePhy — Import Summary",
+                "",
+                f"Strain count: {len(strain_order)}",
+                f"Strains: {', '.join(strain_order)}",
+                f"Gene count: {len(datasets)}",
+                f"Genes: {', '.join(datasets)}",
+                "",
+                "Per-gene breakdown:",
+            ]
+            for name, ds in datasets.items():
+                acc = sum(1 for c in ds.cells if c.value_type == "accession")
+                seq = sum(1 for c in ds.cells if c.value_type == "sequence")
+                lines.append(
+                    f"  {name}: {len(ds.cells)} cells"
+                    f" ({acc} accessions, {seq} sequences,"
+                    f" {len(ds.missing_strains)} missing,"
+                    f" {len(ds.invalid_cells)} invalid)"
+                )
+            (stage_dirs["import"] / "import_summary.txt").write_text(
+                "\n".join(lines) + "\n", encoding="utf-8"
             )
 
             set_step("Import", "succeeded")

@@ -289,14 +289,12 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             if strain_column in columns:
                 self.strain_column_combo.setCurrentText(strain_column)
 
-            gene_names = [
-                column for column in columns if column != strain_column
-            ]
+            gene_names = [column for column in columns if column != strain_column]
             self._populate_gene_columns(gene_names)
             self.show_status(self.tr("Loaded sheet columns"))
             self.log_message(
                 self.tr(
-                    "Loaded {count} candidate gene columns from sheet \"{sheet}\"."
+                    'Loaded {count} candidate gene columns from sheet "{sheet}".'
                 ).format(count=len(gene_names), sheet=sheet_name)
             )
         except Exception as exc:
@@ -332,9 +330,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     def _log_import_summary(self, summary: dict[str, int]) -> None:
         self.log_message(self.tr("── Import Summary ──"))
         self.log_message(
-            self.tr("Strains: {count}").format(
-                count=summary.get("strain_count", 0)
-            )
+            self.tr("Strains: {count}").format(count=summary.get("strain_count", 0))
         )
         self.log_message(
             self.tr("Genes: {count}").format(count=summary.get("gene_count", 0))
@@ -350,14 +346,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             )
         )
         self.log_message(
-            self.tr("Missing: {count}").format(
-                count=summary.get("missing_count", 0)
-            )
+            self.tr("Missing: {count}").format(count=summary.get("missing_count", 0))
         )
         self.log_message(
-            self.tr("Invalid: {count}").format(
-                count=summary.get("invalid_count", 0)
-            )
+            self.tr("Invalid: {count}").format(count=summary.get("invalid_count", 0))
         )
 
     def _handle_step_update(self, step_name: str, status: str) -> None:
@@ -416,7 +408,11 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     # Pre-run validation
     # ------------------------------------------------------------------
     def _validate_inputs(
-        self, excel_path: str, output_dir: str, checked_genes: list[str], ncbi_email: str
+        self,
+        excel_path: str,
+        output_dir: str,
+        checked_genes: list[str],
+        ncbi_email: str,
     ) -> bool:
         if not excel_path or not os.path.isfile(excel_path):
             self.show_status(self.tr("Excel file not found"))
@@ -427,9 +423,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
         if not output_dir:
             self.show_status(self.tr("No output directory"))
-            self.log_message(
-                self.tr("Please select an output directory."), "WARNING"
-            )
+            self.log_message(self.tr("Please select an output directory."), "WARNING")
             return False
 
         if not checked_genes:
@@ -477,10 +471,11 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         # 2. Check strain names for spaces / special chars
         try:
             import pandas as pd
+
             df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
             if strain_column not in df.columns:
                 self.log_message(
-                    self.tr("✗ Strain column \"{col}\" not found").format(
+                    self.tr('✗ Strain column "{col}" not found').format(
                         col=strain_column
                     ),
                     "ERROR",
@@ -493,7 +488,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             for name in strain_names:
                 if not name:
                     bad_names.append("(blank)")
-                elif name != name.replace(" ", "_").replace("/", "_").replace("\\", "_"):
+                elif name != name.replace(" ", "_").replace("/", "_").replace(
+                    "\\", "_"
+                ):
                     bad_names.append(name)
             if bad_names:
                 self.log_message(
@@ -507,9 +504,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                     self.log_message(f"    • {name}", "WARNING")
                 if len(bad_names) > 10:
                     self.log_message(
-                        self.tr("    … and {n} more").format(
-                            n=len(bad_names) - 10
-                        ),
+                        self.tr("    … and {n} more").format(n=len(bad_names) - 10),
                         "WARNING",
                     )
             else:
@@ -531,9 +526,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         for tool_name, tool_path in tools:
             if os.path.isfile(tool_path):
                 self.log_message(
-                    self.tr("✓ {tool}: {path}").format(
-                        tool=tool_name, path=tool_path
-                    )
+                    self.tr("✓ {tool}: {path}").format(tool=tool_name, path=tool_path)
                 )
             else:
                 self.log_message(
@@ -556,7 +549,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         if self._worker is not None and self._worker.isRunning():
             self._worker.requestInterruption()
             self._worker._abort = True
-            self.log_message(self.tr("Cancellation requested — waiting for current step to finish…"), "WARNING")
+            self.log_message(
+                self.tr("Cancellation requested — waiting for current step to finish…"),
+                "WARNING",
+            )
             self.show_status(self.tr("Cancelling…"))
 
     def _cleanup_worker(self) -> None:
@@ -637,32 +633,109 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         worker.start()
 
     def show_help(self) -> None:
-        QMessageBox.information(
-            self,
-            self.tr("One Step MultiGenePhy Help"),
-            self.tr(
-                "One Step MultiGenePhy imports a gene-by-gene Excel workbook and runs "
-                "download/normalize, alignment, trimming, concatenation, and tree building "
-                "in one automated workflow.\n\n"
-                "Workbook format:\n"
-                "- First row = header; one column = strain IDs; remaining columns = genes.\n"
-                "- Each gene cell: NCBI accession (e.g. ON123456.1), raw DNA sequence, or blank.\n\n"
-                "Quick start:\n"
-                "1. Browse to select an Excel workbook → sheet & strain column auto-populate.\n"
-                "2. Check/uncheck gene columns as needed.\n"
-                "3. Enter NCBI email if using accessions.\n"
-                "4. (Optional) Click Validate Inputs to check file format and tool availability.\n"
-                "5. Adjust pipeline options if desired (MAFFT, trimAl, IQ-TREE bootstrap).\n"
-                "6. Select an output directory and click Start Workflow.\n\n"
-                "Pipeline outputs (in <output>/06_reports/):\n"
-                "- run_report.html — full HTML report with step status, warnings, and tool commands\n"
-                "- summary.txt — plain-text summary\n"
-                "- run_manifest.json — machine-readable manifest\n\n"
-                "Notes:\n"
-                "- Strain names with spaces or special characters are flagged by Validate Inputs; "
-                "IQ-TREE requires clean names (alphanumeric + underscore).\n"
-                "- Genes with fewer than 2 usable sequences are skipped with a warning.\n"
-                "- Intermediate files (normalized/aligned/trimmed) are preserved by default.\n"
-                "- The Operation Log records all progress, warnings, and errors."
-            ),
-        )
+        from PyQt6.QtWidgets import QDialog, QTextBrowser
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("One Step MultiGenePhy Help"))
+        dlg.resize(680, 560)
+        lay = QVBoxLayout(dlg)
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(True)
+        browser.setHtml(self._help_html())
+        lay.addWidget(browser)
+        close_btn = QPushButton(self.tr("Close"))
+        close_btn.clicked.connect(dlg.accept)
+        lay.addWidget(close_btn)
+        dlg.exec()
+
+    def _help_html(self) -> str:
+        return self.tr("""
+<h2>One Step MultiGenePhy</h2>
+<p>Import a gene-by-gene Excel workbook and run <b>download / normalize /
+alignment / trimming / concatenation / tree building</b> in one automated
+pipeline. Mixed public accessions and private sequences are supported in
+the same sheet.</p>
+
+<h3>📋 Workbook Format</h3>
+<ul>
+  <li><b>First row</b> must be the header row.</li>
+  <li>One column = <b>strain identifiers</b> (e.g. <i>Strain</i>).</li>
+  <li>Remaining columns = <b>gene loci</b> (e.g. <i>ITS, TEF1, RPB2</i>).</li>
+  <li>Each gene cell contains either:
+    <ul>
+      <li>an <b>NCBI accession</b> — <code>ON123456.1</code></li>
+      <li>a <b>raw DNA sequence</b> — <code>ATGCGTAA...</code></li>
+      <li>a <b>blank</b> (missing gene for that strain)</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>🚀 Quick Start</h3>
+<ol>
+  <li><b>Browse</b> to select an Excel workbook — the sheet name and strain
+  column auto-populate after loading.</li>
+  <li><b>Check / uncheck</b> gene columns to include or exclude.</li>
+  <li>Enter your <b>NCBI email</b> if any cells contain accession values
+  (required by NCBI Entrez).</li>
+  <li>(Optional) Click <b>Validate Inputs</b> to check file format, strain
+  name validity, and external tool availability.</li>
+  <li>Adjust <b>pipeline options</b> if needed — MAFFT mode, trimAl
+  strategy, IQ-TREE bootstrap type and replicates, thread count.</li>
+  <li>Select an <b>output directory</b> and click <b>Start Workflow</b>.</li>
+</ol>
+
+<h3>⚙️ Pipeline Steps</h3>
+<ol>
+  <li><b>Import</b> — parse Excel cells, classify accessions vs. sequences,
+  generate import summary.</li>
+  <li><b>Fetch / Normalize</b> — download NCBI sequences, normalize all
+  records into per-gene FASTA inputs.</li>
+  <li><b>Align per Gene</b> — run MAFFT on each gene independently.</li>
+  <li><b>Trim per Gene</b> — run trimAl to remove poorly aligned columns.</li>
+  <li><b>Concatenate</b> — join trimmed alignments into a supermatrix with
+  NEXUS partition definitions; missing strains are gap-filled.</li>
+  <li><b>Build Tree</b> — run IQ-TREE with partition-aware model.</li>
+  <li><b>Summarize</b> — write run report (HTML), plain-text summary,
+  and machine-readable manifest.</li>
+</ol>
+
+<h3>📁 Output Directory Structure</h3>
+<ul>
+  <li><code>00_import/</code> — import summary JSON</li>
+  <li><code>01_normalized/</code> — per-gene normalized FASTA files</li>
+  <li><code>02_alignments/</code> — per-gene aligned FASTA files</li>
+  <li><code>03_trimmed/</code> — per-gene trimmed FASTA files</li>
+  <li><code>04_concat/</code> — supermatrix FASTA + partitions NEXUS</li>
+  <li><code>05_iqtree/</code> — IQ-TREE results and tree files</li>
+  <li><code>06_reports/</code> — run_report.html, summary.txt,
+  run_manifest.json</li>
+</ul>
+
+<h3>⚠️ Important Notes</h3>
+<ul>
+  <li><b>Strain names</b> with spaces or special characters (<code>/ \\ :
+  ( ) [ ]</code>) may cause IQ-TREE to fail. Use <b>Validate Inputs</b>
+  to check before running.</li>
+  <li>Genes with <b>fewer than 2 usable sequences</b> are skipped with a
+  warning.</li>
+  <li>A <b>minimal HTML report</b> (<code>run_report.html</code>) is
+  generated with step status, per-gene details, tool commands, and
+  artifact paths.</li>
+  <li>Intermediate files (normalized/aligned/trimmed) are preserved by
+  default. Uncheck <b>Preserve intermediate files</b> to save disk space.</li>
+  <li>The <b>Operation Log</b> records all progress, warnings, and errors
+  in real time.</li>
+</ul>
+
+<h3>💡 Tips</h3>
+<ul>
+  <li>NCBI may rate-limit download requests. The pipeline retries up to
+  3 times with increasing delays.</li>
+  <li>For large datasets, increase the thread count in Pipeline Options
+  to speed up MAFFT and IQ-TREE.</li>
+  <li>Click <b>Cancel</b> to abort a running workflow — the current step
+  will finish before stopping.</li>
+  <li>The <b>UFBoot + SH-aLRT</b> bootstrap option provides robust branch
+  support for publication-quality trees.</li>
+</ul>
+""")

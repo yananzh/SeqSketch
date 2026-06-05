@@ -277,25 +277,16 @@ def test_start_run_stops_when_parse_excel_sheet_fails(qapp, monkeypatch, tmp_pat
     assert "sheet parse failed" in tab.log_area.toPlainText()
 
 
-def test_show_help_displays_structured_workflow_guidance(qapp, monkeypatch):
-    observed = {}
-
-    def fake_information(parent, title, text):
-        observed["parent"] = parent
-        observed["title"] = title
-        observed["text"] = text
-
-    from PyQt6.QtWidgets import QMessageBox
-
-    monkeypatch.setattr(QMessageBox, "information", fake_information)
-
+def test_show_help_displays_structured_workflow_guidance(qapp):
     tab = OneStepMultiGenePhyTab()
+    html = tab._help_html()
 
-    tab.show_help()
-
-    assert observed["parent"] is tab
-    assert observed["title"] == "One Step MultiGenePhy Help"
-    assert "Excel" in observed["text"]
-    assert "Strain" in observed["text"]
-    assert "Start Workflow" in observed["text"]
-    assert "run_manifest.json" in observed["text"]
+    assert "One Step MultiGenePhy" in html
+    assert "Workbook Format" in html
+    assert "Quick Start" in html
+    assert "Pipeline Steps" in html
+    assert "Output Directory" in html
+    assert "Important Notes" in html
+    assert "Tips" in html
+    assert "ON123456.1" in html
+    assert "run_report.html" in html
