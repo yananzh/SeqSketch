@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QFileDialog,
     QFormLayout,
     QGroupBox,
@@ -10,7 +12,9 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QMessageBox,
     QPushButton,
+    QSpinBox,
     QTextEdit,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -39,6 +43,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self._build_ui()
 
     def _build_ui(self) -> None:
+        # ── Input section ──
         input_group = QGroupBox(self.tr("Input"))
         input_form = QFormLayout(input_group)
 
@@ -88,6 +93,70 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         input_form.addRow(self.tr("Output directory:"), _wrap_layout(output_row))
         input_form.addRow(self.tr("Import summary:"), self.summary_view)
 
+        self.add_content_widget(input_group)
+
+        # ── Parameters section ──
+        param_group = QGroupBox(self.tr("Pipeline Options"))
+        param_form = QFormLayout(param_group)
+
+        # MAFFT alignment mode
+        self.mafft_mode_combo = QComboBox()
+        self.mafft_mode_combo.addItems(
+            ["--auto", "--localpair", "--globalpair", "--genafpair"]
+        )
+        self.mafft_mode_combo.setCurrentText("--auto")
+        self.mafft_mode_combo.setToolTip(
+            self.tr(
+                "--auto: automatic selection; --localpair: local alignment; "
+                "--globalpair: global alignment; --genafpair: conserved region alignment"
+            )
+        )
+        param_form.addRow(self.tr("MAFFT mode:"), self.mafft_mode_combo)
+
+        # trimAl trimming strategy
+        self.trimal_mode_combo = QComboBox()
+        self.trimal_mode_combo.addItems(
+            ["automated1", "nogaps", "gappyout", "strict", "strictplus"]
+        )
+        self.trimal_mode_combo.setCurrentText("automated1")
+        self.trimal_mode_combo.setToolTip(
+            self.tr(
+                "automated1: heuristic trimming; nogaps: remove columns with gaps; "
+                "gappyout: adaptive gap-based trimming; strict/strictplus: conservative trimming"
+            )
+        )
+        param_form.addRow(self.tr("trimAl mode:"), self.trimal_mode_combo)
+
+        # IQ-TREE bootstrap
+        self.bootstrap_spin = QSpinBox()
+        self.bootstrap_spin.setRange(0, 10000)
+        self.bootstrap_spin.setValue(1000)
+        self.bootstrap_spin.setSpecialValueText(self.tr("0 (disabled)"))
+        self.bootstrap_spin.setToolTip(
+            self.tr("Number of ultrafast bootstrap replicates (0 = skip bootstrap)")
+        )
+        param_form.addRow(self.tr("Bootstrap:"), self.bootstrap_spin)
+
+        # Thread count
+        self.threads_spin = QSpinBox()
+        self.threads_spin.setRange(0, 256)
+        self.threads_spin.setValue(0)
+        self.threads_spin.setSpecialValueText("AUTO")
+        self.threads_spin.setToolTip(
+            self.tr("CPU threads for MAFFT/IQ-TREE (0 = auto-detect)")
+        )
+        param_form.addRow(self.tr("Threads:"), self.threads_spin)
+
+        # Keep intermediate files
+        self.keep_intermediates_check = QCheckBox(
+            self.tr("Preserve intermediate files (normalized, aligned, trimmed)")
+        )
+        self.keep_intermediates_check.setChecked(True)
+        param_form.addRow(self.tr("Intermediate files:"), self.keep_intermediates_check)
+
+        self.add_content_widget(param_group)
+
+        # ── Run Monitor section ──
         run_monitor_group = QGroupBox(self.tr("Run Monitor"))
         run_monitor_layout = QFormLayout(run_monitor_group)
 
@@ -101,16 +170,21 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         )
         self.artifact_list = QListWidget()
         self.artifact_list.setMinimumHeight(90)
-        self.run_workflow_btn = QPushButton(self.tr("Run Workflow"))
-        self.run_workflow_btn.clicked.connect(self.start_run)
 
         run_monitor_layout.addRow(self.tr("Current step:"), self.current_step_label)
         run_monitor_layout.addRow(self.tr("Step results:"), self.step_status_view)
         run_monitor_layout.addRow(self.tr("Artifacts:"), self.artifact_list)
-        run_monitor_layout.addRow(QWidget(), self.run_workflow_btn)
 
-        self.add_content_widget(input_group)
         self.add_content_widget(run_monitor_group)
+
+        # ── Actions row (bottom-left) ──
+        actions_row = QHBoxLayout()
+        self.start_btn = QPushButton(self.tr("▶  Start Workflow"))
+        self.start_btn.setMinimumHeight(36)
+        self.start_btn.clicked.connect(self.start_run)
+        actions_row.addWidget(self.start_btn)
+        actions_row.addStretch()
+        self.content_area.addLayout(actions_row)
         self.content_area.addStretch()
 
     def _choose_excel(self) -> None:
@@ -260,6 +334,13 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             gene_columns=list(self.gene_columns),
             output_dir=output_dir,
             ncbi_email=ncbi_email,
+            mafft_mode=self.mafft_mode_combo.currentText(),
+            trimal_mode=self.trimal_mode_combo.currentText(),
+            iqtree_bootstrap=self.bootstrap_spin.value(),
+            threads=str(self.threads_spin.value())
+            if self.threads_spin.value() > 0
+            else "AUTO",
+            keep_intermediates=self.keep_intermediates_check.isChecked(),
         )
         runner = OneStepMultiGenePhyRunner(adapters=build_default_tool_adapters())
         worker = WorkflowWorker(
@@ -294,7 +375,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 "2. Enter the strain column name and click Preview Columns.\n"
                 "3. Review the detected gene columns and import summary.\n"
                 "4. Enter an NCBI email if any gene cells use accession values.\n"
-                "5. Select an output directory and click Run Workflow.\n\n"
+                "5. Select an output directory and click Start Workflow.\n\n"
                 "Pipeline outputs:\n"
                 "- Per-gene normalized, aligned, and trimmed FASTA files\n"
                 "- Concatenated alignment and partition definitions when usable genes remain\n"

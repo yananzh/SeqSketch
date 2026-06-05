@@ -88,7 +88,7 @@ def test_dna_analysis_menu_uses_single_complement_tools_entry(qapp):
     assert "Reverse Complement" not in action_texts
 
 
-def test_main_window_reuses_single_one_step_multigenephy_tab(qapp):
+def test_main_window_creates_multi_instance_one_step_multigenephy_tab(qapp):
     window = MainWindow()
 
     window.open_one_step_multigenephy_tab()
@@ -101,8 +101,11 @@ def test_main_window_reuses_single_one_step_multigenephy_tab(qapp):
 
     window.open_one_step_multigenephy_tab()
 
-    assert window.tabs.count() == 1
-    assert window.tabs.currentWidget() is first_tab
+    assert window.tabs.count() == 2
+    assert window.tabs.tabText(1) == "One Step MultiGenePhy"
+    second_tab = window.tabs.widget(1)
+    assert isinstance(second_tab, OneStepMultiGenePhyTab)
+    assert second_tab is not first_tab
 
 
 def test_phylogenetic_tree_menu_includes_one_step_multigenephy(qapp):
@@ -129,8 +132,11 @@ def test_phylogenetic_tree_menu_includes_one_step_multigenephy(qapp):
 
     one_step_action.trigger()
 
-    assert window.tabs.count() == 1
-    assert window.tabs.currentWidget() is first_tab
+    assert window.tabs.count() == 2
+    assert window.tabs.tabText(1) == "One Step MultiGenePhy"
+    second_tab = window.tabs.widget(1)
+    assert isinstance(second_tab, OneStepMultiGenePhyTab)
+    assert second_tab is not first_tab
 
 
 def test_phylogenetic_tree_menu_shows_alignment_trimming_first(qapp):

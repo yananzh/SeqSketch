@@ -225,6 +225,11 @@ def test_start_run_parses_sheet_builds_runner_and_starts_worker(
     assert worker.project.gene_columns == ["ITS", "TEF1"]
     assert worker.project.output_dir == str(output_dir)
     assert worker.project.ncbi_email == "user@example.com"
+    assert worker.project.mafft_mode == "--auto"
+    assert worker.project.trimal_mode == "automated1"
+    assert worker.project.iqtree_bootstrap == 1000
+    assert worker.project.threads == "AUTO"
+    assert worker.project.keep_intermediates is True
     assert worker.cells == parsed.cells
     assert worker.strain_order == parsed.strain_order
     assert worker.completed.callbacks == [tab._handle_run_completed]
@@ -288,5 +293,5 @@ def test_show_help_displays_structured_workflow_guidance(qapp, monkeypatch):
     assert observed["title"] == "One Step MultiGenePhy Help"
     assert "Excel" in observed["text"]
     assert "Strain" in observed["text"]
-    assert "Run Workflow" in observed["text"]
+    assert "Start Workflow" in observed["text"]
     assert "run_manifest.json" in observed["text"]

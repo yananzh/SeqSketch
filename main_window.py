@@ -376,13 +376,8 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(tab)
 
     def open_one_step_multigenephy_tab(self):
-        """Open (or focus) the One Step MultiGenePhy tab."""
+        """Open a new One Step MultiGenePhy tab (multi-instance)."""
         from modules.one_step_multigenephy_tab import OneStepMultiGenePhyTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), OneStepMultiGenePhyTab):
-                self.tabs.setCurrentIndex(i)
-                return
 
         tab = OneStepMultiGenePhyTab(status_callback=self.status.showMessage)
         self.tabs.addTab(tab, self.tr("One Step MultiGenePhy"))
