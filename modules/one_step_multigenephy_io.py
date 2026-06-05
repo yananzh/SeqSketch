@@ -105,6 +105,11 @@ def read_excel_columns(excel_path: str, sheet_name: str) -> list[str]:
     return [str(column) for column in df.columns]
 
 
+def read_excel_sheet_names(excel_path: str) -> list[str]:
+    xl = pd.ExcelFile(excel_path)
+    return list(xl.sheet_names)
+
+
 def build_gene_datasets(
     cells: list[GeneCell],
     strain_order: list[str],

@@ -103,6 +103,8 @@ def _write_sequences_file(path: Path, sequences: dict[str, str]) -> None:
 
 
 def build_default_tool_adapters() -> ToolAdapters:
+    import time
+
     def fetch_accession(accession: str, email: str) -> str:
         if Entrez is None:
             raise RuntimeError("Biopython Entrez is not available")
@@ -110,17 +112,28 @@ def build_default_tool_adapters() -> ToolAdapters:
             raise ValueError("NCBI email is required to fetch accession sequences")
 
         Entrez.email = email
-        with Entrez.efetch(
-            db="nucleotide",
-            id=accession,
-            rettype="fasta",
-            retmode="text",
-        ) as handle:
-            sequences = _parse_fasta_text(handle.read())
+        last_error: Exception | None = None
+        for attempt in range(3):
+            try:
+                with Entrez.efetch(
+                    db="nucleotide",
+                    id=accession,
+                    rettype="fasta",
+                    retmode="text",
+                ) as handle:
+                    sequences = _parse_fasta_text(handle.read())
 
-        if not sequences:
-            raise RuntimeError(f"No FASTA sequence returned for {accession}")
-        return next(iter(sequences.values()))
+                if not sequences:
+                    raise RuntimeError(
+                        f"No FASTA sequence returned for {accession}"
+                    )
+                return next(iter(sequences.values()))
+            except Exception as exc:
+                last_error = exc
+                if attempt < 2:
+                    delay = (2 ** attempt) * 0.5
+                    time.sleep(delay)
+        raise last_error  # type: ignore[misc]
 
     def run_alignment(
         gene_name: str,
@@ -327,11 +340,18 @@ class OneStepMultiGenePhyRunner:
         strain_order: list[str],
         step_changed: Callable[[str, str], None] | None = None,
         log_line: Callable[[str], None] | None = None,
+        is_aborted: Callable[[], bool] | None = None,
     ) -> WorkflowRunResult:
         if step_changed is None:
             step_changed = lambda step, status: None
         if log_line is None:
             log_line = lambda line: None
+        if is_aborted is None:
+            is_aborted = lambda: False
+
+        def _check_abort() -> None:
+            if is_aborted():
+                raise RuntimeError("Workflow cancelled by user")
 
         root_dir = Path(project.output_dir)
         stage_dirs = {
@@ -431,12 +451,14 @@ class OneStepMultiGenePhyRunner:
             datasets = build_gene_datasets(cells, strain_order)
             set_step("Import", "succeeded")
 
+            _check_abort()
             current_step = "Fetch/Normalize"
             set_step("Fetch/Normalize", "running")
             log_line("Fetching and normalizing sequences")
 
             fetch_warning = False
             for dataset in datasets.values():
+                log_line(f"  Normalizing gene: {dataset.gene_name}")
                 for cell in dataset.cells:
                     if cell.value_type == "accession" and cell.accession:
                         try:
@@ -488,6 +510,8 @@ class OneStepMultiGenePhyRunner:
             trimming_warning = False
             trimmed_gene_count = 0
             for dataset in datasets.values():
+                _check_abort()
+                log_line(f"  Processing gene: {dataset.gene_name}")
                 usable_sequences = _ordered_sequences(
                     dataset.normalized_sequences, strain_order
                 )
@@ -556,6 +580,7 @@ class OneStepMultiGenePhyRunner:
             )
             set_step("Trim per Gene", trim_status)
 
+            _check_abort()
             current_step = "Concatenate"
             set_step("Concatenate", "running")
             log_line("Concatenating trimmed gene alignments")
@@ -575,6 +600,7 @@ class OneStepMultiGenePhyRunner:
             artifacts.extra_paths["partitions"] = str(partition_path)
             set_step("Concatenate", "succeeded")
 
+            _check_abort()
             current_step = "Build Tree"
             set_step("Build Tree", "running")
             log_line("Running IQ-TREE")
@@ -608,6 +634,7 @@ class WorkflowWorker(QThread):
     log_line = pyqtSignal(str)
     completed = pyqtSignal(object)
     failed = pyqtSignal(str)
+    aborted = pyqtSignal()
 
     def __init__(self, runner, project, cells, strain_order):
         super().__init__()
@@ -615,6 +642,7 @@ class WorkflowWorker(QThread):
         self.project = project
         self.cells = cells
         self.strain_order = strain_order
+        self._abort = False
 
     def run(self) -> None:
         try:
@@ -624,6 +652,7 @@ class WorkflowWorker(QThread):
                 self.strain_order,
                 step_changed=self.step_changed.emit,
                 log_line=self.log_line.emit,
+                is_aborted=lambda: self._abort or self.isInterruptionRequested(),
             )
         except Exception as exc:
             self.failed.emit(str(exc))

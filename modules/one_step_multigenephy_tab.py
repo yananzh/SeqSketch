@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -9,7 +12,9 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListView,
     QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPushButton,
     QSpinBox,
@@ -18,7 +23,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from modules.one_step_multigenephy_io import parse_excel_sheet, read_excel_columns
+from modules.one_step_multigenephy_io import (
+    parse_excel_sheet,
+    read_excel_columns,
+    read_excel_sheet_names,
+)
 from modules.one_step_multigenephy_models import ProjectInput
 from modules.one_step_multigenephy_workflow import (
     OneStepMultiGenePhyRunner,
@@ -39,6 +48,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self._status_callback = status_callback
         self.gene_columns: list[str] = []
         self._worker: WorkflowWorker | None = None
+        self._loading = False
         super().__init__("One Step MultiGenePhy", "file")
         self._build_ui()
 
@@ -49,15 +59,29 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
         self.excel_path_edit = QLineEdit()
         self.excel_path_edit.setPlaceholderText(self.tr("Select an Excel workbook"))
-        self.sheet_name_edit = QLineEdit("Sheet1")
-        self.strain_column_edit = QLineEdit("Strain")
+        self.sheet_name_combo = QComboBox()
+        self.sheet_name_combo.setEditable(True)
+        self.sheet_name_combo.addItem("Sheet1")
+        self.sheet_name_combo.setToolTip(
+            self.tr("Sheet name — auto-populated after Preview Columns")
+        )
+        self.strain_column_combo = QComboBox()
+        self.strain_column_combo.setEditable(True)
+        self.strain_column_combo.addItem("Strain")
+        self.strain_column_combo.setToolTip(
+            self.tr("Strain identifier column — auto-populated after Preview Columns")
+        )
         self.email_edit = QLineEdit()
         self.email_edit.setPlaceholderText(self.tr("name@example.com"))
         self.output_dir_edit = QLineEdit()
         self.output_dir_edit.setPlaceholderText(self.tr("Select an output directory"))
 
         self.gene_list = QListWidget()
-        self.gene_list.setMinimumHeight(110)
+        self.gene_list.setFlow(QListView.Flow.LeftToRight)
+        self.gene_list.setWrapping(True)
+        self.gene_list.setMinimumHeight(36)
+        self.gene_list.setMaximumHeight(64)
+        self.gene_list.setSpacing(4)
 
         self.summary_view = QTextEdit()
         self.summary_view.setReadOnly(True)
@@ -67,18 +91,15 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         )
 
         browse_excel_btn = QPushButton(self.tr("Browse"))
-        preview_columns_btn = QPushButton(self.tr("Preview Columns"))
         browse_output_btn = QPushButton(self.tr("Browse"))
 
         browse_excel_btn.clicked.connect(self._choose_excel)
-        preview_columns_btn.clicked.connect(self.load_sheet_columns)
         browse_output_btn.clicked.connect(self._choose_output_dir)
 
         excel_row = QHBoxLayout()
         excel_row.setContentsMargins(0, 0, 0, 0)
         excel_row.addWidget(self.excel_path_edit)
         excel_row.addWidget(browse_excel_btn)
-        excel_row.addWidget(preview_columns_btn)
 
         output_row = QHBoxLayout()
         output_row.setContentsMargins(0, 0, 0, 0)
@@ -86,9 +107,27 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         output_row.addWidget(browse_output_btn)
 
         input_form.addRow(self.tr("Excel file:"), _wrap_layout(excel_row))
-        input_form.addRow(self.tr("Sheet name:"), self.sheet_name_edit)
-        input_form.addRow(self.tr("Strain column:"), self.strain_column_edit)
-        input_form.addRow(self.tr("NCBI email:"), self.email_edit)
+
+        # Sheet / Strain / Email in a single horizontal row
+        detail_row = QHBoxLayout()
+        detail_row.setContentsMargins(0, 0, 0, 0)
+        sheet_lbl = QLabel(self.tr("Select Sheet:"))
+        strain_lbl = QLabel(self.tr("Select Strain Column:"))
+        email_lbl = QLabel(self.tr("Email:"))
+        self.sheet_name_combo.setMinimumWidth(110)
+        self.strain_column_combo.setMinimumWidth(110)
+        detail_row.addWidget(sheet_lbl)
+        detail_row.addWidget(self.sheet_name_combo, 1)
+        detail_row.addWidget(strain_lbl)
+        detail_row.addWidget(self.strain_column_combo, 1)
+        detail_row.addWidget(email_lbl)
+        detail_row.addWidget(self.email_edit, 2)
+        input_form.addRow(self.tr("Details:"), _wrap_layout(detail_row))
+
+        # Auto-refresh gene list when sheet or strain changes
+        self.sheet_name_combo.currentTextChanged.connect(self._on_detail_changed)
+        self.strain_column_combo.currentTextChanged.connect(self._on_detail_changed)
+
         input_form.addRow(self.tr("Gene list:"), self.gene_list)
         input_form.addRow(self.tr("Output directory:"), _wrap_layout(output_row))
         input_form.addRow(self.tr("Import summary:"), self.summary_view)
@@ -177,6 +216,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         )
         self.artifact_list = QListWidget()
         self.artifact_list.setMinimumHeight(90)
+        self.artifact_list.itemDoubleClicked.connect(self._open_artifact)
+        self.artifact_list.setToolTip(
+            self.tr("Double-click an artifact to open it")
+        )
 
         run_monitor_layout.addRow(self.tr("Current step:"), self.current_step_label)
         run_monitor_layout.addRow(self.tr("Step results:"), self.step_status_view)
@@ -189,7 +232,12 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.start_btn = QPushButton(self.tr("▶  Start Workflow"))
         self.start_btn.setMinimumHeight(36)
         self.start_btn.clicked.connect(self.start_run)
+        self.cancel_btn = QPushButton(self.tr("■  Cancel"))
+        self.cancel_btn.setMinimumHeight(36)
+        self.cancel_btn.setVisible(False)
+        self.cancel_btn.clicked.connect(self._cancel_workflow)
         actions_row.addWidget(self.start_btn)
+        actions_row.addWidget(self.cancel_btn)
         actions_row.addStretch()
         self.content_area.addLayout(actions_row)
         self.content_area.addStretch()
@@ -203,6 +251,15 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         )
         if file_path:
             self.excel_path_edit.setText(file_path)
+            self.load_sheet_columns()
+
+    def _on_detail_changed(self) -> None:
+        """Auto-refresh gene list when sheet or strain column changes."""
+        if self._loading:
+            return
+        excel_path = self.excel_path_edit.text().strip()
+        if excel_path:
+            self.load_sheet_columns()
 
     def _choose_output_dir(self) -> None:
         directory = QFileDialog.getExistingDirectory(
@@ -215,36 +272,66 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
     def load_sheet_columns(self) -> None:
         excel_path = self.excel_path_edit.text().strip()
-        sheet_name = self.sheet_name_edit.text().strip() or "Sheet1"
-        strain_column = self.strain_column_edit.text().strip()
+        sheet_name = self.sheet_name_combo.currentText().strip() or "Sheet1"
+        strain_column = self.strain_column_combo.currentText().strip()
 
         if not excel_path:
-            self.show_status(self.tr("Select an Excel file first"))
-            self.log_message(
-                self.tr("Select an Excel file before previewing columns."), "WARNING"
-            )
             return
 
+        self._loading = True
         try:
+            sheet_names = read_excel_sheet_names(excel_path)
+            self.sheet_name_combo.clear()
+            self.sheet_name_combo.addItems(sheet_names)
+            if sheet_name in sheet_names:
+                self.sheet_name_combo.setCurrentText(sheet_name)
             columns = read_excel_columns(excel_path, sheet_name)
+
+            # Populate strain column dropdown with all columns
+            self.strain_column_combo.clear()
+            self.strain_column_combo.addItems(columns)
+            if strain_column in columns:
+                self.strain_column_combo.setCurrentText(strain_column)
+
+            gene_names = [
+                column for column in columns if column != strain_column
+            ]
+            self._populate_gene_columns(gene_names)
+            self.show_status(self.tr("Loaded sheet columns"))
+            self.log_message(
+                self.tr(
+                    "Loaded {count} candidate gene columns from sheet \"{sheet}\"."
+                ).format(count=len(gene_names), sheet=sheet_name)
+            )
         except Exception as exc:
             self.show_status(self.tr("Failed to load workbook columns"))
             self.log_message(str(exc), "ERROR")
-            return
-
-        gene_names = [column for column in columns if column != strain_column]
-        self._populate_gene_columns(gene_names)
-        self.show_status(self.tr("Loaded sheet columns"))
-        self.log_message(
-            self.tr("Loaded {count} candidate gene columns from the workbook.").format(
-                count=len(gene_names)
-            )
-        )
+        finally:
+            self._loading = False
 
     def _populate_gene_columns(self, gene_names: list[str]) -> None:
         self.gene_list.clear()
         self.gene_columns = list(gene_names)
-        self.gene_list.addItems(self.gene_columns)
+        for name in self.gene_columns:
+            item = QListWidgetItem(name)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked)
+            self.gene_list.addItem(item)
+
+    def _select_all_genes(self) -> None:
+        for i in range(self.gene_list.count()):
+            self.gene_list.item(i).setCheckState(Qt.CheckState.Checked)
+
+    def _deselect_all_genes(self) -> None:
+        for i in range(self.gene_list.count()):
+            self.gene_list.item(i).setCheckState(Qt.CheckState.Unchecked)
+
+    def _checked_gene_columns(self) -> list[str]:
+        return [
+            self.gene_list.item(i).text()
+            for i in range(self.gene_list.count())
+            if self.gene_list.item(i).checkState() == Qt.CheckState.Checked
+        ]
 
     def _render_import_summary(self, summary: dict[str, int]) -> None:
         self.summary_view.setPlainText(
@@ -292,6 +379,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     def _handle_run_failed(self, message: str) -> None:
         self.show_status(self.tr("Workflow failed"))
         self.log_message(message, "ERROR")
+        self._set_running_state(False)
         if self._status_callback is not None:
             self._status_callback(message)
 
@@ -312,20 +400,114 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         )
         for warning in warnings:
             self.log_message(warning, "WARNING")
+        self._set_running_state(False)
 
+    # ------------------------------------------------------------------
+    # Button state management
+    # ------------------------------------------------------------------
+    def _set_running_state(self, running: bool) -> None:
+        self.start_btn.setVisible(not running)
+        self.cancel_btn.setVisible(running)
+
+    # ------------------------------------------------------------------
+    # Pre-run validation
+    # ------------------------------------------------------------------
+    def _validate_inputs(
+        self, excel_path: str, output_dir: str, checked_genes: list[str], ncbi_email: str
+    ) -> bool:
+        if not excel_path or not os.path.isfile(excel_path):
+            self.show_status(self.tr("Excel file not found"))
+            self.log_message(
+                self.tr("The selected Excel file does not exist."), "ERROR"
+            )
+            return False
+
+        if not output_dir:
+            self.show_status(self.tr("No output directory"))
+            self.log_message(
+                self.tr("Please select an output directory."), "WARNING"
+            )
+            return False
+
+        if not checked_genes:
+            self.show_status(self.tr("No genes selected"))
+            self.log_message(
+                self.tr("Select at least one gene column before running."), "WARNING"
+            )
+            return False
+
+        if not ncbi_email:
+            reply = QMessageBox.question(
+                self,
+                self.tr("Missing NCBI Email"),
+                self.tr(
+                    "No NCBI email was provided. If any gene cells contain "
+                    "accession values (public data), the fetch will fail.\n\n"
+                    "Continue without an email?"
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.No:
+                return False
+
+        return True
+
+    # ------------------------------------------------------------------
+    # Cancel support
+    # ------------------------------------------------------------------
+    def _cancel_workflow(self) -> None:
+        if self._worker is not None and self._worker.isRunning():
+            self._worker.requestInterruption()
+            self._worker._abort = True
+            self.log_message(self.tr("Cancellation requested — waiting for current step to finish…"), "WARNING")
+            self.show_status(self.tr("Cancelling…"))
+
+    def _cleanup_worker(self) -> None:
+        if self._worker is not None:
+            if self._worker.isRunning():
+                self._worker.requestInterruption()
+                self._worker._abort = True
+                self._worker.wait(5000)
+            self._worker = None
+
+    # ------------------------------------------------------------------
+    # Artifact interaction
+    # ------------------------------------------------------------------
+    def _open_artifact(self, item: QListWidgetItem) -> None:
+        path = item.text()
+        if not path or not os.path.exists(path):
+            self.log_message(
+                self.tr("Artifact not found: {path}").format(path=path), "WARNING"
+            )
+            return
+        try:
+            os.startfile(path)
+        except Exception as exc:
+            self.log_message(
+                self.tr("Failed to open artifact: {error}").format(error=exc), "ERROR"
+            )
+
+    # ------------------------------------------------------------------
+    # Run workflow
+    # ------------------------------------------------------------------
     def start_run(self) -> None:
         excel_path = self.excel_path_edit.text().strip()
-        sheet_name = self.sheet_name_edit.text().strip() or "Sheet1"
-        strain_column = self.strain_column_edit.text().strip()
+        sheet_name = self.sheet_name_combo.currentText().strip() or "Sheet1"
+        strain_column = self.strain_column_combo.currentText().strip()
         output_dir = self.output_dir_edit.text().strip()
         ncbi_email = self.email_edit.text().strip()
+        checked_genes = self._checked_gene_columns()
+
+        if not self._validate_inputs(excel_path, output_dir, checked_genes, ncbi_email):
+            return
 
         try:
             parsed = parse_excel_sheet(
                 excel_path,
                 sheet_name,
                 strain_column,
-                list(self.gene_columns),
+                checked_genes,
             )
         except Exception as exc:
             self.show_status(self.tr("Failed to parse workbook"))
@@ -338,7 +520,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             excel_path=excel_path,
             sheet_name=sheet_name,
             strain_column=strain_column,
-            gene_columns=list(self.gene_columns),
+            gene_columns=checked_genes,
             output_dir=output_dir,
             ncbi_email=ncbi_email,
             mafft_mode=self.mafft_mode_combo.currentText(),
@@ -361,7 +543,12 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         worker.step_changed.connect(self._handle_step_update)
         worker.log_line.connect(self._append_log)
 
+        self._cleanup_worker()
         self._worker = worker
+        self._set_running_state(True)
+        self.step_status_view.clear()
+        self.artifact_list.clear()
+        self.current_step_label.setText(self.tr("Starting workflow…"))
         self.show_status(self.tr("Workflow running"))
         self.log_message(self.tr("Workflow started"))
         worker.start()

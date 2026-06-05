@@ -97,17 +97,24 @@ def test_tab_renders_import_summary_with_translated_labels(qapp, monkeypatch):
 def test_tab_loads_gene_columns_from_excel_header(qapp, monkeypatch, tmp_path):
     excel_path = tmp_path / "multigene.xlsx"
 
+    def fake_read_excel_sheet_names(path):
+        assert path == str(excel_path)
+        return ["Sheet1", "Sheet2"]
+
     def fake_read_excel_columns(path, sheet_name):
         assert path == str(excel_path)
         assert sheet_name == "Sheet1"
         return ["Strain", "ITS", "TEF1", "RPB2"]
 
+    monkeypatch.setattr(
+        tab_module, "read_excel_sheet_names", fake_read_excel_sheet_names
+    )
     monkeypatch.setattr(tab_module, "read_excel_columns", fake_read_excel_columns)
 
     tab = OneStepMultiGenePhyTab()
     tab.excel_path_edit.setText(str(excel_path))
-    tab.sheet_name_edit.setText("Sheet1")
-    tab.strain_column_edit.setText("Strain")
+    tab.sheet_name_combo.setCurrentText("Sheet1")
+    tab.strain_column_combo.setCurrentText("Strain")
 
     tab.load_sheet_columns()
 
@@ -198,10 +205,13 @@ def test_start_run_parses_sheet_builds_runner_and_starts_worker(
     monkeypatch.setattr(tab_module, "OneStepMultiGenePhyRunner", FakeRunner)
     monkeypatch.setattr(tab_module, "WorkflowWorker", fake_worker_factory)
 
+    # Create the Excel file so validation passes
+    excel_path.write_text("", encoding="utf-8")
+
     tab = OneStepMultiGenePhyTab()
     tab.excel_path_edit.setText(str(excel_path))
-    tab.sheet_name_edit.setText("SheetA")
-    tab.strain_column_edit.setText("Strain")
+    tab.sheet_name_combo.setCurrentText("SheetA")
+    tab.strain_column_combo.setCurrentText("Strain")
     tab.output_dir_edit.setText(str(output_dir))
     tab.email_edit.setText("user@example.com")
     tab._populate_gene_columns(["ITS", "TEF1"])
@@ -247,6 +257,7 @@ def test_start_run_parses_sheet_builds_runner_and_starts_worker(
 
 def test_start_run_stops_when_parse_excel_sheet_fails(qapp, monkeypatch, tmp_path):
     excel_path = tmp_path / "input.xlsx"
+    excel_path.write_text("", encoding="utf-8")
     worker_calls = []
 
     def fake_parse_excel_sheet(path, sheet_name, strain_column, gene_columns):
@@ -261,9 +272,10 @@ def test_start_run_stops_when_parse_excel_sheet_fails(qapp, monkeypatch, tmp_pat
 
     tab = OneStepMultiGenePhyTab()
     tab.excel_path_edit.setText(str(excel_path))
-    tab.sheet_name_edit.setText("Sheet1")
-    tab.strain_column_edit.setText("Strain")
+    tab.sheet_name_combo.setCurrentText("Sheet1")
+    tab.strain_column_combo.setCurrentText("Strain")
     tab.output_dir_edit.setText(str(tmp_path / "run"))
+    tab.email_edit.setText("user@example.com")
     tab._populate_gene_columns(["ITS"])
 
     tab.start_run()

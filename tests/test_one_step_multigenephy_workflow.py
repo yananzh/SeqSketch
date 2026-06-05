@@ -744,7 +744,15 @@ def test_workflow_worker_emits_runner_progress_signals(tmp_path):
     completed: list[object] = []
 
     class FakeRunner:
-        def run(self, project, cells, strain_order, step_changed=None, log_line=None):
+        def run(
+            self,
+            project,
+            cells,
+            strain_order,
+            step_changed=None,
+            log_line=None,
+            is_aborted=None,
+        ):
             assert step_changed is not None
             assert log_line is not None
             step_changed("Import", "running")
@@ -775,7 +783,15 @@ def test_workflow_worker_emits_failed_on_runner_exception(tmp_path):
     completed: list[object] = []
 
     class FakeRunner:
-        def run(self, project, cells, strain_order, step_changed=None, log_line=None):
+        def run(
+            self,
+            project,
+            cells,
+            strain_order,
+            step_changed=None,
+            log_line=None,
+            is_aborted=None,
+        ):
             raise RuntimeError("runner exploded")
 
     worker = WorkflowWorker(FakeRunner(), project, [], [])
