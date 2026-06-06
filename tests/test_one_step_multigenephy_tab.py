@@ -64,11 +64,7 @@ def test_tab_renders_import_summary_and_gene_list(qapp):
     assert "Genes: 3" in text
     assert "Accessions: 4" in text
     assert "Raw sequences: 2" in text
-    assert [tab.gene_list.item(i).text() for i in range(tab.gene_list.count())] == [
-        "ITS",
-        "TEF1",
-        "RPB2",
-    ]
+    assert tab.gene_edit.text() == "ITS, TEF1, RPB2"
 
 
 def test_tab_logs_import_summary_with_translated_labels(qapp, monkeypatch):
@@ -115,11 +111,7 @@ def test_tab_loads_gene_columns_from_excel_header(qapp, monkeypatch, tmp_path):
     tab.load_sheet_columns()
 
     assert tab.gene_columns == ["ITS", "TEF1", "RPB2"]
-    assert [tab.gene_list.item(i).text() for i in range(tab.gene_list.count())] == [
-        "ITS",
-        "TEF1",
-        "RPB2",
-    ]
+    assert tab.gene_edit.text() == "ITS, TEF1, RPB2"
 
 
 def test_tab_updates_status_log_step_summary_and_artifacts_after_mocked_run(qapp):

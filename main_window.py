@@ -376,20 +376,12 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(tab)
 
     def open_one_step_multigenephy_tab(self):
-        """Open a new independent One Step MultiGenePhy window."""
+        """Open a new One Step MultiGenePhy tab (multi-instance)."""
         from modules.one_step_multigenephy_tab import OneStepMultiGenePhyTab
 
         tab = OneStepMultiGenePhyTab(status_callback=None)
-        window = QMainWindow(self)
-        window.setWindowTitle(self.tr("One Step MultiGenePhy"))
-        window.setCentralWidget(tab)
-        window.resize(950, 750)
-        window.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        window.destroyed.connect(
-            lambda obj=None, w=window: self._remove_child_window(w)
-        )
-        self.child_windows.append(window)
-        window.show()
+        self.tabs.addTab(tab, self.tr("One Step MultiGenePhy"))
+        self.tabs.setCurrentWidget(tab)
 
     def _remove_child_window(self, window):
         if window in self.child_windows:

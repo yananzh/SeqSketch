@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -12,9 +11,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListView,
-    QListWidget,
-    QListWidgetItem,
     QMessageBox,
     QPushButton,
     QSpinBox,
@@ -79,12 +75,11 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.output_dir_edit = QLineEdit()
         self.output_dir_edit.setPlaceholderText(self.tr("Select an output directory"))
 
-        self.gene_list = QListWidget()
-        self.gene_list.setFlow(QListView.Flow.LeftToRight)
-        self.gene_list.setWrapping(True)
-        self.gene_list.setMinimumHeight(36)
-        self.gene_list.setMaximumHeight(64)
-        self.gene_list.setSpacing(4)
+        self.gene_edit = QLineEdit()
+        self.gene_edit.setReadOnly(True)
+        self.gene_edit.setPlaceholderText(
+            self.tr("Gene columns will appear here after loading an Excel file")
+        )
 
         browse_excel_btn = QPushButton(self.tr("Browse"))
         browse_output_btn = QPushButton(self.tr("Browse"))
@@ -124,7 +119,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.sheet_name_combo.currentTextChanged.connect(self._on_detail_changed)
         self.strain_column_combo.currentTextChanged.connect(self._on_detail_changed)
 
-        input_form.addRow(self.tr("Gene list:"), self.gene_list)
+        input_form.addRow(self.tr("Gene list:"), self.gene_edit)
         input_form.addRow(self.tr("Output directory:"), _wrap_layout(output_row))
 
         # Validate button row
@@ -222,21 +217,23 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         param_form.addRow(self.tr("Intermediate files:"), self.keep_intermediates_check)
 
         self.add_content_widget(param_group)
+        self.content_area.addStretch()
 
-        # ── Actions row (bottom-left) ──
-        actions_row = QHBoxLayout()
+        # ── Buttons in status bar (bottom-left) ──
         self.start_btn = QPushButton(self.tr("▶  Start Workflow"))
-        self.start_btn.setMinimumHeight(36)
+        self.start_btn.setMinimumHeight(32)
         self.start_btn.clicked.connect(self.start_run)
         self.cancel_btn = QPushButton(self.tr("■  Cancel"))
-        self.cancel_btn.setMinimumHeight(36)
+        self.cancel_btn.setMinimumHeight(32)
         self.cancel_btn.setVisible(False)
         self.cancel_btn.clicked.connect(self._cancel_workflow)
-        actions_row.addWidget(self.start_btn)
-        actions_row.addWidget(self.cancel_btn)
-        actions_row.addStretch()
-        self.content_area.addLayout(actions_row)
-        self.content_area.addStretch()
+        # Hide the "Status:" label and status text
+        for i in range(self.status_layout.count()):
+            w = self.status_layout.itemAt(i).widget()
+            if isinstance(w, QLabel):
+                w.setVisible(False)
+        self.status_layout.insertWidget(0, self.start_btn)
+        self.status_layout.insertWidget(1, self.cancel_btn)
 
     def _choose_excel(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
@@ -304,28 +301,11 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             self._loading = False
 
     def _populate_gene_columns(self, gene_names: list[str]) -> None:
-        self.gene_list.clear()
         self.gene_columns = list(gene_names)
-        for name in self.gene_columns:
-            item = QListWidgetItem(name)
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Checked)
-            self.gene_list.addItem(item)
-
-    def _select_all_genes(self) -> None:
-        for i in range(self.gene_list.count()):
-            self.gene_list.item(i).setCheckState(Qt.CheckState.Checked)
-
-    def _deselect_all_genes(self) -> None:
-        for i in range(self.gene_list.count()):
-            self.gene_list.item(i).setCheckState(Qt.CheckState.Unchecked)
+        self.gene_edit.setText(", ".join(self.gene_columns))
 
     def _checked_gene_columns(self) -> list[str]:
-        return [
-            self.gene_list.item(i).text()
-            for i in range(self.gene_list.count())
-            if self.gene_list.item(i).checkState() == Qt.CheckState.Checked
-        ]
+        return list(self.gene_columns)
 
     def _log_import_summary(self, summary: dict[str, int]) -> None:
         self.log_message(self.tr("── Import Summary ──"))
@@ -383,7 +363,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 ("Tree file", "treefile_path"),
                 ("HTML report", "html_report_path"),
                 ("Manifest", "manifest_path"),
-                ("Text report", "report_path"),
+                ("Run log", "report_path"),
             ]:
                 path = getattr(artifacts, attr, "")
                 if path:
@@ -459,64 +439,59 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         sheet_name = self.sheet_name_combo.currentText().strip() or "Sheet1"
         strain_column = self.strain_column_combo.currentText().strip()
 
-        self.log_message(self.tr("── Input Validation ──"))
+        lines = []
 
         # 1. Check Excel file
         if not excel_path or not os.path.isfile(excel_path):
-            self.log_message(self.tr("✗ Excel file not found"), "ERROR")
-            self.show_status(self.tr("Validation failed"))
+            QMessageBox.warning(
+                self,
+                self.tr("Validation"),
+                self.tr("Excel file not found."),
+            )
             return
-        self.log_message(self.tr("✓ Excel file: {path}").format(path=excel_path))
+        lines.append(self.tr("✓ Excel file: {path}").format(path=excel_path))
 
-        # 2. Check strain names for spaces / special chars
+        # 2. Check strain names
         try:
             import pandas as pd
 
             df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
             if strain_column not in df.columns:
-                self.log_message(
+                lines.append(
                     self.tr('✗ Strain column "{col}" not found').format(
                         col=strain_column
-                    ),
-                    "ERROR",
-                )
-                self.show_status(self.tr("Validation failed"))
-                return
-
-            strain_names = df[strain_column].fillna("").astype(str).str.strip()
-            bad_names: list[str] = []
-            for name in strain_names:
-                if not name:
-                    bad_names.append("(blank)")
-                elif name != name.replace(" ", "_").replace("/", "_").replace(
-                    "\\", "_"
-                ):
-                    bad_names.append(name)
-            if bad_names:
-                self.log_message(
-                    self.tr(
-                        "⚠ {count} strain name(s) contain spaces or special chars "
-                        "(may cause issues with downstream tools):"
-                    ).format(count=len(bad_names)),
-                    "WARNING",
-                )
-                for name in bad_names[:10]:
-                    self.log_message(f"    • {name}", "WARNING")
-                if len(bad_names) > 10:
-                    self.log_message(
-                        self.tr("    … and {n} more").format(n=len(bad_names) - 10),
-                        "WARNING",
                     )
+                )
             else:
-                self.log_message(self.tr("✓ Strain names: all valid"))
+                strain_names = df[strain_column].fillna("").astype(str).str.strip()
+                bad_names: list[str] = []
+                for name in strain_names:
+                    if not name:
+                        bad_names.append("(blank)")
+                    elif name != name.replace(" ", "_").replace("/", "_").replace(
+                        "\\", "_"
+                    ):
+                        bad_names.append(name)
+                if bad_names:
+                    lines.append(
+                        self.tr(
+                            "⚠ {count} strain name(s) contain spaces/special chars:"
+                        ).format(count=len(bad_names))
+                    )
+                    for name in bad_names[:10]:
+                        lines.append(f"    • {name}")
+                    if len(bad_names) > 10:
+                        lines.append(
+                            f"    … and {len(bad_names) - 10} more"
+                        )
+                else:
+                    lines.append(self.tr("✓ Strain names: all valid"))
         except Exception as exc:
-            self.log_message(
-                self.tr("⚠ Could not check strain names: {error}").format(error=exc),
-                "WARNING",
+            lines.append(
+                self.tr("⚠ Could not check strain names: {error}").format(error=exc)
             )
 
         # 3. Check external tools
-        self.log_message(self.tr("── Tool Availability ──"))
         tools = [
             ("MAFFT", _mafft_executable()),
             ("trimAl", _trimal_executable()),
@@ -525,22 +500,23 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         all_ok = True
         for tool_name, tool_path in tools:
             if os.path.isfile(tool_path):
-                self.log_message(
+                lines.append(
                     self.tr("✓ {tool}: {path}").format(tool=tool_name, path=tool_path)
                 )
             else:
-                self.log_message(
-                    self.tr("✗ {tool}: NOT FOUND ({path})").format(
-                        tool=tool_name, path=tool_path
-                    ),
-                    "ERROR",
+                lines.append(
+                    self.tr("✗ {tool}: NOT FOUND").format(tool=tool_name)
                 )
                 all_ok = False
 
-        if all_ok:
-            self.show_status(self.tr("Validation passed"))
-        else:
-            self.show_status(self.tr("Validation failed — see log"))
+        QMessageBox.information(
+            self,
+            self.tr("Input Validation"),
+            "\n".join(lines),
+        )
+        self.show_status(
+            self.tr("Validation passed") if all_ok else self.tr("Issues found")
+        )
 
     # ------------------------------------------------------------------
     # Cancel support

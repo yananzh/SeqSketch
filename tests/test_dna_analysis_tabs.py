@@ -88,28 +88,21 @@ def test_dna_analysis_menu_uses_single_complement_tools_entry(qapp):
     assert "Reverse Complement" not in action_texts
 
 
-def test_main_window_opens_independent_one_step_multigenephy_window(qapp):
+def test_main_window_creates_multi_instance_one_step_multigenephy_tab(qapp):
     window = MainWindow()
 
     window.open_one_step_multigenephy_tab()
 
-    # No tabs should be added to the main window
-    assert window.tabs.count() == 0
-    assert len(window.child_windows) == 1
-
-    child = window.child_windows[0]
-    assert child.windowTitle() == "One Step MultiGenePhy"
-    assert isinstance(child.centralWidget(), OneStepMultiGenePhyTab)
-
-    first_tab = child.centralWidget()
+    assert window.tabs.count() == 1
+    assert window.tabs.tabText(0) == "One Step MultiGenePhy"
+    first_tab = window.tabs.widget(0)
+    assert isinstance(first_tab, OneStepMultiGenePhyTab)
 
     window.open_one_step_multigenephy_tab()
 
-    assert window.tabs.count() == 0
-    assert len(window.child_windows) == 2
-
-    child2 = window.child_windows[1]
-    second_tab = child2.centralWidget()
+    assert window.tabs.count() == 2
+    assert window.tabs.tabText(1) == "One Step MultiGenePhy"
+    second_tab = window.tabs.widget(1)
     assert isinstance(second_tab, OneStepMultiGenePhyTab)
     assert second_tab is not first_tab
 
@@ -130,18 +123,18 @@ def test_phylogenetic_tree_menu_includes_one_step_multigenephy(qapp):
 
     one_step_action.trigger()
 
-    # Opens as an independent window, not a tab
-    assert window.tabs.count() == 0
-    assert len(window.child_windows) == 1
-    assert window.child_windows[0].windowTitle() == "One Step MultiGenePhy"
-    assert isinstance(
-        window.child_windows[0].centralWidget(), OneStepMultiGenePhyTab
-    )
+    assert window.tabs.count() == 1
+    assert window.tabs.tabText(0) == "One Step MultiGenePhy"
+    first_tab = window.tabs.widget(0)
+    assert isinstance(first_tab, OneStepMultiGenePhyTab)
 
     one_step_action.trigger()
 
-    assert window.tabs.count() == 0
-    assert len(window.child_windows) == 2
+    assert window.tabs.count() == 2
+    assert window.tabs.tabText(1) == "One Step MultiGenePhy"
+    second_tab = window.tabs.widget(1)
+    assert isinstance(second_tab, OneStepMultiGenePhyTab)
+    assert second_tab is not first_tab
 
 
 def test_phylogenetic_tree_menu_shows_alignment_trimming_first(qapp):

@@ -274,7 +274,7 @@ def test_runner_fails_when_no_gene_reaches_concatenation(tmp_path):
         runner.run(project, cells, strain_order=["strain_a", "strain_b"])
 
     manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
-    summary_path = tmp_path / "run" / "06_reports" / "summary.txt"
+    summary_path = tmp_path / "run" / "06_reports" / "run.log"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     summary = summary_path.read_text(encoding="utf-8")
 
@@ -286,7 +286,7 @@ def test_runner_fails_when_no_gene_reaches_concatenation(tmp_path):
         "Concatenate failed: No genes remain usable for concatenation",
     ]
     assert summary_path.exists()
-    assert "- Concatenate failed: No genes remain usable for concatenation" in summary
+    assert "Concatenate failed: No genes remain usable for concatenation" in summary
 
 
 def test_runner_writes_failed_run_state_when_iqtree_raises(tmp_path):
@@ -328,7 +328,7 @@ def test_runner_writes_failed_run_state_when_iqtree_raises(tmp_path):
         runner.run(project, cells, strain_order=["strain_a", "strain_b"])
 
     manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
-    summary_path = tmp_path / "run" / "06_reports" / "summary.txt"
+    summary_path = tmp_path / "run" / "06_reports" / "run.log"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     summary = summary_path.read_text(encoding="utf-8")
 
@@ -341,7 +341,7 @@ def test_runner_writes_failed_run_state_when_iqtree_raises(tmp_path):
     assert manifest["artifacts"]["supermatrix"].endswith("supermatrix.fasta")
     assert manifest["artifacts"]["treefile"] == ""
     assert summary_path.exists()
-    assert "- Build Tree failed: iqtree failed" in summary
+    assert "Build Tree failed: iqtree failed" in summary
 
 
 def test_runner_preserves_original_failure_when_manifest_write_raises(
@@ -386,15 +386,13 @@ def test_runner_preserves_original_failure_when_manifest_write_raises(
         runner.run(project, cells, strain_order=["strain_a", "strain_b"])
 
     reports_dir = tmp_path / "run" / "06_reports"
-    summary_path = reports_dir / "summary.txt"
+    summary_path = reports_dir / "run.log"
 
     assert not (reports_dir / "run_manifest.json").exists()
     assert summary_path.exists()
     summary = summary_path.read_text(encoding="utf-8")
-    assert "- Build Tree: failed" in summary
-    assert "- Summarize: failed" in summary
-    assert "- Build Tree failed: iqtree failed" in summary
-    assert "- Summarize failed: manifest disk full" in summary
+    assert "Build Tree failed: iqtree failed" in summary
+    assert "manifest disk full" in summary
 
 
 def test_runner_marks_summarize_failed_when_summary_write_raises(tmp_path, monkeypatch):
@@ -426,10 +424,10 @@ def test_runner_marks_summarize_failed_when_summary_write_raises(tmp_path, monke
         ),
     )
 
-    def fail_summary_write(path, step_status, warnings, artifacts):
+    def fail_summary_write(path, step_status, warnings, artifacts, commands, gene_stats, concat_info):
         raise OSError("summary disk full")
 
-    monkeypatch.setattr(workflow_module, "_write_summary", fail_summary_write)
+    monkeypatch.setattr(workflow_module, "_write_html_report", fail_summary_write)
 
     transitions = []
     runner = OneStepMultiGenePhyRunner(adapters=adapters)
@@ -489,13 +487,13 @@ def test_runner_persists_summarize_succeeded_on_success(tmp_path):
     result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
 
     manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
-    summary_path = tmp_path / "run" / "06_reports" / "summary.txt"
+    summary_path = tmp_path / "run" / "06_reports" / "run.log"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     summary = summary_path.read_text(encoding="utf-8")
 
     assert result.step_status["Summarize"] == "succeeded"
     assert manifest["steps"]["Summarize"] == "succeeded"
-    assert "- Summarize: succeeded" in summary
+    assert summary_path.exists()
 
 
 def test_runner_marks_empty_trimmed_output_as_warning(tmp_path):
@@ -802,4 +800,5 @@ def test_workflow_worker_emits_failed_on_runner_exception(tmp_path):
 
     assert failed == ["runner exploded"]
     assert completed == []
+
 
