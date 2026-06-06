@@ -28,8 +28,15 @@ class _MakeDbThread(QThread):
         self.fasta = fasta
         self.dbtype = dbtype
         self.outpath = outpath
+        self._proc = None
+
+    def cancel(self):
+        self._cancelled = True
+        if self._proc and self._proc.poll() is None:
+            self._proc.kill()
 
     def run(self):
+        self._cancelled = False
         exe = os.path.join(
             self.bin_dir,
             "makeblastdb.exe" if os.name == "nt" else "makeblastdb",
@@ -37,20 +44,34 @@ class _MakeDbThread(QThread):
         cmd = [
             exe,
             "-in",
-            self.fasta,
+            os.path.abspath(self.fasta),
             "-dbtype",
             self.dbtype,
             "-out",
-            self.outpath,
+            os.path.abspath(self.outpath),
             "-title",
             os.path.basename(self.outpath),
+            "-blastdb_version",
+            "4",
         ]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-            if proc.returncode == 0:
-                self.finished.emit(True, proc.stdout.strip())
+            self._proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            stdout, stderr = self._proc.communicate(timeout=300)
+            if self._cancelled:
+                self.finished.emit(False, "Cancelled by user.")
+            elif self._proc.returncode == 0:
+                self.finished.emit(True, stdout.strip())
             else:
-                self.finished.emit(False, (proc.stderr or proc.stdout).strip())
+                self.finished.emit(False, (stderr or stdout).strip())
+        except subprocess.TimeoutExpired:
+            self._proc.kill()
+            self._proc.communicate()
+            self.finished.emit(False, "makeblastdb timed out after 300 seconds.")
         except Exception as exc:
             self.finished.emit(False, str(exc))
 

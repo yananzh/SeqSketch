@@ -20,6 +20,10 @@ from PyQt6.QtGui import QColor
 import csv
 import os
 
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Font, Alignment as XlAlignment
+from openpyxl.utils import get_column_letter
+
 # outfmt 6 column definition  (12 standard fields)
 _COLUMNS = [
     ("Query ID", "qseqid"),
@@ -158,10 +162,17 @@ class BlastResultTab(QWidget):
         exp_tsv_btn.setToolTip("Save results to a tab-separated file.")
         exp_tsv_btn.clicked.connect(lambda: self._export("tsv"))
 
+        exp_xlsx_btn = QPushButton("Export XLSX")
+        exp_xlsx_btn.setToolTip(
+            "Save results to an Excel (.xlsx) file with formatting."
+        )
+        exp_xlsx_btn.clicked.connect(self._export_xlsx)
+
         btn_row.addWidget(load_btn)
         btn_row.addStretch()
         btn_row.addWidget(exp_csv_btn)
         btn_row.addWidget(exp_tsv_btn)
+        btn_row.addWidget(exp_xlsx_btn)
         root.addLayout(btn_row)
 
     @staticmethod
@@ -324,6 +335,72 @@ class BlastResultTab(QWidget):
                         self.table.item(r, c).text() if self.table.item(r, c) else ""
                         for c in range(12)
                     ])
+            QMessageBox.information(self, "Exported", f"Results saved to:\n{f}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Export Error", str(exc))
+
+    def _export_xlsx(self):
+        if self.table.rowCount() == 0:
+            QMessageBox.warning(self, "No Data", "There are no results to export.")
+            return
+        f, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export as XLSX",
+            "blast_result.xlsx",
+            "Excel files (*.xlsx);;All Files (*)",
+        )
+        if not f:
+            return
+        try:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "BLAST Results"
+
+            header_fill = PatternFill(
+                start_color="2563EB", end_color="2563EB", fill_type="solid"
+            )
+            header_font = Font(color="FFFFFF", bold=True, size=11)
+            header_align = XlAlignment(horizontal="center", vertical="center")
+
+            for c, col_name in enumerate(_HDR, 1):
+                cell = ws.cell(row=1, column=c, value=col_name)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = header_align
+
+            green_fill = PatternFill(
+                start_color="C8F0C8", end_color="C8F0C8", fill_type="solid"
+            )
+            yellow_fill = PatternFill(
+                start_color="FFF5B4", end_color="FFF5B4", fill_type="solid"
+            )
+            red_fill = PatternFill(
+                start_color="FFD2D2", end_color="FFD2D2", fill_type="solid"
+            )
+
+            for r in range(self.table.rowCount()):
+                for c in range(12):
+                    val = self.table.item(r, c).text() if self.table.item(r, c) else ""
+                    cell = ws.cell(row=r + 2, column=c + 1, value=val)
+                    if c in _NUM_COLS:
+                        cell.alignment = XlAlignment(horizontal="right")
+                    if c == 2:
+                        try:
+                            v = float(val)
+                            if v >= 90:
+                                cell.fill = green_fill
+                            elif v >= 60:
+                                cell.fill = yellow_fill
+                            else:
+                                cell.fill = red_fill
+                        except ValueError:
+                            pass
+
+            for c in range(1, 13):
+                ws.column_dimensions[get_column_letter(c)].width = 16
+
+            ws.auto_filter.ref = ws.dimensions
+            wb.save(f)
             QMessageBox.information(self, "Exported", f"Results saved to:\n{f}")
         except Exception as exc:
             QMessageBox.critical(self, "Export Error", str(exc))
