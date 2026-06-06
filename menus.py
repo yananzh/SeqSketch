@@ -285,8 +285,10 @@ def create_menus(window):
         window.open_one_step_multigenephy_tab
     )
     evolution_menu.addAction(one_step_multigenephy_action)
-    # 7.4 Tree Visualization (local, phytreeviz)
-    tree_vis_action = QAction(window.tr("Tree Visualization"), window)
+    # 7.4 Simple Tree Visualization (local, phytreeviz)
+    tree_vis_action = QAction(
+        window.tr("Simple Tree Visualization (Phytreeviz)"), window
+    )
     tree_vis_action.triggered.connect(window.open_tree_visualization_tab)
     evolution_menu.addAction(tree_vis_action)
     # 8. Favorites

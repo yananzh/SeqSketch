@@ -16,40 +16,45 @@ phytreeviz API reference (v0.3.x):
 
 import os
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QColor, QDragEnterEvent, QDropEvent, QPixmap
+from PyQt6.QtCore import Qt, QRectF, QThread, pyqtSignal
+from PyQt6.QtGui import (
+    QAction,
+    QColor,
+    QDragEnterEvent,
+    QDropEvent,
+    QKeySequence,
+    QPainter,
+    QPixmap,
+)
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QColorDialog,
     QComboBox,
-    QDoubleSpinBox,
     QFileDialog,
     QFrame,
+    QGraphicsScene,
+    QGraphicsView,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMainWindow,
     QPushButton,
-    QScrollArea,
-    QSizePolicy,
-    QSpinBox,
     QSplitter,
+    QStatusBar,
+    QToolBar,
     QVBoxLayout,
     QWidget,
 )
 
-
-def _hline() -> QFrame:
-    line = QFrame()
-    line.setFrameShape(QFrame.Shape.HLine)
-    line.setFrameShadow(QFrame.Shadow.Sunken)
-    return line
+from utils.app_paths import user_data_file
 
 
 # ---------------------------------------------------------------------------
 # Drag-and-drop QLineEdit
 # ---------------------------------------------------------------------------
 class _DropLineEdit(QLineEdit):
+    fileDropped = pyqtSignal(str)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setAcceptDrops(True)
@@ -68,43 +73,57 @@ class _DropLineEdit(QLineEdit):
             if mime:
                 urls = mime.urls()
                 if urls:
-                    self.setText(urls[0].toLocalFile())
+                    path = urls[0].toLocalFile()
+                    self.setText(path)
+                    self.fileDropped.emit(path)
                     a0.acceptProposedAction()
                     return
         super().dropEvent(a0)
 
 
 # ---------------------------------------------------------------------------
-# Color picker button
+# Shared: build a configured TreeViz instance from parameters
 # ---------------------------------------------------------------------------
-class _ColorButton(QPushButton):
-    def __init__(self, color: str = "#000000", parent=None):
-        super().__init__(parent)
-        self.setFixedSize(32, 24)
-        self._color = color
-        self._refresh()
-        self.clicked.connect(self._pick)
+def _build_treeviz(tree_data, fmt: str, params: dict):
+    """Build and configure a phytreeviz TreeViz instance."""
+    from phytreeviz import TreeViz
 
-    def _refresh(self):
-        self.setStyleSheet(
-            f"QPushButton{{background:{self._color};"
-            "border:1px solid #888;border-radius:3px;}}"
-        )
+    p = params
+    tv = TreeViz(
+        tree_data,
+        format=fmt,
+        height=p.get("height_per_leaf", 0.5),
+        width=p.get("fig_w", 10),
+        orientation=p.get("orientation", "right"),
+        align_leaf_label=(p.get("layout", "rectangular") == "aligned"),
+        ignore_branch_length=p.get("ignore_branch_length", False),
+        leaf_label_size=p.get("leaf_lbl_size", 11),
+        innode_label_size=p.get("innode_label_size", 0),
+    )
 
-    def _pick(self):
-        col = QColorDialog.getColor(QColor(self._color), self, "Pick colour")
-        if col.isValid():
-            self._color = col.name()
-            self._refresh()
+    if p.get("show_support"):
+        tv.show_confidence(size=p.get("support_size", 7))
 
-    @property
-    def color(self) -> str:
-        return self._color
+    if p.get("show_scale"):
+        tv.show_scale_axis()
 
-    @color.setter
-    def color(self, v: str):
-        self._color = v
-        self._refresh()
+    # Branch colour applied to all leaves/nodes
+    bc = p.get("branch_color", "#000000")
+    if bc and bc != "#000000":
+        tv.set_node_line_props(tv.all_node_labels, color=bc)
+
+    # Node highlighting by taxon name pattern
+    hl_query = p.get("highlight_query", "").strip()
+    hl_color = p.get("highlight_color", "#ff0000")
+    if hl_query:
+        tv.highlight(hl_query, color=hl_color)
+
+    # Title
+    title = p.get("title", "").strip()
+    if title:
+        tv.set_title(title, size=p.get("title_size", 12))
+
+    return tv
 
 
 # ---------------------------------------------------------------------------
@@ -151,43 +170,19 @@ class _RenderThread(QThread):
         self.out_png = out_png
 
     def run(self):
+        _original_backend = None
         try:
             import matplotlib
 
-            matplotlib.use("Agg")
-            from phytreeviz import TreeViz
+            _original_backend = matplotlib.get_backend()
+            matplotlib.use("Agg", force=True)
+            import matplotlib.pyplot as plt
 
             p = self.params
             tree_data, tree_fmt = _prepare_tree_data(self.tree_file, self.fmt, p)
-            tv = TreeViz(
-                tree_data,
-                format=tree_fmt,
-                height=p.get("height_per_leaf", 0.5),
-                width=p.get("fig_w", 10),
-                orientation=p.get("orientation", "right"),
-                align_leaf_label=(p.get("layout", "rectangular") == "aligned"),
-                ignore_branch_length=p.get("ignore_branch_length", False),
-                leaf_label_size=p.get("leaf_lbl_size", 11),
-                innode_label_size=0,
-            )
+            tv = _build_treeviz(tree_data, tree_fmt, p)
 
-            if p.get("show_support"):
-                tv.show_confidence(size=p.get("support_size", 7))
-
-            if p.get("show_scale"):
-                tv.show_scale_axis()
-
-            # Branch colour applied to all leaves/nodes via set_node_line_props
-            bc = p.get("branch_color", "#000000")
-            if bc and bc != "#000000":
-                tv.set_node_line_props(tv.all_node_labels, color=bc)
-
-            # Title
-            title = p.get("title", "").strip()
-            if title:
-                tv.set_title(title, size=p.get("title_size", 12))
-
-            dpi = p.get("dpi", 120)
+            dpi = p.get("dpi", 150)
             fig = tv.plotfig(dpi=dpi)
 
             # Background color
@@ -196,14 +191,20 @@ class _RenderThread(QThread):
             for ax in fig.axes:
                 ax.set_facecolor(bg)
 
-            import matplotlib.pyplot as plt
-
             plt.tight_layout()
             fig.savefig(self.out_png, dpi=dpi, bbox_inches="tight")
             plt.close(fig)
             self.finished.emit(True, self.out_png, "")
         except Exception as e:
             self.finished.emit(False, "", str(e))
+        finally:
+            if _original_backend:
+                try:
+                    import matplotlib
+
+                    matplotlib.use(_original_backend, force=True)
+                except Exception:
+                    pass
 
 
 # ---------------------------------------------------------------------------
@@ -220,64 +221,91 @@ class _ExportThread(QThread):
         self.out_path = out_path
 
     def run(self):
+        _original_backend = None
         try:
             import matplotlib
 
-            matplotlib.use("Agg")
-            from phytreeviz import TreeViz
+            _original_backend = matplotlib.get_backend()
+            matplotlib.use("Agg", force=True)
 
             p = self.params
             tree_data, tree_fmt = _prepare_tree_data(self.tree_file, self.fmt, p)
-            tv = TreeViz(
-                tree_data,
-                format=tree_fmt,
-                height=p.get("height_per_leaf", 0.5),
-                width=p.get("fig_w", 10),
-                orientation=p.get("orientation", "right"),
-                align_leaf_label=(p.get("layout", "rectangular") == "aligned"),
-                ignore_branch_length=p.get("ignore_branch_length", False),
-                leaf_label_size=p.get("leaf_lbl_size", 11),
-                innode_label_size=0,
-            )
-
-            if p.get("show_support"):
-                tv.show_confidence(size=p.get("support_size", 7))
-            if p.get("show_scale"):
-                tv.show_scale_axis()
-            bc = p.get("branch_color", "#000000")
-            if bc and bc != "#000000":
-                tv.set_node_line_props(tv.all_node_labels, color=bc)
-            title = p.get("title", "").strip()
-            if title:
-                tv.set_title(title, size=p.get("title_size", 12))
+            tv = _build_treeviz(tree_data, tree_fmt, p)
 
             dpi = p.get("dpi", 300)
             tv.savefig(self.out_path, dpi=dpi)
             self.finished.emit(True, self.out_path, "")
         except Exception as e:
             self.finished.emit(False, "", str(e))
+        finally:
+            if _original_backend:
+                try:
+                    import matplotlib
+
+                    matplotlib.use(_original_backend, force=True)
+                except Exception:
+                    pass
 
 
 # ---------------------------------------------------------------------------
-# Main Tab
+# Zoomable graphics view for the tree preview
 # ---------------------------------------------------------------------------
-class TreeVisualizationTab(QWidget):
-    def __init__(self, status_callback=None, parent=None):
+class _ZoomableGraphicsView(QGraphicsView):
+    """QGraphicsView with scroll-wheel zoom, drag-to-pan, and fit/reset."""
+
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self._status_cb = status_callback
+        self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setStyleSheet("background:#f8f8f8;")
+
+    def wheelEvent(self, event):
+        factor = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
+        self.scale(factor, factor)
+
+    def fit_to_window(self):
+        if self.scene():
+            self.fitInView(self.scene().sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def zoom_in(self):
+        self.scale(1.25, 1.25)
+
+    def zoom_out(self):
+        self.scale(0.8, 0.8)
+
+    def reset_view(self):
+        self.resetTransform()
+        self.fit_to_window()
+
+
+# ---------------------------------------------------------------------------
+# Main Window
+# ---------------------------------------------------------------------------
+class SimpleTreeVisualizationWindow(QMainWindow):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Simple Tree Visualization (Phytreeviz)"))
+        self.resize(1100, 900)
         self._render_thread: _RenderThread | None = None
         self._export_thread: _ExportThread | None = None
-        self._tmp_png = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "_tree_preview.png",
-        )
+        self._tmp_png = user_data_file("_tree_preview.png")
         self._build_ui()
+        self._setup_shortcuts()
+        self._show_placeholder()
 
     # ------------------------------------------------------------------
     # UI
     # ------------------------------------------------------------------
     def _build_ui(self):
-        root = QHBoxLayout(self)
+        central = QWidget()
+        self.setCentralWidget(central)
+
+        root = QHBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
@@ -286,34 +314,24 @@ class TreeVisualizationTab(QWidget):
 
         # ── LEFT: control panel ────────────────────────────────────────
         ctrl_outer = QWidget()
-        ctrl_outer.setMinimumWidth(260)
-        ctrl_outer.setMaximumWidth(320)
+        ctrl_outer.setMinimumWidth(240)
+        ctrl_outer.setMaximumWidth(300)
         ctrl_vbox = QVBoxLayout(ctrl_outer)
         ctrl_vbox.setContentsMargins(8, 8, 8, 8)
-        ctrl_vbox.setSpacing(6)
+        ctrl_vbox.setSpacing(10)
         splitter.addWidget(ctrl_outer)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        ctrl_vbox.addWidget(scroll, 1)
-
-        form = QWidget()
-        fvbox = QVBoxLayout(form)
-        fvbox.setContentsMargins(2, 2, 2, 2)
-        fvbox.setSpacing(8)
-        scroll.setWidget(form)
-
-        # ── File input ─────────────────────────────────────────────
-        grp_file = QGroupBox("Input Tree File")
+        # ── Input ──────────────────────────────────────────────────
+        grp_file = QGroupBox(self.tr("Input Tree File"))
         gl = QVBoxLayout(grp_file)
 
         file_row = QHBoxLayout()
         self._file_edit = _DropLineEdit()
         self._file_edit.setPlaceholderText(
-            "Newick / Nexus / PhyloXML file (drag & drop supported)"
+            self.tr("Newick / Nexus / PhyloXML file (drag & drop supported)")
         )
-        browse_btn = QPushButton("Browse")
+        self._file_edit.fileDropped.connect(self._on_file_selected)
+        browse_btn = QPushButton(self.tr("Browse"))
         browse_btn.setFixedWidth(90)
         browse_btn.clicked.connect(self._browse_file)
         file_row.addWidget(self._file_edit, 1)
@@ -321,16 +339,91 @@ class TreeVisualizationTab(QWidget):
         gl.addLayout(file_row)
 
         fmt_row = QHBoxLayout()
-        fmt_row.addWidget(QLabel("Format:"))
+        fmt_row.addWidget(QLabel(self.tr("Format:")))
         self._fmt_combo = QComboBox()
-        self._fmt_combo.addItems(["newick", "nexus", "phyloxml", "nexml"])
+        self._fmt_combo.addItems(["Auto", "newick", "nexus", "phyloxml", "nexml"])
         fmt_row.addWidget(self._fmt_combo, 1)
         gl.addLayout(fmt_row)
-        fvbox.addWidget(grp_file)
+        ctrl_vbox.addWidget(grp_file)
 
-        # Draw button
-        self._draw_btn = QPushButton("🎨  Draw Tree")
-        self._draw_btn.setMinimumHeight(34)
+        # ── Layout ─────────────────────────────────────────────────
+        grp_layout = QGroupBox(self.tr("Tree Layout"))
+        ll = QVBoxLayout(grp_layout)
+
+        self._layout_combo = QComboBox()
+        self._layout_combo.addItems(["rectangular", "aligned"])
+        self._layout_combo.setToolTip(
+            self.tr(
+                "rectangular: classic cladogram\n"
+                "aligned: leaf labels aligned at the right margin"
+            )
+        )
+        ll.addWidget(self._layout_combo)
+
+        orient_row = QHBoxLayout()
+        orient_row.addWidget(QLabel(self.tr("Orientation:")))
+        self._orient_combo = QComboBox()
+        self._orient_combo.addItems(["right", "left"])
+        orient_row.addWidget(self._orient_combo, 1)
+        ll.addLayout(orient_row)
+        ctrl_vbox.addWidget(grp_layout)
+
+        # ── Rooting ─────────────────────────────────────────────────
+        grp_root = QGroupBox(self.tr("Rooting"))
+        rl = QVBoxLayout(grp_root)
+
+        rm_row = QHBoxLayout()
+        rm_row.addWidget(QLabel(self.tr("Method:")))
+        self._root_method_combo = QComboBox()
+        self._root_method_combo.addItems(["None (as-is)", "Midpoint", "Outgroup"])
+        self._root_method_combo.setToolTip(
+            self.tr(
+                "None: use tree as-is\n"
+                "Midpoint: root at the midpoint of the longest branch\n"
+                "Outgroup: root by specifying an outgroup taxon"
+            )
+        )
+        rm_row.addWidget(self._root_method_combo, 1)
+        rl.addLayout(rm_row)
+
+        og_row = QHBoxLayout()
+        og_row.addWidget(QLabel(self.tr("Outgroup:")))
+        self._outgroup_combo = QComboBox()
+        self._outgroup_combo.setEditable(True)
+        self._outgroup_combo.setEnabled(False)
+        self._outgroup_combo.lineEdit().setPlaceholderText(
+            self.tr("Type or select a leaf name")
+        )
+        og_row.addWidget(self._outgroup_combo, 1)
+        rl.addLayout(og_row)
+
+        def _on_root_method_changed(text: str):
+            is_og = text == "Outgroup"
+            self._outgroup_combo.setEnabled(is_og)
+            if is_og:
+                self._load_leaf_names()
+
+        self._root_method_combo.currentTextChanged.connect(_on_root_method_changed)
+        ctrl_vbox.addWidget(grp_root)
+
+        # ── Display ────────────────────────────────────────────────
+        grp_display = QGroupBox(self.tr("Display"))
+        dl = QVBoxLayout(grp_display)
+
+        self._show_support_check = QCheckBox(self.tr("Show bootstrap / support values"))
+        self._show_support_check.setChecked(True)
+        dl.addWidget(self._show_support_check)
+
+        self._show_scale_check = QCheckBox(self.tr("Show scale axis"))
+        self._show_scale_check.setChecked(True)
+        dl.addWidget(self._show_scale_check)
+        ctrl_vbox.addWidget(grp_display)
+
+        ctrl_vbox.addStretch()
+
+        # ── Actions ────────────────────────────────────────────────
+        self._draw_btn = QPushButton(self.tr("Draw Tree"))
+        self._draw_btn.setMinimumHeight(38)
         self._draw_btn.setStyleSheet(
             "QPushButton{background:#1976d2;color:white;"
             "border-radius:4px;font-weight:bold;}"
@@ -338,248 +431,253 @@ class TreeVisualizationTab(QWidget):
             "QPushButton:disabled{background:#90a4ae;}"
         )
         self._draw_btn.clicked.connect(self._draw)
-        fvbox.addWidget(self._draw_btn)
+        ctrl_vbox.addWidget(self._draw_btn)
 
-        # ── Layout ─────────────────────────────────────────────────
-        grp_layout = QGroupBox("Tree Layout")
-        ll = QVBoxLayout(grp_layout)
-
-        self._layout_combo = QComboBox()
-        self._layout_combo.addItems(["rectangular", "aligned"])
-        self._layout_combo.setToolTip(
-            "rectangular: classic cladogram\n"
-            "aligned: leaf labels aligned at the right margin"
-        )
-        ll.addWidget(self._layout_combo)
-
-        orient_row = QHBoxLayout()
-        orient_row.addWidget(QLabel("Orientation:"))
-        self._orient_combo = QComboBox()
-        self._orient_combo.addItems(["right", "left"])
-        orient_row.addWidget(self._orient_combo, 1)
-        ll.addLayout(orient_row)
-
-        ig_row = QHBoxLayout()
-        self._ignore_bl_check = QCheckBox("Ignore branch length")
-        self._ignore_bl_check.setToolTip("Show cladogram (equal branch lengths)")
-        ig_row.addWidget(self._ignore_bl_check)
-        ll.addLayout(ig_row)
-        fvbox.addWidget(grp_layout)
-
-        # ── Rooting ─────────────────────────────────────────────────
-        grp_root = QGroupBox("Rooting")
-        rl = QVBoxLayout(grp_root)
-
-        rm_row = QHBoxLayout()
-        rm_row.addWidget(QLabel("Method:"))
-        self._root_method_combo = QComboBox()
-        self._root_method_combo.addItems(["None (as-is)", "Midpoint", "Outgroup"])
-        self._root_method_combo.setToolTip(
-            "None: use tree as-is\n"
-            "Midpoint: root at the midpoint of the longest branch\n"
-            "Outgroup: root by specifying an outgroup taxon"
-        )
-        rm_row.addWidget(self._root_method_combo, 1)
-        rl.addLayout(rm_row)
-
-        og_row = QHBoxLayout()
-        og_row.addWidget(QLabel("Outgroup:"))
-        self._outgroup_combo = QComboBox()
-        self._outgroup_combo.setEditable(True)
-        self._outgroup_combo.setEnabled(False)
-        self._outgroup_combo.lineEdit().setPlaceholderText("Type or select a leaf name")
-        og_row.addWidget(self._outgroup_combo, 1)
-        rl.addLayout(og_row)
-
-        self._load_names_btn = QPushButton("Load Leaf Names")
-        self._load_names_btn.setToolTip(
-            "Populate the outgroup list from the current tree file"
-        )
-        self._load_names_btn.setEnabled(False)
-        self._load_names_btn.clicked.connect(self._load_leaf_names)
-        rl.addWidget(self._load_names_btn)
-
-        def _on_root_method_changed(text: str):
-            is_og = text == "Outgroup"
-            self._outgroup_combo.setEnabled(is_og)
-            self._load_names_btn.setEnabled(is_og)
-
-        self._root_method_combo.currentTextChanged.connect(_on_root_method_changed)
-        fvbox.addWidget(grp_root)
-
-        # ── Figure size ─────────────────────────────────────────────
-        grp_size = QGroupBox("Figure Size")
-        sl = QVBoxLayout(grp_size)
-
-        w_row = QHBoxLayout()
-        w_row.addWidget(QLabel("Width (in):"))
-        self._fig_w_spin = QDoubleSpinBox()
-        self._fig_w_spin.setRange(4, 40)
-        self._fig_w_spin.setValue(10)
-        self._fig_w_spin.setSingleStep(1)
-        w_row.addWidget(self._fig_w_spin)
-        w_row.addStretch()
-        sl.addLayout(w_row)
-
-        h_row = QHBoxLayout()
-        h_row.addWidget(QLabel("Height / leaf:"))
-        self._height_per_leaf_spin = QDoubleSpinBox()
-        self._height_per_leaf_spin.setRange(0.1, 3.0)
-        self._height_per_leaf_spin.setValue(0.5)
-        self._height_per_leaf_spin.setSingleStep(0.1)
-        self._height_per_leaf_spin.setToolTip(
-            "Height (inches) per leaf node — controls total figure height"
-        )
-        h_row.addWidget(self._height_per_leaf_spin)
-        h_row.addStretch()
-        sl.addLayout(h_row)
-        fvbox.addWidget(grp_size)
-
-        # ── Labels ──────────────────────────────────────────────────
-        grp_lbl = QGroupBox("Labels & Title")
-        lbl_l = QVBoxLayout(grp_lbl)
-
-        ls_row = QHBoxLayout()
-        ls_row.addWidget(QLabel("Leaf font size:"))
-        self._lbl_size_spin = QSpinBox()
-        self._lbl_size_spin.setRange(4, 28)
-        self._lbl_size_spin.setValue(11)
-        ls_row.addWidget(self._lbl_size_spin)
-        ls_row.addStretch()
-        lbl_l.addLayout(ls_row)
-
-        t_row = QHBoxLayout()
-        t_row.addWidget(QLabel("Title:"))
-        self._title_edit = QLineEdit()
-        self._title_edit.setPlaceholderText("Optional figure title")
-        t_row.addWidget(self._title_edit, 1)
-        lbl_l.addLayout(t_row)
-
-        ts_row = QHBoxLayout()
-        ts_row.addWidget(QLabel("Title font size:"))
-        self._title_size_spin = QSpinBox()
-        self._title_size_spin.setRange(8, 28)
-        self._title_size_spin.setValue(12)
-        ts_row.addWidget(self._title_size_spin)
-        ts_row.addStretch()
-        lbl_l.addLayout(ts_row)
-        fvbox.addWidget(grp_lbl)
-
-        # ── Branch style ─────────────────────────────────────────────
-        grp_branch = QGroupBox("Branch Style")
-        bl = QVBoxLayout(grp_branch)
-
-        bc_row = QHBoxLayout()
-        bc_row.addWidget(QLabel("Branch colour:"))
-        self._branch_color_btn = _ColorButton("#000000")
-        bc_row.addWidget(self._branch_color_btn)
-        bc_row.addStretch()
-        bl.addLayout(bc_row)
-        fvbox.addWidget(grp_branch)
-
-        # ── Support values ────────────────────────────────────────────
-        grp_sup = QGroupBox("Bootstrap / Support Values")
-        sup_l = QVBoxLayout(grp_sup)
-
-        self._show_support_check = QCheckBox("Show support values")
-        self._show_support_check.setChecked(True)
-        sup_l.addWidget(self._show_support_check)
-
-        ss_row = QHBoxLayout()
-        ss_row.addWidget(QLabel("Font size:"))
-        self._sup_size_spin = QSpinBox()
-        self._sup_size_spin.setRange(4, 18)
-        self._sup_size_spin.setValue(7)
-        ss_row.addWidget(self._sup_size_spin)
-        ss_row.addStretch()
-        sup_l.addLayout(ss_row)
-
-        self._show_support_check.stateChanged.connect(
-            lambda: self._sup_size_spin.setEnabled(self._show_support_check.isChecked())
-        )
-        fvbox.addWidget(grp_sup)
-
-        # ── Other options ─────────────────────────────────────────────
-        grp_misc = QGroupBox("Other Options")
-        ml = QVBoxLayout(grp_misc)
-
-        self._show_scale_check = QCheckBox("Show scale axis")
-        self._show_scale_check.setChecked(True)
-        ml.addWidget(self._show_scale_check)
-
-        bg_row = QHBoxLayout()
-        bg_row.addWidget(QLabel("Background:"))
-        self._bg_color_btn = _ColorButton("#ffffff")
-        bg_row.addWidget(self._bg_color_btn)
-        bg_row.addStretch()
-        ml.addLayout(bg_row)
-
-        dpi_row = QHBoxLayout()
-        dpi_row.addWidget(QLabel("Preview DPI:"))
-        self._dpi_spin = QSpinBox()
-        self._dpi_spin.setRange(72, 600)
-        self._dpi_spin.setValue(300)
-        dpi_row.addWidget(self._dpi_spin)
-        dpi_row.addStretch()
-        ml.addLayout(dpi_row)
-        fvbox.addWidget(grp_misc)
-
-        fvbox.addStretch()
-
-        # ── Export ────────────────────────────────────────────────────
-        exp_grp = QGroupBox("Export")
-        exp_l = QVBoxLayout(exp_grp)
-
-        edpi_row = QHBoxLayout()
-        edpi_row.addWidget(QLabel("Export DPI:"))
-        self._exp_dpi_spin = QSpinBox()
-        self._exp_dpi_spin.setRange(72, 600)
-        self._exp_dpi_spin.setValue(300)
-        edpi_row.addWidget(self._exp_dpi_spin)
-        edpi_row.addStretch()
-        exp_l.addLayout(edpi_row)
-
-        exp_btn = QPushButton("💾  Export Image…")
-        exp_btn.setMinimumHeight(30)
-        exp_btn.setStyleSheet(
+        self._export_btn = QPushButton(self.tr("Export Image"))
+        self._export_btn.setMinimumHeight(34)
+        self._export_btn.setStyleSheet(
             "QPushButton{background:#388e3c;color:white;"
             "border-radius:4px;font-weight:bold;}"
             "QPushButton:hover{background:#2e7d32;}"
         )
-        exp_btn.clicked.connect(self._export)
-        exp_l.addWidget(exp_btn)
+        self._export_btn.clicked.connect(self._export)
+        ctrl_vbox.addWidget(self._export_btn)
 
-        ctrl_vbox.addWidget(exp_grp)
-
-        self._status_lbl = QLabel("")
-        self._status_lbl.setWordWrap(True)
-        self._status_lbl.setStyleSheet("color:#555;font-style:italic;font-size:11px;")
-        ctrl_vbox.addWidget(self._status_lbl)
+        self._help_btn = QPushButton(self.tr("Help"))
+        self._help_btn.setFixedHeight(30)
+        self._help_btn.setStyleSheet(
+            "QPushButton{background:#546e7a;color:white;"
+            "border-radius:4px;font-weight:bold;}"
+            "QPushButton:hover{background:#455a64;}"
+        )
+        self._help_btn.clicked.connect(self._show_help)
+        ctrl_vbox.addWidget(self._help_btn)
 
         # ── RIGHT: canvas ──────────────────────────────────────────
         canvas_outer = QWidget()
-        canvas_outer.setStyleSheet("background:#f8f8f8;")
         canvas_vbox = QVBoxLayout(canvas_outer)
         canvas_vbox.setContentsMargins(0, 0, 0, 0)
+        canvas_vbox.setSpacing(0)
         splitter.addWidget(canvas_outer)
 
-        self._canvas_label = QLabel()
-        self._canvas_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._canvas_label.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        self._canvas_label.setText(
-            "<span style='color:#aaa;font-size:16px;'>"
-            "Load a tree file and click  🎨 Draw Tree</span>"
+        # Mini toolbar
+        canvas_toolbar = QToolBar()
+        canvas_toolbar.setMovable(False)
+        canvas_toolbar.setStyleSheet(
+            "QToolBar{background:#f0f0f0;border-bottom:1px solid #ddd;"
+            "padding:2px 4px;spacing:2px;}"
+            "QToolButton{padding:3px 6px;border-radius:3px;}"
+            "QToolButton:hover{background:#e0e0e0;}"
         )
 
-        canvas_scroll = QScrollArea()
-        canvas_scroll.setWidgetResizable(True)
-        canvas_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        canvas_scroll.setWidget(self._canvas_label)
-        canvas_vbox.addWidget(canvas_scroll)
+        self._zoom_in_action = QAction(self.tr("+"), self)
+        self._zoom_in_action.setToolTip(self.tr("Zoom In (Ctrl++)"))
+        self._zoom_in_action.triggered.connect(self._on_zoom_in)
+        canvas_toolbar.addAction(self._zoom_in_action)
 
-        splitter.setSizes([280, 720])
+        self._zoom_out_action = QAction(self.tr("-"), self)
+        self._zoom_out_action.setToolTip(self.tr("Zoom Out (Ctrl+-)"))
+        self._zoom_out_action.triggered.connect(self._on_zoom_out)
+        canvas_toolbar.addAction(self._zoom_out_action)
+
+        self._fit_action = QAction(self.tr("Fit"), self)
+        self._fit_action.setToolTip(self.tr("Fit to Window (Ctrl+0)"))
+        self._fit_action.triggered.connect(self._on_fit)
+        canvas_toolbar.addAction(self._fit_action)
+
+        self._reset_action = QAction(self.tr("Reset"), self)
+        self._reset_action.setToolTip(self.tr("Reset View"))
+        self._reset_action.triggered.connect(self._on_reset_view)
+        canvas_toolbar.addAction(self._reset_action)
+
+        canvas_vbox.addWidget(canvas_toolbar)
+
+        # Graphics view with scene
+        self._scene = QGraphicsScene(self)
+        self._graphics_view = _ZoomableGraphicsView()
+        self._graphics_view.setScene(self._scene)
+        canvas_vbox.addWidget(self._graphics_view, 1)
+
+        splitter.setSizes([320, 780])
+
+        # Status bar
+        self.setStatusBar(QStatusBar(self))
+        self.statusBar().showMessage(
+            self.tr("Ready — load a tree file and click Draw Tree")
+        )
+
+    # ------------------------------------------------------------------
+    # Shortcuts
+    # ------------------------------------------------------------------
+    def _setup_shortcuts(self):
+        # Draw: Ctrl+D
+        draw_sc = QAction(self)
+        draw_sc.setShortcut(QKeySequence("Ctrl+D"))
+        draw_sc.triggered.connect(self._draw)
+        self.addAction(draw_sc)
+
+        # Open file: Ctrl+O
+        open_sc = QAction(self)
+        open_sc.setShortcut(QKeySequence.StandardKey.Open)
+        open_sc.triggered.connect(self._browse_file)
+        self.addAction(open_sc)
+
+        # Export: Ctrl+E
+        export_sc = QAction(self)
+        export_sc.setShortcut(QKeySequence("Ctrl+E"))
+        export_sc.triggered.connect(self._export)
+        self.addAction(export_sc)
+
+        # Zoom in: Ctrl+=
+        zoom_in_sc = QAction(self)
+        zoom_in_sc.setShortcut(QKeySequence.StandardKey.ZoomIn)
+        zoom_in_sc.triggered.connect(self._on_zoom_in)
+        self.addAction(zoom_in_sc)
+
+        # Zoom out: Ctrl+-
+        zoom_out_sc = QAction(self)
+        zoom_out_sc.setShortcut(QKeySequence.StandardKey.ZoomOut)
+        zoom_out_sc.triggered.connect(self._on_zoom_out)
+        self.addAction(zoom_out_sc)
+
+        # Fit: Ctrl+0
+        fit_sc = QAction(self)
+        fit_sc.setShortcut(QKeySequence("Ctrl+0"))
+        fit_sc.triggered.connect(self._on_fit)
+        self.addAction(fit_sc)
+
+        # Close: Ctrl+W
+        close_sc = QAction(self)
+        close_sc.setShortcut(QKeySequence.StandardKey.Close)
+        close_sc.triggered.connect(self.close)
+        self.addAction(close_sc)
+
+    # ------------------------------------------------------------------
+    # Canvas helpers
+    # ------------------------------------------------------------------
+    def _show_placeholder(self):
+        self._scene.clear()
+        text_item = self._scene.addSimpleText(
+            self.tr("Load a tree file and click Draw Tree")
+        )
+        text_item.setBrush(QColor("#aaa"))
+        self._graphics_view.fit_to_window()
+
+    def _show_png(self, path: str):
+        pix = QPixmap(path)
+        if pix.isNull():
+            return
+        self._scene.clear()
+        self._scene.addPixmap(pix)
+        self._scene.setSceneRect(QRectF(pix.rect()))
+        self._graphics_view.fit_to_window()
+
+    def _on_zoom_in(self):
+        self._graphics_view.zoom_in()
+
+    def _on_zoom_out(self):
+        self._graphics_view.zoom_out()
+
+    def _on_fit(self):
+        self._graphics_view.fit_to_window()
+
+    def _on_reset_view(self):
+        self._graphics_view.reset_view()
+
+    def _show_help(self):
+        from PyQt6.QtWidgets import QDialog, QTextBrowser
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("Simple Tree Visualization — Help"))
+        dlg.resize(640, 560)
+        lay = QVBoxLayout(dlg)
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(True)
+        browser.setHtml(self._help_html())
+        lay.addWidget(browser)
+        close_btn = QPushButton(self.tr("Close"))
+        close_btn.clicked.connect(dlg.accept)
+        lay.addWidget(close_btn)
+        dlg.exec()
+
+    def _help_html(self) -> str:
+        return self.tr("""
+<h2>Simple Tree Visualization (Phytreeviz)</h2>
+<p>Quickly render and export phylogenetic trees from standard file formats.
+Powered by <b>phytreeviz</b> + <b>Biopython</b>.</p>
+
+<h3>Quick Start</h3>
+<ol>
+  <li><b>Open</b> a tree file (Ctrl+O) or drag &amp; drop one onto the input field.</li>
+  <li>Select the input <b>format</b> (auto-detected on browse).</li>
+  <li>Choose <b>layout</b> (rectangular / aligned) and <b>orientation</b>.</li>
+  <li>Optionally set <b>rooting</b> method and outgroup taxon.</li>
+  <li>Click <b>Draw Tree</b> (Ctrl+D) to render.</li>
+  <li>Click <b>Export Image</b> (Ctrl+E) to save as PNG, SVG, PDF, EPS, or TIFF.</li>
+</ol>
+
+<h3>Canvas Controls</h3>
+<table>
+  <tr><td><b>Scroll wheel</b></td><td>&mdash; zoom in / out</td></tr>
+  <tr><td><b>Click &amp; drag</b></td><td>&mdash; pan the view</td></tr>
+  <tr><td><b>Ctrl++ / Ctrl+&minus;</b></td><td>&mdash; zoom in / out</td></tr>
+  <tr><td><b>Ctrl+0</b></td><td>&mdash; fit to window</td></tr>
+  <tr><td><b>+ / &minus; / Fit / Reset toolbar</b></td><td>&mdash; zoom in, zoom out, fit, reset</td></tr>
+</table>
+
+<h3>Supported Formats</h3>
+<table>
+  <tr><td><b>Newick</b></td><td><code>.nwk .treefile .tree .newick .tre</code></td></tr>
+  <tr><td><b>Nexus</b></td><td><code>.nex .nxs</code></td></tr>
+  <tr><td><b>PhyloXML</b></td><td><code>.xml</code></td></tr>
+  <tr><td><b>NeXML</b></td><td><code>.nexml</code></td></tr>
+</table>
+
+<h3>Export Formats</h3>
+<table>
+  <tr><td><b>PNG</b></td><td>&mdash; raster image (300 DPI by default)</td></tr>
+  <tr><td><b>SVG</b></td><td>&mdash; editable vector graphics</td></tr>
+  <tr><td><b>PDF</b></td><td>&mdash; publication-ready document</td></tr>
+  <tr><td><b>EPS</b></td><td>&mdash; Encapsulated PostScript</td></tr>
+  <tr><td><b>TIFF</b></td><td>&mdash; high-quality raster (300 DPI)</td></tr>
+</table>
+
+<h3>For Complex / Publication-Grade Visualization</h3>
+<p>This tool is designed for <b>quick previews and simple exports</b>.
+For advanced tree annotation, multi-layered figures, or journal-quality
+graphics, we recommend:</p>
+<table>
+  <tr><td><b>FigTree</b></td><td>&mdash;
+    <a href="http://tree.bio.ed.ac.uk/software/figtree/">tree.bio.ed.ac.uk/software/figtree</a>
+    &mdash; interactive tree viewer with rich node/colour/text annotation</td></tr>
+  <tr><td><b>iTOL</b></td><td>&mdash;
+    <a href="https://itol.embl.de/">itol.embl.de</a>
+    &mdash; interactive Tree Of Life, web-based, supports advanced dataset
+    overlays (heatmaps, bar charts, colour strips)</td></tr>
+  <tr><td><b>ggtree</b></td><td>&mdash;
+    <a href="https://bioconductor.org/packages/ggtree/">bioconductor.org/packages/ggtree</a>
+    &mdash; R/Bioconductor package for programmatic tree annotation
+    with ggplot2 syntax</td></tr>
+  <tr><td><b>TreeViewer</b></td><td>&mdash;
+    <a href="https://treeviewer.org/">treeviewer.org</a>
+    &mdash; modern desktop app with flexible visual styling and
+    multi-format export</td></tr>
+  <tr><td><b>Dendroscope</b></td><td>&mdash;
+    <a href="https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/algorithms-in-bioinformatics/software/dendroscope/">uni-tuebingen.de</a>
+    &mdash; large-tree viewer, supports rooted/unrooted, tanglegrams,
+    consensus networks</td></tr>
+</table>
+
+<h3>Tips</h3>
+<ul>
+  <li>Files can be <b>dragged &amp; dropped</b> directly into the input field.</li>
+  <li>The format is <b>auto-detected</b> from the file extension when browsing.</li>
+  <li>Use <b>rectangular</b> layout with <b>up</b> orientation for the
+  traditional rooted tree look.</li>
+  <li>Bootstrap values below 50% are typically not shown; prune low-support
+  branches before visualization for cleaner figures.</li>
+</ul>
+""")
 
     # ------------------------------------------------------------------
     # Slots
@@ -587,148 +685,175 @@ class TreeVisualizationTab(QWidget):
     def _browse_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open tree file",
+            self.tr("Open tree file"),
             "",
-            "Tree files (*.nwk *.treefile *.tree *.newick *.tre "
-            "*.nex *.nxs *.xml);;All Files (*)",
+            self.tr(
+                "Tree files (*.nwk *.treefile *.tree *.newick *.tre "
+                "*.nex *.nxs *.nexml *.xml);;All Files (*)"
+            ),
         )
         if path:
             self._file_edit.setText(path)
+            self._on_file_selected(path)
+
+    def _on_file_selected(self, path: str):
+        """Handle format detection and leaf-name loading after file selection."""
+        if self._fmt_combo.currentText() != "Auto":
             ext = os.path.splitext(path)[1].lower()
             fmt_map = {
+                ".nexml": "nexml",
+                ".xml": "phyloxml",
                 ".nex": "nexus",
                 ".nxs": "nexus",
-                ".xml": "phyloxml",
-                ".nexml": "nexml",
             }
             self._fmt_combo.setCurrentText(fmt_map.get(ext, "newick"))
+        if self._root_method_combo.currentText() == "Outgroup":
+            self._load_leaf_names()
 
     def _collect_params(self) -> dict:
         return {
             "layout": self._layout_combo.currentText(),
             "orientation": self._orient_combo.currentText(),
-            "ignore_branch_length": self._ignore_bl_check.isChecked(),
-            "fig_w": self._fig_w_spin.value(),
-            "height_per_leaf": self._height_per_leaf_spin.value(),
-            "leaf_lbl_size": self._lbl_size_spin.value(),
-            "title": self._title_edit.text(),
-            "title_size": self._title_size_spin.value(),
-            "branch_color": self._branch_color_btn.color,
             "show_support": self._show_support_check.isChecked(),
-            "support_size": self._sup_size_spin.value(),
             "show_scale": self._show_scale_check.isChecked(),
-            "bg_color": self._bg_color_btn.color,
-            "dpi": self._dpi_spin.value(),
-            # Rooting
             "root_method": self._root_method_combo.currentText().lower().split()[0],
             "outgroup_name": self._outgroup_combo.currentText().strip(),
         }
 
+    def _get_format(self) -> str:
+        """Return the effective format, auto-detecting from extension if needed."""
+        fmt = self._fmt_combo.currentText()
+        if fmt != "Auto":
+            return fmt
+        tree_file = self._file_edit.text().strip()
+        if tree_file:
+            ext = os.path.splitext(tree_file)[1].lower()
+            fmt_map = {
+                ".nexml": "nexml",
+                ".xml": "phyloxml",
+                ".nex": "nexus",
+                ".nxs": "nexus",
+            }
+            return fmt_map.get(ext, "newick")
+        return "newick"
+
     def _load_leaf_names(self):
-        """Read leaf names from the current tree file and populate the outgroup combo."""
+        """Read leaf names from the tree file and populate the outgroup combo."""
         tree_file = self._file_edit.text().strip()
         if not tree_file or not os.path.isfile(tree_file):
-            self._set_status("⚠ Please select a tree file first.")
+            self._set_status(self.tr("\u26a0 Please select a tree file first."))
             return
         try:
             from Bio import Phylo
 
-            tree = Phylo.read(tree_file, self._fmt_combo.currentText())
+            tree = Phylo.read(tree_file, self._get_format())
             names = sorted(c.name for c in tree.get_terminals() if c.name)
             self._outgroup_combo.clear()
             self._outgroup_combo.addItems(names)
-            self._set_status(f"✔ Loaded {len(names)} leaf names.")
+            self._set_status(self.tr(f"\u2714 Loaded {len(names)} leaf names."))
         except Exception as exc:
-            self._set_status(f"✖ Could not read tree: {exc}")
+            self._set_status(self.tr(f"\u2716 Could not read tree: {exc}"))
 
     def _set_status(self, msg: str):
-        self._status_lbl.setText(msg)
-        if self._status_cb:
-            self._status_cb(msg, 0)
+        self.statusBar().showMessage(msg)
 
+    # ------------------------------------------------------------------
+    # Draw / Render
+    # ------------------------------------------------------------------
     def _draw(self):
         tree_file = self._file_edit.text().strip()
         if not tree_file:
-            self._set_status("⚠ Please select a tree file.")
+            self._set_status(self.tr("Please select a tree file."))
             return
         if not os.path.isfile(tree_file):
-            self._set_status("⚠ File not found.")
+            self._set_status(self.tr("File not found."))
             return
 
+        self._cancel_render()
+
         self._draw_btn.setEnabled(False)
-        self._set_status("⏳ Rendering tree…")
-        self._canvas_label.setText(
-            "<span style='color:#aaa;font-size:14px;'>Rendering…</span>"
-        )
+        self._set_status(self.tr("Rendering tree..."))
+        self._scene.clear()
+        text_item = self._scene.addSimpleText(self.tr("Rendering..."))
+        text_item.setBrush(QColor("#aaa"))
+        self._graphics_view.fit_to_window()
 
         self._render_thread = _RenderThread(
             tree_file=tree_file,
-            fmt=self._fmt_combo.currentText(),
+            fmt=self._get_format(),
             params=self._collect_params(),
             out_png=self._tmp_png,
         )
         self._render_thread.finished.connect(self._on_render_done)
         self._render_thread.start()
 
+    def _cancel_render(self):
+        if self._render_thread is not None:
+            try:
+                self._render_thread.finished.disconnect(self._on_render_done)
+            except Exception:
+                pass
+            self._render_thread = None
+
     def _on_render_done(self, success: bool, png_path: str, msg: str):
+        self._render_thread = None
         self._draw_btn.setEnabled(True)
         if success:
             self._show_png(png_path)
-            self._set_status("✔ Tree rendered.")
+            self._set_status(self.tr("Tree rendered."))
         else:
-            self._canvas_label.setText(
-                f"<span style='color:#c62828;'><b>Render error:</b><br>{msg}</span>"
-            )
-            self._set_status(f"✖ {msg}")
+            self._scene.clear()
+            text_item = self._scene.addSimpleText(self.tr(f"Render error:\n{msg}"))
+            text_item.setBrush(QColor("#c62828"))
+            self._set_status(self.tr(f"Error: {msg}"))
 
-    def _show_png(self, path: str):
-        pix = QPixmap(path)
-        if pix.isNull():
-            return
-        parent = self._canvas_label.parentWidget()
-        if parent is not None and isinstance(parent, QWidget):
-            max_w = parent.width() - 20
-            max_h = parent.height() - 20
-            if pix.width() > max_w or pix.height() > max_h:
-                pix = pix.scaled(
-                    max_w,
-                    max_h,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-        self._canvas_label.setPixmap(pix)
-        self._canvas_label.adjustSize()
-
+    # ------------------------------------------------------------------
+    # Export
+    # ------------------------------------------------------------------
     def _export(self):
         tree_file = self._file_edit.text().strip()
         if not tree_file or not os.path.isfile(tree_file):
-            self._set_status("⚠ Please load a tree file first.")
+            self._set_status(self.tr("Please load a tree file first."))
             return
 
         out_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export tree image",
+            self.tr("Export tree image"),
             "",
-            "PNG image (*.png);;SVG vector (*.svg);;PDF document (*.pdf)",
+            self.tr(
+                "PNG image (*.png);;SVG vector (*.svg);;PDF document (*.pdf);;"
+                "EPS vector (*.eps);;TIFF image (*.tiff)"
+            ),
         )
         if not out_path:
             return
 
-        params = self._collect_params()
-        params["dpi"] = self._exp_dpi_spin.value()
+        self._cancel_export()
 
-        self._set_status("⏳ Exporting…")
+        params = self._collect_params()
+        params["dpi"] = 300
+
+        self._set_status(self.tr("Exporting..."))
         self._export_thread = _ExportThread(
             tree_file=tree_file,
-            fmt=self._fmt_combo.currentText(),
+            fmt=self._get_format(),
             params=params,
             out_path=out_path,
         )
         self._export_thread.finished.connect(self._on_export_done)
         self._export_thread.start()
 
+    def _cancel_export(self):
+        if self._export_thread is not None:
+            try:
+                self._export_thread.finished.disconnect(self._on_export_done)
+            except Exception:
+                pass
+            self._export_thread = None
+
     def _on_export_done(self, success: bool, path: str, msg: str):
+        self._export_thread = None
         if success:
-            self._set_status(f"✔ Exported: {path}")
+            self._set_status(self.tr(f"\u2714 Exported: {path}"))
         else:
-            self._set_status(f"✖ Export failed: {msg}")
+            self._set_status(self.tr(f"\u2716 Export failed: {msg}"))

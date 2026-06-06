@@ -388,17 +388,21 @@ class MainWindow(QMainWindow):
             self.child_windows.remove(window)
 
     def open_tree_visualization_tab(self):
-        """Open (or focus) the Tree Visualization tab."""
-        from modules.tree_visualization_tab import TreeVisualizationTab
+        """Open (or focus) the Simple Tree Visualization (Phytreeviz) window."""
+        from modules.tree_visualization_tab import SimpleTreeVisualizationWindow
 
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), TreeVisualizationTab):
-                self.tabs.setCurrentIndex(i)
+        # Check for existing instance and raise it
+        for win in self.child_windows:
+            if isinstance(win, SimpleTreeVisualizationWindow):
+                win.raise_()
+                win.activateWindow()
                 return
 
-        tab = TreeVisualizationTab(status_callback=self.status.showMessage)
-        self.tabs.addTab(tab, self.tr("Tree Visualization"))
-        self.tabs.setCurrentWidget(tab)
+        window = SimpleTreeVisualizationWindow()
+        window.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        window.destroyed.connect(lambda: self._remove_child_window(window))
+        self.child_windows.append(window)
+        window.show()
 
     def open_alignment_trimming_tab(self):
         """Open (or focus) the Alignment Trimming (trimAl) tab."""
