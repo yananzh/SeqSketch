@@ -124,8 +124,8 @@ Fallback: if `config.ini` is missing or the path is invalid, auto-detect by scan
 
 ```python
 datas += [
-    (os.path.join(root, 'softwares'), 'softwares'),
-    (os.path.join(root, 'config.ini'), '.'),
+    (os.path.join(root, "softwares"), "softwares"),
+    (os.path.join(root, "config.ini"), "."),
 ]
 ```
 
@@ -135,10 +135,14 @@ datas += [
 exe = EXE(pyz, ..., console=False, icon=..., onefile=False)
 
 coll = COLLECT(
-    exe, a.binaries, a.zipfiles, a.datas,
-    strip=False, upx=True,
-    upx_exclude=['Qt6*.dll'],
-    name='BioSeqAnalyzer',
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=["Qt6*.dll"],
+    name="BioSeqAnalyzer",
 )
 ```
 

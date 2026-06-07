@@ -175,167 +175,187 @@ import sys
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
-root = os.path.abspath('.')
+root = os.path.abspath(".")
 
 # ── Data files to bundle ──────────────────────────────────────────────────────
 datas = [
     # QSS stylesheet
-    (os.path.join(root, 'styles.qss'),          '.'),
+    (os.path.join(root, "styles.qss"), "."),
     # Logos (splash + window icon)
-    (os.path.join(root, '窗口logo.png'),         '.'),
-    (os.path.join(root, '启动界面logo.png'),     '.'),
+    (os.path.join(root, "窗口logo.png"), "."),
+    (os.path.join(root, "启动界面logo.png"), "."),
     # Resources directory (modern_theme.qss, etc.)
-    (os.path.join(root, 'resources'),            'resources'),
+    (os.path.join(root, "resources"), "resources"),
     # External tools (BLAST, IQTree, MAFFT, TrimAl, MUSCLE)
-    (os.path.join(root, 'softwares'),            'softwares'),
+    (os.path.join(root, "softwares"), "softwares"),
     # Config template (pre-populated relative paths)
-    (os.path.join(root, 'config.ini'),           '.'),
+    (os.path.join(root, "config.ini"), "."),
 ]
 
 # logomaker ships data files (font files, etc.)
-datas += collect_data_files('logomaker')
+datas += collect_data_files("logomaker")
 # phytreeviz may include data files
-datas += collect_data_files('phytreeviz')
+datas += collect_data_files("phytreeviz")
 # matplotlib needs its data (fonts, matplotlibrc, etc.)
-datas += collect_data_files('matplotlib')
+datas += collect_data_files("matplotlib")
 # Bio (biopython) data files
-datas += collect_data_files('Bio')
+datas += collect_data_files("Bio")
 # primer3 needs its src/ directory (thermodynamic parameter files)
-datas += collect_data_files('primer3')
+datas += collect_data_files("primer3")
 
 # ── Hidden imports (dynamic / conditional imports) ────────────────────────────
 hiddenimports = [
     # primer3 Cython extension – imported via importlib at runtime
-    'primer3.bindings',
-    'primer3.thermoanalysis',
-    'primer3.p3helpers',
-    'primer3.argdefaults',
+    "primer3.bindings",
+    "primer3.thermoanalysis",
+    "primer3.p3helpers",
+    "primer3.argdefaults",
     # PyQt6 extras sometimes missed
-    'PyQt6.sip',
-    'PyQt6.QtPrintSupport',
+    "PyQt6.sip",
+    "PyQt6.QtPrintSupport",
     # matplotlib PyQt6 backend
-    'matplotlib.backends.backend_qtagg',
-    'matplotlib.backends.backend_qt',
-    'matplotlib.backends.backend_agg',
+    "matplotlib.backends.backend_qtagg",
+    "matplotlib.backends.backend_qt",
+    "matplotlib.backends.backend_agg",
     # scipy submodules
-    'scipy.special._ufuncs_cxx',
-    'scipy._lib.messagestream',
-    'scipy.io.matlab.mio5_utils',
-    'scipy.io.matlab.streams',
-    'scipy.sparse.csgraph._validation',
-    'scipy.spatial.transform._rotation_groups',
+    "scipy.special._ufuncs_cxx",
+    "scipy._lib.messagestream",
+    "scipy.io.matlab.mio5_utils",
+    "scipy.io.matlab.streams",
+    "scipy.sparse.csgraph._validation",
+    "scipy.spatial.transform._rotation_groups",
     # numpy extras
-    'numpy.core._dtype_ctypes',
-    'numpy.random.common',
-    'numpy.random.bounded_integers',
-    'numpy.random.entropy',
+    "numpy.core._dtype_ctypes",
+    "numpy.random.common",
+    "numpy.random.bounded_integers",
+    "numpy.random.entropy",
     # pandas
-    'pandas',
-    'pandas._libs.tslibs.base',
-    'pandas._libs.tslibs.np_datetime',
-    'pandas._libs.tslibs.nattype',
-    'pandas._libs.tslibs.timezones',
+    "pandas",
+    "pandas._libs.tslibs.base",
+    "pandas._libs.tslibs.np_datetime",
+    "pandas._libs.tslibs.nattype",
+    "pandas._libs.tslibs.timezones",
     # Bio submodules used by tabs
-    'Bio.SeqIO',
-    'Bio.SeqIO.FastaIO',
-    'Bio.SeqUtils',
-    'Bio.Align',
-    'Bio.Blast',
-    'Bio.Blast.NCBIXML',
-    'Bio.Data',
-    'Bio.Data.CodonTable',
+    "Bio.SeqIO",
+    "Bio.SeqIO.FastaIO",
+    "Bio.SeqUtils",
+    "Bio.Align",
+    "Bio.Blast",
+    "Bio.Blast.NCBIXML",
+    "Bio.Data",
+    "Bio.Data.CodonTable",
     # phytreeviz
-    'phytreeviz',
+    "phytreeviz",
     # logomaker
-    'logomaker',
+    "logomaker",
 ]
 # Collect only the Bio submodules actually used by the app
 # (avoid pulling in mmtf, PDB-heavy, etc.)
 hiddenimports += [
-    'Bio.SeqIO', 'Bio.SeqIO.FastaIO', 'Bio.SeqIO.InsdcIO',
-    'Bio.SeqRecord', 'Bio.Seq', 'Bio.SeqUtils',
-    'Bio.SeqUtils.ProtParam', 'Bio.SeqUtils.MeltingTemp',
-    'Bio.Align', 'Bio.Align.substitution_matrices',
-    'Bio.pairwise2',
-    'Bio.Blast', 'Bio.Blast.NCBIXML', 'Bio.Blast.NCBIWWW', 'Bio.Blast.Applications',
-    'Bio.Data', 'Bio.Data.CodonTable', 'Bio.Data.IUPACData',
-    'Bio.Phylo', 'Bio.Phylo.NewickIO', 'Bio.Phylo.NexusIO',
-    'Bio.Phylo.BaseTree',
-    'Bio.SearchIO', 'Bio.SearchIO.BlastIO',
-    'Bio.motifs', 'Bio.Restriction',
-    'Bio.Graphics',
-    'Bio.Entrez',
+    "Bio.SeqIO",
+    "Bio.SeqIO.FastaIO",
+    "Bio.SeqIO.InsdcIO",
+    "Bio.SeqRecord",
+    "Bio.Seq",
+    "Bio.SeqUtils",
+    "Bio.SeqUtils.ProtParam",
+    "Bio.SeqUtils.MeltingTemp",
+    "Bio.Align",
+    "Bio.Align.substitution_matrices",
+    "Bio.pairwise2",
+    "Bio.Blast",
+    "Bio.Blast.NCBIXML",
+    "Bio.Blast.NCBIWWW",
+    "Bio.Blast.Applications",
+    "Bio.Data",
+    "Bio.Data.CodonTable",
+    "Bio.Data.IUPACData",
+    "Bio.Phylo",
+    "Bio.Phylo.NewickIO",
+    "Bio.Phylo.NexusIO",
+    "Bio.Phylo.BaseTree",
+    "Bio.SearchIO",
+    "Bio.SearchIO.BlastIO",
+    "Bio.motifs",
+    "Bio.Restriction",
+    "Bio.Graphics",
+    "Bio.Entrez",
 ]
 # Collect only the scipy submodules actually needed
 hiddenimports += [
-    'scipy.spatial', 'scipy.spatial.distance', 'scipy.spatial.transform',
-    'scipy.stats', 'scipy.stats._stats_py',
-    'scipy.cluster', 'scipy.cluster.hierarchy',
-    'scipy.integrate',
-    'scipy.optimize',
-    'scipy.interpolate',
-    'scipy.sparse', 'scipy.sparse.csgraph',
-    'scipy.linalg',
-    'scipy.fft',
-    'scipy.signal',
-    'scipy.ndimage',
+    "scipy.spatial",
+    "scipy.spatial.distance",
+    "scipy.spatial.transform",
+    "scipy.stats",
+    "scipy.stats._stats_py",
+    "scipy.cluster",
+    "scipy.cluster.hierarchy",
+    "scipy.integrate",
+    "scipy.optimize",
+    "scipy.interpolate",
+    "scipy.sparse",
+    "scipy.sparse.csgraph",
+    "scipy.linalg",
+    "scipy.fft",
+    "scipy.signal",
+    "scipy.ndimage",
 ]
 
 # ── Exclusions (reduce size) ──────────────────────────────────────────────────
 excludes = [
-    'tkinter',
-    '_tkinter',
-    'tcl',
-    'tk',
-    'Tcl',
-    'Tk',
-    'test',
-    'unittest',
+    "tkinter",
+    "_tkinter",
+    "tcl",
+    "tk",
+    "Tcl",
+    "Tk",
+    "test",
+    "unittest",
     # Unused matplotlib backends
-    'matplotlib.backends.backend_gtk3',
-    'matplotlib.backends.backend_gtk3agg',
-    'matplotlib.backends.backend_gtk4',
-    'matplotlib.backends.backend_gtk4agg',
-    'matplotlib.backends.backend_tkagg',
-    'matplotlib.backends.backend_tkcairo',
-    'matplotlib.backends.backend_wxagg',
-    'matplotlib.backends.backend_wx',
-    'matplotlib.backends.backend_pdf',
-    'matplotlib.backends.backend_ps',
-    'matplotlib.backends.backend_svg',
-    'matplotlib.backends.backend_pgf',
+    "matplotlib.backends.backend_gtk3",
+    "matplotlib.backends.backend_gtk3agg",
+    "matplotlib.backends.backend_gtk4",
+    "matplotlib.backends.backend_gtk4agg",
+    "matplotlib.backends.backend_tkagg",
+    "matplotlib.backends.backend_tkcairo",
+    "matplotlib.backends.backend_wxagg",
+    "matplotlib.backends.backend_wx",
+    "matplotlib.backends.backend_pdf",
+    "matplotlib.backends.backend_ps",
+    "matplotlib.backends.backend_svg",
+    "matplotlib.backends.backend_pgf",
     # IPython / Jupyter not needed
-    'IPython',
-    'ipykernel',
-    'jupyter',
-    'notebook',
+    "IPython",
+    "ipykernel",
+    "jupyter",
+    "notebook",
     # XML / docutils not needed
-    'docutils',
-    'xmlrpc',
+    "docutils",
+    "xmlrpc",
     # Distutils / setuptools not needed at runtime
-    'setuptools',
-    'distutils',
-    'pkg_resources',
+    "setuptools",
+    "distutils",
+    "pkg_resources",
     # Other unused heavy libs
-    'wx',
-    'gi',
+    "wx",
+    "gi",
     # Test suites - not needed at runtime
-    'scipy.linalg.tests',
-    'scipy.stats.tests',
-    'scipy.optimize.tests',
-    'scipy.signal.tests',
-    'scipy.ndimage.tests',
-    'scipy.sparse.tests',
-    'scipy.spatial.tests',
-    'scipy.integrate.tests',
-    'scipy.interpolate.tests',
-    'scipy.io.tests',
-    'scipy.fft.tests',
-    'Bio.tests',
+    "scipy.linalg.tests",
+    "scipy.stats.tests",
+    "scipy.optimize.tests",
+    "scipy.signal.tests",
+    "scipy.ndimage.tests",
+    "scipy.sparse.tests",
+    "scipy.spatial.tests",
+    "scipy.integrate.tests",
+    "scipy.interpolate.tests",
+    "scipy.io.tests",
+    "scipy.fft.tests",
+    "Bio.tests",
 ]
 
 a = Analysis(
-    ['main.py'],
+    ["main.py"],
     pathex=[root],
     binaries=[],
     datas=datas,
@@ -357,7 +377,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='BioSeqAnalyzer',
+    name="BioSeqAnalyzer",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -367,7 +387,9 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(root, '窗口logo.png') if os.path.exists(os.path.join(root, '窗口logo.png')) else None,
+    icon=os.path.join(root, "窗口logo.png")
+    if os.path.exists(os.path.join(root, "窗口logo.png"))
+    else None,
 )
 
 coll = COLLECT(
@@ -377,8 +399,8 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=True,
-    upx_exclude=['Qt6*.dll'],
-    name='BioSeqAnalyzer',
+    upx_exclude=["Qt6*.dll"],
+    name="BioSeqAnalyzer",
 )
 ```
 
@@ -508,6 +530,7 @@ Replace with:
 ```python
 from utils.app_paths import resource_path, tool_path_from_config
 
+
 def _resolve_iqtree_exe() -> str:
     """Resolve IQTree executable path: config.ini → bundled fallback."""
     configured = tool_path_from_config("IQTree", "bin_dir")
@@ -516,6 +539,7 @@ def _resolve_iqtree_exe() -> str:
         if os.path.isfile(exe):
             return exe
     return resource_path("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
+
 
 IQTREE_EXE = _resolve_iqtree_exe()
 ```
@@ -537,6 +561,7 @@ Replace with:
 
 ```python
 from utils.app_paths import resource_path, tool_path_from_config
+
 
 def _default_mafft_exe() -> str:
     """Resolve MAFFT launcher: config.ini → bundled fallback."""
@@ -579,6 +604,7 @@ def _resolve_trimal_exe() -> str:
             return exe
     return resource_path("softwares", "trimAl_Windows_v1.5.1", "trimal.exe")
 
+
 TRIMAL_EXE = _resolve_trimal_exe()
 ```
 
@@ -597,12 +623,14 @@ Replace with:
 ```python
 from utils.app_paths import resource_path, tool_path_from_config
 
+
 def _resolve_muscle_exe() -> str:
     """Resolve MUSCLE executable: config.ini → bundled fallback."""
     configured = tool_path_from_config("MUSCLE", "exe")
     if configured and os.path.isfile(configured):
         return configured
     return resource_path("softwares", "muscle-win64.v5.3.exe")
+
 
 MUSCLE_EXE = _resolve_muscle_exe()
 ```
@@ -646,8 +674,9 @@ Read line 30 of `main.py`:
 Replace with:
 
 ```python
-    from utils.app_paths import resource_path
-    logo_path = resource_path("启动界面logo.png")
+from utils.app_paths import resource_path
+
+logo_path = resource_path("启动界面logo.png")
 ```
 
 - [ ] **Step 2: `main_window.py` — find window icon path usage**
@@ -692,17 +721,18 @@ Read the `__init__` method of `Settings` class (around line 10):
 Replace with:
 
 ```python
-    import sys
-    from utils.app_paths import user_data_file
+import sys
+from utils.app_paths import user_data_file
 
-    def __init__(self, config_file: str | None = None):
-        if config_file is None:
-            if getattr(sys, "frozen", False):
-                self.config_file = user_data_file("config.json")
-            else:
-                self.config_file = "config.json"
+
+def __init__(self, config_file: str | None = None):
+    if config_file is None:
+        if getattr(sys, "frozen", False):
+            self.config_file = user_data_file("config.json")
         else:
-            self.config_file = config_file
+            self.config_file = "config.json"
+    else:
+        self.config_file = config_file
 ```
 
 - [ ] **Step 2: Verify**
@@ -863,6 +893,7 @@ git commit -m "feat: add onedir build script, remove Nuitka build scripts"
 
 ```python
 """Validate BioSeqAnalyzer.spec structure for onedir builds."""
+
 import os
 import sys
 import pytest
@@ -922,9 +953,7 @@ def test_spec_excludes_tkinter():
     """tkinter must be excluded (not needed for PyQt6 app)."""
     with open(SPEC_PATH, "r", encoding="utf-8") as fh:
         source = fh.read()
-    assert "'tkinter'" in source or '"tkinter"' in source, (
-        "tkinter must be in excludes"
-    )
+    assert "'tkinter'" in source or '"tkinter"' in source, "tkinter must be in excludes"
 ```
 
 - [ ] **Step 2: Run the tests**
