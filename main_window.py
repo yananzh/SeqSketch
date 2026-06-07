@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
         self.resize(1100, 700)
         self.setAcceptDrops(True)
         # 设置窗口logo
-        icon_path = resource_path("窗口logo.png")
+        icon_path = resource_path("window_logo.png")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         # Keep references to child windows to prevent garbage collection

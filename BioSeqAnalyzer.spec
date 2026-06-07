@@ -15,8 +15,8 @@ datas = [
     # QSS stylesheet
     (os.path.join(root, 'styles.qss'),          '.'),
     # Logos (splash + window icon)
-    (os.path.join(root, '窗口logo.png'),         '.'),
-    (os.path.join(root, '启动界面logo.png'),     '.'),
+    (os.path.join(root, 'start_logo.png'),        '.'),
+    (os.path.join(root, 'window_logo.png'),        '.'),
     # Resources directory (modern_theme.qss, etc.)
     (os.path.join(root, 'resources'),            'resources'),
     # External tools (BLAST, IQTree, MAFFT, TrimAl, MUSCLE)
@@ -200,7 +200,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(root, '窗口logo.png') if os.path.exists(os.path.join(root, '窗口logo.png')) else None,
+    icon=os.path.join(root, 'window_logo.png') if os.path.exists(os.path.join(root, 'window_logo.png')) else None,
 )
 
 coll = COLLECT(

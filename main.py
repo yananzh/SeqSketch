@@ -26,7 +26,7 @@ def main():
     app = QApplication(sys.argv)
     # 显示启动界面
     from utils.app_paths import resource_path
-    logo_path = resource_path("启动界面logo.png")
+    logo_path = resource_path("start_logo.png")
     splash = None
     if os.path.exists(logo_path):
         pixmap = QPixmap(logo_path)
