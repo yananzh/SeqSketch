@@ -17,10 +17,25 @@ def resource_path(*parts: str) -> str:
     return os.path.join(runtime_root(), *parts)
 
 
+def portable_root() -> str:
+    """Writable-data root.  Frozen → exe directory; dev → project root."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 def user_data_dir(app_name: str = APP_NAME) -> str:
-    """Return writable per-user data directory, creating it if needed."""
-    base = os.environ.get("APPDATA") or os.path.expanduser("~")
-    path = os.path.join(base, app_name)
+    """Return writable per-user data directory, creating it if needed.
+
+    In frozen (onedir) mode the directory lives under the exe folder so the
+    whole installation stays portable.  In dev mode the legacy %APPDATA%
+    location is kept for backwards compatibility.
+    """
+    if getattr(sys, "frozen", False):
+        path = os.path.join(portable_root(), "user_data")
+    else:
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+        path = os.path.join(base, app_name)
     os.makedirs(path, exist_ok=True)
     return path
 
