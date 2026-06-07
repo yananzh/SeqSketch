@@ -29,14 +29,18 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont
 
 from utils.common_components import BaseTabWidget
-from utils.app_paths import user_data_file
+from utils.app_paths import resource_path, tool_path_from_config
 
-# ---------------------------------------------------------------------------
-# Path to bundled MUSCLE binary
-# ---------------------------------------------------------------------------
-_HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MUSCLE_EXE = os.path.join(_HERE, "softwares", "muscle-win64.v5.3.exe")
-CONFIG_INI = user_data_file("config.ini")
+
+def _resolve_muscle_exe() -> str:
+    """Resolve MUSCLE executable: config.ini → bundled fallback."""
+    configured = tool_path_from_config("MUSCLE", "exe")
+    if configured and os.path.isfile(configured):
+        return configured
+    return resource_path("softwares", "muscle-win64.v5.3.exe")
+
+
+MUSCLE_EXE = _resolve_muscle_exe()
 
 
 # ---------------------------------------------------------------------------

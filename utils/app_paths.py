@@ -1,3 +1,4 @@
+import configparser
 import os
 import sys
 
@@ -43,3 +44,28 @@ def user_data_dir(app_name: str = APP_NAME) -> str:
 def user_data_file(filename: str, app_name: str = APP_NAME) -> str:
     """Return writable per-user data file path."""
     return os.path.join(user_data_dir(app_name), filename)
+
+
+def tool_path_from_config(section: str, key: str) -> str | None:
+    """Read a tool path from config.ini in portable_root().
+
+    Returns the resolved absolute path, or None if not configured.
+    """
+    if getattr(sys, "frozen", False):
+        config_path = os.path.join(portable_root(), "config.ini")
+    else:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "config.ini",
+        )
+    if not os.path.isfile(config_path):
+        return None
+    try:
+        cfg = configparser.ConfigParser()
+        cfg.read(config_path, encoding="utf-8")
+        rel = cfg.get(section, key, fallback=None)
+        if rel:
+            return os.path.normpath(os.path.join(portable_root(), rel))
+    except Exception:
+        pass
+    return None

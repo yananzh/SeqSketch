@@ -25,7 +25,7 @@ import tempfile
 from Bio import AlignIO
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
-from utils.app_paths import resource_path
+from utils.app_paths import resource_path, tool_path_from_config
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QFont, QPainter
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -53,7 +53,17 @@ from PyQt6.QtWidgets import (
 )
 
 # ── bundled trimAl path ────────────────────────────────────────────────────
-TRIMAL_EXE = resource_path("softwares", "trimAl_Windows_x86-64", "trimal.exe")
+def _resolve_trimal_exe() -> str:
+    """Resolve trimAl executable: config.ini → bundled fallback."""
+    configured = tool_path_from_config("TrimAl", "bin_dir")
+    if configured:
+        exe = os.path.join(configured, "trimal.exe")
+        if os.path.isfile(exe):
+            return exe
+    return resource_path("softwares", "trimAl_Windows_v1.5.1", "trimal.exe")
+
+
+TRIMAL_EXE = _resolve_trimal_exe()
 
 _ALIGN_FORMATS = {
     ".fasta": "fasta",

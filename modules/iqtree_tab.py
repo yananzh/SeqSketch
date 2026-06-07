@@ -31,10 +31,20 @@ from PyQt6.QtWidgets import (
 # ---------------------------------------------------------------------------
 # Bundled IQ-TREE binary path
 # ---------------------------------------------------------------------------
-_HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-IQTREE_EXE = os.path.join(
-    _HERE, "softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe"
-)
+from utils.app_paths import resource_path, tool_path_from_config
+
+
+def _resolve_iqtree_exe() -> str:
+    """Resolve IQTree executable path: config.ini → bundled fallback."""
+    configured = tool_path_from_config("IQTree", "bin_dir")
+    if configured:
+        exe = os.path.join(configured, "iqtree3.exe")
+        if os.path.isfile(exe):
+            return exe
+    return resource_path("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
+
+
+IQTREE_EXE = _resolve_iqtree_exe()
 
 
 # ---------------------------------------------------------------------------
