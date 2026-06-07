@@ -3,13 +3,23 @@
 """
 import json
 import os
+import sys
 from typing import Dict, Any
+
+from utils.app_paths import user_data_file
+
 
 class Settings:
     """应用程序设置管理类"""
     
-    def __init__(self, config_file: str = "config.json"):
-        self.config_file = config_file
+    def __init__(self, config_file: str | None = None):
+        if config_file is None:
+            if getattr(sys, "frozen", False):
+                self.config_file = user_data_file("config.json")
+            else:
+                self.config_file = "config.json"
+        else:
+            self.config_file = config_file
         self.settings = self._load_settings()
     
     def _load_settings(self) -> Dict[str, Any]:

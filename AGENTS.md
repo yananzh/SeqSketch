@@ -13,11 +13,13 @@ py -m pytest tests/test_dna_analysis_tabs.py -q
 py -m pytest tests/test_fasta_tools_tabs.py -q
 ```
 
-Build the Windows one-file executable with Nuitka:
+Build the Windows portable onedir distribution with PyInstaller:
 
 ```powershell
-.\scripts\build_windows_onefile.ps1 -Profile balanced
+.\scripts\build_onedir.ps1
 ```
+
+The output `dist/BioSeqAnalyzer/` is a self-contained portable folder — copy it anywhere.
 
 Notes:
 

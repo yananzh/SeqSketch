@@ -11,10 +11,11 @@ py -m pytest tests/test_dna_analysis_tabs.py -q
 py -m pytest tests/test_fasta_tools_tabs.py -q
 ```
 
-Build Windows executable:
+Build Windows portable distribution:
 ```powershell
-.\scripts\build_windows_onefile.ps1 -Profile balanced
+.\scripts\build_onedir.ps1
 ```
+Output: `dist/BioSeqAnalyzer/` — self-contained portable folder.
 
 ## Project Overview
 

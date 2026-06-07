@@ -10,6 +10,9 @@ from PyQt6.QtCore import Qt
 from menus import create_menus
 from PyQt6.QtGui import QIcon, QPixmap
 import os
+
+from utils.app_paths import resource_path
+
 # 新增DNA序列分析相关Tab（按需导入）
 
 
@@ -20,7 +23,7 @@ class MainWindow(QMainWindow):
         self.resize(1100, 700)
         self.setAcceptDrops(True)
         # 设置窗口logo
-        icon_path = os.path.join(os.path.dirname(__file__), "window_logo.png")
+        icon_path = resource_path("窗口logo.png")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         # Keep references to child windows to prevent garbage collection

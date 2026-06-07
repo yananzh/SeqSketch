@@ -25,7 +25,8 @@ sys.excepthook = _excepthook
 def main():
     app = QApplication(sys.argv)
     # 显示启动界面
-    logo_path = os.path.join(os.path.dirname(__file__), "start_logo.png")
+    from utils.app_paths import resource_path
+    logo_path = resource_path("启动界面logo.png")
     splash = None
     if os.path.exists(logo_path):
         pixmap = QPixmap(logo_path)
