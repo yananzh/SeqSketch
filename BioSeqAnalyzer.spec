@@ -19,6 +19,10 @@ datas = [
     (os.path.join(root, '启动界面logo.png'),     '.'),
     # Resources directory (modern_theme.qss, etc.)
     (os.path.join(root, 'resources'),            'resources'),
+    # External tools (BLAST, IQTree, MAFFT, TrimAl, MUSCLE)
+    (os.path.join(root, 'softwares'),            'softwares'),
+    # Config template (pre-populated relative paths)
+    (os.path.join(root, 'config.ini'),           '.'),
 ]
 
 # logomaker ships data files (font files, etc.)
@@ -184,31 +188,28 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='BioSeqAnalyzer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,           # Compress with UPX if available (reduces size ~30%)
-    upx_exclude=[
-        # Don't compress Qt DLLs – UPX can break Qt plugins
-        'Qt6Core.dll',
-        'Qt6Gui.dll',
-        'Qt6Widgets.dll',
-        'Qt6Network.dll',
-        'Qt6OpenGL.dll',
-        'Qt6Pdf.dll',
-        'Qt6PrintSupport.dll',
-    ],
-    runtime_tmpdir=None,
-    console=False,      # No console window
+    upx=True,
+    console=False,
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
     icon=os.path.join(root, '窗口logo.png') if os.path.exists(os.path.join(root, '窗口logo.png')) else None,
-    onefile=True,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=['Qt6*.dll'],
+    name='BioSeqAnalyzer',
 )
