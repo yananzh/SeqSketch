@@ -50,9 +50,15 @@ def tool_path_from_config(section: str, key: str) -> str | None:
     """Read a tool path from config.ini in portable_root().
 
     Returns the resolved absolute path, or None if not configured.
+    In frozen mode, tries the writable copy in portable_root() first,
+    then falls back to the bundled copy in _internal/.
     """
     if getattr(sys, "frozen", False):
-        config_path = os.path.join(portable_root(), "config.ini")
+        writable = os.path.join(portable_root(), "config.ini")
+        if os.path.isfile(writable):
+            config_path = writable
+        else:
+            config_path = resource_path("config.ini")
     else:
         config_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
