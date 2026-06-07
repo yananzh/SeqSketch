@@ -1,14 +1,19 @@
 import os
 import configparser
 import json
+import sys
 from datetime import datetime
 
-from utils.app_paths import resource_path, user_data_file
+from utils.app_paths import portable_root, resource_path, user_data_file
 
 _LEGACY_CONFIG_FILE = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "config.ini"
 )
-CONFIG_FILE = user_data_file("config.ini")
+
+if getattr(sys, "frozen", False):
+    CONFIG_FILE = os.path.join(portable_root(), "config.ini")
+else:
+    CONFIG_FILE = user_data_file("config.ini")
 CONFIG_SECTION = "BLAST"
 CONFIG_KEY = "bin_dir"
 DATABASES_FILE = user_data_file("blast_databases.json")
