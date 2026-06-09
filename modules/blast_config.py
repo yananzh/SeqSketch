@@ -12,7 +12,9 @@ _LEGACY_CONFIG_FILE = os.path.join(
 
 if getattr(sys, "frozen", False):
     _writable = os.path.join(portable_root(), "config.ini")
-    CONFIG_FILE = _writable if os.path.isfile(_writable) else resource_path("config.ini")
+    CONFIG_FILE = (
+        _writable if os.path.isfile(_writable) else resource_path("config.ini")
+    )
 else:
     CONFIG_FILE = user_data_file("config.ini")
 CONFIG_SECTION = "BLAST"

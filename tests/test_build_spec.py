@@ -1,4 +1,5 @@
 """Validate BioSeqAnalyzer.spec structure for onedir builds."""
+
 import os
 import sys
 import pytest
@@ -58,6 +59,4 @@ def test_spec_excludes_tkinter():
     """tkinter must be excluded (not needed for PyQt6 app)."""
     with open(SPEC_PATH, "r", encoding="utf-8") as fh:
         source = fh.read()
-    assert "'tkinter'" in source or '"tkinter"' in source, (
-        "tkinter must be in excludes"
-    )
+    assert "'tkinter'" in source or '"tkinter"' in source, "tkinter must be in excludes"

@@ -52,6 +52,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+
 # ── bundled trimAl path ────────────────────────────────────────────────────
 def _resolve_trimal_exe() -> str:
     """Resolve trimAl executable: config.ini → bundled fallback."""
