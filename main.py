@@ -23,9 +23,14 @@ sys.excepthook = _excepthook
 
 
 def main():
+    # 高 DPI 适配（笔记本高分屏关键设置）
+    QApplication.setHighDpiScaleFactorRoundingPolicy(
+        Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+    )
     app = QApplication(sys.argv)
     # 显示启动界面
     from utils.app_paths import resource_path
+
     logo_path = resource_path("start_logo.png")
     splash = None
     if os.path.exists(logo_path):
