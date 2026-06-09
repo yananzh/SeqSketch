@@ -23,6 +23,9 @@ sys.excepthook = _excepthook
 
 
 def main():
+    QApplication.setHighDpiScaleFactorRoundingPolicy(
+        Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+    )
     app = QApplication(sys.argv)
     # 显示启动界面
     from utils.app_paths import resource_path
