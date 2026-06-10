@@ -326,9 +326,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         out_label.setFixedWidth(_label_width)
         out_layout.addWidget(out_label)
         self.output_edit = QLineEdit()
-        self.output_edit.setPlaceholderText(
-            "Choose where to save the renamed file..."
-        )
+        self.output_edit.setPlaceholderText("Choose where to save the renamed file...")
         self.output_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -781,7 +779,9 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.preview_btn.setEnabled(not running)
         self.input_btn.setEnabled(not running)
         self.mapping_btn.setEnabled(not running)
-        self.export_ids_btn.setEnabled(not running and bool(self.input_edit.text().strip()))
+        self.export_ids_btn.setEnabled(
+            not running and bool(self.input_edit.text().strip())
+        )
         self.output_btn.setEnabled(not running)
         self.header_checkbox.setEnabled(not running)
         self.export_report_checkbox.setEnabled(not running)

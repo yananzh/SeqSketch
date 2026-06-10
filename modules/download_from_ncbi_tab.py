@@ -179,9 +179,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         acc_hint.setStyleSheet("color: #666; font-size: 13px;")
         acc_layout.addWidget(acc_hint)
         self.acc_edit = QPlainTextEdit()
-        self.acc_edit.setPlaceholderText(
-            "NM_001101.5\nNP_001092.1\nAF123456\n..."
-        )
+        self.acc_edit.setPlaceholderText("NM_001101.5\nNP_001092.1\nAF123456\n...")
         self.acc_edit.setMinimumHeight(150)
         self.acc_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
