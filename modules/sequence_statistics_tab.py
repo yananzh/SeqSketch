@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from utils.common_components import FASTAWorker, BaseTabWidget
+from utils.common_components import FASTAWorker, BaseTabWidget, FileDropLineEdit
 import os
 
 
@@ -273,60 +273,16 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.connect_signals()
 
     def init_ui(self):
-        # Inner class: LineEdit with file drag-and-drop support
-        class FileDropLineEdit(QLineEdit):
-            file_dropped = pyqtSignal(str)
-
-            def __init__(self, parent=None):
-                super().__init__(parent)
-                self.setAcceptDrops(True)
-
-            def dragEnterEvent(self, event):
-                md = event.mimeData()
-                if md.hasUrls():
-                    urls = md.urls()
-                    if urls:
-                        local = urls[0].toLocalFile()
-                        if self._is_valid_fasta(local):
-                            event.acceptProposedAction()
-                            return
-                event.ignore()
-
-            def dropEvent(self, event):
-                urls = event.mimeData().urls()
-                if urls:
-                    local = urls[0].toLocalFile()
-                    if self._is_valid_fasta(local):
-                        self.setText(local)
-                        self.file_dropped.emit(local)
-                        event.acceptProposedAction()
-                        return
-                event.ignore()
-
-            @staticmethod
-            def _is_valid_fasta(path: str) -> bool:
-                allowed = {
-                    ".fasta",
-                    ".fa",
-                    ".fas",
-                    ".fna",
-                    ".ffn",
-                    ".faa",
-                    ".frn",
-                    ".txt",
-                }
-                try:
-                    ext = os.path.splitext(path)[1].lower()
-                    return os.path.isfile(path) and ext in allowed
-                except Exception:
-                    return False
+        # 固定标签宽度使两行对齐
+        _label_width = 120
 
         # 输入文件选择
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("Input FASTA file:"))
+        input_label = QLabel("Input FASTA file:")
+        input_label.setFixedWidth(_label_width)
+        input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setMinimumWidth(320)
         self.input_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -338,10 +294,11 @@ class SequenceStatisticsTab(BaseTabWidget):
 
         # 输出文件选择
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("Output stats file:"))
+        output_label = QLabel("Output stats file:")
+        output_label.setFixedWidth(_label_width)
+        output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the QC stats...")
-        self.output_edit.setMinimumWidth(320)
         self.output_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -373,10 +330,22 @@ class SequenceStatisticsTab(BaseTabWidget):
             row, col = i // 2, (i % 2) * 2
             l = QLabel(f"{label}: ")
             v = QLabel("--")
-            v.setStyleSheet("font-weight: bold; color: #2196F3;")
+            v.setProperty("statValue", True)
             self.stats_layout.addWidget(l, row, col)
             self.stats_layout.addWidget(v, row, col + 1)
             self.stat_labels[key] = v
+        # Tooltips for key metrics
+        _tooltips = {
+            "n50": "The shortest sequence length at which the cumulative length reaches 50% of the total assembly size",
+            "l50": "The smallest number of sequences whose combined length reaches 50% of the total",
+            "ambiguous_bases": "Count of IUPAC ambiguity codes (R/Y/M/K/S/W/B/D/H/V) — may indicate low-quality or heterozygous calls",
+            "invalid_chars": "Characters outside standard nucleotide/protein alphabets",
+            "n_content": "Total N bases and their percentage — high N content often signals assembly gaps",
+            "duplicate_ids": "Number of extra records sharing the same ID beyond the first occurrence",
+        }
+        for key, tip in _tooltips.items():
+            if key in self.stat_labels:
+                self.stat_labels[key].setToolTip(tip)
         # Flexible value columns and nicer spacing
         self.stats_layout.setColumnStretch(1, 1)
         self.stats_layout.setColumnStretch(3, 1)
@@ -486,50 +455,103 @@ class SequenceStatisticsTab(BaseTabWidget):
         from PyQt6.QtCore import Qt
 
         help_text = """
-<h3>FASTA QC</h3>
-<p><b>Description:</b></p>
-<p>Generate a lightweight FASTA QC report with global assembly-style metrics and per-sequence diagnostics.</p>
+<h2>FASTA QC &mdash; Quality Check for FASTA Files</h2>
 
-<p><b>Features:</b></p>
-<ul>
-<li><b>Global stats:</b> total sequences, total length, average, min/max length, N50, L50</li>
-<li><b>QC flags:</b> detected sequence type, duplicate IDs, ambiguous bases, invalid characters, N content</li>
-<li><b>Detailed report:</b> ID, length, type, GC content, ambiguity and invalid-character counts per sequence</li>
-</ul>
+<p><b>What does this tool do?</b><br>
+It scans your FASTA file and produces a quality report so you can spot problems
+before they affect downstream analysis. Think of it as a health check for your
+sequence data.</p>
 
-<p><b>Usage:</b></p>
+<h3>Quick Start</h3>
 <ol>
-<li>Select a FASTA file (.fasta/.fa/.fas/.fna/.ffn/.faa/.frn/.txt)</li>
-<li>Choose where to save the report</li>
-<li>Click "Start"</li>
-<li>Review the summary panel and operation logs</li>
+<li>Select a FASTA file (drag-and-drop is supported)</li>
+<li>Choose where to save the statistics report</li>
+<li>Click <b>Start</b></li>
+<li>Review the summary panel and the saved TSV report</li>
 </ol>
 
-<p><b>Example input:</b></p>
+<h3>File Formats Supported</h3>
+<p>.fasta &middot; .fa &middot; .fas &middot; .fna &middot; .ffn &middot; .faa &middot; .frn &middot; .txt</p>
+
+<h3>Metrics Explained</h3>
+
+<p><b>Total Sequences</b><br>
+How many FASTA records (entries starting with <code>&gt;</code>) are in the file.</p>
+
+<p><b>Total Length / Average Length / Min Length / Max Length</b><br>
+The sum, mean, shortest, and longest sequence lengths (in bases or residues).
+A large gap between min and max may indicate mixed data types or truncated
+entries.</p>
+
+<p><b>N50</b><br>
+A standard assembly continuity metric. If you sort all sequences from longest
+to shortest, N50 is the length of the sequence at which the cumulative sum first
+reaches 50% of the total assembly size. <i>Example:</i> if your total is 1,000,000 bp
+and the running sum hits 500,000 bp after adding the 5th-longest contig of 80,000 bp,
+then N50 = 80,000.</p>
+
+<p><b>L50</b><br>
+The companion to N50 &mdash; it is the smallest number of sequences whose combined
+length reaches 50% of the total. In the example above, L50 = 5.</p>
+
+<p><b>Detected Type</b><br>
+Whether the sequences appear to be DNA/RNA, protein, or a mixture. The tool
+infers this from the alphabet of characters found in each sequence.</p>
+
+<p><b>GC Content</b><br>
+Percentage of G and C bases (DNA/RNA only). High or low GC content can affect
+PCR primer design, sequencing coverage bias, and secondary structure.</p>
+
+<p><b>Ambiguous Bases</b><br>
+Count of IUPAC ambiguity codes: R, Y, M, K, S, W, B, D, H, V. These represent
+positions where the sequencer could not confidently call a single base
+(e.g., R = A or G). Many ambiguous calls may indicate low-quality regions.</p>
+
+<p><b>N Content</b><br>
+Total number of N bases and their overall percentage. Ns represent completely
+unknown bases and are common in genome assemblies where gaps could not be
+resolved. High N content often signals an incomplete or draft assembly.</p>
+
+<p><b>Invalid Characters</b><br>
+Characters that do not belong to standard nucleotide or protein alphabets
+(such as digits, punctuation, or whitespace inside sequences). These can
+break alignment and analysis tools.</p>
+
+<p><b>Duplicate IDs</b><br>
+How many sequence IDs appear more than once. Duplicate IDs confuse many
+bioinformatics tools and should usually be resolved before further analysis.</p>
+
+<h3>Example Input</h3>
 <pre>
-&gt;seq1 alpha
-ATGCNNNN
-&gt;seq2 beta
-ATGCTGCA
+&gt;contig_1 length=5000
+ATGCNNNNACTG...
+&gt;contig_2 length=3200
+GGTACCATGGC...
 </pre>
 
-<p><b>What to look for:</b></p>
+<h3>Output</h3>
+<p>The tool writes a tab-separated (.txt) report with two sections:</p>
 <ul>
-<li><b>Detected Type:</b> DNA/RNA, protein, or mixed/unknown</li>
-<li><b>Duplicate IDs:</b> repeated record IDs that may affect downstream tools</li>
-<li><b>Ambiguous Bases / N Content:</b> useful for assembly and primer-quality review</li>
-<li><b>Invalid Chars:</b> unexpected symbols such as digits or punctuation inside sequences</li>
+<li><b>Summary block</b> &mdash; the global metrics shown in the on-screen panel</li>
+<li><b>Per-sequence table</b> &mdash; one row per FASTA record with ID, length, type,
+GC%, N count, ambiguous count, invalid chars, and description length</li>
 </ul>
 
-<p><b>Output:</b></p>
-<p>The report contains a summary block followed by a per-sequence TSV table for downstream analysis.</p>
-<p>Each row includes sequence ID, length, inferred sequence type, GC content, ambiguity counts, invalid-character counts, and description length.</p>
+<h3>Tips</h3>
+<ul>
+<li>Run this on every FASTA file before feeding it to alignment, assembly, or
+annotation pipelines.</li>
+<li>If <i>Detected Type</i> says "Mixed/Unknown", review the per-sequence table to
+find which records have unexpected alphabets.</li>
+<li>Use the per-sequence TSV in Excel or Python to filter outliers by length
+or GC content.</li>
+</ul>
         """
 
         # 创建自定义对话框
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - FASTA QC")
-        dialog.setFixedSize(780, 500)
+        dialog.setFixedSize(820, 600)
 
         layout = QVBoxLayout()
 

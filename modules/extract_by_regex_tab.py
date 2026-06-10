@@ -11,49 +11,9 @@ from PyQt6.QtWidgets import (
     QCheckBox,
 )
 from PyQt6.QtCore import pyqtSignal
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, FileDropLineEdit
 import os
 import re
-
-
-# Drag-and-drop enabled QLineEdit
-class FileDropLineEdit(QLineEdit):
-    file_dropped = pyqtSignal(str)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setAcceptDrops(True)
-
-    def dragEnterEvent(self, event):
-        md = event.mimeData()
-        if md.hasUrls():
-            urls = md.urls()
-            if urls:
-                local = urls[0].toLocalFile()
-                if self._is_valid_fasta(local):
-                    event.acceptProposedAction()
-                    return
-        event.ignore()
-
-    def dropEvent(self, event):
-        urls = event.mimeData().urls()
-        if urls:
-            local = urls[0].toLocalFile()
-            if self._is_valid_fasta(local):
-                self.setText(local)
-                self.file_dropped.emit(local)
-                event.acceptProposedAction()
-                return
-        event.ignore()
-
-    @staticmethod
-    def _is_valid_fasta(path: str) -> bool:
-        allowed = {".fasta", ".fa", ".fas", ".fna", ".ffn", ".faa", ".frn", ".txt"}
-        try:
-            ext = os.path.splitext(path)[1].lower()
-            return os.path.isfile(path) and ext in allowed
-        except Exception:
-            return False
 
 
 def full_header_text(record) -> str:

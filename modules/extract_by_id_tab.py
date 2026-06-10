@@ -17,6 +17,7 @@ from PyQt6.QtCore import Qt
 from utils.common_components import (
     FASTAWorker,
     BaseTabWidget,
+    FileDropLineEdit,
     apply_sequence_editor_style,
 )
 import os
@@ -146,44 +147,6 @@ class ExtractByIDTab(BaseTabWidget):
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("Input FASTA file:"))
 
-        class FileDropLineEdit(QLineEdit):
-            file_dropped = pyqtSignal(str)
-
-            def __init__(self, parent=None):
-                super().__init__(parent)
-                self.setAcceptDrops(True)
-
-            def dragEnterEvent(self, event):
-                md = event.mimeData()
-                if md.hasUrls():
-                    urls = md.urls()
-                    if urls:
-                        local = urls[0].toLocalFile()
-                        if self._is_valid_fasta(local):
-                            event.acceptProposedAction()
-                            return
-                event.ignore()
-
-            def dropEvent(self, event):
-                urls = event.mimeData().urls()
-                if urls:
-                    local = urls[0].toLocalFile()
-                    if self._is_valid_fasta(local):
-                        self.setText(local)
-                        self.file_dropped.emit(local)
-                        event.acceptProposedAction()
-                        return
-                event.ignore()
-
-            @staticmethod
-            def _is_valid_fasta(path: str) -> bool:
-                allowed = {".fasta", ".fa", ".fas"}
-                try:
-                    ext = os.path.splitext(path)[1].lower()
-                    return os.path.isfile(path) and ext in allowed
-                except Exception:
-                    return False
-
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
         self.input_edit.setMinimumWidth(320)
@@ -203,8 +166,16 @@ class ExtractByIDTab(BaseTabWidget):
         self.id_edit.setPlaceholderText(
             "Enter sequence IDs, one per line\nExamples:\nseq1\nseq2\nseq3"
         )
-        self.id_edit.setFixedHeight(120)  # 增大高度以便输入更多ID
+        self.id_edit.setMinimumHeight(120)
+        self.id_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         apply_sequence_editor_style(self.id_edit)
+
+        # ID count label
+        self.id_count_label = QLabel("")
+        self.id_count_label.setStyleSheet("color: #666; font-size: 13px;")
+        self.id_edit.textChanged.connect(self._update_id_count)
 
         # 匹配选项
         options_layout = QHBoxLayout()
@@ -256,6 +227,7 @@ class ExtractByIDTab(BaseTabWidget):
         self.add_content_layout(input_layout)
         self.add_content_widget(id_label)
         self.add_content_widget(self.id_edit)
+        self.add_content_widget(self.id_count_label)
         self.add_content_layout(options_layout)
         self.add_content_layout(output_layout)
         self.add_content_layout(control_layout)
@@ -276,7 +248,7 @@ class ExtractByIDTab(BaseTabWidget):
             self,
             "Select FASTA file",
             "",
-            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
+            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
         )
         if file_path:
             self.handle_input_file_selected(file_path)
@@ -298,6 +270,20 @@ class ExtractByIDTab(BaseTabWidget):
         )
         if file_path:
             self.output_edit.setText(file_path)
+
+    def _update_id_count(self):
+        """Update the live ID count label."""
+        text = self.id_edit.toPlainText().strip()
+        if not text:
+            self.id_count_label.setText("")
+            return
+        raw_ids = [line.strip() for line in text.splitlines() if line.strip()]
+        unique = len({id.casefold() for id in raw_ids})
+        dupes = len(raw_ids) - unique
+        msg = f"{len(raw_ids)} ID(s) entered"
+        if dupes:
+            msg += f" ({dupes} duplicate(s) detected)"
+        self.id_count_label.setText(msg)
 
     def clear_all(self):
         self.input_edit.clear()
@@ -331,7 +317,10 @@ class ExtractByIDTab(BaseTabWidget):
         # Validate input
         from utils.common_components import validate_input_path, validate_output_path
 
-        valid, error = validate_input_path(input_path, [".fasta", ".fa", ".fas"])
+        valid, error = validate_input_path(
+            input_path,
+            [".fasta", ".fa", ".fas", ".fna", ".ffn", ".faa", ".frn", ".txt"],
+        )
         if not valid:
             self.log_message(error, "ERROR")
             return

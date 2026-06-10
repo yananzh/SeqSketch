@@ -182,7 +182,7 @@ class DownloadFromNCBITab(BaseTabWidget):
 
         # Control buttons
         control_layout = QHBoxLayout()
-        self.run_btn = QPushButton("Download")
+        self.run_btn = QPushButton("Start")
         self.clear_btn = QPushButton("Clear")
         control_layout.addStretch(1)
         control_layout.addWidget(self.run_btn)
@@ -246,11 +246,13 @@ class DownloadFromNCBITab(BaseTabWidget):
 
         # 验证输入
         if not email:
-            self.log_message("请输入邮箱地址（NCBI要求）", "ERROR")
+            self.log_message(
+                "Please enter an email address (required by NCBI)", "ERROR"
+            )
             return
 
         if not acc_text:
-            self.log_message("请输入检索号", "ERROR")
+            self.log_message("Please enter accession numbers", "ERROR")
             return
 
         from utils.common_components import validate_output_path
@@ -266,7 +268,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         ]
         acc_list, duplicate_accessions = normalize_accession_list(acc_text)
         if not acc_list:
-            self.log_message("检索号列表为空", "ERROR")
+            self.log_message("Accession list is empty", "ERROR")
             return
 
         # 单线程执行下载

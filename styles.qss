@@ -48,6 +48,12 @@ QTabWidget::pane {
     background: #ffffff;
 }
 
+/* Stat value labels in FASTA QC tab */
+QLabel[statValue="true"] {
+    font-weight: bold;
+    color: #2196F3;
+}
+
 /* 2. 标签页 */
 QTabBar::tab {
     padding: 6px 16px;

@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtCore import Qt
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, FileDropLineEdit
 import os
 
 
@@ -48,7 +48,9 @@ def write_mapping_template_file(output_path: str, rows: list[dict[str, str]]) ->
 
         delimiter = "," if ext == ".csv" else "\t"
         with open(output_path, "w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=["old_id", "new_id"], delimiter=delimiter)
+            writer = csv.DictWriter(
+                handle, fieldnames=["old_id", "new_id"], delimiter=delimiter
+            )
             writer.writeheader()
             writer.writerows(rows)
         return
@@ -231,44 +233,6 @@ class BatchRenameIDsTab(BaseTabWidget):
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("Input FASTA file:"))
 
-        class FileDropLineEdit(QLineEdit):
-            file_dropped = pyqtSignal(str)
-
-            def __init__(self, parent=None):
-                super().__init__(parent)
-                self.setAcceptDrops(True)
-
-            def dragEnterEvent(self, event):
-                md = event.mimeData()
-                if md.hasUrls():
-                    urls = md.urls()
-                    if urls:
-                        local = urls[0].toLocalFile()
-                        if self._is_valid_fasta(local):
-                            event.acceptProposedAction()
-                            return
-                event.ignore()
-
-            def dropEvent(self, event):
-                urls = event.mimeData().urls()
-                if urls:
-                    local = urls[0].toLocalFile()
-                    if self._is_valid_fasta(local):
-                        self.setText(local)
-                        self.file_dropped.emit(local)
-                        event.acceptProposedAction()
-                        return
-                event.ignore()
-
-            @staticmethod
-            def _is_valid_fasta(path: str) -> bool:
-                allowed = {".fasta", ".fa", ".fas"}
-                try:
-                    ext = os.path.splitext(path)[1].lower()
-                    return os.path.isfile(path) and ext in allowed
-                except Exception:
-                    return False
-
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
         self.input_edit.setMinimumWidth(320)
@@ -284,45 +248,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         mapping_layout = QHBoxLayout()
         mapping_layout.addWidget(QLabel("ID mapping file:"))
 
-        class MappingDropLineEdit(QLineEdit):
-            file_dropped = pyqtSignal(str)
-
-            def __init__(self, parent=None):
-                super().__init__(parent)
-                self.setAcceptDrops(True)
-
-            def dragEnterEvent(self, event):
-                md = event.mimeData()
-                if md.hasUrls():
-                    urls = md.urls()
-                    if urls:
-                        local = urls[0].toLocalFile()
-                        if self._is_valid_mapping(local):
-                            event.acceptProposedAction()
-                            return
-                event.ignore()
-
-            def dropEvent(self, event):
-                urls = event.mimeData().urls()
-                if urls:
-                    local = urls[0].toLocalFile()
-                    if self._is_valid_mapping(local):
-                        self.setText(local)
-                        self.file_dropped.emit(local)
-                        event.acceptProposedAction()
-                        return
-                event.ignore()
-
-            @staticmethod
-            def _is_valid_mapping(path: str) -> bool:
-                allowed = {".csv", ".tsv", ".txt", ".xlsx", ".xls"}
-                try:
-                    ext = os.path.splitext(path)[1].lower()
-                    return os.path.isfile(path) and ext in allowed
-                except Exception:
-                    return False
-
-        self.mapping_edit = MappingDropLineEdit()
+        self.mapping_edit = FileDropLineEdit(FileDropLineEdit.MAPPING_EXTENSIONS)
         self.mapping_edit.setPlaceholderText(
             "Select or drop a mapping file (Excel .xlsx/.xls, CSV, TSV, or TXT)..."
         )
@@ -330,7 +256,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.mapping_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
-        self.mapping_btn = QPushButton("Choose Mapping File")
+        self.mapping_btn = QPushButton("Browse")
         self.export_ids_btn = QPushButton("Export Current IDs")
         mapping_layout.addWidget(self.mapping_edit)
         mapping_layout.addWidget(self.export_ids_btn)
@@ -398,7 +324,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             self,
             "Select FASTA file",
             "",
-            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
+            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
         )
         if file_path:
             self.handle_input_file_selected(file_path)
@@ -431,7 +357,9 @@ class BatchRenameIDsTab(BaseTabWidget):
         input_path = self.input_edit.text().strip()
         base_name = "current_ids_template"
         if input_path:
-            base_name = os.path.splitext(os.path.basename(input_path))[0] + "_id_mapping"
+            base_name = (
+                os.path.splitext(os.path.basename(input_path))[0] + "_id_mapping"
+            )
 
         output_path, selected_filter = QFileDialog.getSaveFileName(
             self,
@@ -448,7 +376,10 @@ class BatchRenameIDsTab(BaseTabWidget):
         from utils.common_components import validate_input_path, validate_output_path
 
         input_path = self.input_edit.text().strip()
-        valid, error = validate_input_path(input_path, [".fasta", ".fa", ".fas"])
+        valid, error = validate_input_path(
+            input_path,
+            [".fasta", ".fa", ".fas", ".fna", ".ffn", ".faa", ".frn", ".txt"],
+        )
         if not valid:
             self.log_message(error, "ERROR")
             return False
@@ -495,7 +426,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             self,
             "Save renamed file",
             "",
-            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
+            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
         )
         if file_path:
             self.output_edit.setText(file_path)
@@ -511,7 +442,10 @@ class BatchRenameIDsTab(BaseTabWidget):
         # Validate input
         from utils.common_components import validate_input_path, validate_output_path
 
-        valid, error = validate_input_path(input_path, [".fasta", ".fa", ".fas"])
+        valid, error = validate_input_path(
+            input_path,
+            [".fasta", ".fa", ".fas", ".fna", ".ffn", ".faa", ".frn", ".txt"],
+        )
         if not valid:
             self.log_message(error, "ERROR")
             return

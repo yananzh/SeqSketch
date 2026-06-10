@@ -13,12 +13,74 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QFrame,
     QTextEdit,
+    QLineEdit,
     QFileDialog,
     QMessageBox,
 )
 from typing import Any, Dict, Optional
 import logging
 import os
+
+
+# ── Shared file-drop line edit ──────────────────────────────────────────────
+
+
+class FileDropLineEdit(QLineEdit):
+    """A QLineEdit that accepts file drops, filtering by extension.
+
+    Use ``FASTA_EXTENSIONS`` or ``MAPPING_EXTENSIONS`` for the *allowed* parameter,
+    or pass your own set of lowercase extensions (including the leading dot).
+    """
+
+    FASTA_EXTENSIONS = {".fasta", ".fa", ".fas", ".fna", ".ffn", ".faa", ".frn", ".txt"}
+    MAPPING_EXTENSIONS = {".csv", ".tsv", ".txt", ".xlsx", ".xls"}
+
+    file_dropped = pyqtSignal(str)
+
+    def __init__(self, allowed_extensions=None, parent=None):
+        super().__init__(parent)
+        self._allowed = allowed_extensions or self.FASTA_EXTENSIONS
+        self.setAcceptDrops(True)
+
+    # ── drag-and-drop ──────────────────────────────────────────────────
+
+    def dragEnterEvent(self, event):
+        if self._has_valid_url(event.mimeData()):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        path = self._first_local_url(event.mimeData())
+        if path and self._is_valid(path):
+            self.setText(path)
+            self.file_dropped.emit(path)
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    # ── helpers ────────────────────────────────────────────────────────
+
+    def _has_valid_url(self, mime_data) -> bool:
+        path = self._first_local_url(mime_data)
+        return bool(path and self._is_valid(path))
+
+    @staticmethod
+    def _first_local_url(mime_data) -> str | None:
+        if not mime_data or not mime_data.hasUrls():
+            return None
+        for url in mime_data.urls():
+            local = url.toLocalFile()
+            if local:
+                return local
+        return None
+
+    def _is_valid(self, path: str) -> bool:
+        try:
+            ext = os.path.splitext(path)[1].lower()
+            return os.path.isfile(path) and ext in self._allowed
+        except Exception:
+            return False
 
 
 SEQUENCE_EDITOR_STYLE = (
@@ -170,7 +232,7 @@ class BaseTabWidget(QWidget):
             apply_log_viewer_style(self.log_area)
             self.log_area.setMinimumHeight(120)
             self.log_area.setMaximumHeight(160)
-            self.log_area.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+            self.log_area.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
             self.log_area.setPlaceholderText(
                 self.tr("Run a FASTA tool to see progress and results here...")
             )

@@ -122,7 +122,7 @@ def test_fasta_tools_tabs_share_a_clear_labeled_log_area(qapp, tab_class):
         "Run a FASTA tool to see progress and results here..."
     )
     assert tab.log_area.minimumHeight() >= 120
-    assert tab.log_area.lineWrapMode() == tab.log_area.LineWrapMode.NoWrap
+    assert tab.log_area.lineWrapMode() == tab.log_area.LineWrapMode.WidgetWidth
 
 
 def test_fasta_tools_log_viewer_uses_borderless_inner_style(qapp):
@@ -751,12 +751,10 @@ def test_batch_rename_ids_reads_excel_mapping_file(
     output_path = tmp_path / "renamed_from_excel.fasta"
     tab = BatchRenameIDsTab()
 
-    pd.DataFrame(
-        [
-            {"old_id": "seq1", "new_id": "renamed_seq1"},
-            {"old_id": "gene_alpha", "new_id": "renamed_gene_alpha"},
-        ]
-    ).to_excel(mapping_path, index=False)
+    pd.DataFrame([
+        {"old_id": "seq1", "new_id": "renamed_seq1"},
+        {"old_id": "gene_alpha", "new_id": "renamed_gene_alpha"},
+    ]).to_excel(mapping_path, index=False)
 
     tab.input_edit.setText(str(sample_fasta_file))
     tab.mapping_edit.setText(str(mapping_path))
@@ -811,7 +809,7 @@ def test_batch_rename_ids_places_export_button_before_mapping_picker(qapp):
     mapping_layout = tab.content_area.itemAt(1).layout()
 
     assert mapping_layout.itemAt(2).widget().text() == "Export Current IDs"
-    assert mapping_layout.itemAt(3).widget().text() == "Choose Mapping File"
+    assert mapping_layout.itemAt(3).widget().text() == "Browse"
 
 
 def test_batch_rename_ids_exports_current_ids_template_to_excel(
@@ -965,7 +963,7 @@ def test_download_from_ncbi_requires_email(qapp, tmp_path: Path):
     tab.run_download()
 
     assert not output_path.exists()
-    assert "请输入邮箱地址（NCBI要求）" in log_text(tab)
+    assert "Please enter an email address (required by NCBI)" in log_text(tab)
     assert tab.status_label.text() == "Ready"
 
 
