@@ -11,6 +11,8 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QComboBox,
     QCheckBox,
+    QGroupBox,
+    QFrame,
 )
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtCore import Qt
@@ -18,7 +20,6 @@ from utils.common_components import (
     FASTAWorker,
     BaseTabWidget,
     FileDropLineEdit,
-    apply_sequence_editor_style,
 )
 import os
 
@@ -70,8 +71,8 @@ def build_record_lookup(
 def match_records_by_id(
     records, query_ids: list[str], match_mode: str, output_order: str
 ):
-    case_sensitive = match_mode == "Exact Match"
-    exclude_mode = match_mode == "Exclude Listed IDs"
+    case_sensitive = match_mode.startswith("Exact Match (case-sensitive")
+    exclude_mode = match_mode.startswith("Remove Listed IDs")
     record_lookup, duplicate_header_counts = build_record_lookup(
         records, case_sensitive
     )
@@ -140,16 +141,15 @@ class ExtractByIDTab(BaseTabWidget):
         self.connect_signals()
 
     def init_ui(self):
-        # 设置内容区域的间距和对齐
-        self.content_area.setSpacing(8)  # 适中的组件间距
+        _label_width = 120
 
-        # 输入文件选择
+        # ── Input file ──
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("Input FASTA file:"))
-
+        input_label = QLabel("Input FASTA file:")
+        input_label.setFixedWidth(_label_width)
+        input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setMinimumWidth(320)
         self.input_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -158,10 +158,9 @@ class ExtractByIDTab(BaseTabWidget):
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
 
-        # ID列表输入区标签
+        # ── ID list input ──
         id_label = QLabel("Sequence IDs to extract (one per line):")
 
-        # ID输入框
         self.id_edit = QPlainTextEdit()
         self.id_edit.setPlaceholderText(
             "Enter sequence IDs, one per line\nExamples:\nseq1\nseq2\nseq3"
@@ -170,42 +169,69 @@ class ExtractByIDTab(BaseTabWidget):
         self.id_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
-        apply_sequence_editor_style(self.id_edit)
+        self.id_edit.setStyleSheet(
+            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
+        )
+        self.id_edit.viewport().setStyleSheet("background: transparent;")
 
-        # ID count label
-        self.id_count_label = QLabel("")
-        self.id_count_label.setStyleSheet("color: #666; font-size: 13px;")
-        self.id_edit.textChanged.connect(self._update_id_count)
+        # Load IDs button row
+        id_action_layout = QHBoxLayout()
+        self.load_ids_btn = QPushButton("Load IDs from File")
+        self.load_ids_btn.setToolTip("Import a text file with one ID per line")
+        id_action_layout.addStretch()
+        id_action_layout.addWidget(self.load_ids_btn)
 
-        # 匹配选项
-        options_layout = QHBoxLayout()
+        # ── Options group ──
+        options_group = QGroupBox("Matching Options")
+        options_layout = QHBoxLayout(options_group)
         options_layout.addWidget(QLabel("Match mode:"))
         self.match_mode_combo = QComboBox()
         self.match_mode_combo.addItems([
-            "Exact Match",
-            "Case-Insensitive Exact",
-            "Exclude Listed IDs",
+            "Exact Match (case-sensitive)",
+            "Exact Match (case-insensitive)",
+            "Remove Listed IDs (exclude)",
         ])
+        self.match_mode_combo.setToolTip(
+            'Case-sensitive: "GeneA" will NOT match "genea"\n'
+            'Case-insensitive: "GeneA" WILL match "genea"\n'
+            "Remove: omit the listed IDs and keep everything else"
+        )
         options_layout.addWidget(self.match_mode_combo)
         options_layout.addWidget(QLabel("Output order:"))
         self.output_order_combo = QComboBox()
         self.output_order_combo.addItems([
-            "Preserve FASTA Order",
             "Preserve Query Order",
+            "Preserve FASTA Order",
         ])
+        self.output_order_combo.setToolTip(
+            "Query order: output sequences in the same order as your pasted ID list\n"
+            "FASTA order: keep the original file order"
+        )
         options_layout.addWidget(self.output_order_combo)
         self.export_missing_ids_checkbox = QCheckBox("Export missing IDs report")
         options_layout.addWidget(self.export_missing_ids_checkbox)
         options_layout.addStretch(1)
 
-        # 输出文件选择
+        # ── Preview panel ──
+        self.preview_panel = QPlainTextEdit()
+        self.preview_panel.setReadOnly(True)
+        self.preview_panel.setPlaceholderText(
+            "Click Preview to see the first few matched IDs here..."
+        )
+        self.preview_panel.setMaximumHeight(120)
+        self.preview_panel.setStyleSheet(
+            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
+        )
+
+        # ── Output file ──
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("Output file:"))
+        output_label = QLabel("Output FASTA file:")
+        output_label.setFixedWidth(_label_width)
+        output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText(
             "Choose where to save the extracted file..."
         )
-        self.output_edit.setMinimumWidth(320)
         self.output_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -214,32 +240,36 @@ class ExtractByIDTab(BaseTabWidget):
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
 
-        # 控制按钮
+        # ── Control buttons ──
         control_layout = QHBoxLayout()
+        control_layout.addStretch(1)
+        self.preview_btn = QPushButton("Preview")
+        self.preview_btn.setToolTip("Preview the first 5 matched IDs without saving")
         self.run_btn = QPushButton("Start")
         self.clear_btn = QPushButton("Clear")
-        control_layout.addStretch(1)
+        control_layout.addWidget(self.preview_btn)
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.setSpacing(10)
 
-        # 添加到内容区域
+        # ── Assemble ──
         self.add_content_layout(input_layout)
         self.add_content_widget(id_label)
         self.add_content_widget(self.id_edit)
-        self.add_content_widget(self.id_count_label)
-        self.add_content_layout(options_layout)
+        self.add_content_layout(id_action_layout)
+        self.add_content_widget(options_group)
+        self.add_content_widget(self.preview_panel)
         self.add_content_layout(output_layout)
         self.add_content_layout(control_layout)
-
-        # 添加拉伸项，确保内容顶部对齐
         self.content_area.addStretch()
 
     def connect_signals(self):
         self.input_btn.clicked.connect(self.select_input_file)
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_extract)
+        self.preview_btn.clicked.connect(self.preview_extract)
         self.clear_btn.clicked.connect(self.clear_all)
+        self.load_ids_btn.clicked.connect(self.load_ids_from_file)
         if hasattr(self.input_edit, "file_dropped"):
             self.input_edit.file_dropped.connect(self.handle_input_file_selected)
 
@@ -271,27 +301,97 @@ class ExtractByIDTab(BaseTabWidget):
         if file_path:
             self.output_edit.setText(file_path)
 
-    def _update_id_count(self):
-        """Update the live ID count label."""
-        text = self.id_edit.toPlainText().strip()
-        if not text:
-            self.id_count_label.setText("")
+    def load_ids_from_file(self):
+        """Load a text file with one ID per line into the ID list."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load IDs from file",
+            "",
+            "Text Files (*.txt *.tsv *.csv);;All Files (*)",
+        )
+        if not file_path:
             return
-        raw_ids = [line.strip() for line in text.splitlines() if line.strip()]
-        unique = len({id.casefold() for id in raw_ids})
-        dupes = len(raw_ids) - unique
-        msg = f"{len(raw_ids)} ID(s) entered"
-        if dupes:
-            msg += f" ({dupes} duplicate(s) detected)"
-        self.id_count_label.setText(msg)
+        try:
+            with open(file_path, "r", encoding="utf-8") as fh:
+                content = fh.read()
+            self.id_edit.setPlainText(content)
+            self.log_message(f"Loaded IDs from: {file_path}", "INFO")
+        except Exception as e:
+            self.log_message(f"Failed to load IDs: {e}", "ERROR")
+
+    def preview_extract(self):
+        """Preview the first 5 matched records without saving."""
+        input_path = self.input_edit.text().strip()
+        id_text = self.id_edit.toPlainText().strip()
+        match_mode = self.match_mode_combo.currentText()
+        output_order = self.output_order_combo.currentText()
+
+        from utils.common_components import validate_input_path
+
+        valid, error = validate_input_path(
+            input_path,
+            [".fasta", ".fa", ".fas", ".fna", ".ffn", ".faa", ".frn", ".txt"],
+        )
+        if not valid:
+            self.log_message(error, "ERROR")
+            return
+        if not id_text:
+            self.log_message("Please enter sequence IDs to extract", "ERROR")
+            return
+
+        id_list = [line.strip() for line in id_text.split("\n") if line.strip()]
+        if not id_list:
+            self.log_message("ID list is empty", "ERROR")
+            return
+
+        try:
+            from modules.fasta_processor import FASTAProcessor
+
+            processor = FASTAProcessor()
+            if not processor.read_file(input_path):
+                self.log_message("Unable to read FASTA file", "ERROR")
+                return
+            records = processor.records
+            if not records:
+                self.log_message("No sequences found in FASTA file", "ERROR")
+                return
+
+            matched, missing_ids, summary = match_records_by_id(
+                records, id_list, match_mode, output_order
+            )
+
+            total = len(matched)
+            missing_count = len(missing_ids)
+            requested = summary["requested_count"]
+
+            preview_lines = [
+                f"Results: {total} matched  ·  {missing_count} not found  ·  {requested} requested"
+            ]
+            preview_lines.append("")
+            if matched:
+                preview_lines.append(f"─ Matched (first 10 of {total}) ─")
+                for rec in matched[:10]:
+                    preview_lines.append(f"  ✓ {rec.header}")
+            if missing_ids:
+                preview_lines.append("─ Not found ─")
+                for mid in missing_ids[:10]:
+                    preview_lines.append(f"  ✗ {mid}")
+            if total == 0 and not missing_ids:
+                preview_lines.append("(No results were produced)")
+
+            self.preview_panel.setPlainText("\n".join(preview_lines))
+            self.log_message("Preview updated — see panel above", "INFO")
+        except Exception as e:
+            self.log_message(f"Preview error: {e}", "ERROR")
 
     def clear_all(self):
         self.input_edit.clear()
         self.output_edit.clear()
         self.id_edit.clear()
-        self.match_mode_combo.setCurrentText("Exact Match")
-        self.output_order_combo.setCurrentText("Preserve FASTA Order")
+        self.match_mode_combo.setCurrentIndex(0)
+        self.output_order_combo.setCurrentIndex(0)
         self.export_missing_ids_checkbox.setChecked(False)
+        self.preview_panel.clear()
         self.log_area.clear()
         self.show_status("Cleared")
 
@@ -299,12 +399,14 @@ class ExtractByIDTab(BaseTabWidget):
         """重写以禁用相关按钮"""
         super().set_running_state(running)
         self.run_btn.setEnabled(not running)
+        self.preview_btn.setEnabled(not running)
         self.input_btn.setEnabled(not running)
         self.output_btn.setEnabled(not running)
         self.id_edit.setEnabled(not running)
         self.match_mode_combo.setEnabled(not running)
         self.output_order_combo.setEnabled(not running)
         self.export_missing_ids_checkbox.setEnabled(not running)
+        self.load_ids_btn.setEnabled(not running)
 
     def run_extract(self):
         input_path = self.input_edit.text().strip()
@@ -384,7 +486,7 @@ class ExtractByIDTab(BaseTabWidget):
                 )
 
             if (
-                match_mode == "Exclude Listed IDs"
+                match_mode.startswith("Remove Listed IDs")
                 and output_order == "Preserve Query Order"
             ):
                 self.log_message(
@@ -458,58 +560,80 @@ class ExtractByIDTab(BaseTabWidget):
         from PyQt6.QtCore import Qt
 
         help_text = """
-    <h3>Filter by IDs</h3>
-<p><b>Description:</b></p>
-    <p>Select or exclude FASTA records using an ID list. This tab supports exact matching, case-insensitive matching, inverse filtering, output-order control, and optional missing-ID reporting.</p>
+<h2>Filter by IDs &mdash; Select or Remove Sequences by ID</h2>
 
-<p><b>Usage:</b></p>
+<p><b>What does this tool do?</b><br>
+You provide a list of FASTA record IDs, and the tool either keeps only those
+records or removes them, depending on the match mode you choose.</p>
+
+<h3>Quick Start</h3>
 <ol>
-<li>Select the source FASTA file</li>
-<li>Choose where to save the results</li>
-<li>Enter the sequence IDs (one per line)</li>
-<li>Click "Start"</li>
+<li>Select a FASTA file</li>
+<li>Enter or load your list of IDs (one per line)</li>
+<li>Choose a match mode and output order</li>
+<li>Click <b>Preview</b> to check the first few matches</li>
+<li>Choose where to save the result, then click <b>Start</b></li>
 </ol>
 
-<p><b>ID input examples:</b></p>
-<pre>
-sequence_001
-NM_001101.5
-gi|123456|ref|XM_001234.1|
-</pre>
+<h3>Which match mode should I use?</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Your goal</b></td><td><b>&rarr; Choose this mode</b></td></tr>
+<tr><td>Extract sequences whose IDs exactly match your list
+    (e.g. <code>NM_001101.5</code>)</td>
+    <td>&rarr; <b>Exact Match (case-sensitive)</b></td></tr>
+<tr><td>Same but ignore capital/lowercase differences
+    (e.g. <code>geneA</code> matches <code>genea</code>)</td>
+    <td>&rarr; <b>Exact Match (case-insensitive)</b></td></tr>
+<tr><td>Remove certain sequences and keep everything else</td>
+    <td>&rarr; <b>Remove Listed IDs (exclude)</b></td></tr>
+</table>
 
-<p><b>Practical examples:</b></p>
+<h3>What is "Output order" and why does it matter?</h3>
 <ul>
-<li><b>Extract a panel of genes:</b> paste one accession per line and keep <b>Exact Match</b></li>
-<li><b>Remove contaminants:</b> list unwanted IDs and choose <b>Exclude Listed IDs</b></li>
-<li><b>Preserve your request order:</b> choose <b>Preserve Query Order</b> when downstream tools expect a custom sequence order</li>
+<li><b>Preserve FASTA Order</b> &mdash; sequences keep their original order
+from the input file. Safe choice for most workflows.</li>
+<li><b>Preserve Query Order</b> &mdash; output sequences in the same order
+as your pasted ID list. Useful when downstream tools expect sequences in
+a specific order (e.g. a fixed gene panel).</li>
 </ul>
 
-<p><b>Matching rules:</b></p>
+<h3>How to enter IDs</h3>
 <ul>
-<li>Exact match</li>
-<li>Case-insensitive exact match</li>
-<li>Exclude listed IDs</li>
-<li>Empty lines and whitespace ignored</li>
-<li>Optional output order: FASTA order or query order</li>
-<li>Optional missing-ID report export</li>
+<li>Type them directly into the text box, <b>one per line</b></li>
+<li>Or click <b>"Load IDs from File"</b> to import a <code>.txt / .tsv / .csv</code>
+file where each line is one ID</li>
+<li>The counter below the box tells you how many IDs are recognised and if
+any duplicates were found</li>
+<li>A <b>missing-ID report</b> can be written alongside the output so you
+can see which IDs had no match in the FASTA file</li>
 </ul>
 
-<p><b>Use cases:</b></p>
+<h3>Practical examples</h3>
 <ul>
-<li>Extract specific genes from large databases</li>
-<li>Select target sequences based on analysis</li>
-<li>Batch extraction of sequence subsets</li>
+<li><b>Extract a gene panel:</b> paste a list of accessions
+(<code>NM_001101.5</code>), choose <b>Exact Match (case-sensitive)</b>,
+enable <b>Export missing IDs report</b></li>
+<li><b>Remove contaminant sequences:</b> list the unwanted IDs and switch
+to <b>Remove Listed IDs (exclude)</b></li>
+<li><b>Re-order sequences:</b> paste IDs in your desired order and choose
+<b>Preserve Query Order</b></li>
 </ul>
 
-<p><b>Output:</b></p>
-<p>A new FASTA file containing all matched sequences, preserving original formatting.</p>
-<p>If requested, a sidecar missing-ID report is also written next to the output FASTA.</p>
+<h3>Tips</h3>
+<ul>
+<li>Use <b>Preview</b> before running on a large file to verify your IDs
+are being matched correctly</li>
+<li>The <b>ID counter</b> shows how many unique IDs are detected and
+warns about duplicates in your query</li>
+<li>If no sequences are extracted, check whether your IDs match the
+FASTA header exactly, and try <b>Case-Insensitive</b> mode</li>
+</ul>
         """
 
         # 创建自定义对话框
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Filter by IDs")
-        dialog.setFixedSize(760, 500)
+        dialog.setFixedSize(820, 580)
 
         layout = QVBoxLayout()
 

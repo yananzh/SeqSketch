@@ -4,11 +4,14 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPlainTextEdit,
     QPushButton,
     QFileDialog,
     QSizePolicy,
     QComboBox,
     QCheckBox,
+    QGroupBox,
+    QMenu,
 )
 from PyQt6.QtCore import pyqtSignal
 from utils.common_components import BaseTabWidget, FileDropLineEdit
@@ -96,12 +99,15 @@ class ExtractByRegexTab(BaseTabWidget):
         self.connect_signals()
 
     def init_ui(self):
-        # Input FASTA file (drag-and-drop)
+        _label_width = 130
+
+        # ── Input FASTA file ──
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("Input FASTA file:"))
+        input_label = QLabel("Input FASTA file:")
+        input_label.setFixedWidth(_label_width)
+        input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setMinimumWidth(320)
         self.input_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -111,21 +117,26 @@ class ExtractByRegexTab(BaseTabWidget):
         input_layout.addWidget(self.input_btn)
         input_layout.setSpacing(8)
 
-        # Regex input
+        # ── Regular Expression ──
         regex_layout = QHBoxLayout()
-        regex_layout.addWidget(QLabel("Regular Expression:"))
+        regex_label = QLabel("Regular Expression:")
+        regex_label.setFixedWidth(_label_width)
+        regex_layout.addWidget(regex_label)
         self.regex_edit = QLineEdit()
-        self.regex_edit.setPlaceholderText(
-            "Examples: gene.*protein, ^chr[0-9]+, .*hypothetical.*"
-        )
-        self.regex_edit.setMinimumWidth(220)
+        self.regex_edit.setPlaceholderText("e.g. ^NM_, .*kinase.*, ^[A-Z]{2}_\\d{6}$")
         self.regex_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         regex_layout.addWidget(self.regex_edit)
+        self.common_patterns_btn = QPushButton("Common Patterns ▾")
+        self.common_patterns_btn.setFixedWidth(155)
+        self.common_patterns_btn.clicked.connect(self._show_common_patterns)
+        regex_layout.addWidget(self.common_patterns_btn)
         regex_layout.setSpacing(8)
 
-        options_layout = QHBoxLayout()
+        # ── Match Options ──
+        options_group = QGroupBox("Match Options")
+        options_layout = QHBoxLayout(options_group)
         options_layout.addWidget(QLabel("Match mode:"))
         self.match_mode_combo = QComboBox()
         self.match_mode_combo.addItems(["Include Matches", "Exclude Matches"])
@@ -137,19 +148,39 @@ class ExtractByRegexTab(BaseTabWidget):
             "Sequence ID Only",
             "Description Only",
         ])
+        self.match_scope_combo.setToolTip(
+            "Full Header: match against the entire header line (ID + description)\n"
+            "Sequence ID Only: match against the ID part before the first space\n"
+            "Description Only: match against the text after the first space"
+        )
         options_layout.addWidget(self.match_scope_combo)
         self.case_insensitive_checkbox = QCheckBox("Case insensitive")
         options_layout.addWidget(self.case_insensitive_checkbox)
         self.export_no_match_report_checkbox = QCheckBox("Export no-match report")
+        self.export_no_match_report_checkbox.setToolTip(
+            "Save a sidecar text file listing the regex, match counts, and settings"
+        )
         options_layout.addWidget(self.export_no_match_report_checkbox)
         options_layout.addStretch(1)
 
-        # Output file
+        # ── Preview panel ──
+        self.preview_panel = QPlainTextEdit()
+        self.preview_panel.setReadOnly(True)
+        self.preview_panel.setPlaceholderText(
+            "Click Preview to see the first few matching IDs here..."
+        )
+        self.preview_panel.setMaximumHeight(120)
+        self.preview_panel.setStyleSheet(
+            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
+        )
+
+        # ── Output file ──
         output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("Output file:"))
+        output_label = QLabel("Output FASTA file:")
+        output_label.setFixedWidth(_label_width)
+        output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the results...")
-        self.output_edit.setMinimumWidth(320)
         self.output_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -159,29 +190,32 @@ class ExtractByRegexTab(BaseTabWidget):
         output_layout.addWidget(self.output_btn)
         output_layout.setSpacing(8)
 
-        # Control buttons
+        # ── Control buttons ──
         control_layout = QHBoxLayout()
+        control_layout.addStretch(1)
+        self.preview_btn = QPushButton("Preview")
+        self.preview_btn.setToolTip("Preview the first few matching IDs without saving")
         self.run_btn = QPushButton("Start")
         self.clear_btn = QPushButton("Clear")
-        control_layout.addStretch(1)
+        control_layout.addWidget(self.preview_btn)
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.setSpacing(10)
 
-        # Add to main content area
+        # ── Assemble ──
         self.add_content_layout(input_layout)
         self.add_content_layout(regex_layout)
-        self.add_content_layout(options_layout)
+        self.add_content_widget(options_group)
+        self.add_content_widget(self.preview_panel)
         self.add_content_layout(output_layout)
         self.add_content_layout(control_layout)
-
-        # 添加拉伸项，确保内容顶部对齐，日志区域固定在底部
         self.content_area.addStretch()
 
     def connect_signals(self):
         self.input_btn.clicked.connect(self.select_input_file)
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_extract)
+        self.preview_btn.clicked.connect(self.preview_extract)
         self.clear_btn.clicked.connect(self.clear_all)
         if hasattr(self.input_edit, "file_dropped"):
             self.input_edit.file_dropped.connect(self.handle_input_file_selected)
@@ -224,6 +258,7 @@ class ExtractByRegexTab(BaseTabWidget):
         self.match_scope_combo.setCurrentText("Full Header")
         self.case_insensitive_checkbox.setChecked(False)
         self.export_no_match_report_checkbox.setChecked(False)
+        self.preview_panel.clear()
         self.log_area.clear()
         self.show_status("Cleared")
 
@@ -231,6 +266,7 @@ class ExtractByRegexTab(BaseTabWidget):
         """重写以禁用相关按钮"""
         super().set_running_state(running)
         self.run_btn.setEnabled(not running)
+        self.preview_btn.setEnabled(not running)
         self.input_btn.setEnabled(not running)
         self.output_btn.setEnabled(not running)
         self.regex_edit.setEnabled(not running)
@@ -238,6 +274,7 @@ class ExtractByRegexTab(BaseTabWidget):
         self.match_scope_combo.setEnabled(not running)
         self.case_insensitive_checkbox.setEnabled(not running)
         self.export_no_match_report_checkbox.setEnabled(not running)
+        self.common_patterns_btn.setEnabled(not running)
 
     def run_extract(self):
         input_path = self.input_edit.text().strip()
@@ -338,6 +375,94 @@ class ExtractByRegexTab(BaseTabWidget):
 
         self.set_running_state(False)
 
+    def preview_extract(self):
+        """Preview the first few matching records without saving."""
+        input_path = self.input_edit.text().strip()
+        regex = self.regex_edit.text().strip()
+        match_mode = self.match_mode_combo.currentText()
+        match_scope = self.match_scope_combo.currentText()
+        case_insensitive = self.case_insensitive_checkbox.isChecked()
+
+        from utils.common_components import validate_input_path
+
+        valid, error = validate_input_path(
+            input_path,
+            [".fasta", ".fa", ".fas", ".fna", ".ffn", ".faa", ".frn", ".txt"],
+        )
+        if not valid:
+            self.log_message(error, "ERROR")
+            return
+        if not regex:
+            self.log_message("Please enter a regular expression", "ERROR")
+            return
+        try:
+            pattern = compile_regex_pattern(regex, case_insensitive)
+        except Exception as e:
+            self.log_message(f"Invalid regular expression: {e}", "ERROR")
+            return
+
+        try:
+            from modules.fasta_processor import FASTAProcessor
+
+            processor = FASTAProcessor()
+            if not processor.read_file(input_path):
+                self.log_message("Unable to read FASTA file", "ERROR")
+                return
+            records = processor.records
+            if not records:
+                self.log_message("No sequences found in FASTA file", "ERROR")
+                return
+
+            filtered, summary = filter_records_by_regex(
+                records, pattern, match_mode, match_scope
+            )
+
+            lines = [
+                f"Results: {summary['match_count']} matched  ·  "
+                f"{summary['output_count']} in output  ·  "
+                f"{summary['scanned_count']} scanned"
+            ]
+            lines.append("")
+            showing = filtered[:10]
+            if showing:
+                lines.append(f"─ Matching records (showing first {len(showing)}) ─")
+                for rec in showing:
+                    lines.append(f"  {rec.header}")
+            else:
+                lines.append("(No records matched the given regex)")
+            self.preview_panel.setPlainText("\n".join(lines))
+            self.log_message("Preview updated — see panel above", "INFO")
+        except Exception as e:
+            self.log_message(f"Preview error: {e}", "ERROR")
+
+    def _show_common_patterns(self):
+        """Show a popup menu of common regex patterns for bioinformatics headers."""
+        menu = QMenu(self)
+        _patterns = [
+            ("RefSeq mRNA  —  ^NM_", r"^NM_"),
+            ("RefSeq protein  —  ^NP_", r"^NP_"),
+            ("All RefSeq  —  ^N[MP]_|^X[MP]_", r"^N[MP]_|^X[MP]_"),
+            ("Gene names  —  .*gene.*", r".*gene.*"),
+            ("Kinases  —  kinase", r"kinase"),
+            ("Hypothetical proteins  —  hypothetical", r"hypothetical"),
+            ("Chromosome IDs  —  ^chr[0-9]+", r"^chr[0-9]+"),
+            ("UniProt format  —  ^[A-Z0-9]{6}_[A-Z]+", r"^[A-Z0-9]{6}_[A-Z]+"),
+            (
+                "Search description  —  .*pattern.*  (scope: Description Only)",
+                r".*\b\w+\b.*",
+            ),
+        ]
+        for label, pattern in _patterns:
+            action = menu.addAction(label)
+            action.setData(pattern)
+        chosen = menu.exec(
+            self.common_patterns_btn.mapToGlobal(
+                self.common_patterns_btn.rect().bottomLeft()
+            )
+        )
+        if chosen and chosen.data():
+            self.regex_edit.setText(chosen.data())
+
     def show_help(self):
         """Show help information"""
         from PyQt6.QtWidgets import (
@@ -350,77 +475,72 @@ class ExtractByRegexTab(BaseTabWidget):
         from PyQt6.QtCore import Qt
 
         help_text = """
-    <h3>Regex Filter</h3>
-<p><b>Description:</b></p>
-    <p>Filter FASTA records with a regular expression. You can include or exclude matches, choose whether the pattern is applied to the full header, the sequence ID only, or the description only, and optionally export a no-match report.</p>
+<h2>Regex Filter &mdash; Match FASTA Records with Patterns</h2>
 
-<p><b>Usage:</b></p>
+<p><b>What does this tool do?</b><br>
+It scans every header in your FASTA file with a regular expression pattern and
+keeps (or removes) the records that match. You control where the pattern looks
+(ID, description, or both) and whether matching is case-sensitive.</p>
+
+<h3>Quick Start</h3>
 <ol>
-<li>Select the source FASTA file</li>
-<li>Choose an output location</li>
-<li>Enter a regular expression pattern</li>
-    <li>Choose the match mode, scope, and case-sensitivity option</li>
-<li>Click "Start"</li>
+<li>Select a FASTA file</li>
+<li>Enter a regular expression (or pick one from <b>Common Patterns</b>)</li>
+<li>Choose match mode, scope, and case sensitivity</li>
+<li>Click <b>Preview</b> to check matches before saving</li>
+<li>Choose an output file, then click <b>Start</b></li>
 </ol>
 
-<p><b>Regex examples:</b></p>
+<h3>Match Scope &mdash; where does the pattern look?</h3>
+<p>Given a FASTA header like:</p>
+<pre>&gt;NM_001101.5 Homo sapiens protein kinase</pre>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Scope</b></td><td><b>What is scanned</b></td><td><b>Example of what "^NM_" matches</b></td></tr>
+<tr><td><b>Full Header</b></td><td>entire line</td><td>&gt;NM_001101.5 Homo sapiens protein kinase</td></tr>
+<tr><td><b>Sequence ID Only</b></td><td>text before first space</td><td>NM_001101.5</td></tr>
+<tr><td><b>Description Only</b></td><td>text after first space</td><td>Homo sapiens protein kinase</td></tr>
+</table>
+
+<h3>Common Patterns</h3>
+<p>Click the <b>Common Patterns ▾</b> button next to the regex field for one-click presets:</p>
 <ul>
-<li><code>^NM_.*</code> - IDs starting with "NM_"</li>
-<li><code>.*gene.*</code> - IDs containing "gene"</li>
-<li><code>seq_\\d+</code> - IDs like "seq_" followed by digits</li>
-<li><code>(protein|enzyme)</code> - IDs containing "protein" or "enzyme"</li>
-<li><code>^[A-Z]{2}_\\d{6}$</code> - IDs in format "XX_123456"</li>
+<li>RefSeq mRNAs (<code>^NM_</code>) or proteins (<code>^NP_</code>)</li>
+<li>Gene names or keywords (<code>kinase</code>, <code>hypothetical</code>)</li>
+<li>Chromosome IDs (<code>^chr[0-9]+</code>)</li>
+<li>UniProt-style accessions</li>
 </ul>
 
-<p><b>Scope examples:</b></p>
-<pre>
-Header:
-&gt;NM_001101.5 hypothetical protein kinase
+<h3>Regex Quick Reference</h3>
+<table border="0" cellpadding="2" cellspacing="1">
+<tr><td><code>^</code></td><td>start of string</td><td><code>$</code></td><td>end of string</td></tr>
+<tr><td><code>.*</code></td><td>any characters</td><td><code>.+</code></td><td>one or more of any</td></tr>
+<tr><td><code>\\d</code></td><td>digit [0-9]</td><td><code>\\w</code></td><td>word character</td></tr>
+<tr><td><code>[A-Z]</code></td><td>uppercase letters</td><td><code>[a-z]</code></td><td>lowercase letters</td></tr>
+<tr><td><code>+</code></td><td>one or more</td><td><code>*</code></td><td>zero or more</td></tr>
+<tr><td><code>|</code></td><td>OR (alternation)</td><td><code>(...)</code></td><td>capturing group</td></tr>
+</table>
 
-Sequence ID Only:
-NM_001101.5
-
-Description Only:
-hypothetical protein kinase
-</pre>
-
-<p><b>Common workflows:</b></p>
+<h3>Practical Examples</h3>
 <ul>
-<li><b>Keep only RefSeq entries:</b> pattern <code>^N[MP]_|^X[MP]_</code>, scope <b>Sequence ID Only</b></li>
-<li><b>Find annotated products:</b> pattern <code>kinase|transporter</code>, scope <b>Description Only</b></li>
-<li><b>Remove unwanted records:</b> switch to <b>Exclude Matches</b> instead of manually building an ID list</li>
+<li><b>Extract RefSeq entries:</b> pattern <code>^N[MP]_|^X[MP]_</code>, scope <b>Sequence ID Only</b>, mode <b>Include Matches</b></li>
+<li><b>Find all kinases:</b> pattern <code>kinase</code>, scope <b>Full Header</b>, mode <b>Include Matches</b></li>
+<li><b>Remove contaminants:</b> pattern <code>contaminant|vector</code>, mode <b>Exclude Matches</b></li>
+<li><b>Filter by species:</b> pattern <code>Homo sapiens</code>, scope <b>Description Only</b></li>
 </ul>
 
-<p><b>Common regex tokens:</b></p>
+<h3>Tips</h3>
 <ul>
-<li><code>^</code> - start of string</li>
-<li><code>$</code> - end of string</li>
-<li><code>.*</code> - any characters (greedy)</li>
-<li><code>\\d</code> - digits</li>
-<li><code>\\w</code> - word characters</li>
-<li><code>[A-Z]</code> - uppercase letters</li>
-<li><code>+</code> - one or more</li>
-<li><code>|</code> - alternation</li>
-</ul>
-
-<p><b>Use cases:</b></p>
-<ul>
-<li>Extract sequences by naming conventions</li>
-<li>Filter IDs matching specific formats</li>
-<li>Flexible pattern matching and grouping</li>
-</ul>
-
-<p><b>Notes:</b></p>
-<ul>
-<li>Regex is case-sensitive by default; enable <b>Case insensitive</b> when matching mixed-case headers.</li>
-<li>If zero records remain after filtering, no FASTA file is written. You can still export a no-match report.</li>
+<li>Always <b>Preview</b> before running &mdash; regex is easy to get wrong.</li>
+<li>Use <b>Case insensitive</b> when headers have mixed capitalisation.</li>
+<li>Enable <b>Export no-match report</b> to keep a record of your filter settings and match counts.</li>
+<li>If your pattern produces zero output, try broadening it (remove <code>^</code> or <code>$</code> anchors first).</li>
 </ul>
         """
 
         # 创建自定义对话框
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Regex Filter")
-        dialog.setFixedSize(820, 550)
+        dialog.setFixedSize(860, 620)
 
         layout = QVBoxLayout()
 

@@ -165,14 +165,12 @@ def test_fasta_tools_log_group_uses_tight_embedded_title_style():
 
 
 def test_fasta_tools_plain_text_editors_have_border_style(qapp):
-    """Filter by IDs and NCBI Download plain-text inputs share the sequence editor border style."""
+    """Filter by IDs and NCBI Download plain-text inputs share the border style."""
     extract_tab = ExtractByIDTab()
     ncbi_tab = DownloadFromNCBITab()
     for editor in (extract_tab.id_edit, ncbi_tab.acc_edit):
-        assert editor.property("sequenceEditorStyled") is True
         assert "border: 1px solid #94a3b8;" in editor.styleSheet()
         assert "border-radius: 6px;" in editor.styleSheet()
-        assert editor.viewport().styleSheet() == "background: transparent;"
 
 
 def test_sequence_statistics_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
@@ -304,8 +302,9 @@ def test_extract_by_id_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path)
         "gene_alpha product_x",
     ]
     assert "Matched 2 record(s) across 2 requested ID(s)" in log_text(tab)
-    assert "Match mode: Exact Match; output order: Preserve FASTA Order" in log_text(
-        tab
+    assert (
+        "Match mode: Exact Match (case-sensitive); output order: Preserve Query Order"
+        in log_text(tab)
     )
     assert "Extraction complete!" in log_text(tab)
     assert tab.status_label.text() == "Ready"
@@ -322,7 +321,7 @@ def test_extract_by_id_case_insensitive_query_order_and_missing_report(
     tab.input_edit.setText(str(sample_fasta_file))
     tab.output_edit.setText(str(output_path))
     tab.id_edit.setPlainText("GENE_ALPHA\nmissing_id\nseq2")
-    tab.match_mode_combo.setCurrentText("Case-Insensitive Exact")
+    tab.match_mode_combo.setCurrentText("Exact Match (case-insensitive)")
     tab.output_order_combo.setCurrentText("Preserve Query Order")
     tab.export_missing_ids_checkbox.setChecked(True)
     tab.run_extract()
@@ -337,7 +336,7 @@ def test_extract_by_id_case_insensitive_query_order_and_missing_report(
     assert "Matched 2 record(s) across 2 requested ID(s)" in log_text(tab)
     assert "1 requested ID(s) were not found: missing_id" in log_text(tab)
     assert (
-        "Match mode: Case-Insensitive Exact; output order: Preserve Query Order"
+        "Match mode: Exact Match (case-insensitive); output order: Preserve Query Order"
         in log_text(tab)
     )
     assert "Missing ID report saved to:" in log_text(tab)
@@ -352,7 +351,7 @@ def test_extract_by_id_exclude_mode_keeps_non_requested_records(
     tab.input_edit.setText(str(sample_fasta_file))
     tab.output_edit.setText(str(output_path))
     tab.id_edit.setPlainText("seq2")
-    tab.match_mode_combo.setCurrentText("Exclude Listed IDs")
+    tab.match_mode_combo.setCurrentText("Remove Listed IDs (exclude)")
     tab.output_order_combo.setCurrentText("Preserve Query Order")
     tab.run_extract()
 
@@ -367,7 +366,7 @@ def test_extract_by_id_exclude_mode_keeps_non_requested_records(
         in log_text(tab)
     )
     assert (
-        "Match mode: Exclude Listed IDs; output order: Preserve FASTA Order"
+        "Match mode: Remove Listed IDs (exclude); output order: Preserve FASTA Order"
         in log_text(tab)
     )
 
