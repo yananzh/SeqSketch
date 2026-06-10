@@ -13,9 +13,10 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QSpinBox,
     QCheckBox,
+    QGroupBox,
 )
 from PyQt6.QtCore import Qt
-from utils.common_components import BaseTabWidget, apply_sequence_editor_style
+from utils.common_components import BaseTabWidget
 from urllib.error import URLError
 import os
 
@@ -108,79 +109,115 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.connect_signals()
 
     def init_ui(self):
-        # Database selection
+        _label_width = 100
+
+        # ── Connection ──
+        conn_group = QGroupBox("Connection")
+        conn_layout = QVBoxLayout(conn_group)
+
         db_layout = QHBoxLayout()
-        db_layout.addWidget(QLabel("Database:"))
+        db_label = QLabel("Database:")
+        db_label.setFixedWidth(_label_width)
+        db_layout.addWidget(db_label)
         self.db_combo = QComboBox()
         self.db_combo.addItems(["nucleotide", "protein"])
         self.db_combo.setCurrentText("nucleotide")
-        self.db_combo.setMinimumWidth(140)
+        self.db_combo.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        self.db_combo.setToolTip(
+            "nucleotide: for DNA/RNA accessions (NM_, XM_, AF...)\n"
+            "protein: for amino acid accessions (NP_, XP_, AAA...)"
+        )
         db_layout.addWidget(self.db_combo)
-        db_layout.addStretch()
 
-        # Email input
         email_layout = QHBoxLayout()
-        email_layout.addWidget(QLabel("Email:"))
+        email_label = QLabel("Email:")
+        email_label.setFixedWidth(_label_width)
+        email_layout.addWidget(email_label)
         self.email_edit = QLineEdit()
         self.email_edit.setPlaceholderText("NCBI requires an email address")
-        self.email_edit.setMinimumWidth(320)
+        self.email_edit.setToolTip(
+            "NCBI uses your email to track usage and contact you if there is a problem. "
+            "It will not be shared or used for spam."
+        )
         self.email_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         email_layout.addWidget(self.email_edit)
 
-        # Download options
-        option_layout = QHBoxLayout()
-        option_layout.addWidget(QLabel("Batch size:"))
+        conn_layout.addLayout(db_layout)
+        conn_layout.addLayout(email_layout)
+
+        # ── Download Options ──
+        opts_group = QGroupBox("Download Options")
+        opts_layout = QHBoxLayout(opts_group)
+        opts_layout.addWidget(QLabel("Batch size:"))
         self.batch_size_spin = QSpinBox()
         self.batch_size_spin.setRange(1, 200)
         self.batch_size_spin.setValue(20)
-        option_layout.addWidget(self.batch_size_spin)
-        option_layout.addWidget(QLabel("Retry count:"))
+        opts_layout.addWidget(self.batch_size_spin)
+        opts_layout.addWidget(QLabel("Retry count:"))
         self.retry_count_spin = QSpinBox()
         self.retry_count_spin.setRange(0, 5)
         self.retry_count_spin.setValue(1)
-        option_layout.addWidget(self.retry_count_spin)
+        opts_layout.addWidget(self.retry_count_spin)
         self.export_report_checkbox = QCheckBox("Export download report")
-        option_layout.addWidget(self.export_report_checkbox)
-        option_layout.addStretch()
+        self.export_report_checkbox.setToolTip(
+            "Save a sidecar file listing all requested accessions, batch counts, and errors"
+        )
+        opts_layout.addWidget(self.export_report_checkbox)
+        opts_layout.addStretch()
 
-        # Accession input
-        acc_layout = QVBoxLayout()
-        acc_layout.setSpacing(1)
-        acc_layout.setContentsMargins(0, 0, 0, 0)
-        acc_label = QLabel("Accession list (one per line):")
-        acc_label.setContentsMargins(0, 0, 0, 0)
-        acc_layout.addWidget(acc_label)
+        # ── Accessions ──
+        acc_group = QGroupBox("Accession List")
+        acc_layout = QVBoxLayout(acc_group)
+        acc_hint = QLabel(
+            "Enter NCBI accession numbers, one per line "
+            "(e.g. NM_001101.5, NP_001092.1, AF123456)"
+        )
+        acc_hint.setStyleSheet("color: #666; font-size: 13px;")
+        acc_layout.addWidget(acc_hint)
         self.acc_edit = QPlainTextEdit()
         self.acc_edit.setPlaceholderText(
-            "Enter accession numbers, one per line\nExamples:\nNM_001101.5\nNP_001092.1\nAF123456"
+            "NM_001101.5\nNP_001092.1\nAF123456\n..."
         )
-        # Enlarge input area
-        self.acc_edit.setMinimumHeight(200)
+        self.acc_edit.setMinimumHeight(150)
         self.acc_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
-        apply_sequence_editor_style(self.acc_edit)
+        self.acc_edit.setStyleSheet(
+            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
+        )
+        self.acc_edit.viewport().setStyleSheet("background: transparent;")
         acc_layout.addWidget(self.acc_edit)
 
-        # Output file selection
-        output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("Output file:"))
+        acc_action_layout = QHBoxLayout()
+        self.load_acc_btn = QPushButton("Load Accessions from File")
+        self.load_acc_btn.setToolTip("Import a text file with one accession per line")
+        acc_action_layout.addStretch()
+        acc_action_layout.addWidget(self.load_acc_btn)
+        acc_layout.addLayout(acc_action_layout)
+
+        # ── Output ──
+        out_group = QGroupBox("Output")
+        out_layout = QHBoxLayout(out_group)
+        out_label = QLabel("Output file:")
+        out_label.setFixedWidth(_label_width)
+        out_layout.addWidget(out_label)
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText(
             "Choose where to save the downloaded FASTA..."
         )
-        self.output_edit.setMinimumWidth(320)
         self.output_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
-        output_layout.addWidget(self.output_edit)
-        output_layout.addWidget(self.output_btn)
+        out_layout.addWidget(self.output_edit)
+        out_layout.addWidget(self.output_btn)
 
-        # Control buttons
+        # ── Control buttons ──
         control_layout = QHBoxLayout()
         self.run_btn = QPushButton("Start")
         self.clear_btn = QPushButton("Clear")
@@ -188,12 +225,11 @@ class DownloadFromNCBITab(BaseTabWidget):
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
 
-        # 添加到内容区域
-        self.add_content_layout(db_layout)
-        self.add_content_layout(email_layout)
-        self.add_content_layout(option_layout)
-        self.add_content_layout(acc_layout)
-        self.add_content_layout(output_layout)
+        # ── Assemble ──
+        self.add_content_widget(conn_group)
+        self.add_content_widget(opts_group)
+        self.add_content_widget(acc_group)
+        self.add_content_widget(out_group)
         self.add_content_layout(control_layout)
         self.content_area.addStretch()
 
@@ -201,6 +237,25 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_download)
         self.clear_btn.clicked.connect(self.clear_all)
+        self.load_acc_btn.clicked.connect(self.load_accessions_from_file)
+
+    def load_accessions_from_file(self):
+        """Load accession numbers from a text file."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load accessions from file",
+            "",
+            "Text Files (*.txt *.tsv *.csv);;All Files (*)",
+        )
+        if not file_path:
+            return
+        try:
+            with open(file_path, "r", encoding="utf-8") as fh:
+                content = fh.read()
+            self.acc_edit.setPlainText(content)
+            self.log_message(f"Loaded accessions from: {file_path}", "INFO")
+        except Exception as e:
+            self.log_message(f"Failed to load accessions: {e}", "ERROR")
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -234,6 +289,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.batch_size_spin.setEnabled(not running)
         self.retry_count_spin.setEnabled(not running)
         self.export_report_checkbox.setEnabled(not running)
+        self.load_acc_btn.setEnabled(not running)
 
     def run_download(self):
         db = self.db_combo.currentText()
@@ -456,75 +512,72 @@ class DownloadFromNCBITab(BaseTabWidget):
         from PyQt6.QtCore import Qt
 
         help_text = """
-    <h3>NCBI Download</h3>
-<p><b>Description:</b></p>
-    <p>Batch download nucleotide or protein sequences from NCBI using accession numbers. The tab supports batching, retry attempts, duplicate-accession cleanup, and optional download reports.</p>
+<h2>NCBI Download &mdash; Fetch Sequences by Accession</h2>
 
-<p><b>Usage:</b></p>
+<p><b>What does this tool do?</b><br>
+It downloads nucleotide or protein sequences directly from NCBI using
+accession numbers you provide. The downloads happen in batches, with automatic
+retries if a request fails.</p>
+
+<h3>Quick Start for Beginners</h3>
 <ol>
-<li>Select target database (nucleotide or protein)</li>
-<li>Enter a valid email (required by NCBI)</li>
-<li>Enter accession list (one per line)</li>
-<li>Choose output file location</li>
-<li>Click "Download"</li>
+<li>Go to <a href="https://www.ncbi.nlm.nih.gov/">ncbi.nlm.nih.gov</a> and
+search for your gene or protein of interest. Copy the <b>accession number</b>
+— it looks like <code>NM_001101.5</code> or <code>NP_001092.1</code>.</li>
+<li>In this tab, choose <b>nucleotide</b> for DNA/RNA or <b>protein</b> for
+amino acid sequences.</li>
+<li>Enter your email address (NCBI requires it, but it will not be shared).</li>
+<li>Paste your accession numbers — one per line — or click
+<b>Load Accessions from File</b>.</li>
+<li>Choose an output file and click <b>Start</b>.</li>
 </ol>
 
-<p><b>Databases:</b></p>
-<ul>
-<li><b>nucleotide:</b> DNA/RNA sequence database</li>
-<li><b>protein:</b> Protein sequence database</li>
-</ul>
-
-<p><b>Accession examples:</b></p>
+<h3>What is an accession number?</h3>
+<p>An accession is a unique, stable identifier NCBI assigns to every sequence.
+Examples:</p>
 <pre>
-NM_001101.5
-XM_123456.1
-AF123456
-U12345
-AAA12345
+Nucleotide:  NM_001101.5   XM_123456.1   AF123456   U12345
+Protein:     NP_001092.1   XP_012345.1   AAA12345
 </pre>
+<p>You can find accessions on any NCBI record page, usually near the top
+under "Accession".</p>
 
-<p><b>Example workflow:</b></p>
-<ol>
-<li>Choose <b>nucleotide</b> for DNA/RNA accessions such as <code>NM_001101.5</code></li>
-<li>Enter your email address</li>
-<li>Paste one accession per line</li>
-<li>Optionally lower batch size or increase retry count if the network is unstable</li>
-<li>Enable <b>Export download report</b> if you want a sidecar summary of successes and likely failures</li>
-</ol>
-
-<p><b>Email requirement:</b></p>
-<p>NCBI requires a valid email for:</p>
+<h3>Database &mdash; which one to pick?</h3>
 <ul>
-<li>Tracking API usage</li>
-<li>Notification on excessive usage</li>
-<li>Technical contact</li>
+<li><b>nucleotide</b> &mdash; for DNA or RNA sequences (accessions starting
+with NM_, XM_, AF, U, etc.)</li>
+<li><b>protein</b> &mdash; for amino acid sequences (accessions starting
+with NP_, XP_, AAA, etc.)</li>
+</ul>
+<p><i>If you pick the wrong database, NCBI will return an error or no
+sequences, and a warning will appear in the operation log.</i></p>
+
+<h3>Download Options</h3>
+<ul>
+<li><b>Batch size</b> &mdash; how many accessions to request at once.
+Lower it if your network is slow; 20 is a good default.</li>
+<li><b>Retry count</b> &mdash; how many times to retry a failed batch
+before giving up.</li>
+<li><b>Export download report</b> &mdash; save a TSV summary of what was
+requested, downloaded, and what failed.</li>
 </ul>
 
-<p><b>Use cases:</b></p>
+<h3>Tips</h3>
 <ul>
-<li>Batch download sequences by known accessions</li>
-<li>Get the latest reference sequences</li>
-<li>Build local sequence datasets</li>
+<li>Always verify your <b>database choice</b> matches your accession type.</li>
+<li>Use <b>Load Accessions from File</b> when you have a long list from a
+spreadsheet or previous analysis.</li>
+<li>The operation log shows per-batch progress so you can tell how the
+download is going.</li>
+<li>If a download fails completely, check your internet connection and
+ensure the NCBI service is reachable.</li>
 </ul>
-
-<p><b>Notes:</b></p>
-<ul>
-<li>Follow NCBI usage policies and avoid excessive requests</li>
-<li>Network quality affects speed</li>
-<li>Invalid accessions will be skipped and logged</li>
-<li>When the request returns no usable sequences, the tab does not create an empty FASTA file</li>
-</ul>
-
-<p><b>Output:</b></p>
-<p>Sequences are saved in standard FASTA format with full headers.</p>
-<p>If enabled, the download report records requested accession count, duplicate accessions, returned headers, failed candidates, and network/API errors.</p>
         """
 
         # 创建自定义对话框
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - NCBI Download")
-        dialog.setFixedSize(800, 530)
+        dialog.setFixedSize(820, 580)
 
         layout = QVBoxLayout()
 

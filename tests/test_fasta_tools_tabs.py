@@ -805,10 +805,10 @@ def test_batch_rename_ids_placeholder_explicitly_mentions_excel_support(qapp):
 def test_batch_rename_ids_places_export_button_before_mapping_picker(qapp):
     tab = BatchRenameIDsTab()
 
-    mapping_layout = tab.content_area.itemAt(1).layout()
-
-    assert mapping_layout.itemAt(2).widget().text() == "Export Current IDs"
-    assert mapping_layout.itemAt(3).widget().text() == "Browse"
+    # Export button starts disabled until FASTA is selected
+    assert tab.export_ids_btn.text() == "Export Current IDs"
+    assert not tab.export_ids_btn.isEnabled()
+    assert tab.mapping_btn.text() == "Browse"
 
 
 def test_batch_rename_ids_exports_current_ids_template_to_excel(

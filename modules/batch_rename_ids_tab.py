@@ -6,10 +6,12 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPlainTextEdit,
     QPushButton,
     QFileDialog,
     QCheckBox,
     QSizePolicy,
+    QGroupBox,
 )
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtCore import Qt
@@ -229,13 +231,16 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.connect_signals()
 
     def init_ui(self):
-        # 输入FASTA文件选择
-        input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("Input FASTA file:"))
+        _label_width = 130
 
+        # ── Input FASTA ──
+        input_group = QGroupBox("Input FASTA")
+        input_layout = QHBoxLayout(input_group)
+        input_label = QLabel("Input FASTA file:")
+        input_label.setFixedWidth(_label_width)
+        input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setMinimumWidth(320)
         self.input_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -244,67 +249,112 @@ class BatchRenameIDsTab(BaseTabWidget):
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
 
-        # 映射文件选择（支持拖放）
-        mapping_layout = QHBoxLayout()
-        mapping_layout.addWidget(QLabel("ID mapping file:"))
+        # ── ID Mapping ──
+        mapping_group = QGroupBox("ID Mapping")
+        mapping_main = QVBoxLayout(mapping_group)
 
+        # Step guide
+        step_hint = QLabel(
+            "Step 1: Select FASTA  →  Step 2: Export Current IDs  →  "
+            "Step 3: Edit new IDs externally  →  Step 4: Load mapping  →  Step 5: Start"
+        )
+        step_hint.setStyleSheet("color: #666; font-size: 13px;")
+        mapping_main.addWidget(step_hint)
+
+        # Mapping file row
+        map_row = QHBoxLayout()
+        map_label = QLabel("ID mapping file:")
+        map_label.setFixedWidth(_label_width)
+        map_row.addWidget(map_label)
         self.mapping_edit = FileDropLineEdit(FileDropLineEdit.MAPPING_EXTENSIONS)
         self.mapping_edit.setPlaceholderText(
             "Select or drop a mapping file (Excel .xlsx/.xls, CSV, TSV, or TXT)..."
         )
-        self.mapping_edit.setMinimumWidth(320)
         self.mapping_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         self.mapping_btn = QPushButton("Browse")
         self.export_ids_btn = QPushButton("Export Current IDs")
-        mapping_layout.addWidget(self.mapping_edit)
-        mapping_layout.addWidget(self.export_ids_btn)
-        mapping_layout.addWidget(self.mapping_btn)
+        self.export_ids_btn.setEnabled(False)
+        self.export_ids_btn.setToolTip(
+            "Export the IDs from the selected FASTA as a template. "
+            "Select a FASTA file above first."
+        )
+        map_row.addWidget(self.mapping_edit)
+        map_row.addWidget(self.export_ids_btn)
+        map_row.addWidget(self.mapping_btn)
+        mapping_main.addLayout(map_row)
 
-        # 映射文件选项
-        option_layout = QHBoxLayout()
+        # Mapping options
+        map_opts = QHBoxLayout()
         self.header_checkbox = QCheckBox("Mapping file contains header row")
         self.header_checkbox.setChecked(True)
-        option_layout.addWidget(self.header_checkbox)
-        self.export_report_checkbox = QCheckBox("Export rename report")
-        option_layout.addWidget(self.export_report_checkbox)
+        self.header_checkbox.setToolTip(
+            "Uncheck if your mapping file has no header and the first row is data"
+        )
+        map_opts.addWidget(self.header_checkbox)
         self.block_on_collisions_checkbox = QCheckBox("Block on collisions")
         self.block_on_collisions_checkbox.setChecked(True)
-        option_layout.addWidget(self.block_on_collisions_checkbox)
-        option_layout.addStretch()
+        self.block_on_collisions_checkbox.setToolTip(
+            "Stop if two old IDs map to the same new ID. "
+            "Recommended to avoid duplicate sequence IDs in the output."
+        )
+        map_opts.addWidget(self.block_on_collisions_checkbox)
+        self.export_report_checkbox = QCheckBox("Export rename report")
+        self.export_report_checkbox.setToolTip(
+            "Save a TSV file showing every old → new ID change with status"
+        )
+        map_opts.addWidget(self.export_report_checkbox)
+        map_opts.addStretch()
+        mapping_main.addLayout(map_opts)
 
-        # 输出文件选择
-        output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("Output file:"))
+        # ── Preview panel ──
+        self.preview_panel = QPlainTextEdit()
+        self.preview_panel.setReadOnly(True)
+        self.preview_panel.setPlaceholderText(
+            "Click Preview to see the first few rename results here..."
+        )
+        self.preview_panel.setMaximumHeight(120)
+        self.preview_panel.setStyleSheet(
+            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
+        )
+
+        # ── Output ──
+        out_group = QGroupBox("Output")
+        out_layout = QHBoxLayout(out_group)
+        out_label = QLabel("Output file:")
+        out_label.setFixedWidth(_label_width)
+        out_layout.addWidget(out_label)
         self.output_edit = QLineEdit()
-        self.output_edit.setPlaceholderText("Choose where to save the renamed file...")
-        self.output_edit.setMinimumWidth(320)
+        self.output_edit.setPlaceholderText(
+            "Choose where to save the renamed file..."
+        )
         self.output_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
-        output_layout.addWidget(self.output_edit)
-        output_layout.addWidget(self.output_btn)
+        out_layout.addWidget(self.output_edit)
+        out_layout.addWidget(self.output_btn)
 
-        # 控制按钮
+        # ── Control buttons ──
         control_layout = QHBoxLayout()
+        control_layout.addStretch(1)
+        self.preview_btn = QPushButton("Preview")
+        self.preview_btn.setToolTip("Preview the first 5 rename results without saving")
         self.run_btn = QPushButton("Start")
         self.clear_btn = QPushButton("Clear")
-        control_layout.addStretch(1)
+        control_layout.addWidget(self.preview_btn)
         control_layout.addWidget(self.run_btn)
         control_layout.addWidget(self.clear_btn)
         control_layout.setSpacing(10)
 
-        # 添加到内容区域
-        self.add_content_layout(input_layout)
-        self.add_content_layout(mapping_layout)
-        self.add_content_layout(option_layout)
-        self.add_content_layout(output_layout)
+        # ── Assemble ──
+        self.add_content_widget(input_group)
+        self.add_content_widget(mapping_group)
+        self.add_content_widget(self.preview_panel)
+        self.add_content_widget(out_group)
         self.add_content_layout(control_layout)
-
-        # 添加拉伸项，确保内容顶部对齐，日志区域固定在底部
         self.content_area.addStretch()
 
     def connect_signals(self):
@@ -313,6 +363,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.export_ids_btn.clicked.connect(self.select_template_output_file)
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_rename)
+        self.preview_btn.clicked.connect(self.preview_rename)
         self.clear_btn.clicked.connect(self.clear_all)
         if hasattr(self.input_edit, "file_dropped"):
             self.input_edit.file_dropped.connect(self.handle_input_file_selected)
@@ -335,6 +386,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         suggested = os.path.join(os.path.dirname(file_path), base + "_renamed.fasta")
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
+        self.export_ids_btn.setEnabled(bool(file_path.strip()))
         self.show_status("Input file selected")
 
     def select_mapping_file(self):
@@ -420,6 +472,71 @@ class BatchRenameIDsTab(BaseTabWidget):
             return False
         finally:
             self.set_running_state(False)
+
+    def preview_rename(self):
+        """Preview the first 5 rename results without saving."""
+        input_path = self.input_edit.text().strip()
+        mapping_path = self.mapping_edit.text().strip()
+        has_header = self.header_checkbox.isChecked()
+
+        from utils.common_components import validate_input_path
+
+        valid, error = validate_input_path(
+            input_path,
+            [".fasta", ".fa", ".fas", ".fna", ".ffn", ".faa", ".frn", ".txt"],
+        )
+        if not valid:
+            self.log_message(error, "ERROR")
+            return
+        if not mapping_path:
+            self.log_message("Please select a mapping file", "ERROR")
+            return
+
+        try:
+            mapping, _ = load_mapping_file(mapping_path, has_header)
+        except ImportError as exc:
+            self.log_message(str(exc), "ERROR")
+            return
+        except ValueError as exc:
+            self.log_message(str(exc), "ERROR")
+            return
+
+        if not mapping:
+            self.log_message("No valid mappings found in the file", "ERROR")
+            return
+
+        try:
+            from modules.fasta_processor import FASTAProcessor
+
+            processor = FASTAProcessor()
+            if not processor.read_file(input_path):
+                self.log_message("Unable to read FASTA file", "ERROR")
+                return
+            records = processor.records
+            if not records:
+                self.log_message("No sequences found in FASTA file", "ERROR")
+                return
+
+            rename_plan = plan_renames(records, mapping)
+            lines = [
+                f"Total: {len(records)} sequences  ·  "
+                f"Renamed: {rename_plan['renamed_count']}  ·  "
+                f"Unchanged: {rename_plan['unchanged_count']}"
+            ]
+            lines.append("")
+            showing = [
+                r for r in rename_plan["rename_rows"] if r["status"] == "renamed"
+            ][:5]
+            if showing:
+                lines.append(f"─ Renamed (first {len(showing)}) ─")
+                for row in showing:
+                    lines.append(f"  {row['old_id']}  →  {row['new_id']}")
+            else:
+                lines.append("(No IDs match the mapping file)")
+            self.preview_panel.setPlainText("\n".join(lines))
+            self.log_message("Preview updated — see panel above", "INFO")
+        except Exception as e:
+            self.log_message(f"Preview error: {e}", "ERROR")
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -652,6 +769,8 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.header_checkbox.setChecked(True)
         self.export_report_checkbox.setChecked(False)
         self.block_on_collisions_checkbox.setChecked(True)
+        self.export_ids_btn.setEnabled(False)
+        self.preview_panel.clear()
         if hasattr(self, "log_area"):
             self.log_area.clear()
         self.show_status("Cleared")
@@ -659,9 +778,10 @@ class BatchRenameIDsTab(BaseTabWidget):
     def set_running_state(self, running: bool):
         super().set_running_state(running)
         self.run_btn.setEnabled(not running)
+        self.preview_btn.setEnabled(not running)
         self.input_btn.setEnabled(not running)
         self.mapping_btn.setEnabled(not running)
-        self.export_ids_btn.setEnabled(not running)
+        self.export_ids_btn.setEnabled(not running and bool(self.input_edit.text().strip()))
         self.output_btn.setEnabled(not running)
         self.header_checkbox.setEnabled(not running)
         self.export_report_checkbox.setEnabled(not running)
@@ -679,54 +799,60 @@ class BatchRenameIDsTab(BaseTabWidget):
         from PyQt6.QtCore import Qt
 
         help_text = """
-    <h3>Rename IDs</h3>
-    <p><b>Description:</b></p>
-    <p>Rename FASTA sequence IDs with a mapping file. This is useful for converting public-database IDs into shorter project IDs, harmonizing naming across files, or applying a curated ID standard.</p>
+<h2>Rename IDs &mdash; Batch Rename FASTA Sequence IDs</h2>
 
-    <p><b>Supported mapping files:</b></p>
-    <ul>
-    <li>CSV (<code>.csv</code>)</li>
-    <li>TSV / TXT (<code>.tsv</code>, <code>.txt</code>)</li>
-    <li>Excel (<code>.xlsx</code>, <code>.xls</code>) when pandas is available</li>
-    </ul>
+<p><b>What does this tool do?</b><br>
+It renames FASTA sequence IDs in bulk using a mapping file. You create a simple
+two-column table (old ID → new ID), and the tool applies all the remapping at once.</p>
 
-    <p><b>Mapping format:</b></p>
-    <p>Use two columns: <b>old ID</b> and <b>new ID</b>.</p>
-    <pre>
-    old_id,new_id
-    sequence_001,Gene_A
-    sequence_002,Gene_B
-    NM_001101.5,RefSeq_001
-    </pre>
+<h3>Quick Start for Beginners</h3>
+<ol>
+<li>Select a FASTA file using <b>Browse</b> or drag-and-drop.</li>
+<li>Click <b>Export Current IDs</b> — this creates a template file (Excel, CSV,
+or TSV) listing every ID in your FASTA with an empty "new ID" column.</li>
+<li>Open the template in Excel or any text editor and fill in the new IDs
+you want in the second column.</li>
+<li>Save and come back to the tool. Select your edited file as the
+<b>ID mapping file</b>.</li>
+<li>Click <b>Preview</b> to verify the first few renamings look correct.</li>
+<li>Choose an output file, then click <b>Start</b>.</li>
+</ol>
 
-    <p><b>Typical workflow:</b></p>
-    <ol>
-    <li>Select the input FASTA file</li>
-    <li>Optional: click <b>Export Current IDs</b> to create a reusable CSV/TSV/Excel mapping template from the current FASTA IDs</li>
-    <li>Select the mapping file</li>
-    <li>Choose whether the mapping file contains a header row</li>
-    <li>Optionally enable <b>Export rename report</b></li>
-    <li>Keep <b>Block on collisions</b> enabled unless you have a specific reason not to</li>
-    <li>Choose the output FASTA path and click <b>Start</b></li>
-    </ol>
+<h3>Mapping File Format</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>old_id</b></td><td><b>new_id</b></td></tr>
+<tr><td>sequence_001</td><td>Gene_A</td></tr>
+<tr><td>sequence_002</td><td>Gene_B</td></tr>
+<tr><td>NM_001101.5</td><td>RefSeq_001</td></tr>
+</table>
+<p>Supported formats: CSV (<code>.csv</code>), TSV/TXT (<code>.tsv .txt</code>),
+Excel (<code>.xlsx .xls</code>) when pandas is installed.</p>
 
-    <p><b>Behavior notes:</b></p>
-    <ul>
-    <li>Only the primary FASTA ID is replaced; the description is preserved.</li>
-    <li>Mappings that do not match any FASTA ID are reported as unused.</li>
-    <li>If two records would end up with the same final ID, the run is blocked by default to avoid duplicate FASTA IDs.</li>
-    <li>If zero records are renamed, the tab does not write an unnecessary copy of the FASTA file.</li>
-    </ul>
+<h3>Options</h3>
+<ul>
+<li><b>Mapping file contains header row</b> &mdash; uncheck if your file has no
+header and the first row is data.</li>
+<li><b>Block on collisions</b> &mdash; stop if two old IDs map to the same new ID.
+This prevents accidental duplicate sequence IDs. Turn off only if you are
+sure duplicates are acceptable.</li>
+<li><b>Export rename report</b> &mdash; save a TSV file showing every old→new
+mapping, whether it was applied, and why.</li>
+</ul>
 
-    <p><b>Output:</b></p>
-    <p>The main output is a renamed FASTA file.</p>
-    <p>If enabled, a rename report is also written with per-record status such as renamed, unchanged, collision, or unused mapping.</p>
+<h3>Tips</h3>
+<ul>
+<li>Always <b>Preview</b> before running — mapping errors are easy to miss.</li>
+<li>Only the primary FASTA ID (the part before the first space) is replaced;
+descriptions are preserved.</li>
+<li>IDs not listed in the mapping file stay unchanged.</li>
+<li>If no IDs match the mapping file, no output file is written.</li>
+</ul>
         """
 
         # 创建自定义对话框
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Rename IDs")
-        dialog.setFixedSize(850, 550)
+        dialog.setFixedSize(840, 580)
 
         layout = QVBoxLayout()
 
