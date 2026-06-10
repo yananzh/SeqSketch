@@ -22,7 +22,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit, apply_sequence_editor_style
+from utils.common_components import (
+    BaseTabWidget,
+    FileDropLineEdit,
+    apply_sequence_editor_style,
+)
 
 
 SIMPLIFY_MODE_FIRST_TOKEN = "first_token"
@@ -167,7 +171,9 @@ class SimplifyIDsTab(BaseTabWidget):
         pg0 = QWidget()
         pg0l = QHBoxLayout(pg0)
         pg0l.setContentsMargins(0, 0, 0, 0)
-        pg0l.addWidget(QLabel("No extra parameters — keeps the first whitespace-separated token."))
+        pg0l.addWidget(
+            QLabel("No extra parameters — keeps the first whitespace-separated token.")
+        )
         pg0l.addStretch()
         self.param_stack.addWidget(pg0)
 
@@ -274,9 +280,7 @@ class SimplifyIDsTab(BaseTabWidget):
         control_layout = QHBoxLayout()
         control_layout.addStretch(1)
         self.preview_btn = QPushButton("Preview")
-        self.preview_btn.setToolTip(
-            "Preview the first 5 simplified IDs without saving"
-        )
+        self.preview_btn.setToolTip("Preview the first 5 simplified IDs without saving")
         self.run_btn = QPushButton("Start")
         self.clear_btn = QPushButton("Clear")
         control_layout.addWidget(self.preview_btn)
@@ -389,7 +393,12 @@ class SimplifyIDsTab(BaseTabWidget):
                     else record.header
                 )
                 simplified_id, _ = simplify_identifier(
-                    full_header, original_id, mode, delimiter, field_value, compiled_pattern
+                    full_header,
+                    original_id,
+                    mode,
+                    delimiter,
+                    field_value,
+                    compiled_pattern,
                 )
                 simplified_id = _apply_case_transform(simplified_id, case_mode)
                 if prefix:
@@ -709,9 +718,11 @@ class SimplifyIDsTab(BaseTabWidget):
         for label, pattern in _patterns:
             action = menu.addAction(label)
             action.setData(pattern)
-        chosen = menu.exec(self.common_patterns_btn.mapToGlobal(
-            self.common_patterns_btn.rect().bottomLeft()
-        ))
+        chosen = menu.exec(
+            self.common_patterns_btn.mapToGlobal(
+                self.common_patterns_btn.rect().bottomLeft()
+            )
+        )
         if chosen and chosen.data():
             self.regex_edit.setText(chosen.data())
 
