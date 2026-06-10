@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMenu,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
@@ -25,7 +24,6 @@ from PyQt6.QtWidgets import (
 from utils.common_components import (
     BaseTabWidget,
     FileDropLineEdit,
-    apply_sequence_editor_style,
 )
 
 
@@ -118,7 +116,7 @@ class SimplifyIDsTab(BaseTabWidget):
 
         # ── Input file ──
         input_layout = QHBoxLayout()
-        input_label = QLabel("Input FASTA file:")
+        input_label = QLabel("Input file:")
         input_label.setFixedWidth(_label_width)
         input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
@@ -152,17 +150,22 @@ class SimplifyIDsTab(BaseTabWidget):
 
         # ── Mode selector with dynamic hint ──
         mode_layout = QHBoxLayout()
-        mode_layout.addWidget(QLabel("Simplify mode:"))
+        mode_label = QLabel("Simplify mode:")
+        mode_label.setFixedWidth(_label_width)
+        mode_layout.addWidget(mode_label)
         self.mode_combo = QComboBox()
-        self.mode_combo.addItem("First token", SIMPLIFY_MODE_FIRST_TOKEN)
+        self.mode_combo.setMinimumWidth(200)
+        self.mode_combo.addItem("First word", SIMPLIFY_MODE_FIRST_TOKEN)
         self.mode_combo.addItem("Delimiter field", SIMPLIFY_MODE_DELIMITER_FIELD)
+        self.mode_combo.addItem("Keep first N words", SIMPLIFY_MODE_KEEP_TOKENS)
         self.mode_combo.addItem("Regex capture", SIMPLIFY_MODE_REGEX_CAPTURE)
-        self.mode_combo.addItem("Keep first N tokens", SIMPLIFY_MODE_KEEP_TOKENS)
+        self.mode_combo.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         mode_layout.addWidget(self.mode_combo)
         self.mode_hint_label = QLabel("")
         self.mode_hint_label.setStyleSheet("color: #888; font-size: 13px;")
         mode_layout.addWidget(self.mode_hint_label)
-        mode_layout.addStretch(1)
 
         # ── Parameter panels (QStackedWidget, one per mode) ──
         self.param_stack = QStackedWidget()
@@ -171,9 +174,6 @@ class SimplifyIDsTab(BaseTabWidget):
         pg0 = QWidget()
         pg0l = QHBoxLayout(pg0)
         pg0l.setContentsMargins(0, 0, 0, 0)
-        pg0l.addWidget(
-            QLabel("No extra parameters — keeps the first whitespace-separated token.")
-        )
         pg0l.addStretch()
         self.param_stack.addWidget(pg0)
 
@@ -197,38 +197,34 @@ class SimplifyIDsTab(BaseTabWidget):
         pg1l.addStretch()
         self.param_stack.addWidget(pg1)
 
-        # Panel 2 – Regex capture
+        # Panel 2 – Keep first N tokens
         pg2 = QWidget()
         pg2l = QHBoxLayout(pg2)
         pg2l.setContentsMargins(0, 0, 0, 0)
-        pg2l.addWidget(QLabel("Regex:"))
-        self.regex_edit = QLineEdit()
-        self.regex_edit.setPlaceholderText(r"e.g. ref\|([^|]+)\|")
-        self.regex_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        pg2l.addWidget(self.regex_edit)
-        self.common_patterns_btn = QPushButton("Common Patterns ▾")
-        self.common_patterns_btn.setFixedWidth(150)
-        self.common_patterns_btn.clicked.connect(self._show_common_patterns)
-        pg2l.addWidget(self.common_patterns_btn)
-        self.param_stack.addWidget(pg2)
-
-        # Panel 3 – Keep first N tokens
-        pg3 = QWidget()
-        pg3l = QHBoxLayout(pg3)
-        pg3l.setContentsMargins(0, 0, 0, 0)
-        pg3l.addWidget(QLabel("Token count:"))
+        pg2l.addWidget(QLabel("Word count:"))
         self.token_count_spin = QSpinBox()
         self.token_count_spin.setMinimum(1)
         self.token_count_spin.setMaximum(99)
         self.token_count_spin.setValue(2)
         self.token_count_spin.setFixedWidth(70)
         self.token_count_spin.setToolTip(
-            "Keep the first N whitespace-separated tokens, joined with underscores"
+            "Keep the first N whitespace-separated words, joined with underscores"
         )
-        pg3l.addWidget(self.token_count_spin)
-        pg3l.addStretch()
+        pg2l.addWidget(self.token_count_spin)
+        pg2l.addStretch()
+        self.param_stack.addWidget(pg2)
+
+        # Panel 3 – Regex capture
+        pg3 = QWidget()
+        pg3l = QHBoxLayout(pg3)
+        pg3l.setContentsMargins(0, 0, 0, 0)
+        pg3l.addWidget(QLabel("Regex:"))
+        self.regex_edit = QLineEdit()
+        self.regex_edit.setPlaceholderText(r"e.g. ref\|([^|]+)\|")
+        self.regex_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        pg3l.addWidget(self.regex_edit)
         self.param_stack.addWidget(pg3)
 
         # ── Preview panel ──
@@ -238,7 +234,9 @@ class SimplifyIDsTab(BaseTabWidget):
             "Click Preview to see the first few simplified IDs here..."
         )
         self.preview_panel.setMaximumHeight(130)
-        apply_sequence_editor_style(self.preview_panel)
+        self.preview_panel.setStyleSheet(
+            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
+        )
 
         # ── Options row ──
         options_layout = QHBoxLayout()
@@ -247,6 +245,9 @@ class SimplifyIDsTab(BaseTabWidget):
             "Keep the text after the first space in the FASTA header"
         )
         self.export_mapping_checkbox = QCheckBox("Export ID mapping report")
+        self.export_mapping_checkbox.setToolTip(
+            "Save a TSV file listing every old ID and its corresponding new ID"
+        )
         self.auto_number_checkbox = QCheckBox("Auto-number duplicate IDs")
         self.auto_number_checkbox.setToolTip(
             "If simplification produces duplicate IDs, append _2, _3, etc. instead of stopping"
@@ -308,15 +309,15 @@ class SimplifyIDsTab(BaseTabWidget):
             SIMPLIFY_MODE_FIRST_TOKEN: "Keeps the first whitespace-separated word as the new ID",
             SIMPLIFY_MODE_DELIMITER_FIELD: "Splits the header by a delimiter and picks one field",
             SIMPLIFY_MODE_REGEX_CAPTURE: "Uses a regex capturing group (or full match) as the new ID",
-            SIMPLIFY_MODE_KEEP_TOKENS: "Keeps the first N whitespace-separated tokens, joined with underscores",
+            SIMPLIFY_MODE_KEEP_TOKENS: "Keeps the first N words, joined with underscores",
         }
         self.mode_hint_label.setText(_mode_hints.get(mode, ""))
 
         _page_map = {
             SIMPLIFY_MODE_FIRST_TOKEN: 0,
             SIMPLIFY_MODE_DELIMITER_FIELD: 1,
-            SIMPLIFY_MODE_REGEX_CAPTURE: 2,
-            SIMPLIFY_MODE_KEEP_TOKENS: 3,
+            SIMPLIFY_MODE_KEEP_TOKENS: 2,
+            SIMPLIFY_MODE_REGEX_CAPTURE: 3,
         }
         self.param_stack.setCurrentIndex(_page_map.get(mode, 0))
 
@@ -703,29 +704,6 @@ class SimplifyIDsTab(BaseTabWidget):
         finally:
             self.set_running_state(False)
 
-    def _show_common_patterns(self):
-        """Show a popup menu of common regex patterns for common FASTA ID formats."""
-        menu = QMenu(self)
-        _patterns = [
-            ("NCBI GI / GenBank  —  gi|number|...", r"gi\|\d+\|"),
-            ("RefSeq accession  —  ref|NM_...|", r"ref\|([^|]+)\|"),
-            ("UniProt ID  —  sp|P12345|", r"sp\|([^|]+)\|"),
-            ("Ensembl ID  —  ENSG...", r"(ENS[A-Z]{0,3}\d{11})"),
-            ("GenBank accession only  —  [A-Z]{1,4}\\d{5,9}", r"([A-Z]{1,4}\d{5,9})"),
-            ("First word after '>'  —  >gene_name ...", r"^[^|]*?(\S+)"),
-            ("Extract anything between pipes (field 3)", r"^[^|]*\|[^|]*\|([^|]+)"),
-        ]
-        for label, pattern in _patterns:
-            action = menu.addAction(label)
-            action.setData(pattern)
-        chosen = menu.exec(
-            self.common_patterns_btn.mapToGlobal(
-                self.common_patterns_btn.rect().bottomLeft()
-            )
-        )
-        if chosen and chosen.data():
-            self.regex_edit.setText(chosen.data())
-
     def show_help(self):
         help_text = """
 <h2>Simplify Headers &mdash; Clean Up FASTA IDs</h2>
@@ -760,11 +738,10 @@ and extracts shorter, cleaner sequence IDs using one of four parsing rules.</p>
 Best when headers are <code>&gt;accession description</code>.</li>
 <li><b>Delimiter field</b> &mdash; splits by a character (e.g. <code>|</code>) and
 picks one field. Field index is 1-based (1 = first).</li>
-<li><b>Regex capture</b> &mdash; uses a regular expression. The first capture
-group <code>(...)</code> becomes the new ID. Use the
-<b>Common Patterns</b> dropdown for help.</li>
-<li><b>Keep first N tokens</b> &mdash; joins the first N whitespace-separated
+<li><b>Keep first N words</b> &mdash; joins the first N whitespace-separated
 words with underscores.</li>
+<li><b>Regex capture</b> &mdash; uses a regular expression. The first capture
+group <code>(...)</code> becomes the new ID. Useful for complex header formats.</li>
 </ul>
 
 <h3>Extra Options</h3>
@@ -787,14 +764,12 @@ Input:  &gt;gi|12345|ref|NM_001101.5| Homo sapiens gene alpha
 First token          &rarr;  gi|12345|ref|NM_001101.5|
 Delimiter "|" field 4 &rarr;  NM_001101.5
 Regex  ref\\|([^|]+)\\|    &rarr;  NM_001101.5
-Keep 3 tokens        &rarr;  gi|12345|ref|NM_001101.5|_Homo_sapiens
+Keep 3 words        &rarr;  gi|12345|ref|NM_001101.5|_Homo_sapiens
 </pre>
 
 <h3>Tips</h3>
 <ul>
 <li>Always <b>Preview</b> before running on a large file.</li>
-<li>The <b>Common Patterns</b> button (regex mode) has presets for
-NCBI, UniProt, Ensembl, and GenBank IDs.</li>
 <li>If no IDs change, double-check the mode and parameters match your
 header format &mdash; warnings in the log will tell you how many were skipped.</li>
 </ul>
