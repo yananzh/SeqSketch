@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMessageBox, QFileDialog
+from PyQt6.QtWidgets import QMessageBox, QFileDialog, QPushButton
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget, apply_transparent_text_edit_background
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
@@ -44,14 +44,15 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         # Hide copy button per requirement
         if hasattr(self, "copy_btn"):
             self.copy_btn.hide()
-        # Wire export button to CSV export
+        # Hide default export button — we add our own in the status row
         if hasattr(self, "export_btn"):
-            try:
-                self.export_btn.clicked.disconnect()
-            except Exception:
-                pass
-            self.export_btn.setText("Export CSV")
-            self.export_btn.clicked.connect(self.export_csv)
+            self.export_btn.hide()
+        # Add Export CSV button to status row after Analyze
+        self.export_csv_btn = QPushButton(self.tr("Export CSV"))
+        self.export_csv_btn.setFixedWidth(110)
+        self.export_csv_btn.clicked.connect(self.export_csv)
+        _idx = self.status_layout.indexOf(self.run_btn)
+        self.status_layout.insertWidget(_idx + 1, self.export_csv_btn)
         # Rename run/help buttons
         self.run_btn.setText("Analyze")
         self.help_btn.setText("Help")
@@ -64,6 +65,9 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
             "Computed physicochemical properties will appear here..."
         )
         apply_transparent_text_edit_background(self.output_text)
+        _s = self.output_text.styleSheet()
+        _s = _s.replace("border: 1px solid #94a3b8;", "border: none;")
+        self.output_text.setStyleSheet(_s)
         # Enable drag & drop
         self._setup_drag_drop()
         # Storage for results
@@ -211,17 +215,69 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         return records
 
     def show_help(self):
-        QMessageBox.information(
-            self,
-            "Help - Physicochemical Properties",
-            """
-1. Paste or drag-and-drop protein sequences in FASTA format (multiple sequences supported).
-2. Only 20 standard amino acids are allowed: A R N D C Q E G H I L K M F P S T W Y V.
-3. Click Analyze to compute per sequence: Molecular Weight, Theoretical pI, Extinction Coefficient (reduced/oxidized), Estimated Half-life (mammalian, N-end rule), Instability Index (>40 unstable), Aliphatic Index, and GRAVY.
-4. Results are shown in the output text area and can be exported to CSV.
-5. Invalid input or non-standard characters will trigger a warning.
-""",
+        help_text = self.tr(
+            "<h2>Physicochemical Properties &mdash; Protein Property Calculator</h2>"
+            "<p><b>What does this tool do?</b><br>"
+            "It computes key physicochemical properties for one or more protein sequences, "
+            "including molecular weight, theoretical pI, extinction coefficient, "
+            "half-life estimate, instability index, aliphatic index, and GRAVY.</p>"
+            "<h3>Quick Start</h3>"
+            "<ol>"
+            "<li>Paste one or more protein sequences in FASTA format</li>"
+            "<li>Click <b>Analyze</b></li>"
+            "<li>Review the computed properties per sequence</li>"
+            "<li>Click <b>Export CSV</b> to save all results as a spreadsheet</li>"
+            "</ol>"
+            "<h3>Computed Properties</h3>"
+            "<table border='0' cellpadding='4' cellspacing='2'>"
+            "<tr><td><b>Property</b></td><td><b>Description</b></td></tr>"
+            "<tr><td>Molecular Weight</td><td>Mass in Daltons (Da)</td></tr>"
+            "<tr><td>Theoretical pI</td><td>Isoelectric point &mdash; pH at which the protein has no net charge</td></tr>"
+            "<tr><td>Extinction Coefficient</td><td>Absorbance at 280 nm (M<sup>-1</sup>cm<sup>-1</sup>), reduced and oxidised forms</td></tr>"
+            "<tr><td>Half-life (mammalian)</td><td>Estimated N-end rule half-life in mammalian reticulocytes</td></tr>"
+            "<tr><td>Instability Index</td><td>&gt; 40 suggests the protein may be unstable <i>in vivo</i></td></tr>"
+            "<tr><td>Aliphatic Index</td><td>Relative volume of aliphatic side chains &mdash; correlates with thermostability</td></tr>"
+            "<tr><td>GRAVY</td><td>Grand Average of HydropathY &mdash; positive = hydrophobic, negative = hydrophilic</td></tr>"
+            "</table>"
+            "<h3>Input Format</h3>"
+            "<ul>"
+            "<li>FASTA format: <code>&gt;header</code> followed by the protein sequence</li>"
+            "<li>Only the 20 standard amino acids are recognised</li>"
+            "</ul>"
+            "<h3>Tips</h3>"
+            "<ul>"
+            "<li>Multi-FASTA input is supported &mdash; each sequence is computed independently</li>"
+            "<li>The half-life estimate is based on the N-end rule for mammalian cells and is approximate</li>"
+            "<li>Use <b>Export CSV</b> to compare properties across multiple proteins in a spreadsheet</li>"
+            "</ul>"
         )
+        from PyQt6.QtWidgets import (
+            QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea,
+        )
+        from PyQt6.QtCore import Qt as QtCore
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("Help - Physicochemical Properties"))
+        dlg.setFixedSize(800, 620)
+        layout = QVBoxLayout()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAsNeeded)
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(True)
+        label.setAlignment(QtCore.AlignmentFlag.AlignTop | QtCore.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+        scroll.setWidget(label)
+        layout.addWidget(scroll)
+        ok = QPushButton("OK")
+        ok.clicked.connect(dlg.accept)
+        btn_box = QHBoxLayout()
+        btn_box.addStretch()
+        btn_box.addWidget(ok)
+        layout.addLayout(btn_box)
+        dlg.setLayout(layout)
+        dlg.exec()
 
     def _setup_drag_drop(self):
         self.input_text.setAcceptDrops(True)

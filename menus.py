@@ -67,6 +67,9 @@ def create_menus(window):
     codon_usage_action = QAction(window.tr("Codon Usage Analysis"), window)
     codon_usage_action.triggered.connect(window.open_codon_usage_tab)
     dna_menu.addAction(codon_usage_action)
+    restriction_action = QAction(window.tr("Restriction Enzyme Analysis"), window)
+    restriction_action.triggered.connect(window.open_restriction_enzyme_tab)
+    dna_menu.addAction(restriction_action)
     # 3. Protein Analysis
     protein_menu = menubar.addMenu(window.tr("Protein Analysis"))
     # 1. 氨基酸组成

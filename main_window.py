@@ -235,6 +235,13 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, self.tr("Codon Usage Analysis"))
         self.tabs.setCurrentWidget(tab)
 
+    def open_restriction_enzyme_tab(self):
+        from modules.restriction_enzyme_tab import RestrictionEnzymeTab
+
+        tab = RestrictionEnzymeTab()
+        self.tabs.addTab(tab, self.tr("Restriction Enzyme Analysis"))
+        self.tabs.setCurrentWidget(tab)
+
     def close_tab(self, index):
         widget = self.tabs.widget(index)
         self.tabs.removeTab(index)

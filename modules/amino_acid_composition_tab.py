@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMessageBox, QFileDialog
+from PyQt6.QtWidgets import QMessageBox, QFileDialog, QPushButton
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget, apply_transparent_text_edit_background
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
@@ -37,14 +37,15 @@ class AminoAcidCompositionTab(BaseTabWidget):
         # Hide copy button per requirement
         if hasattr(self, "copy_btn"):
             self.copy_btn.hide()
-        # Re-wire export to CSV
+        # Hide default export button — we add our own in the status row
         if hasattr(self, "export_btn"):
-            try:
-                self.export_btn.clicked.disconnect()
-            except Exception:
-                pass
-            self.export_btn.setText("Export CSV")
-            self.export_btn.clicked.connect(self.export_csv)
+            self.export_btn.hide()
+        # Add Export CSV button to status row after Analyze
+        self.export_csv_btn = QPushButton(self.tr("Export CSV"))
+        self.export_csv_btn.setFixedWidth(110)
+        self.export_csv_btn.clicked.connect(self.export_csv)
+        _idx = self.status_layout.indexOf(self.run_btn)
+        self.status_layout.insertWidget(_idx + 1, self.export_csv_btn)
         # storage for current results
         self.current_results = []
         # Update placeholders for protein sequences
@@ -56,6 +57,9 @@ class AminoAcidCompositionTab(BaseTabWidget):
             "Amino acid composition (counts and percentages) will appear here..."
         )
         apply_transparent_text_edit_background(self.output_text)
+        _s = self.output_text.styleSheet()
+        _s = _s.replace("border: 1px solid #94a3b8;", "border: none;")
+        self.output_text.setStyleSheet(_s)
         # Enable drag-and-drop
         self._setup_drag_drop()
 
@@ -161,19 +165,64 @@ class AminoAcidCompositionTab(BaseTabWidget):
         return records
 
     def show_help(self):
-        QMessageBox.information(
-            self,
-            "Help - Amino Acid Composition",
-            """
-1. Paste or drag-and-drop protein sequences in FASTA format (multiple sequences supported).
-2. Only the 20 standard amino acids are allowed: A R N D C Q E G H I L K M F P S T W Y V.
-3. Click Analyze to compute, for each sequence, the count and percentage of every amino acid.
-4. Output format per sequence:
-   >header | Length: N aa\nAA  Count  Percent\n...
-5. Percentages are based on total sequence length (two decimals).
-6. Use Export Result to save the composition text if needed.
-""",
+        help_text = self.tr(
+            "<h2>Amino Acid Composition &mdash; Protein AA Profiling</h2>"
+            "<p><b>What does this tool do?</b><br>"
+            "It computes the count and percentage of each of the 20 standard amino acids "
+            "in one or more protein sequences. Results are shown per sequence and can be "
+            "exported as a CSV spreadsheet.</p>"
+            "<h3>Quick Start</h3>"
+            "<ol>"
+            "<li>Paste one or more protein sequences in FASTA format</li>"
+            "<li>Click <b>Analyze</b></li>"
+            "<li>Review the per-sequence amino acid counts and percentages</li>"
+            "<li>Click <b>Export CSV</b> to save a spreadsheet for further analysis</li>"
+            "</ol>"
+            "<h3>Input Format</h3>"
+            "<ul>"
+            "<li>FASTA format: <code>&gt;header</code> followed by the protein sequence</li>"
+            "<li>Only the 20 standard amino acids are recognised: "
+            "<code>A R N D C Q E G H I L K M F P S T W Y V</code></li>"
+            "<li>Non-standard characters trigger a warning; sequences are still processed</li>"
+            "</ul>"
+            "<h3>Output</h3>"
+            "<ul>"
+            "<li>Per sequence: header, length, and a table of each AA with count and percentage</li>"
+            "<li>Percentages are based on total sequence length (two decimal places)</li>"
+            "</ul>"
+            "<h3>Tips</h3>"
+            "<ul>"
+            "<li>Multi-FASTA input is supported &mdash; each sequence is analysed independently</li>"
+            "<li>Use <b>Export CSV</b> to open the composition table in Excel or R</li>"
+            "</ul>"
         )
+        from PyQt6.QtWidgets import (
+            QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea,
+        )
+        from PyQt6.QtCore import Qt as QtCore
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("Help - Amino Acid Composition"))
+        dlg.setFixedSize(780, 560)
+        layout = QVBoxLayout()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAsNeeded)
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(True)
+        label.setAlignment(QtCore.AlignmentFlag.AlignTop | QtCore.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+        scroll.setWidget(label)
+        layout.addWidget(scroll)
+        ok = QPushButton("OK")
+        ok.clicked.connect(dlg.accept)
+        btn_box = QHBoxLayout()
+        btn_box.addStretch()
+        btn_box.addWidget(ok)
+        layout.addLayout(btn_box)
+        dlg.setLayout(layout)
+        dlg.exec()
 
     def export_csv(self):
         if not self.current_results:
