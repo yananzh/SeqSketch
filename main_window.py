@@ -133,6 +133,41 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, self.tr("Rename IDs"))
         self.tabs.setCurrentWidget(tab)
 
+    # ── 新增 FASTA Tools ──
+
+    def open_deduplicate_tab(self):
+        from modules.deduplicate_tab import DeduplicateTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), DeduplicateTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = DeduplicateTab()
+        self.tabs.addTab(tab, self.tr("Deduplicate"))
+        self.tabs.setCurrentWidget(tab)
+
+    def open_filter_by_length_tab(self):
+        from modules.filter_by_length_tab import FilterByLengthTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), FilterByLengthTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = FilterByLengthTab()
+        self.tabs.addTab(tab, self.tr("Filter by Length"))
+        self.tabs.setCurrentWidget(tab)
+
+    def open_concat_fasta_tab(self):
+        from modules.concat_fasta_tab import ConcatFastaTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), ConcatFastaTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = ConcatFastaTab()
+        self.tabs.addTab(tab, self.tr("Concatenate FASTA"))
+        self.tabs.setCurrentWidget(tab)
+
     # DNA序列分析六大功能Tab
     def open_rna_tab(self):
         from modules.rna_tab import RNATab

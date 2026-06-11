@@ -182,3 +182,27 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-06-11 09:45:36.162790
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-11 09:45:37.683386
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-11 10:04:32.304049
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A

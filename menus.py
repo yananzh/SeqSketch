@@ -32,6 +32,18 @@ def create_menus(window):
     batch_rename_action = QAction(window.tr("Rename IDs"), window)
     batch_rename_action.triggered.connect(window.open_batch_rename_ids_tab)
     fasta_menu.addAction(batch_rename_action)
+    # 新增：去重
+    dedup_action = QAction(window.tr("Deduplicate"), window)
+    dedup_action.triggered.connect(window.open_deduplicate_tab)
+    fasta_menu.addAction(dedup_action)
+    # 新增：长度筛选
+    filter_len_action = QAction(window.tr("Filter by Length"), window)
+    filter_len_action.triggered.connect(window.open_filter_by_length_tab)
+    fasta_menu.addAction(filter_len_action)
+    # 新增：合并FASTA
+    concat_action = QAction(window.tr("Concatenate FASTA"), window)
+    concat_action.triggered.connect(window.open_concat_fasta_tab)
+    fasta_menu.addAction(concat_action)
     # 2. DNA Analysis
     dna_menu = menubar.addMenu(window.tr("DNA Analysis"))
     rna_action = QAction(window.tr("Convert to RNA"), window)
