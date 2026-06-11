@@ -206,3 +206,132 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+UNHANDLED: 'PairwiseAlignmentTab' object has no attribute 'output_group'
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 280, in open_pairwise_alignment_tab
+    tab = PairwiseAlignmentTab()
+  File "f:\ui\modules\pairwise_alignment_tab.py", line 33, in __init__
+    self._setup_output()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "f:\ui\modules\pairwise_alignment_tab.py", line 214, in _setup_output
+    self.output_group.setTitle("Alignment Result")
+    ^^^^^^^^^^^^^^^^^
+AttributeError: 'PairwiseAlignmentTab' object has no attribute 'output_group'
+
+============================================================
+startup : 2026-06-11 15:01:10.543954
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-11 15:06:45.901998
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-11 15:11:09.430535
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-11 15:16:12.565149
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-11 15:16:25.326531
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-11 15:22:14.739967
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'Qt' is not defined
+Traceback (most recent call last):
+  File "f:\ui\modules\rna_tab.py", line 140, in show_help
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+                                             ^^
+NameError: name 'Qt' is not defined
+UNHANDLED: name 'Qt' is not defined
+Traceback (most recent call last):
+  File "f:\ui\modules\complement_tab.py", line 187, in show_help
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+                                             ^^
+NameError: name 'Qt' is not defined
+UNHANDLED: name 'Qt' is not defined
+Traceback (most recent call last):
+  File "f:\ui\modules\translate_tab.py", line 293, in show_help
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+                                             ^^
+NameError: name 'Qt' is not defined
+UNHANDLED: name 'Qt' is not defined
+Traceback (most recent call last):
+  File "f:\ui\modules\orf_tab.py", line 306, in show_help
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+                                             ^^
+NameError: name 'Qt' is not defined
+
+============================================================
+startup : 2026-06-11 15:31:43.887888
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'Qt' is not defined
+Traceback (most recent call last):
+  File "f:\ui\modules\rna_tab.py", line 152, in show_help
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+                                             ^^
+NameError: name 'Qt' is not defined
+UNHANDLED: name 'Qt' is not defined
+Traceback (most recent call last):
+  File "f:\ui\modules\complement_tab.py", line 192, in show_help
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+                                             ^^
+NameError: name 'Qt' is not defined
+UNHANDLED: name 'Qt' is not defined
+Traceback (most recent call last):
+  File "f:\ui\modules\translate_tab.py", line 301, in show_help
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+                                             ^^
+NameError: name 'Qt' is not defined
+UNHANDLED: name 'Qt' is not defined
+Traceback (most recent call last):
+  File "f:\ui\modules\orf_tab.py", line 300, in show_help
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+                                             ^^
+NameError: name 'Qt' is not defined
+UNHANDLED: name 'Qt' is not defined
+Traceback (most recent call last):
+  File "f:\ui\modules\rna_tab.py", line 152, in show_help
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+                                             ^^
+NameError: name 'Qt' is not defined
+
+============================================================
+startup : 2026-06-11 15:35:26.648140
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A

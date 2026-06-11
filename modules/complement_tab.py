@@ -1,59 +1,20 @@
-from utils.common_components import (
-    BaseTabWidget,
-    apply_transparent_text_edit_background,
-)
+from utils.common_components import BaseTabWidget
 import re
 from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel
-from PyQt6.QtCore import Qt
 
 
 class ComplementTab(BaseTabWidget):
     complement_map = str.maketrans(
-        "ACGTacgtRYMKSWBDHVNrymkswbdhvn",
+        "ACGTacgtRYMKSWBDHVNrykmswbdhvn",
         "TGCAtgcaYRKMWSVHDBNyrkmwsvhdbn",
     )
 
     def __init__(self, parent=None):
         super().__init__("Complement/Reverse Complement", "sequence")
-        self._setup_drag_drop()
         self._setup_mode_controls()
-        self._update_ui_layout()
-
-    def _setup_drag_drop(self):
-        """Enable drag-and-drop for FASTA files"""
-        self.input_text.setAcceptDrops(True)
-        self.input_text.dragEnterEvent = self._drag_enter_event
-        self.input_text.dropEvent = self._drop_event
-
-    def _drag_enter_event(self, event):
-        """Handle drag enter for file drops"""
-        md = event.mimeData()
-        if md.hasUrls():
-            urls = md.urls()
-            if urls and urls[0].toLocalFile():
-                event.acceptProposedAction()
-                return
-        event.ignore()
-
-    def _drop_event(self, event):
-        """Handle file drop for FASTA input"""
-        urls = event.mimeData().urls()
-        if urls:
-            file_path = urls[0].toLocalFile()
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                self.input_text.setPlainText(content)
-                self.input_hint.setText(f"Loaded file: {file_path}")
-                event.acceptProposedAction()
-            except Exception as e:
-                self.status_label.setText(f"Error loading file: {e}")
-                event.ignore()
-
-    def _update_ui_layout(self):
-        """Update placeholder and input/output sizing"""
         self.input_text.setPlaceholderText(
-            "Paste DNA sequence in FASTA format (single or multiple sequences) or drag-and-drop a file...\n"
+            "Paste DNA sequence in FASTA format (single or multiple sequences) "
+            "or drag-and-drop a file...\n"
             "Examples:\n"
             ">seq1\n"
             "ATGCGATCGATCG\n"
@@ -61,7 +22,6 @@ class ComplementTab(BaseTabWidget):
             "TTAAGGCCTTAAGG"
         )
         self._update_output_placeholder()
-        apply_transparent_text_edit_background(self.output_text)
         self.input_text.setMinimumHeight(200)
         self.output_text.setMinimumHeight(200)
 
@@ -74,7 +34,7 @@ class ComplementTab(BaseTabWidget):
         self.mode_combo.currentTextChanged.connect(self._update_output_placeholder)
         mode_layout.addWidget(self.mode_combo)
         mode_layout.addStretch()
-        self.content_area.insertLayout(1, mode_layout)
+        self.add_parameter_layout(mode_layout)
 
     def _update_output_placeholder(self):
         if self.mode_combo.currentText() == "Reverse Complement":
@@ -162,26 +122,38 @@ class ComplementTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h3>Complement / Reverse Complement</h3>
-<p><b>Description:</b></p>
-<p>Generate either the direct complement or the reverse complement of DNA sequences from one unified tab.</p>
+<h2>Complement / Reverse Complement &mdash; DNA Strand Transformations</h2>
 
-<p><b>Usage:</b></p>
+<p><b>What does this tool do?</b><br>
+It generates the complementary strand of a DNA sequence. Choose <b>Complement</b>
+to replace each base with its pairing partner, or <b>Reverse Complement</b> to
+also reverse the sequence (5'&rarr;3' to 3'&rarr;5'), which is essential for
+primer design and cloning workflows.</p>
+
+<h3>Quick Start</h3>
 <ol>
 <li>Paste DNA sequence(s) or drag-and-drop a FASTA file</li>
-<li>Select <b>Complement</b> or <b>Reverse Complement</b> from the mode dropdown</li>
-<li>Click "Run" to generate the selected transformation</li>
+<li>Choose <b>Complement</b> or <b>Reverse Complement</b> from the dropdown</li>
+<li>Click <b>Run</b></li>
 <li>Export or copy the result</li>
 </ol>
 
-<p><b>Input formats:</b></p>
-<ul>
-<li><b>Raw sequence:</b> Plain DNA text (e.g., ATGCGATCG)</li>
-<li><b>FASTA single:</b> >header followed by sequence</li>
-<li><b>FASTA multi:</b> Multiple sequences with headers</li>
-</ul>
+<h3>When to Use Each Mode</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Your goal</b></td><td><b>&rarr; Choose</b></td></tr>
+<tr><td>See what the opposite strand looks like without changing direction</td><td>&rarr; <b>Complement</b></td></tr>
+<tr><td>Design a reverse primer or antisense oligo</td><td>&rarr; <b>Reverse Complement</b></td></tr>
+<tr><td>Convert a reverse-complemented hit back to the forward strand</td><td>&rarr; <b>Reverse Complement</b> again</td></tr>
+</table>
 
-<p><b>Mode examples:</b></p>
+<h3>Base-Pairing Rules</h3>
+<table border="0" cellpadding="2" cellspacing="4">
+<tr><td>A &harr; T</td><td>G &harr; C</td><td>N &rarr; N</td></tr>
+<tr><td>R &harr; Y</td><td>M &harr; K</td><td>S &rarr; S</td></tr>
+<tr><td>W &rarr; W</td><td>B &harr; V</td><td>D &harr; H</td></tr>
+</table>
+
+<h3>Example</h3>
 <pre>
 Input:
 >seq1
@@ -196,18 +168,11 @@ Reverse Complement:
 CGATCGCAT
 </pre>
 
-<p><b>Rules:</b></p>
+<h3>Tips</h3>
 <ul>
-<li>A ↔ T</li>
-<li>G ↔ C</li>
-<li>N → N (unchanged)</li>
-<li>IUPAC codes supported (R, Y, M, K, S, W, B, D, H, V)</li>
-</ul>
-
-<p><b>Typical uses:</b></p>
-<ul>
-<li>Complement only: strand comparison and probe design</li>
-<li>Reverse complement: primer work, cloning workflows, antisense sequence review</li>
+<li>Sequence orientation matters &mdash; the reverse complement of the reverse complement gives you back the original</li>
+<li>For primer work: the reverse primer sequence you order is the reverse complement of your template</li>
+<li>Multi-FASTA input is supported &mdash; each sequence is transformed independently</li>
 </ul>
         """
         from PyQt6.QtWidgets import (
@@ -217,10 +182,11 @@ CGATCGCAT
             QPushButton,
             QScrollArea,
         )
+        from PyQt6.QtCore import Qt
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Complement/Reverse Complement")
-        dialog.setFixedSize(720, 560)
+        dialog.setFixedSize(800, 600)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

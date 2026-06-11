@@ -1,10 +1,6 @@
-from utils.common_components import (
-    BaseTabWidget,
-    apply_transparent_text_edit_background,
-)
+from utils.common_components import BaseTabWidget
 import re
-from PyQt6.QtWidgets import QMessageBox, QComboBox, QHBoxLayout, QLabel
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel
 
 CODON_TABLE = {
     "TTT": "F",
@@ -100,46 +96,10 @@ AA_3LETTER = {
 class TranslateTab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("Translate", "sequence")
-        self._setup_drag_drop()
-        self._update_ui_layout()
         self._setup_parameters()
-
-    def _setup_drag_drop(self):
-        """Enable drag-and-drop for FASTA files"""
-        self.input_text.setAcceptDrops(True)
-        self.input_text.dragEnterEvent = self._drag_enter_event
-        self.input_text.dropEvent = self._drop_event
-
-    def _drag_enter_event(self, event):
-        """Handle drag enter for file drops"""
-        md = event.mimeData()
-        if md.hasUrls():
-            urls = md.urls()
-            if urls and urls[0].toLocalFile():
-                event.acceptProposedAction()
-                return
-        event.ignore()
-
-    def _drop_event(self, event):
-        """Handle file drop for FASTA input"""
-        urls = event.mimeData().urls()
-        if urls:
-            file_path = urls[0].toLocalFile()
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                # Keep full content including headers
-                self.input_text.setPlainText(content)
-                self.input_hint.setText(f"Loaded file: {file_path}")
-                event.acceptProposedAction()
-            except Exception as e:
-                self.status_label.setText(f"Error loading file: {e}")
-                event.ignore()
-
-    def _update_ui_layout(self):
-        """Update placeholder and input/output sizing"""
         self.input_text.setPlaceholderText(
-            "Paste one or more DNA/RNA sequences in FASTA format or drag-and-drop a file...\n"
+            "Paste one or more DNA/RNA sequences in FASTA format "
+            "or drag-and-drop a file...\n"
             "Example:\n"
             ">seq1\n"
             "ATGCGATCGATCGTAA\n"
@@ -149,16 +109,14 @@ class TranslateTab(BaseTabWidget):
         self.output_text.setPlaceholderText(
             "Translated protein sequence will appear here..."
         )
-        apply_transparent_text_edit_background(self.output_text)
-        # Adjust minimum heights for better visibility
         self.input_text.setMinimumHeight(180)
         self.output_text.setMinimumHeight(180)
 
     def _setup_parameters(self):
-        """Setup parameter controls with labels"""
-        # Reading frame selection
-        frame_layout = QHBoxLayout()
-        frame_label = QLabel("Reading Frame:")
+        """Setup parameter controls in a single horizontal row."""
+        params_layout = QHBoxLayout()
+
+        params_layout.addWidget(QLabel("Reading Frame:"))
         self.frame_box = QComboBox()
         self.frame_box.addItems([
             "+1 (forward, from position 1)",
@@ -169,25 +127,20 @@ class TranslateTab(BaseTabWidget):
             "-3 (reverse complement, from position 3)",
         ])
         self.frame_box.setMinimumWidth(280)
-        frame_layout.addWidget(frame_label)
-        frame_layout.addWidget(self.frame_box)
-        frame_layout.addStretch()
+        params_layout.addWidget(self.frame_box)
+        params_layout.addSpacing(20)
 
-        # Amino acid notation
-        aa_layout = QHBoxLayout()
-        aa_label = QLabel("Amino Acid Format:")
+        params_layout.addWidget(QLabel("Amino Acid Format:"))
         self.aa_mode_box = QComboBox()
         self.aa_mode_box.addItems([
             "1-letter (e.g., MKTF)",
             "3-letter (e.g., Met-Lys-Thr-Phe)",
         ])
-        self.aa_mode_box.setMinimumWidth(240)
-        aa_layout.addWidget(aa_label)
-        aa_layout.addWidget(self.aa_mode_box)
-        aa_layout.addStretch()
+        self.aa_mode_box.setMinimumWidth(200)
+        params_layout.addWidget(self.aa_mode_box)
+        params_layout.addStretch()
 
-        self.add_content_layout(frame_layout)
-        self.add_content_layout(aa_layout)
+        self.add_content_layout(params_layout)
 
     def run(self):
         raw = self.input_text.toPlainText().strip()
@@ -273,49 +226,62 @@ class TranslateTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h3>DNA/RNA Translation</h3>
-<p><b>Description:</b></p>
-<p>Translate DNA or RNA sequences to protein using the standard genetic code. Supports all 6 reading frames and multiple amino acid formats.</p>
+<h2>Translate &mdash; DNA/RNA to Protein Translation</h2>
 
-<p><b>Usage:</b></p>
+<p><b>What does this tool do?</b><br>
+It translates DNA or RNA coding sequences into their corresponding amino acid
+(protein) sequences using the standard genetic code. Supports all six reading
+frames and both 1-letter and 3-letter amino acid notation.</p>
+
+<h3>Quick Start</h3>
 <ol>
-<li>Paste sequence or drag-and-drop a FASTA file (single sequence only)</li>
-<li>Select reading frame (+1/+2/+3 for forward, -1/-2/-3 for reverse complement)</li>
-<li>Choose amino acid format (1-letter or 3-letter notation)</li>
-<li>Click "Run" to translate</li>
+<li>Paste your coding sequence or drag-and-drop a FASTA file</li>
+<li>Select a <b>Reading Frame</b> (default +1 works for most CDS inputs)</li>
+<li>Choose <b>Amino Acid Format</b> (1-letter or 3-letter)</li>
+<li>Click <b>Run</b> to translate</li>
 <li>Export or copy the protein sequence</li>
 </ol>
 
-<p><b>Reading Frames:</b></p>
+<h3>Reading Frames &mdash; Which One Should I Use?</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Your sequence</b></td><td><b>&rarr; Choose</b></td></tr>
+<tr><td>A complete CDS starting at the first nucleotide</td><td>&rarr; <b>+1</b></td></tr>
+<tr><td>Genomic DNA &mdash; you don't know where the CDS starts</td><td>&rarr; try all 6 frames with <b>ORF Finder</b></td></tr>
+<tr><td>You have the reverse-complemented sequence</td><td>&rarr; <b>-1, -2, or -3</b></td></tr>
+</table>
+
+<h3>Amino Acid Formats</h3>
 <ul>
-<li><b>+1, +2, +3:</b> Forward strand starting at position 1, 2, or 3</li>
-<li><b>-1, -2, -3:</b> Reverse complement strand starting at position 1, 2, or 3</li>
+<li><b>1-letter</b> &mdash; compact, standard in bioinformatics (e.g. <code>MKTFG*</code>)</li>
+<li><b>3-letter</b> &mdash; human-readable, separated by dashes (e.g. <code>Met-Lys-Thr-Phe-Gly-Stop</code>)</li>
 </ul>
 
-<p><b>Amino Acid Formats:</b></p>
-<ul>
-<li><b>1-letter:</b> Single character (e.g., M K T F)</li>
-<li><b>3-letter:</b> Three characters separated by dashes (e.g., Met-Lys-Thr-Phe)</li>
-</ul>
-
-<p><b>Example:</b></p>
+<h3>Example</h3>
 <pre>
 Input DNA:
-ATGAAATTTGGG
+ATGAAATTTGGGTGA
 
 Translation (+1, 1-letter):
-MKFG
+MKFG*
 
 Translation (+1, 3-letter):
-Met-Lys-Phe-Gly
+Met-Lys-Phe-Gly-Stop
 </pre>
 
-<p><b>Notes:</b></p>
+<h3>Genetic Code Notes</h3>
 <ul>
-<li>Uses standard genetic code</li>
-<li>Stop codons shown as * (1-letter) or Stop (3-letter)</li>
-<li>RNA (U) automatically converted to DNA (T)</li>
-<li>Incomplete codons at the end are ignored</li>
+<li>Uses the <b>standard (universal) genetic code</b></li>
+<li>RNA input (U) is automatically treated as DNA (T)</li>
+<li>Stop codons: <code>*</code> (1-letter) or <code>Stop</code> (3-letter)</li>
+<li>Incomplete codons at the 3' end are silently ignored</li>
+<li>Unknown codons are shown as <code>X</code> / <code>Xxx</code></li>
+</ul>
+
+<h3>Tips</h3>
+<ul>
+<li>If your sequence doesn't translate as expected, check the reading frame &mdash; shifting by 1 or 2 bases can make all the difference</li>
+<li>Use <b>ORF Finder</b> first if you're working with genomic DNA and need to locate coding regions</li>
+<li>Multi-FASTA input is supported &mdash; each record is translated independently</li>
 </ul>
         """
         from PyQt6.QtWidgets import (
@@ -325,10 +291,11 @@ Met-Lys-Phe-Gly
             QPushButton,
             QScrollArea,
         )
+        from PyQt6.QtCore import Qt
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Translate")
-        dialog.setFixedSize(700, 550)
+        dialog.setFixedSize(820, 620)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

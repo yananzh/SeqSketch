@@ -1,53 +1,13 @@
-from utils.common_components import (
-    BaseTabWidget,
-    apply_transparent_text_edit_background,
-)
+from utils.common_components import BaseTabWidget
 import re
-from PyQt6.QtWidgets import QMessageBox
-from PyQt6.QtCore import Qt
 
 
 class RNATab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("Convert to RNA", "sequence")
-        self._setup_drag_drop()
-        self._update_ui_layout()
-
-    def _setup_drag_drop(self):
-        """Enable drag-and-drop for FASTA files"""
-        self.input_text.setAcceptDrops(True)
-        self.input_text.dragEnterEvent = self._drag_enter_event
-        self.input_text.dropEvent = self._drop_event
-
-    def _drag_enter_event(self, event):
-        """Handle drag enter for file drops"""
-        md = event.mimeData()
-        if md.hasUrls():
-            urls = md.urls()
-            if urls and urls[0].toLocalFile():
-                event.acceptProposedAction()
-                return
-        event.ignore()
-
-    def _drop_event(self, event):
-        """Handle file drop for FASTA input"""
-        urls = event.mimeData().urls()
-        if urls:
-            file_path = urls[0].toLocalFile()
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                self.input_text.setPlainText(content)
-                self.input_hint.setText(f"Loaded file: {file_path}")
-                event.acceptProposedAction()
-            except Exception as e:
-                self.status_label.setText(f"Error loading file: {e}")
-                event.ignore()
-
-    def _update_ui_layout(self):
-        """Update placeholder and input/output sizing"""
         self.input_text.setPlaceholderText(
-            "Paste DNA sequence in FASTA format (single or multiple sequences) or drag-and-drop a file...\n"
+            "Paste DNA sequence in FASTA format (single or multiple sequences) "
+            "or drag-and-drop a file...\n"
             "Examples:\n"
             ">seq1\n"
             "ATGCGATCGATCG\n"
@@ -55,8 +15,6 @@ class RNATab(BaseTabWidget):
             "TTAAGGCCTTAAGG"
         )
         self.output_text.setPlaceholderText("RNA sequences will appear here...")
-        apply_transparent_text_edit_background(self.output_text)
-        # Adjust minimum heights for better visibility
         self.input_text.setMinimumHeight(200)
         self.output_text.setMinimumHeight(200)
 
@@ -129,28 +87,33 @@ class RNATab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h3>Convert DNA to RNA</h3>
-<p><b>Description:</b></p>
-<p>Replace T (Thymine) with U (Uracil) in DNA sequences. Supports both raw sequences and FASTA format (single or multiple sequences).</p>
+<h2>Convert to RNA &mdash; Replace Thymine (T) with Uracil (U)</h2>
 
-<p><b>Usage:</b></p>
+<p><b>What does this tool do?</b><br>
+It converts DNA sequences to RNA by replacing every T (Thymine) with U (Uracil).
+Supports single sequences, multi-sequence FASTA files, and IUPAC ambiguous
+nucleotide codes.</p>
+
+<h3>Quick Start</h3>
 <ol>
 <li>Paste DNA sequence(s) or drag-and-drop a FASTA file</li>
-<li>Click "Run" to convert</li>
+<li>Click <b>Run</b> to convert</li>
 <li>Export or copy the RNA result</li>
 </ol>
 
-<p><b>Input formats:</b></p>
+<h3>Input Formats</h3>
 <ul>
-<li><b>Raw sequence:</b> Plain DNA text (e.g., ATGCGATCG)</li>
-<li><b>FASTA single:</b> >header followed by sequence</li>
-<li><b>FASTA multi:</b> Multiple sequences with headers</li>
+<li><b>Raw sequence</b> &mdash; plain DNA text (e.g. <code>ATGCGATCG</code>)</li>
+<li><b>FASTA single</b> &mdash; <code>&gt;header</code> followed by sequence</li>
+<li><b>FASTA multi</b> &mdash; multiple sequences with headers, each converted independently</li>
 </ul>
 
-<p><b>Supported characters:</b></p>
-<p>IUPAC DNA codes: A, T, G, C, N, R, Y, M, K, S, W, B, D, H, V (case-insensitive)</p>
+<h3>Supported Characters</h3>
+<p>All IUPAC nucleotide codes are recognised and passed through unchanged
+(only T &rarr; U is transformed):</p>
+<p><code>A C G T U N R Y M K S W B D H V</code> (case-insensitive)</p>
 
-<p><b>Example:</b></p>
+<h3>Example</h3>
 <pre>
 Input:
 >seq1
@@ -164,6 +127,13 @@ AUGCGAUCG
 >seq2
 UUAAGGCC
 </pre>
+
+<h3>Tips</h3>
+<ul>
+<li>Already an RNA sequence? The tool is safe &mdash; existing U characters are left unchanged</li>
+<li>Working with large multi-FASTA files? Use <b>Export Result</b> to save to a .fasta file</li>
+<li>IUPAC codes (R, Y, M, etc.) are preserved; only A/T/G/C are subject to T &rarr; U conversion</li>
+</ul>
         """
         from PyQt6.QtWidgets import (
             QDialog,
@@ -172,10 +142,11 @@ UUAAGGCC
             QPushButton,
             QScrollArea,
         )
+        from PyQt6.QtCore import Qt
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Convert to RNA")
-        dialog.setFixedSize(700, 500)
+        dialog.setFixedSize(780, 580)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

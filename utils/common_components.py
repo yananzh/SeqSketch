@@ -108,6 +108,10 @@ def apply_sequence_editor_style(editor: QTextEdit) -> None:
     if editor.isReadOnly():
         style += READ_ONLY_SEQUENCE_EDITOR_STYLE
     editor.setStyleSheet(style)
+    # Remove the native Qt frame so only the CSS border is visible.
+    # Without this the widget renders a native border on top of the CSS
+    # one, producing a "double border" inside QGroupBox containers.
+    editor.setFrameShape(QFrame.Shape.NoFrame)
     # Make the viewport transparent so the outer frame's rounded corners and
     # background colour are visible instead of being covered by a white rectangle.
     editor.viewport().setStyleSheet("background: transparent;")
@@ -211,12 +215,19 @@ class BaseTabWidget(QWidget):
             # Create input/output areas for sequence tabs
             self.init_sequence_ui()
 
-        # Status area
+        # Status area — Run/Clear go on the same row as Help, bottom-right
         self.status_layout = QHBoxLayout()
         self.status_label = QLabel("Ready")
         self.status_layout.addWidget(QLabel("Status:"))
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
+
+        # Run/Clear buttons for sequence tabs — placed at bottom-right
+        if self.tab_type == "sequence" and hasattr(self, "run_btn"):
+            self.run_btn.setFixedWidth(90)
+            self.clear_btn.setFixedWidth(90)
+            self.status_layout.addWidget(self.run_btn)
+            self.status_layout.addWidget(self.clear_btn)
 
         # Help button (for all modes)
         self.help_btn = QPushButton("Help")
@@ -247,59 +258,83 @@ class BaseTabWidget(QWidget):
         self.main_layout.addLayout(self.status_layout)
 
     def init_sequence_ui(self):
-        """Initialize sequence processing UI"""
-        # Input area
-        self.input_label = QLabel("Input sequence or upload file:")
+        """Initialize sequence processing UI with QGroupBox sections"""
+        # ── Input QGroupBox ───────────────────────────────────────────
+        self.input_group = QGroupBox(self.tr("Input Sequence"))
+        self.input_group.setFlat(True)
+        ig_layout = QVBoxLayout(self.input_group)
+        ig_layout.setContentsMargins(0, 16, 0, 4)
+        ig_layout.setSpacing(6)
+
         self.input_text = QTextEdit()
         apply_sequence_editor_style(self.input_text)
         self.input_text.setPlaceholderText(
             "Paste DNA/RNA sequence, or upload a file..."
         )
-        self.upload_btn = QPushButton("Upload File")
+        self.upload_btn = QPushButton(self.tr("Upload File"))
         self.upload_btn.clicked.connect(self.open_file)
         self.input_hint = QLabel("")
         self.input_hint.setStyleSheet("color: #888;")
 
-        input_layout = QVBoxLayout()
-        input_layout.addWidget(self.input_label)
-        input_layout.addWidget(self.input_text)
-        input_layout.addWidget(self.upload_btn)
-        input_layout.addWidget(self.input_hint)
+        ig_layout.addWidget(self.input_text)
+        ig_layout.addWidget(self.upload_btn)
+        ig_layout.addWidget(self.input_hint)
+        self.content_area.addWidget(self.input_group)
 
-        # Output area
-        self.output_label = QLabel("Output:")
+        # ── Parameter insertion point ─────────────────────────────────
+        # Subclasses add parameter controls here via add_parameter_layout()
+        # or add_content_layout()
+        self._param_layout = QVBoxLayout()
+        self._param_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_area.addLayout(self._param_layout)
+
+        # ── Output QGroupBox ──────────────────────────────────────────
+        self.output_group = QGroupBox(self.tr("Output Result"))
+        self.output_group.setFlat(True)
+        og_layout = QVBoxLayout(self.output_group)
+        og_layout.setContentsMargins(0, 16, 0, 4)
+        og_layout.setSpacing(6)
+
         self.output_text = QTextEdit()
         self.output_text.setReadOnly(True)
         apply_sequence_editor_style(self.output_text)
-        self.export_btn = QPushButton("Export Result")
-        self.copy_btn = QPushButton("Copy to Clipboard")
+        apply_transparent_text_edit_background(self.output_text)
+
+        # ── Strip CSS border from text widgets ────────────────────────
+        # styles.qss already gives every QGroupBox a 1px border.
+        # Keeping a second border on the inner QTextEdit produces a
+        # visible double-border effect.
+        for _editor in (self.input_text, self.output_text):
+            _style = _editor.styleSheet()
+            _style = _style.replace("border: 1px solid #94a3b8;", "border: none;")
+            _editor.setStyleSheet(_style)
+
+        self.export_btn = QPushButton(self.tr("Export Result"))
+        self.copy_btn = QPushButton(self.tr("Copy to Clipboard"))
         self.export_btn.clicked.connect(self.export_result)
         self.copy_btn.clicked.connect(self.copy_result)
 
-        output_btn_layout = QHBoxLayout()
-        output_btn_layout.addWidget(self.export_btn)
-        output_btn_layout.addWidget(self.copy_btn)
+        ob_layout = QHBoxLayout()
+        ob_layout.addWidget(self.export_btn)
+        ob_layout.addWidget(self.copy_btn)
+        ob_layout.addStretch()
 
-        output_layout = QVBoxLayout()
-        output_layout.addWidget(self.output_label)
-        output_layout.addWidget(self.output_text)
-        output_layout.addLayout(output_btn_layout)
+        og_layout.addWidget(self.output_text)
+        og_layout.addLayout(ob_layout)
+        self.content_area.addWidget(self.output_group)
 
-        # Control buttons (Help is unified at bottom-right in status bar)
-        self.run_btn = QPushButton("Run")
-        self.clear_btn = QPushButton("Clear")
+        # ── Legacy label attributes (for subclasses that reference them) ──
+        self.input_label = QLabel()
+        self.output_label = QLabel()
+
+        # ── Run / Clear buttons (placed in status row by init_common_ui) ──
+        self.run_btn = QPushButton(self.tr("Run"))
+        self.clear_btn = QPushButton(self.tr("Clear"))
         self.run_btn.clicked.connect(self.run)
         self.clear_btn.clicked.connect(self.clear)
 
-        ctrl_btn_layout = QHBoxLayout()
-        ctrl_btn_layout.addWidget(self.run_btn)
-        ctrl_btn_layout.addWidget(self.clear_btn)
-        ctrl_btn_layout.addStretch()
-
-        # 添加到内容区域
-        self.add_content_layout(input_layout)
-        self.add_content_layout(output_layout)
-        self.add_content_layout(ctrl_btn_layout)
+        # ── Enable drag-and-drop for sequence input ───────────────────
+        self._setup_sequence_drag_drop()
 
     def open_file(self):
         """Open file (sequence mode)"""
@@ -364,9 +399,50 @@ class BaseTabWidget(QWidget):
         """Help method implemented by subclass"""
         pass
 
+    # ── Drag-and-drop helpers (sequence mode) ────────────────────────────
+
+    def _setup_sequence_drag_drop(self):
+        """Enable drag-and-drop for FASTA files on the input text area."""
+        self.input_text.setAcceptDrops(True)
+        self.input_text.dragEnterEvent = self._drag_enter_event
+        self.input_text.dropEvent = self._drop_event
+
+    def _drag_enter_event(self, event):
+        md = event.mimeData()
+        if md.hasUrls():
+            urls = md.urls()
+            if urls and urls[0].toLocalFile():
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+    def _drop_event(self, event):
+        urls = event.mimeData().urls()
+        if urls:
+            file_path = urls[0].toLocalFile()
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.input_text.setPlainText(content)
+                self.input_hint.setText(f"Loaded file: {file_path}")
+                event.acceptProposedAction()
+            except Exception as e:
+                self.show_status(f"Error loading file: {e}")
+                event.ignore()
+
+    # ── Layout helpers ──────────────────────────────────────────────────
+
+    def add_parameter_layout(self, layout):
+        """Insert a parameter layout between the input and output sections."""
+        if hasattr(self, "_param_layout"):
+            self._param_layout.addLayout(layout)
+
     def add_content_layout(self, layout):
-        """Add content layout"""
-        self.content_area.addLayout(layout)
+        """Add content layout — redirects to _param_layout in sequence mode."""
+        if hasattr(self, "_param_layout"):
+            self._param_layout.addLayout(layout)
+        else:
+            self.content_area.addLayout(layout)
 
     def add_content_widget(self, widget):
         """Add content widget"""

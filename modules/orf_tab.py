@@ -1,18 +1,6 @@
-from utils.common_components import (
-    BaseTabWidget,
-    apply_transparent_text_edit_background,
-)
+from utils.common_components import BaseTabWidget
 import re
-from PyQt6.QtWidgets import (
-    QMessageBox,
-    QSpinBox,
-    QComboBox,
-    QHBoxLayout,
-    QVBoxLayout,
-    QLabel,
-    QPushButton,
-)
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QSpinBox, QComboBox, QHBoxLayout, QLabel
 
 CODON_TABLE = {
     "TTT": "F",
@@ -85,73 +73,32 @@ CODON_TABLE = {
 class ORFTab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("ORF Finder", "sequence")
-        self._setup_drag_drop()
-        self._update_ui_layout()
         self._setup_parameters()
-
-    def _setup_drag_drop(self):
-        """Enable drag-and-drop for FASTA files"""
-        self.input_text.setAcceptDrops(True)
-        self.input_text.dragEnterEvent = self._drag_enter_event
-        self.input_text.dropEvent = self._drop_event
-
-    def _drag_enter_event(self, event):
-        """Handle drag enter for file drops"""
-        md = event.mimeData()
-        if md.hasUrls():
-            urls = md.urls()
-            if urls and urls[0].toLocalFile():
-                event.acceptProposedAction()
-                return
-        event.ignore()
-
-    def _drop_event(self, event):
-        """Handle file drop for FASTA input"""
-        urls = event.mimeData().urls()
-        if urls:
-            file_path = urls[0].toLocalFile()
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                # Keep full content including headers
-                self.input_text.setPlainText(content)
-                self.input_hint.setText(f"Loaded file: {file_path}")
-                event.acceptProposedAction()
-            except Exception as e:
-                self.status_label.setText(f"Error loading file: {e}")
-                event.ignore()
-
-    def _update_ui_layout(self):
-        """Update placeholder and input/output sizing"""
         self.input_text.setPlaceholderText(
-            "Paste DNA sequence in FASTA format (single sequence only) or drag-and-drop a file...\n"
+            "Paste DNA sequence in FASTA format (single sequence only) "
+            "or drag-and-drop a file...\n"
             "Example:\n"
             ">seq1\n"
             "ATGAAACCCGGGTTTAAATAG"
         )
         self.output_text.setPlaceholderText("ORF results will appear here...")
-        apply_transparent_text_edit_background(self.output_text)
-        # Adjust minimum heights for better visibility
         self.input_text.setMinimumHeight(180)
         self.output_text.setMinimumHeight(220)
 
     def _setup_parameters(self):
-        """Setup parameter controls with labels"""
-        # Minimum length
-        min_len_layout = QHBoxLayout()
-        min_len_label = QLabel("Minimum ORF Length:")
+        """Setup parameter controls in a single horizontal row."""
+        params_layout = QHBoxLayout()
+
+        params_layout.addWidget(QLabel("Min ORF Length:"))
         self.min_len_box = QSpinBox()
         self.min_len_box.setRange(30, 10000)
         self.min_len_box.setValue(100)
         self.min_len_box.setSuffix(" nt")
-        self.min_len_box.setMinimumWidth(120)
-        min_len_layout.addWidget(min_len_label)
-        min_len_layout.addWidget(self.min_len_box)
-        min_len_layout.addStretch()
+        self.min_len_box.setMinimumWidth(100)
+        params_layout.addWidget(self.min_len_box)
+        params_layout.addSpacing(16)
 
-        # Strand selection
-        chain_layout = QHBoxLayout()
-        chain_label = QLabel("Search Strand:")
+        params_layout.addWidget(QLabel("Search Strand:"))
         self.chain_box = QComboBox()
         self.chain_box.addItems([
             "Forward strand only",
@@ -159,27 +106,21 @@ class ORFTab(BaseTabWidget):
             "Both strands",
         ])
         self.chain_box.setCurrentIndex(2)
-        self.chain_box.setMinimumWidth(180)
-        chain_layout.addWidget(chain_label)
-        chain_layout.addWidget(self.chain_box)
-        chain_layout.addStretch()
+        self.chain_box.setMinimumWidth(160)
+        params_layout.addWidget(self.chain_box)
+        params_layout.addSpacing(16)
 
-        # Alternative start codons
-        start_codon_layout = QHBoxLayout()
-        start_codon_label = QLabel("Start Codons:")
+        params_layout.addWidget(QLabel("Start Codons:"))
         self.start_codon_box = QComboBox()
         self.start_codon_box.addItems([
             "ATG only (standard)",
             "ATG, GTG, TTG (alternative)",
         ])
-        self.start_codon_box.setMinimumWidth(220)
-        start_codon_layout.addWidget(start_codon_label)
-        start_codon_layout.addWidget(self.start_codon_box)
-        start_codon_layout.addStretch()
+        self.start_codon_box.setMinimumWidth(200)
+        params_layout.addWidget(self.start_codon_box)
+        params_layout.addStretch()
 
-        self.add_content_layout(min_len_layout)
-        self.add_content_layout(chain_layout)
-        self.add_content_layout(start_codon_layout)
+        self.add_content_layout(params_layout)
 
     def run(self):
         seq = self.input_text.toPlainText().strip()
@@ -280,47 +221,42 @@ class ORFTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h3>ORF Finder (Open Reading Frame Finder)</h3>
-<p><b>Description:</b></p>
-<p>Find all open reading frames (ORFs) in DNA sequences. ORFs are sequences starting with ATG (start codon) and ending with a stop codon (TAA, TAG, or TGA).</p>
+<h2>ORF Finder &mdash; Open Reading Frame Detection</h2>
 
-<p><b>Usage:</b></p>
+<p><b>What does this tool do?</b><br>
+It scans a DNA sequence in all six reading frames and reports every open reading
+frame (ORF) &mdash; regions that start with a start codon and end with an in-frame
+stop codon. This is a core tool for gene prediction and coding-region
+identification.</p>
+
+<h3>Quick Start</h3>
 <ol>
-<li>Paste sequence or drag-and-drop a FASTA file (single sequence only)</li>
-<li>Set minimum ORF length (default: 100 nt)</li>
-<li>Choose strand to search (forward, reverse, or both)</li>
-<li>Click "Run" to find ORFs</li>
-<li>Export or copy the ORF results</li>
+<li>Paste your DNA sequence or drag-and-drop a FASTA file</li>
+<li>Set the <b>minimum ORF length</b> (default 100 nt &mdash; shorter values find more ORFs but increase noise)</li>
+<li>Choose the <b>search strand</b> (both strands is recommended)</li>
+<li>Choose <b>start codons</b> (standard ATG or include alternative starts)</li>
+<li>Click <b>Run</b> to find ORFs</li>
 </ol>
 
-<p><b>Parameters:</b></p>
+<h3>Parameter Guide</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Parameter</b></td><td><b>What it controls</b></td></tr>
+<tr><td>Min ORF Length</td><td>Filters out short ORFs. For bacterial genomes 100 nt is typical; for eukaryotes try 300 nt.</td></tr>
+<tr><td>Search Strand</td><td><b>Both strands</b> = all 6 reading frames (best for discovery). <b>Forward only</b> = 3 frames on the + strand.</td></tr>
+<tr><td>Start Codons</td><td><b>ATG only</b> for eukaryotes. <b>ATG/GTG/TTG</b> for bacteria where alternative starts are common.</td></tr>
+</table>
+
+<h3>Understanding the Output</h3>
 <ul>
-<li><b>Minimum ORF Length:</b> Minimum nucleotide length for ORFs to report (30-10000 nt)</li>
-<li><b>Search Strand:</b> Which strand(s) to analyze:
-  <ul>
-  <li>Forward strand only: Search +1, +2, +3 frames</li>
-  <li>Reverse strand only: Search -1, -2, -3 frames (reverse complement)</li>
-  <li>Both strands: Search all 6 reading frames</li>
-  </ul>
-</li>
-<li><b>Start Codons:</b> Which codons to use as translation start:
-  <ul>
-  <li>ATG only (standard): Use only ATG as start codon</li>
-  <li>ATG, GTG, TTG (alternative): Include alternative start codons (common in bacteria)</li>
-  </ul>
-</li>
+<li><b>ORF #</b> &mdash; sequential number for easy reference</li>
+<li><b>Frame</b> &mdash; reading frame (+1/+2/+3 = forward, -1/-2/-3 = reverse)</li>
+<li><b>Position</b> &mdash; start and end coordinates in the input sequence</li>
+<li><b>Length</b> &mdash; total nucleotides (including start and stop codons)</li>
+<li><b>Sequence</b> &mdash; DNA sequence of the ORF</li>
+<li><b>Translation</b> &mdash; predicted amino acid sequence</li>
 </ul>
 
-<p><b>Output information:</b></p>
-<ul>
-<li><b>Frame:</b> Reading frame (+1/+2/+3 for forward, -1/-2/-3 for reverse)</li>
-<li><b>Position:</b> Start and end positions in the sequence</li>
-<li><b>Length:</b> Length in nucleotides</li>
-<li><b>Sequence:</b> DNA sequence of the ORF</li>
-<li><b>Translation:</b> Amino acid sequence</li>
-</ul>
-
-<p><b>Example:</b></p>
+<h3>Example</h3>
 <pre>
 Input DNA:
 ATGAAACCCGGGTTTAAATAG
@@ -331,12 +267,20 @@ Sequence: ATGAAACCCGGGTTTAAATAG
 Translation: MKPGFK*
 </pre>
 
-<p><b>Applications:</b></p>
+<h3>Applications</h3>
 <ul>
-<li>Gene prediction</li>
-<li>Coding region identification</li>
-<li>Genome annotation</li>
-<li>Protein-coding potential analysis</li>
+<li>Gene prediction in prokaryotic and eukaryotic genomes</li>
+<li>Coding-region (CDS) identification for annotation</li>
+<li>Evaluating protein-coding potential of a genomic region</li>
+<li>Finding alternative open reading frames</li>
+</ul>
+
+<h3>Tips</h3>
+<ul>
+<li>Start with a larger <b>Min ORF Length</b> (300 nt) and decrease it if you miss expected ORFs</li>
+<li>Use <b>Both strands</b> unless you have a specific reason to search only one</li>
+<li>For eukaryotic sequences, remember that real genes may contain introns &mdash; ORF Finder works best on cDNA/mRNA sequences</li>
+<li>The output is plain text; use <b>Export Result</b> to save to a file for downstream analysis</li>
 </ul>
         """
         from PyQt6.QtWidgets import (
@@ -346,10 +290,11 @@ Translation: MKPGFK*
             QPushButton,
             QScrollArea,
         )
+        from PyQt6.QtCore import Qt
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - ORF Finder")
-        dialog.setFixedSize(850, 600)
+        dialog.setFixedSize(840, 640)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

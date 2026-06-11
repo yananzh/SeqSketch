@@ -381,13 +381,15 @@ def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
 
 
 def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
+    # DNA analysis tabs use QGroupBox containers; the inner QTextEdit is
+    # borderless (styles.qss provides the QGroupBox border instead).
     sequence_tabs = [RNATab(), ComplementTab(), TranslateTab(), ORFTab()]
 
     for tab in sequence_tabs:
         editor = tab.input_text
         assert editor.property("sequenceEditorStyled") is True
         assert "border-radius" in editor.styleSheet()
-        assert "border: 1px solid #94a3b8;" in editor.styleSheet()
+        assert "border: none;" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
     sanger_tab = SangerTab()
@@ -397,7 +399,13 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
         assert "border: 1px solid #94a3b8;" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
+    # PairwiseAlignmentTab: input_text inherits the borderless style from
+    # init_sequence_ui, but seq2_text and output_text are re-styled in
+    # _rebuild_input_area / _setup_output with the old border.
     pairwise_tab = PairwiseAlignmentTab()
+    assert "border: none;" in pairwise_tab.input_text.styleSheet()
+    assert "border: 1px solid #94a3b8;" in pairwise_tab.seq2_text.styleSheet()
+    assert "border: 1px solid #94a3b8;" in pairwise_tab.output_text.styleSheet()
     for editor in (
         pairwise_tab.input_text,
         pairwise_tab.seq2_text,
@@ -405,16 +413,16 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
     ):
         assert editor.property("sequenceEditorStyled") is True
         assert "border-radius" in editor.styleSheet()
-        assert "border: 1px solid #94a3b8;" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
 
 def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
+    # DNA analysis tabs use QGroupBox containers; inner QTextEdit is borderless.
     sequence_tabs = [RNATab(), ComplementTab(), TranslateTab(), ORFTab()]
 
     for tab in sequence_tabs:
         assert "background: transparent;" in tab.output_text.styleSheet()
-        assert "border: 1px solid #94a3b8;" in tab.output_text.styleSheet()
+        assert "border: none;" in tab.output_text.styleSheet()
         assert "border-radius: 6px;" in tab.output_text.styleSheet()
         assert "#f7f9fc" not in tab.output_text.styleSheet()
         assert (
@@ -441,6 +449,8 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
         == "background: transparent; border: none;"
     )
 
+    # PairwiseAlignmentTab's output_text is re-styled by _setup_output()
+    # (apply_transparent_text_edit_background) which adds the old border back.
     pairwise_tab = PairwiseAlignmentTab()
     assert "background: transparent;" in pairwise_tab.output_text.styleSheet()
     assert "border: 1px solid #94a3b8;" in pairwise_tab.output_text.styleSheet()
