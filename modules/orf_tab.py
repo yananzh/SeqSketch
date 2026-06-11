@@ -1,6 +1,24 @@
 from utils.common_components import BaseTabWidget
 import re
-from PyQt6.QtWidgets import QSpinBox, QComboBox, QHBoxLayout, QLabel
+from PyQt6.QtWidgets import (
+    QSpinBox,
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QGroupBox,
+    QVBoxLayout,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QSplitter,
+    QAbstractItemView,
+    QWidget,
+    QPushButton,
+)
+from PyQt6.QtCore import Qt
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 
 CODON_TABLE = {
     "TTT": "F",
@@ -75,15 +93,23 @@ class ORFTab(BaseTabWidget):
         super().__init__("ORF Finder", "sequence")
         self._setup_parameters()
         self.input_text.setPlaceholderText(
-            "Paste DNA sequence in FASTA format (single sequence only) "
+            "Paste DNA sequence in FASTA format "
             "or drag-and-drop a file...\n"
             "Example:\n"
             ">seq1\n"
             "ATGAAACCCGGGTTTAAATAG"
         )
         self.output_text.setPlaceholderText("ORF results will appear here...")
-        self.input_text.setMinimumHeight(180)
-        self.output_text.setMinimumHeight(220)
+        self.input_text.setMinimumHeight(100)
+        self._build_results_area()
+        self._results: list = []
+
+        # Add export button between Run and Clear in the status row
+        self.export_orf_btn = QPushButton(self.tr("Export ORFs"))
+        self.export_orf_btn.setFixedWidth(110)
+        self.export_orf_btn.clicked.connect(self.export_result)
+        idx = self.status_layout.indexOf(self.run_btn)
+        self.status_layout.insertWidget(idx + 1, self.export_orf_btn)
 
     def _setup_parameters(self):
         """Setup parameter controls in a single horizontal row."""
@@ -122,16 +148,71 @@ class ORFTab(BaseTabWidget):
 
         self.add_content_layout(params_layout)
 
+    def _build_results_area(self):
+        """Build the QTableWidget + Matplotlib ORF map below parameters."""
+        # Insert results QGroupBox before the output group
+        grp_results = QGroupBox(self.tr("ORF Results"))
+        grp_results.setFlat(True)
+        gr_layout = QVBoxLayout(grp_results)
+        gr_layout.setContentsMargins(0, 16, 0, 4)
+        gr_layout.setSpacing(4)
+
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+
+        # ── ORF table ──────────────────────────────────────────────
+        self._orf_table = QTableWidget(0, 6)
+        self._orf_table.setHorizontalHeaderLabels([
+            "#",
+            "Frame",
+            "Start",
+            "End",
+            "Length (nt)",
+            "Length (aa)",
+        ])
+        self._orf_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch,
+        )
+        self._orf_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._orf_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self._orf_table.setAlternatingRowColors(True)
+        self._orf_table.setMinimumWidth(420)
+        splitter.addWidget(self._orf_table)
+
+        # ── ORF map (Matplotlib) ───────────────────────────────────
+        map_container = QWidget()
+        map_layout = QVBoxLayout(map_container)
+        map_layout.setContentsMargins(0, 0, 0, 0)
+        map_layout.setSpacing(2)
+
+        self._orf_fig = Figure(figsize=(6, 3), dpi=100)
+        self._orf_canvas = FigureCanvas(self._orf_fig)
+        self._orf_canvas.setMinimumHeight(160)
+        self._orf_toolbar = NavigationToolbar(self._orf_canvas, map_container)
+        map_layout.addWidget(self._orf_toolbar)
+        map_layout.addWidget(self._orf_canvas)
+        splitter.addWidget(map_container)
+
+        splitter.setSizes([500, 400])
+        gr_layout.addWidget(splitter)
+        self.add_content_widget(grp_results)
+
+        # Hide the BaseTabWidget output group — we use the table instead
+        self.output_group.setVisible(False)
+
+    # ── Core algorithm ─────────────────────────────────────────────────
+
     def run(self):
-        seq = self.input_text.toPlainText().strip()
-        if not seq:
+        raw = self.input_text.toPlainText().strip()
+        if not raw:
             self.status_label.setText("Please enter a DNA sequence.")
             return
 
-        # Parse FASTA if present
         header = None
-        if ">" in seq:
-            lines = seq.split("\n")
+        if ">" in raw:
+            lines = raw.split("\n")
             seq_lines = []
             for line in lines:
                 line = line.strip()
@@ -140,14 +221,13 @@ class ORFTab(BaseTabWidget):
                 elif line:
                     seq_lines.append(line)
             seq = "".join(seq_lines)
+        else:
+            seq = raw
 
-        # Clean sequence
         seq = seq.replace("\n", "").replace(" ", "").upper().replace("U", "T")
-
         if not seq:
             self.status_label.setText("No valid sequence found.")
             return
-
         if not re.fullmatch(r"[ACGTN]+", seq):
             self.status_label.setText("Invalid characters. Only A/T/G/C/N allowed.")
             return
@@ -155,46 +235,64 @@ class ORFTab(BaseTabWidget):
         min_len = self.min_len_box.value()
         chain_mode = self.chain_box.currentIndex()
         use_alt_start = self.start_codon_box.currentIndex() == 1
+
         results = []
         if chain_mode in (0, 2):
             results += self.find_orfs(seq, "+", use_alt_start)
         if chain_mode in (1, 2):
             revcomp = self.reverse_complement(seq)
-            results += self.find_orfs(revcomp, "-", use_alt_start)
-        results = [orf for orf in results if orf["length"] >= min_len]
-        if not results:
-            self.output_text.setPlainText("No ORFs meet the criteria.")
-            self.status_label.setText("No ORF")
-            return
-
-        # Format output with header if present
-        out = []
-        if header:
-            out.append(f"{header}\n")
-        for idx, orf in enumerate(results, 1):
-            out.append(
-                f"ORF #{idx} | Frame: {orf['frame']} | Position: {orf['start'] + 1}-{orf['end']} | Length: {orf['length']} nt\nSequence: {orf['seq']}\nTranslation: {orf['aa']}\n"
+            results += self.find_orfs(
+                revcomp, "-", use_alt_start, original_len=len(seq)
             )
-        self.output_text.setPlainText("\n".join(out))
-        self.status_label.setText(f"Found {len(results)} ORFs")
+        results = [o for o in results if o["length"] >= min_len]
+        results.sort(key=lambda o: o["length"], reverse=True)
 
-    def find_orfs(self, seq, strand, use_alt_start=False):
+        self._results = results
+        self._populate_table(results)
+        self._draw_orf_map(results, len(seq))
+
+        # Also populate output_text for export/copy
+        out_lines = []
+        if header:
+            out_lines.append(f"{header}\n")
+        for idx, o in enumerate(results, 1):
+            start_disp = o["start"]
+            end_disp = o["end"]
+            if o["frame"].startswith("-") and start_disp < end_disp:
+                start_disp, end_disp = end_disp, start_disp
+            out_lines.append(
+                f"ORF #{idx} | Frame: {o['frame']} | "
+                f"Position: {start_disp}-{end_disp} | Length: {o['length']} nt\n"
+                f"Sequence: {o['seq']}\nTranslation: {o['aa']}\n"
+            )
+        self.output_text.setPlainText("\n".join(out_lines))
+        self.status_label.setText(f"Found {len(results)} ORFs  (sorted by length)")
+
+    def find_orfs(self, seq, strand, use_alt_start=False, original_len=None):
+        """Find ORFs.  *seq* is already reverse-complemented for the '-' strand."""
         orfs = []
         start_codons = ["ATG", "GTG", "TTG"] if use_alt_start else ["ATG"]
+        n = len(seq)
         for frame in range(3):
             i = frame
-            while i < len(seq) - 2:
+            while i < n - 2:
                 codon = seq[i : i + 3]
                 if codon in start_codons:
-                    for j in range(i + 3, len(seq) - 2, 3):
+                    for j in range(i + 3, n - 2, 3):
                         stop = seq[j : j + 3]
                         if stop in ("TAA", "TAG", "TGA"):
                             orf_seq = seq[i : j + 3]
                             aa = self.translate(orf_seq)
+                            if strand == "+":
+                                s, e = i + 1, j + 3  # 1‑based, forward
+                            else:
+                                # RC at [i, j+2] → original coords (N - j - 2, N - i)
+                                s = n - i  # 5' end (higher coord)
+                                e = n - j - 2  # 3' end (lower coord)
                             orfs.append({
                                 "frame": f"{strand}{frame + 1}",
-                                "start": i if strand == "+" else len(seq) - j - 2,
-                                "end": j + 3 if strand == "+" else len(seq) - i,
+                                "start": s,
+                                "end": e,
                                 "length": len(orf_seq),
                                 "seq": orf_seq,
                                 "aa": aa,
@@ -207,7 +305,8 @@ class ORFTab(BaseTabWidget):
                     i += 3
         return orfs
 
-    def translate(self, seq):
+    @staticmethod
+    def translate(seq):
         aa_seq = []
         for i in range(0, len(seq) - 2, 3):
             codon = seq[i : i + 3]
@@ -215,9 +314,152 @@ class ORFTab(BaseTabWidget):
             aa_seq.append(aa)
         return "".join(aa_seq)
 
-    def reverse_complement(self, seq):
+    @staticmethod
+    def reverse_complement(seq):
         comp_map = str.maketrans("ACGT", "TGCA")
         return seq.translate(comp_map)[::-1]
+
+    # ── Table population ───────────────────────────────────────────────
+
+    def _populate_table(self, results):
+        self._orf_table.setRowCount(len(results))
+        for row, o in enumerate(results):
+            start_disp = o["start"]
+            end_disp = o["end"]
+            if o["frame"].startswith("-") and start_disp < end_disp:
+                start_disp, end_disp = end_disp, start_disp
+            items = [
+                QTableWidgetItem(str(row + 1)),
+                QTableWidgetItem(o["frame"]),
+                QTableWidgetItem(str(start_disp)),
+                QTableWidgetItem(str(end_disp)),
+                QTableWidgetItem(str(o["length"])),
+                QTableWidgetItem(str(len(o["aa"]))),
+            ]
+            for ci in (0, 2, 3, 4, 5):
+                items[ci].setTextAlignment(
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                )
+            for ci, item in enumerate(items):
+                self._orf_table.setItem(row, ci, item)
+
+    # ── ORF map ────────────────────────────────────────────────────────
+
+    def _draw_orf_map(self, results, seq_len):
+        self._orf_fig.clear()
+
+        frames = ["+1", "+2", "+3", "-1", "-2", "-3"]
+        colors = [
+            "#1976d2",
+            "#388e3c",
+            "#f57c00",
+            "#d32f2f",
+            "#7b1fa2",
+            "#00796b",
+        ]
+
+        ax = self._orf_fig.add_subplot(111)
+        ax.set_facecolor("#fafafa")
+        bar_h = 0.55
+
+        for track_idx, fname in enumerate(frames):
+            y_base = 5.5 - track_idx
+            ax.plot(
+                [1, seq_len],
+                [y_base, y_base],
+                color="#ddd",
+                linewidth=0.6,
+                zorder=0,
+            )
+            frame_orfs = [o for o in results if o["frame"] == fname]
+            for o in frame_orfs:
+                s, e = o["start"], o["end"]
+                if s > e:
+                    s, e = e, s
+                w = e - s + 1
+                color = colors[track_idx]
+                ax.broken_barh(
+                    [(s, w)],
+                    (y_base - bar_h / 2, bar_h),
+                    facecolors=color,
+                    edgecolors="none",
+                    alpha=0.7,
+                    zorder=2,
+                )
+                # Arrowhead
+                if fname.startswith("+"):
+                    ax.plot(e, y_base, marker=">", color=color, markersize=5, zorder=3)
+                else:
+                    ax.plot(s, y_base, marker="<", color=color, markersize=5, zorder=3)
+
+            ax.text(
+                -seq_len * 0.01,
+                y_base,
+                fname,
+                ha="right",
+                va="center",
+                fontsize=7,
+                color=colors[track_idx],
+                fontweight="bold",
+            )
+
+        ax.set_xlim(-seq_len * 0.06, seq_len * 1.02)
+        ax.set_ylim(-0.2, 6.2)
+        ax.set_yticks([])
+        ax.set_xlabel("Sequence position (bp)", fontsize=8)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+        self._orf_fig.tight_layout(pad=0.5)
+        self._orf_canvas.draw_idle()
+
+    # ── Override export / copy to use FASTA output ─────────────────────
+
+    def export_result(self):
+        """Export ORF sequences as FASTA, sorted by length descending."""
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+
+        if not self._results:
+            QMessageBox.information(self, "No Results", "Run the ORF finder first.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export ORFs",
+            "orfs.fasta",
+            "FASTA Files (*.fasta);;Text Files (*.txt)",
+        )
+        if path:
+            sorted_results = sorted(
+                self._results, key=lambda o: o["length"], reverse=True
+            )
+            with open(path, "w", encoding="utf-8") as fh:
+                for idx, o in enumerate(sorted_results, 1):
+                    fh.write(
+                        f">ORF_{idx} | Frame:{o['frame']} | "
+                        f"Pos:{o['start']}-{o['end']} | "
+                        f"Len:{o['length']}nt\n{o['seq']}\n"
+                    )
+            self.status_label.setText(f"Exported {len(sorted_results)} ORFs to {path}")
+
+    def copy_result(self):
+        """Copy selected ORF sequences to clipboard."""
+        from PyQt6.QtWidgets import QApplication
+
+        rows = set()
+        for idx in self._orf_table.selectionModel().selectedRows():
+            rows.add(idx.row())
+        if not rows:
+            # Fallback: copy all
+            if not self._results:
+                return
+            QApplication.clipboard().setText("\n".join(o["aa"] for o in self._results))
+            self.status_label.setText("Copied all ORFs to clipboard")
+            return
+        selected = [self._results[r] for r in sorted(rows)]
+        QApplication.clipboard().setText("\n".join(o["aa"] for o in selected))
+        self.status_label.setText(f"Copied {len(selected)} ORF(s) to clipboard")
+
+    # ── Help ───────────────────────────────────────────────────────────
 
     def show_help(self):
         help_text = """
@@ -280,7 +522,7 @@ Translation: MKPGFK*
 <li>Start with a larger <b>Min ORF Length</b> (300 nt) and decrease it if you miss expected ORFs</li>
 <li>Use <b>Both strands</b> unless you have a specific reason to search only one</li>
 <li>For eukaryotic sequences, remember that real genes may contain introns &mdash; ORF Finder works best on cDNA/mRNA sequences</li>
-<li>The output is plain text; use <b>Export Result</b> to save to a file for downstream analysis</li>
+<li>The output is shown in a sortable table &mdash; click column headers to sort by length, frame, or position.  Use <b>Copy to Clipboard</b> to copy selected ORF sequences, or <b>Export Result</b> to save all ORFs as a FASTA file.</li>
 </ul>
         """
         from PyQt6.QtWidgets import (

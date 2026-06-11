@@ -103,18 +103,18 @@ class SangerViewerTab(QWidget):
         self._file_edit = QLineEdit()
         self._file_edit.setReadOnly(True)
         self._file_edit.setPlaceholderText(
-            self.tr("Drag & drop an AB1 file here, or click Browse...")
+            self.tr("Select an AB1 file, or drag & drop one here...")
         )
         self._file_edit.setToolTip(
             self.tr(
                 "Path to the AB1 Sanger sequencing file.\n"
-                "You can also drag and drop a .ab1 file directly onto this window."
+                "Use Browse to select a file, then click Load to display the chromatogram."
             )
         )
         file_row.addWidget(self._file_edit, 1)
-        self._btn_browse = QPushButton(self.tr("Browse..."))
+        self._btn_browse = QPushButton(self.tr("Browse"))
         self._btn_browse.setToolTip(
-            self.tr("Open a file browser to select and load an AB1 file")
+            self.tr("Select an AB1 file (click Load to display the chromatogram)")
         )
         file_row.addWidget(self._btn_browse)
         outer.addLayout(file_row)
@@ -183,12 +183,24 @@ class SangerViewerTab(QWidget):
         seq_vbox.addLayout(range_row)
         outer.addWidget(seq_group)
 
-        # --- Status bar + Help button ---
+        # --- Status bar + Load / Clear / Help ---
         status_row = QHBoxLayout()
         self._status_label = QLabel(self.tr("Load an AB1 file to begin."))
         self._status_label.setStyleSheet("color:#555;font-size:12px;")
         status_row.addWidget(self._status_label)
         status_row.addStretch()
+        self._btn_load = QPushButton(self.tr("Load"))
+        self._btn_load.setFixedWidth(90)
+        self._btn_load.setToolTip(
+            self.tr("Load the selected AB1 file and display the chromatogram")
+        )
+        status_row.addWidget(self._btn_load)
+        self._btn_clear = QPushButton(self.tr("Clear"))
+        self._btn_clear.setFixedWidth(90)
+        self._btn_clear.setToolTip(
+            self.tr("Clear the loaded chromatogram and reset the view")
+        )
+        status_row.addWidget(self._btn_clear)
         self._btn_help = QPushButton(self.tr("Help"))
         self._btn_help.setFixedWidth(80)
         self._btn_help.setToolTip(self.tr("Show usage help"))
@@ -197,6 +209,8 @@ class SangerViewerTab(QWidget):
 
         # --- Signal connections ---
         self._btn_browse.clicked.connect(self._browse)
+        self._btn_load.clicked.connect(self._load)
+        self._btn_clear.clicked.connect(self._clear_all)
         self._btn_copy.clicked.connect(self._copy_range)
         self._btn_help.clicked.connect(self._show_help)
         self._chk_quality.stateChanged.connect(lambda _: self._draw_chromatogram())
@@ -214,7 +228,6 @@ class SangerViewerTab(QWidget):
         )
         if path:
             self._file_edit.setText(path)
-            self._load()
 
     # ------------------------------------------------------------------
     # Drag-and-drop
@@ -234,7 +247,6 @@ class SangerViewerTab(QWidget):
             return
         path = urls[0].toLocalFile()
         self._file_edit.setText(path)
-        self._load()
 
     def _load(self) -> None:
         path = self._file_edit.text().strip()
@@ -304,9 +316,21 @@ class SangerViewerTab(QWidget):
 
         show_quality = self._chk_quality.isChecked() and bool(self._quality)
 
-        # Resize canvas so the full trace spans a scrollable area
+        # ── Determine x-axis bounds from base-call positions ─────────
+        # Raw scan data (n_scans) often extends well past the last base
+        # call, producing large empty whitespace on the right.  Tighten
+        # the view to the base-called region with modest padding.
+        if peak_locs:
+            _x_pad_left = 60
+            _x_pad_right = 5
+            x_min = max(0, peak_locs[0] - _x_pad_left)
+            x_max = min(n_scans, peak_locs[-1] + _x_pad_right)
+        else:
+            x_min, x_max = 0, n_scans
+
+        # Resize canvas to match the visible data range
         dpi = self._fig.get_dpi()
-        canvas_w = max(_MIN_CANVAS_W, n_scans * _PX_PER_SCAN)
+        canvas_w = max(_MIN_CANVAS_W, int(x_max - x_min) * _PX_PER_SCAN)
         canvas_h = (_TRACE_H_PX + _QUAL_H_PX) if show_quality else _TRACE_H_PX
         self._canvas.setFixedSize(canvas_w, canvas_h)
         self._fig.set_size_inches(canvas_w / dpi, canvas_h / dpi)
@@ -358,7 +382,7 @@ class SangerViewerTab(QWidget):
         tick_scan_pos = [peak_locs[i] for i in tick_indices]
         ax_trace.set_xticks(tick_scan_pos)
         ax_trace.set_xticklabels([str(i + 1) for i in tick_indices], fontsize=7)
-        ax_trace.set_xlim(-5, n_scans + 5)
+        ax_trace.set_xlim(x_min, x_max)
         ax_trace.set_ylim(0, y_label * 1.12)
         ax_trace.set_ylabel(self.tr("Fluorescence"), fontsize=8)
         ax_trace.legend(loc="upper right", fontsize=7.5, framealpha=0.7)
@@ -399,35 +423,114 @@ class SangerViewerTab(QWidget):
 
         self._fig.subplots_adjust(
             left=0.06,
-            right=0.99,
+            right=0.999,
             top=0.92,
             bottom=0.10,
         )
         self._canvas.draw()
 
     # ------------------------------------------------------------------
+    # Clear helper
+    # ------------------------------------------------------------------
+
+    def _clear_all(self) -> None:
+        """Reset the viewer to its initial empty state."""
+        self._abi_data = None
+        self._sequence = ""
+        self._quality = []
+        self._file_edit.clear()
+        self._seq_edit.clear()
+        self._btn_copy.setEnabled(False)
+        self._spin_start.setValue(1)
+        self._spin_end.setValue(1)
+        self._fig.clear()
+        self._canvas.draw_idle()
+        self._set_status(self.tr("Load an AB1 file to begin."))
+
+    # ------------------------------------------------------------------
     # Help
     # ------------------------------------------------------------------
 
     def _show_help(self) -> None:
-        QMessageBox.information(
-            self,
-            self.tr("Sanger Seq Viewer \u2014 Help"),
-            self.tr(
-                "<b>Loading a file</b><br>"
-                "Click <i>Browse...</i> to select an AB1 file — it loads automatically.<br>"
-                "You can also <b>drag and drop</b> a .ab1 file directly onto this window.<br><br>"
-                "<b>Chromatogram</b><br>"
-                "The four coloured traces show raw fluorescence for each base "
-                "(G=black, A=green, T=red, C=blue). Base calls are annotated above each peak.<br>"
-                "Use the toolbar to zoom, pan, and save the figure.<br><br>"
-                "<b>Phred quality track</b><br>"
-                "Green \u2265 30 (high quality), orange \u2265 20 (medium), red &lt; 20 (low).<br><br>"
-                "<b>Copy range</b><br>"
-                "Set Start and End base positions (1-based), then click "
-                "<i>Copy to Clipboard</i> to copy that subsequence."
-            ),
+        from PyQt6.QtWidgets import (
+            QDialog,
+            QVBoxLayout,
+            QLabel,
+            QPushButton,
+            QScrollArea,
         )
+        from PyQt6.QtCore import Qt
+
+        help_text = (
+            "<h2>Sanger Seq Viewer &mdash; AB1 Chromatogram Browser</h2>"
+            "<p><b>What does this tool do?</b><br>"
+            "It displays Sanger sequencing AB1 trace files as an interactive"
+            " chromatogram. You can inspect the raw fluorescence traces, review"
+            " Phred quality scores, and copy sequence ranges to the clipboard"
+            " for downstream use.</p>"
+            "<h3>Quick Start</h3>"
+            "<ol>"
+            "<li>Click <b>Browse...</b> or drag-and-drop an AB1 file onto the window</li>"
+            "<li>The chromatogram loads automatically with base calls and quality data</li>"
+            "<li>Use the Matplotlib toolbar to <b>zoom</b>, <b>pan</b>, or <b>save</b> the figure</li>"
+            "<li>Toggle the <b>Phred quality track</b> to show or hide quality bars</li>"
+            "<li>Set Start / End positions and click <b>Copy to Clipboard</b> to extract a subsequence</li>"
+            "</ol>"
+            "<h3>Chromatogram Colours</h3>"
+            "<table border='0' cellpadding='4' cellspacing='2'>"
+            "<tr><td><b>Base</b></td><td><b>Colour</b></td></tr>"
+            "<tr><td>A</td><td style='color:#009900'>Green</td></tr>"
+            "<tr><td>T</td><td style='color:#DD0000'>Red</td></tr>"
+            "<tr><td>G</td><td>Black</td></tr>"
+            "<tr><td>C</td><td style='color:#0055CC'>Blue</td></tr>"
+            "</table>"
+            "<h3>Phred Quality Track</h3>"
+            "<table border='0' cellpadding='4' cellspacing='2'>"
+            "<tr><td style='color:#2ca02c'><b>Green &ge; 30</b></td>"
+            "<td>High quality &mdash; base call is very reliable (error rate &lt; 0.1%)</td></tr>"
+            "<tr><td style='color:#ff7f0e'><b>Orange &ge; 20</b></td>"
+            "<td>Medium quality &mdash; acceptable for most purposes (error rate &lt; 1%)</td></tr>"
+            "<tr><td style='color:#d62728'><b>Red &lt; 20</b></td>"
+            "<td>Low quality &mdash; base call may be unreliable; consider trimming</td></tr>"
+            "</table>"
+            "<h3>Copying Sequence Ranges</h3>"
+            "<ul>"
+            "<li>Positions are <b>1-based</b> (the first base is position 1)</li>"
+            "<li>Start must be &le; End</li>"
+            "<li>The copied sequence is plain text &mdash; paste it into any other tool or file</li>"
+            "</ul>"
+            "<h3>Tips</h3>"
+            "<ul>"
+            "<li>Use the Matplotlib <b>zoom-to-rectangle</b> tool to inspect a region of interest in detail</li>"
+            "<li>If base calls mismatch the peaks, the sequencing may have mixed templates or poor quality</li>"
+            "<li>Supported format: AB1 (Applied Biosystems). SCF and ZTR are not currently supported.</li>"
+            "<li>Click <b>Load</b> to reload the current file; <b>Clear</b> to reset the viewer</li>"
+            "</ul>"
+        )
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.tr("Help - Sanger Seq Viewer"))
+        dialog.setFixedSize(800, 620)
+
+        layout = QVBoxLayout()
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(True)
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+        scroll_area.setWidget(label)
+        layout.addWidget(scroll_area)
+
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button)
+        dialog.setLayout(layout)
+        dialog.exec()
 
     # ------------------------------------------------------------------
     # Clipboard

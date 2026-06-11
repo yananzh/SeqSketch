@@ -396,12 +396,11 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
     for editor in (sanger_tab.fwd_edit, sanger_tab.rev_edit):
         assert editor.property("sequenceEditorStyled") is True
         assert "border-radius" in editor.styleSheet()
-        assert "border: 1px solid #94a3b8;" in editor.styleSheet()
+        assert "border: none;" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
-    # PairwiseAlignmentTab: input_text inherits the borderless style from
-    # init_sequence_ui, but seq2_text and output_text are re-styled in
-    # _rebuild_input_area / _setup_output with the old border.
+    # PairwiseAlignmentTab: input_text inherits borderless from init_sequence_ui;
+    # seq2_text / output_text are re-styled in _rebuild_input_area / _setup_output.
     pairwise_tab = PairwiseAlignmentTab()
     assert "border: none;" in pairwise_tab.input_text.styleSheet()
     assert "border: 1px solid #94a3b8;" in pairwise_tab.seq2_text.styleSheet()
@@ -432,7 +431,7 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
 
     sanger_tab = SangerTab()
     assert "background: transparent;" in sanger_tab.assembly_result.styleSheet()
-    assert "border: 1px solid #94a3b8;" in sanger_tab.assembly_result.styleSheet()
+    assert "border: none;" in sanger_tab.assembly_result.styleSheet()
     assert "border-radius: 6px;" in sanger_tab.assembly_result.styleSheet()
     assert "#f7f9fc" not in sanger_tab.assembly_result.styleSheet()
     assert (
