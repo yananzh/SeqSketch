@@ -135,11 +135,15 @@ class SangerViewerTab(QWidget):
         self._canvas = FigureCanvas(self._fig)
         self._toolbar = NavigationToolbar(self._canvas, self)
 
+        # Give the canvas a predictable initial size so the scroll area
+        # does not end up with an arbitrary Matplotlib default extent.
+        self._canvas.setFixedSize(_MIN_CANVAS_W, _TRACE_H_PX)
+
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidget(self._canvas)
         self._scroll_area.setWidgetResizable(False)
         self._scroll_area.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         self._scroll_area.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
@@ -321,19 +325,20 @@ class SangerViewerTab(QWidget):
         # call, producing large empty whitespace on the right.  Tighten
         # the view to the base-called region with modest padding.
         if peak_locs:
-            _x_pad_left = 60
-            _x_pad_right = 5
-            x_min = max(0, peak_locs[0] - _x_pad_left)
-            x_max = min(n_scans, peak_locs[-1] + _x_pad_right)
+            _pad = 30
+            x_min = max(0, peak_locs[0] - _pad)
+            x_max = min(n_scans, peak_locs[-1] + _pad)
         else:
             x_min, x_max = 0, n_scans
 
-        # Resize canvas to match the visible data range
+        # Resize canvas to match the visible data range.
+        # Set the figure dimensions first, then force the canvas widget
+        # to the matching pixel size so they stay in sync.
         dpi = self._fig.get_dpi()
         canvas_w = max(_MIN_CANVAS_W, int(x_max - x_min) * _PX_PER_SCAN)
         canvas_h = (_TRACE_H_PX + _QUAL_H_PX) if show_quality else _TRACE_H_PX
-        self._canvas.setFixedSize(canvas_w, canvas_h)
         self._fig.set_size_inches(canvas_w / dpi, canvas_h / dpi)
+        self._canvas.setFixedSize(canvas_w, canvas_h)
 
         self._fig.clear()
 
@@ -422,8 +427,8 @@ class SangerViewerTab(QWidget):
             ax_trace.tick_params(labelbottom=False)
 
         self._fig.subplots_adjust(
-            left=0.06,
-            right=0.999,
+            left=0.05,
+            right=0.95,
             top=0.92,
             bottom=0.10,
         )
