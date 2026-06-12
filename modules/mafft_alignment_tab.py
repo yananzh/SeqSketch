@@ -9,6 +9,7 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
     QFileDialog,
     QFrame,
     QGroupBox,
@@ -21,6 +22,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QTabWidget,
+    QTextBrowser,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -565,7 +567,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_files_edit = QLineEdit()
         self.batch_files_edit.setPlaceholderText("Select multiple FASTA files")
         self.batch_files_edit.setReadOnly(True)
-        self.batch_files_btn = QPushButton("Select Files")
+        self.batch_files_btn = QPushButton("Browse")
         self.batch_files_btn.clicked.connect(self._select_batch_files)
         row_files.addWidget(self.batch_files_edit)
         row_files.addWidget(self.batch_files_btn)
@@ -591,6 +593,14 @@ class MafftAlignmentTab(BaseTabWidget):
         row_name.addWidget(self.batch_name_pattern)
         bl.addLayout(row_name)
 
+        # --- Batch parameters QGroupBox ---
+        batch_param_group = QGroupBox("Batch Parameters")
+        batch_param_group.setFlat(True)
+        bpg_layout = QVBoxLayout(batch_param_group)
+        bpg_layout.setContentsMargins(12, 16, 0, 4)
+        bpg_layout.setSpacing(6)
+
+        # Output format + sequence order + overwrite
         row_mode = QHBoxLayout()
         row_mode.addWidget(QLabel("Output Format:"))
         self.batch_fmt_combo = QComboBox()
@@ -608,8 +618,9 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_overwrite = QCheckBox("Overwrite existing")
         row_mode.addWidget(self.batch_overwrite)
         row_mode.addStretch()
-        bl.addLayout(row_mode)
+        bpg_layout.addLayout(row_mode)
 
+        # Alignment strategy + threads
         row_params = QHBoxLayout()
         row_params.addWidget(QLabel("Alignment Strategy:"))
         self.batch_strategy_combo = QComboBox()
@@ -628,8 +639,9 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_threads_spin.setFixedWidth(70)
         row_params.addWidget(self.batch_threads_spin)
         row_params.addStretch()
-        bl.addLayout(row_params)
+        bpg_layout.addLayout(row_params)
 
+        # MAFFT path
         row_exe = QHBoxLayout()
         row_exe.addWidget(QLabel("MAFFT Path:"))
         self.batch_mafft_path_edit = QLineEdit()
@@ -640,14 +652,16 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_mafft_browse_btn.clicked.connect(self._browse_batch_mafft_exe)
         row_exe.addWidget(self.batch_mafft_path_edit)
         row_exe.addWidget(self.batch_mafft_browse_btn)
-        bl.addLayout(row_exe)
+        bpg_layout.addLayout(row_exe)
 
-        row_run = QHBoxLayout()
-        self.batch_run_btn = QPushButton("Run Batch Alignment")
-        self.batch_run_btn.clicked.connect(self._run_batch)
-        row_run.addWidget(self.batch_run_btn)
-        row_run.addStretch()
-        bl.addLayout(row_run)
+        bl.addWidget(batch_param_group)
+
+        # --- Log QGroupBox ---
+        log_group = QGroupBox("Progress Log")
+        log_group.setFlat(True)
+        log_group.setProperty("logGroup", True)
+        lg_layout = QVBoxLayout(log_group)
+        lg_layout.setContentsMargins(0, 16, 0, 4)
 
         self.batch_log = QTextEdit()
         self.batch_log.setReadOnly(True)
@@ -655,7 +669,8 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_log.setPlaceholderText(
             "Batch progress and summary will appear here..."
         )
-        bl.addWidget(self.batch_log)
+        lg_layout.addWidget(self.batch_log)
+        bl.addWidget(log_group)
         bl.addStretch()
 
         outer_tabs.addTab(batch_page, "Batch Multi-file")
@@ -775,6 +790,10 @@ class MafftAlignmentTab(BaseTabWidget):
         for path in paths:
             self.batch_files_list.addItem(QListWidgetItem(path))
         self.batch_files_edit.setText(f"{len(paths)} file(s) selected")
+        if not self.batch_out_dir_edit.text().strip():
+            parent_dir = os.path.dirname(paths[0])
+            if parent_dir:
+                self.batch_out_dir_edit.setText(parent_dir)
 
     def _select_batch_output_dir(self):
         out_dir = QFileDialog.getExistingDirectory(self, "Select output directory")
@@ -822,7 +841,7 @@ class MafftAlignmentTab(BaseTabWidget):
             )
             return
 
-        self.batch_run_btn.setEnabled(False)
+        self.run_btn.setEnabled(False)
         self.batch_log.clear()
         self.batch_log.append(f"Starting batch for {len(input_files)} file(s)...")
         self.status_label.setText("Running batch MAFFT alignment...")
@@ -848,12 +867,12 @@ class MafftAlignmentTab(BaseTabWidget):
         self.status_label.setText(msg)
 
     def _on_batch_finished(self, summary: str):
-        self.batch_run_btn.setEnabled(True)
+        self.run_btn.setEnabled(True)
         self.batch_log.append("\n" + summary)
         self.status_label.setText("Batch done.")
 
     def _on_batch_error(self, msg: str):
-        self.batch_run_btn.setEnabled(True)
+        self.run_btn.setEnabled(True)
         self.batch_log.append("Error: " + msg)
         self.status_label.setText("Batch failed.")
         QMessageBox.critical(self, "Batch MAFFT Error", msg)
@@ -867,6 +886,11 @@ class MafftAlignmentTab(BaseTabWidget):
         self.show_status("Processing..." if running else "Ready")
 
     def run(self):
+        # Delegate to batch runner when Batch Multi-file tab is active
+        if hasattr(self, "mode_tabs") and self.mode_tabs.currentIndex() == 1:
+            self._run_batch()
+            return
+
         raw = self.input_text.toPlainText().strip()
         if not raw:
             self.status_label.setText("Please enter or upload FASTA sequences.")
@@ -1006,11 +1030,60 @@ class MafftAlignmentTab(BaseTabWidget):
         return path
 
     def show_help(self):
-        QMessageBox.information(
-            self,
-            "MAFFT Help",
-            "MAFFT is a multiple sequence alignment engine. Use the Single-file page for one FASTA input, or Batch Multi-file for folder-style processing.\n\n"
-            "Auto: balanced default\n"
-            "FFT-NS-2: faster, suitable for larger datasets\n"
-            "L-INS-i: slower but more accurate for divergent sequences",
-        )
+        html = """
+<h2>Multiple Sequence Alignment &mdash; MAFFT</h2>
+
+<p><b>What does this tool do?</b><br>
+Aligns ≥ 2 DNA or protein sequences using the bundled MAFFT engine.
+Supports three strategies ranging from fast heuristic to high-accuracy
+iterative refinement.</p>
+
+<h3>Quick Start</h3>
+<ol>
+<li>Paste ≥ 2 FASTA sequences or drag-and-drop a file</li>
+<li>Choose an <b>Alignment Strategy</b> (Auto works well for most cases)</li>
+<li>Click <b>Align</b> &mdash; the result is written to the output path automatically</li>
+</ol>
+
+<h3>Single-file vs Batch Multi-file</h3>
+<ul>
+<li><b>Single-file</b> &mdash; align one multi-FASTA input and save to a chosen output file</li>
+<li><b>Batch Multi-file</b> &mdash; process multiple FASTA files in a folder,
+    with auto-naming via <code>{stem}</code>, <code>{method}</code>, <code>{ext}</code> placeholders</li>
+</ul>
+
+<h3>Alignment Strategies</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Auto</b></td><td>&rarr; balanced default, suitable for most datasets</td></tr>
+<tr><td><b>FFT-NS-2</b></td><td>&rarr; fast progressive method, ideal for large datasets</td></tr>
+<tr><td><b>L-INS-i</b></td><td>&rarr; most accurate, iterative refinement; best for divergent sequences</td></tr>
+</table>
+
+<h3>Sequence Order</h3>
+<ul>
+<li><b>Input sequence order</b> &mdash; restore aligned sequences to match the original input order</li>
+<li><b>MAFFT output order</b> &mdash; keep the order returned by MAFFT</li>
+</ul>
+
+<h3>Output</h3>
+<ul>
+<li>Output is written as aligned FASTA directly to the chosen path</li>
+<li>Batch mode supports FASTA, CLUSTAL, and Summary output formats</li>
+</ul>
+"""
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Help – Multiple Sequence Alignment (MAFFT)")
+        dlg.setMinimumWidth(660)
+        dlg.setMinimumHeight(480)
+        layout = QVBoxLayout()
+        browser = QTextBrowser()
+        browser.setHtml(html)
+        layout.addWidget(browser)
+        btn_row = QHBoxLayout()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dlg.accept)
+        btn_row.addStretch()
+        btn_row.addWidget(close_btn)
+        layout.addLayout(btn_row)
+        dlg.setLayout(layout)
+        dlg.exec()

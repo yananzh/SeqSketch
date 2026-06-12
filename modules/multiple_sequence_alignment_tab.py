@@ -554,7 +554,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_files_edit = QLineEdit()
         self.batch_files_edit.setPlaceholderText("Select multiple FASTA files")
         self.batch_files_edit.setReadOnly(True)
-        self.batch_files_btn = QPushButton("Select Files")
+        self.batch_files_btn = QPushButton("Browse")
         self.batch_files_btn.clicked.connect(self._select_batch_files)
         row_files.addWidget(self.batch_files_edit)
         row_files.addWidget(self.batch_files_btn)
@@ -586,6 +586,13 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         row_name.addWidget(self.batch_name_pattern)
         bl.addLayout(row_name)
 
+        # --- Batch parameters QGroupBox ---
+        batch_param_group = QGroupBox("Batch Parameters")
+        batch_param_group.setFlat(True)
+        bpg_layout = QVBoxLayout(batch_param_group)
+        bpg_layout.setContentsMargins(12, 16, 0, 4)
+        bpg_layout.setSpacing(6)
+
         # Output format + sequence order + overwrite
         row_mode = QHBoxLayout()
         row_mode.addWidget(QLabel("Output Format:"))
@@ -601,16 +608,12 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             "MUSCLE output order",
         ])
         self.batch_order_combo.setMinimumWidth(200)
-        self.batch_order_combo.setToolTip(
-            "Input sequence order: restore the aligned sequences to match the source FASTA order\n"
-            "MUSCLE output order: keep the order returned by MUSCLE"
-        )
         row_mode.addWidget(self.batch_order_combo)
 
         self.batch_overwrite = QCheckBox("Overwrite existing")
         row_mode.addWidget(self.batch_overwrite)
         row_mode.addStretch()
-        bl.addLayout(row_mode)
+        bpg_layout.addLayout(row_mode)
 
         # Alignment method + threads
         row_params = QHBoxLayout()
@@ -630,7 +633,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_threads_spin.setFixedWidth(70)
         row_params.addWidget(self.batch_threads_spin)
         row_params.addStretch()
-        bl.addLayout(row_params)
+        bpg_layout.addLayout(row_params)
 
         # MUSCLE executable path
         row_exe = QHBoxLayout()
@@ -643,24 +646,25 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         batch_exe_btn.clicked.connect(self._browse_batch_muscle_exe)
         row_exe.addWidget(self.batch_muscle_path_edit)
         row_exe.addWidget(batch_exe_btn)
-        bl.addLayout(row_exe)
+        bpg_layout.addLayout(row_exe)
 
-        # Run button
-        row_run = QHBoxLayout()
-        self.batch_run_btn = QPushButton("Run Batch Alignment")
-        self.batch_run_btn.clicked.connect(self._run_batch)
-        row_run.addWidget(self.batch_run_btn)
-        row_run.addStretch()
-        bl.addLayout(row_run)
+        bl.addWidget(batch_param_group)
 
-        # Progress log
+        # --- Log QGroupBox ---
+        log_group = QGroupBox("Progress Log")
+        log_group.setFlat(True)
+        log_group.setProperty("logGroup", True)
+        lg_layout = QVBoxLayout(log_group)
+        lg_layout.setContentsMargins(0, 16, 0, 4)
+
         self.batch_log = QTextEdit()
         self.batch_log.setReadOnly(True)
         self.batch_log.setMinimumHeight(140)
         self.batch_log.setPlaceholderText(
             "Batch progress and summary will appear here..."
         )
-        bl.addWidget(self.batch_log)
+        lg_layout.addWidget(self.batch_log)
+        bl.addWidget(log_group)
 
         bl.addStretch()
 
@@ -817,6 +821,10 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         for p in paths:
             self.batch_files_list.addItem(QListWidgetItem(p))
         self.batch_files_edit.setText(f"{len(paths)} file(s) selected")
+        if not self.batch_out_dir_edit.text().strip():
+            parent_dir = os.path.dirname(paths[0])
+            if parent_dir:
+                self.batch_out_dir_edit.setText(parent_dir)
 
     def _select_batch_output_dir(self):
         out_dir = QFileDialog.getExistingDirectory(self, "Select output directory")
@@ -866,7 +874,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             return
 
         out_mode = self.batch_fmt_combo.currentText()
-        self.batch_run_btn.setEnabled(False)
+        self.run_btn.setEnabled(False)
         self.batch_log.clear()
         self.batch_log.append(f"Starting batch for {len(input_files)} file(s)...")
         self.status_label.setText("Running batch MUSCLE alignment...")
@@ -892,12 +900,12 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.status_label.setText(msg)
 
     def _on_batch_finished(self, summary: str):
-        self.batch_run_btn.setEnabled(True)
+        self.run_btn.setEnabled(True)
         self.batch_log.append("\n" + summary)
         self.status_label.setText("Batch done.")
 
     def _on_batch_error(self, msg: str):
-        self.batch_run_btn.setEnabled(True)
+        self.run_btn.setEnabled(True)
         self.batch_log.append("Error: " + msg)
         self.status_label.setText("Batch failed.")
         QMessageBox.critical(self, "Batch MUSCLE Error", msg)
@@ -905,6 +913,11 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     # ------------------------------------------------------------------ run
 
     def run(self):
+        # Delegate to batch runner when Batch Multi-file tab is active
+        if hasattr(self, "mode_tabs") and self.mode_tabs.currentIndex() == 1:
+            self._run_batch()
+            return
+
         raw = self.input_text.toPlainText().strip()
         if not raw:
             self.status_label.setText("Please enter or upload FASTA sequences.")
@@ -1173,67 +1186,57 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
     def show_help(self):
         html = """
-<h3>Multiple Sequence Alignment (Muscle5)</h3>
-<p>Align ≥ 2 DNA or protein sequences using the bundled MUSCLE v5 binary.
+<h2>Multiple Sequence Alignment &mdash; MUSCLE v5</h2>
+
+<p><b>What does this tool do?</b><br>
+Aligns ≥ 2 DNA or protein sequences using the bundled MUSCLE v5 binary.
 Equivalent to running <code>muscle -align input.fa -output output.afa</code>
 on the command line.</p>
 
-<h4>Input</h4>
+<h3>Quick Start</h3>
+<ol>
+<li>Paste ≥ 2 FASTA sequences or drag-and-drop a file</li>
+<li>Choose an <b>Alignment Method</b> (Accurate for most cases)</li>
+<li>Click <b>Align</b> &mdash; the result is written to the output path automatically</li>
+</ol>
+
+<h3>Single-file vs Batch Multi-file</h3>
 <ul>
-  <li>Paste all sequences in FASTA format into the input box, or click
-      <b>Upload FASTA File</b> / drag-and-drop a file.</li>
-  <li>A minimum of <b>2 sequences</b> is required.</li>
+<li><b>Single-file</b> &mdash; align one multi-FASTA input and save to a chosen output file</li>
+<li><b>Batch Multi-file</b> &mdash; process multiple FASTA files in a folder,
+    with auto-naming via <code>{stem}</code>, <code>{method}</code>, <code>{ext}</code> placeholders</li>
 </ul>
 
-<h4>Sequence Type</h4>
+<h3>Alignment Methods</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Accurate (&ndash;align)</b></td><td>&rarr; progressive alignment with refinement; best for up to a few hundred sequences</td></tr>
+<tr><td><b>Fast (&ndash;super5)</b></td><td>&rarr; heuristic method, suitable for thousands of sequences</td></tr>
+</table>
+
+<h3>Sequence Order</h3>
 <ul>
-  <li><b>Auto Detect</b> — inferred automatically from the character set.</li>
-  <li><b>DNA</b> — nucleotides (IUPAC codes supported).</li>
-  <li><b>Protein</b> — standard 20-residue amino acid alphabet.</li>
+<li><b>Input sequence order</b> &mdash; restore aligned sequences to match the original input order</li>
+<li><b>MUSCLE output order</b> &mdash; keep the order returned by MUSCLE</li>
 </ul>
 
-<h4>Alignment Method</h4>
+<h3>Output</h3>
 <ul>
-  <li><b>Accurate (–align)</b> — progressive alignment with refinement.
-      Recommended for up to a few hundred sequences.</li>
-  <li><b>Fast / Large datasets (–super5)</b> — heuristic method suitable
-      for thousands of sequences; faster but less accurate.</li>
+<li>Output is written as aligned FASTA directly to the chosen path</li>
+<li>Batch mode supports FASTA, CLUSTAL, and Summary output formats</li>
 </ul>
 
-<h4>Sequence Order</h4>
+<h3>Tips</h3>
 <ul>
-    <li><b>Input sequence order</b> — default for both single-file and batch multi-file; restore the aligned sequences to match the input order.</li>
-    <li><b>MUSCLE output order</b> — keep the sequence order returned by MUSCLE.</li>
+<li>A minimum of <b>2 sequences</b> is required</li>
+<li>Sequences are auto-detected as DNA or protein from their character set</li>
+<li>Increase <b>Threads</b> to speed up processing on multi-core machines</li>
+<li>Batch naming pattern defaults to <code>{stem}_muscle5_{method}.{ext}</code></li>
 </ul>
-
-<h4>Batch Auto Naming Pattern</h4>
-<p>In batch multi-file mode, output names use placeholders <code>{stem}</code>, <code>{method}</code>, and <code>{ext}</code>.
-The default pattern is <code>{stem}_muscle5_{method}.{ext}</code>.</p>
-
-<h4>Output File</h4>
-<p>Choose the single-file output path before clicking <b>Align</b>.
-When the alignment finishes, the tab writes the result directly as aligned FASTA.</p>
-
-<h4>Output Format</h4>
-<ul>
-    <li><b>Single-file</b> — aligned FASTA only, written directly to the chosen output path.</li>
-    <li><b>Batch Multi-file</b> — still supports FASTA, CLUSTAL, and Summary
-            output modes when writing files to the selected output directory.</li>
-</ul>
-
-<h4>Threads</h4>
-<p>Number of CPU threads passed to MUSCLE via <code>-threads N</code>.
-Defaults to min(4, available cores).</p>
-
-<h4>Export</h4>
-<p>The single-file workflow saves the aligned FASTA automatically when the run completes.
-FASTA output can be loaded directly into tree-building tools
-(FastTree, IQ-TREE) or visualisers (MEGA, Jalview).</p>
 """
         dlg = QDialog(self)
-        dlg.setWindowTitle("Help – Multiple Sequence Alignment (Muscle5)")
+        dlg.setWindowTitle("Help – Multiple Sequence Alignment (MUSCLE v5)")
         dlg.setMinimumWidth(660)
-        dlg.setMinimumHeight(520)
+        dlg.setMinimumHeight(480)
         layout = QVBoxLayout()
         browser = QTextBrowser()
         browser.setHtml(html)
