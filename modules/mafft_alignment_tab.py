@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import tempfile
+from datetime import datetime
 
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -10,6 +11,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFrame,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -462,10 +464,11 @@ class MafftAlignmentTab(BaseTabWidget):
         self.input_hint.hide()
 
     def _setup_parameters(self):
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setFrameShadow(QFrame.Shadow.Sunken)
-        self.content_area.insertWidget(1, line)
+        param_group = QGroupBox("Alignment Parameters")
+        param_group.setFlat(True)
+        pg_layout = QVBoxLayout(param_group)
+        pg_layout.setContentsMargins(12, 16, 0, 4)
+        pg_layout.setSpacing(6)
 
         row1 = QHBoxLayout()
         row1.setSpacing(20)
@@ -487,17 +490,14 @@ class MafftAlignmentTab(BaseTabWidget):
         ])
         self.order_combo.setMinimumWidth(220)
         row1.addWidget(self.order_combo)
-        row1.addStretch()
-
-        row2 = QHBoxLayout()
-        row2.setSpacing(20)
-        row2.addWidget(QLabel("Threads:"))
+        row1.addSpacing(20)
+        row1.addWidget(QLabel("Threads:"))
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, min(64, os.cpu_count() or 4))
         self.threads_spin.setValue(1)
         self.threads_spin.setFixedWidth(70)
-        row2.addWidget(self.threads_spin)
-        row2.addStretch()
+        row1.addWidget(self.threads_spin)
+        row1.addStretch()
 
         row3 = QHBoxLayout()
         row3.setSpacing(10)
@@ -522,10 +522,11 @@ class MafftAlignmentTab(BaseTabWidget):
         row4.addWidget(self.mafft_path_edit)
         row4.addWidget(self.mafft_browse_btn)
 
-        self.content_area.insertLayout(2, row1)
-        self.content_area.insertLayout(3, row2)
-        self.content_area.insertLayout(4, row3)
-        self.content_area.insertLayout(5, row4)
+        pg_layout.addLayout(row1)
+        pg_layout.addLayout(row3)
+        pg_layout.addLayout(row4)
+
+        self.content_area.insertWidget(1, param_group)
 
     def _setup_output(self):
         self.output_label.setText("Alignment Result:")
@@ -533,10 +534,7 @@ class MafftAlignmentTab(BaseTabWidget):
         mono.setStyleHint(QFont.StyleHint.Monospace)
         self.output_text.setFont(mono)
         self.output_text.setMinimumHeight(220)
-        self.output_label.hide()
-        self.output_text.hide()
-        self.copy_btn.hide()
-        self.export_btn.hide()
+        self.output_group.hide()
         self.run_btn.setText("Align")
 
     def _setup_mode_tabs(self):
@@ -682,6 +680,8 @@ class MafftAlignmentTab(BaseTabWidget):
                     with open(path, "r", encoding="utf-8", errors="replace") as f:
                         widget.setPlainText(f.read())
                     hint.clear()
+                    base, _ = os.path.splitext(path)
+                    self.output_file_edit.setText(base + "_mafft.fasta")
                     event.acceptProposedAction()
                 except Exception as exc:
                     QMessageBox.warning(self, "File Read Error", str(exc))
@@ -735,9 +735,8 @@ class MafftAlignmentTab(BaseTabWidget):
                 with open(path, "r", encoding="utf-8", errors="replace") as f:
                     self.input_text.setPlainText(f.read())
                 self.input_hint.clear()
-                if not self.output_file_edit.text().strip():
-                    base, _ = os.path.splitext(path)
-                    self.output_file_edit.setText(base + "_mafft.fasta")
+                base, _ = os.path.splitext(path)
+                self.output_file_edit.setText(base + "_mafft.fasta")
             except Exception as exc:
                 QMessageBox.warning(self, "File Read Error", str(exc))
 
@@ -851,12 +850,12 @@ class MafftAlignmentTab(BaseTabWidget):
     def _on_batch_finished(self, summary: str):
         self.batch_run_btn.setEnabled(True)
         self.batch_log.append("\n" + summary)
-        self.status_label.setText("Batch alignment completed.")
+        self.status_label.setText("Batch done.")
 
     def _on_batch_error(self, msg: str):
         self.batch_run_btn.setEnabled(True)
         self.batch_log.append("Error: " + msg)
-        self.status_label.setText("Batch alignment failed.")
+        self.status_label.setText("Batch failed.")
         QMessageBox.critical(self, "Batch MAFFT Error", msg)
 
     def set_running_state(self, running: bool):
@@ -875,6 +874,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
         output_path = self._normalized_output_file_path()
         if not output_path:
+            self.status_label.setText("Output file path not set.")
             QMessageBox.warning(
                 self,
                 "Output File Error",
@@ -885,6 +885,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
         seqs = _parse_fasta_to_dict(raw)
         if len(seqs) < 2:
+            self.status_label.setText("Need ≥ 2 sequences for MSA.")
             QMessageBox.warning(
                 self,
                 "Input Error",
@@ -899,6 +900,7 @@ class MafftAlignmentTab(BaseTabWidget):
         mafft_exe = self.mafft_path_edit.text().strip() or _default_mafft_exe()
 
         if not os.path.isfile(mafft_exe):
+            self.status_label.setText("MAFFT launcher not found.")
             QMessageBox.warning(
                 self,
                 "MAFFT Path Error",
@@ -935,7 +937,7 @@ class MafftAlignmentTab(BaseTabWidget):
         try:
             saved_path = self._write_single_file_output(self._aligned_fasta)
         except OSError as exc:
-            self.status_label.setText("Alignment finished but output save failed.")
+            self.status_label.setText("Output save failed.")
             QMessageBox.critical(
                 self,
                 "Output Save Error",
@@ -945,9 +947,8 @@ class MafftAlignmentTab(BaseTabWidget):
 
         n_seq = len(ordered_seqs)
         aln_len = len(next(iter(ordered_seqs.values())))
-        self.status_label.setText(
-            f"Done — {n_seq} sequences | alignment length: {aln_len} bp/aa | saved to {saved_path}"
-        )
+        fname = os.path.basename(saved_path)
+        self.status_label.setText(f"Done — {n_seq} seqs, {aln_len} bp, → {fname}")
         self.set_running_state(False)
         if self.worker_thread:
             self.worker_thread.quit()
@@ -957,7 +958,7 @@ class MafftAlignmentTab(BaseTabWidget):
     def handle_worker_error(self, error_msg: str):
         self.run_btn.setEnabled(True)
         self._aligned_fasta = ""
-        self.status_label.setText("Alignment failed.")
+        self.status_label.setText("MAFFT alignment failed.")
         QMessageBox.critical(self, "MAFFT Error", error_msg)
         self.set_running_state(False)
         if self.worker_thread:
@@ -968,7 +969,8 @@ class MafftAlignmentTab(BaseTabWidget):
     def _normalized_output_file_path(self) -> str:
         path = self.output_file_edit.text().strip()
         if not path:
-            return ""
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = os.path.join(os.getcwd(), f"mafft_alignment_{ts}.fasta")
         root, ext = os.path.splitext(path)
         if not ext:
             return path + ".fasta"

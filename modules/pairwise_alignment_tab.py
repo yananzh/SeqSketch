@@ -9,14 +9,13 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QDoubleSpinBox,
     QFrame,
+    QGroupBox,
     QDialog,
     QTextBrowser,
 )
 from PyQt6.QtGui import QFont
 from utils.common_components import (
     BaseTabWidget,
-    apply_sequence_editor_style,
-    apply_transparent_text_edit_background,
 )
 from Bio import Align
 from Bio.Align import substitution_matrices
@@ -45,8 +44,28 @@ class PairwiseAlignmentTab(BaseTabWidget):
             "Protein example:\n>prot1\nMKTFFVAGLMAGIS"
         )
         self.input_text.setMinimumHeight(160)
+        # Suppress the native QFrame border so only the CSS border
+        # declared below is visible (avoid double-border rendering).
+        self.input_text.setLineWidth(0)
+        self.input_text.setMidLineWidth(0)
+        self.input_text.setFrameShape(QFrame.Shape.NoFrame)
+        self.input_text.setStyleSheet(
+            "border: 1px solid #94a3b8;"
+            "border-radius: 6px;"
+            "padding: 8px 10px;"
+            "background: #ffffff;"
+            "selection-background-color: #d9ebff;"
+            "selection-color: #1a1a1a;"
+        )
+        self.input_text.viewport().setStyleSheet("background: transparent;")
         self.upload_btn.setText("Upload File")
         self.input_hint.setStyleSheet("color: #888;")
+
+        # Discard the now-unused QGroupBox wrapper so it does not
+        # linger as an orphaned child widget.
+        if hasattr(self, "input_group"):
+            self.input_group.hide()
+            self.input_group.deleteLater()
 
         seq1_layout = QVBoxLayout()
         seq1_layout.addWidget(self.input_label)
@@ -57,7 +76,21 @@ class PairwiseAlignmentTab(BaseTabWidget):
         # --- Seq2 (new widgets, same style) ---
         self.seq2_label = QLabel("Sequence 2:")
         self.seq2_text = QTextEdit()
-        apply_sequence_editor_style(self.seq2_text)
+        # Suppress native QFrame border; CSS border below provides
+        # the sole visible outline (direct declaration, no selector).
+        self.seq2_text.setProperty("sequenceEditorStyled", True)
+        self.seq2_text.setLineWidth(0)
+        self.seq2_text.setMidLineWidth(0)
+        self.seq2_text.setFrameShape(QFrame.Shape.NoFrame)
+        self.seq2_text.setStyleSheet(
+            "border: 1px solid #94a3b8;"
+            "border-radius: 6px;"
+            "padding: 8px 10px;"
+            "background: #ffffff;"
+            "selection-background-color: #d9ebff;"
+            "selection-color: #1a1a1a;"
+        )
+        self.seq2_text.viewport().setStyleSheet("background: transparent;")
         self.seq2_text.setPlaceholderText(
             "Paste sequence 2 in FASTA format or raw sequence, or drag-and-drop a file...\n\n"
             "DNA example:\n>seq2\nATGCGTTCGATCGTAG\n\n"
@@ -85,14 +118,18 @@ class PairwiseAlignmentTab(BaseTabWidget):
         old = self.content_area.itemAt(0)
         self.content_area.removeItem(old)
         self.content_area.insertLayout(0, inputs_layout)
+        # Tighter vertical rhythm compensates for not overriding the
+        # QGroupBox margin-top via setStyleSheet (which would cascade
+        # to children and break QComboBox arrow alignment).
+        self.content_area.setSpacing(4)
 
     def _setup_parameters(self):
-        """Horizontal rows: type+mode, matrix, scores."""
-        # Divider
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setFrameShadow(QFrame.Shadow.Sunken)
-        self.content_area.insertWidget(1, line)
+        """Horizontal rows inside a flat QGroupBox: type+mode, matrix, scores."""
+        param_group = QGroupBox("Alignment Parameters")
+        param_group.setFlat(True)
+        pg_layout = QVBoxLayout(param_group)
+        pg_layout.setContentsMargins(12, 4, 0, 4)
+        pg_layout.setSpacing(6)
 
         # Row 1: sequence type + alignment mode
         row1 = QHBoxLayout()
@@ -189,8 +226,10 @@ class PairwiseAlignmentTab(BaseTabWidget):
         row3.addWidget(self.gap_extend_spin)
         row3.addStretch()
 
-        self.content_area.insertLayout(2, row1)
-        self.content_area.insertLayout(3, row3)
+        pg_layout.addLayout(row1)
+        pg_layout.addLayout(row3)
+
+        self.content_area.insertWidget(1, param_group)
 
     def _setup_output(self):
         # Output format row (inserted before output_label)
@@ -221,9 +260,15 @@ class PairwiseAlignmentTab(BaseTabWidget):
             self.output_text.styleSheet()
             + "font-family: 'Courier New', monospace; font-size: 10pt;"
         )
-        apply_transparent_text_edit_background(self.output_text)
-        self.output_text.setMinimumHeight(200)
+        self.output_text.setMinimumHeight(220)
         self.run_btn.setText("Align")
+
+        # --- Button bar: drop Copy, move Export next to Align ---------
+        self.copy_btn.hide()
+        self.copy_btn.deleteLater()
+        self.export_btn.setFixedWidth(110)
+        # Insert before the Help button (last widget in status_layout)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.export_btn)
 
     # ------------------------------------------------------------ drag & drop
 

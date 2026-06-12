@@ -4,6 +4,7 @@ import sys
 import tempfile
 import subprocess
 import configparser
+from datetime import datetime
 
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -18,6 +19,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QFrame,
+    QGroupBox,
     QDialog,
     QTextBrowser,
     QTabWidget,
@@ -415,24 +417,21 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.input_hint.hide()
 
     def _setup_parameters(self):
-        # Divider
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setFrameShadow(QFrame.Shadow.Sunken)
-        self.content_area.insertWidget(1, line)
+        param_group = QGroupBox("Alignment Parameters")
+        param_group.setFlat(True)
+        pg_layout = QVBoxLayout(param_group)
+        pg_layout.setContentsMargins(12, 16, 0, 4)
+        pg_layout.setSpacing(6)
 
-        # Row 1: sequence type  |  alignment method
+        # Row 1: alignment method  |  sequence order  |  threads
         row1 = QHBoxLayout()
         row1.setSpacing(20)
 
-        type_label = QLabel("Sequence Type:")
+        # Keep seq_type_combo alive (used by _detect_type) but hidden
         self.seq_type_combo = QComboBox()
         self.seq_type_combo.addItems(["Auto Detect", "DNA", "Protein"])
-        self.seq_type_combo.setToolTip(
-            "Auto Detect: infer from characters in the input sequences\n"
-            "DNA: nucleotide sequences\n"
-            "Protein: amino acid sequences"
-        )
+        self.seq_type_combo.setCurrentIndex(0)
+        self.seq_type_combo.hide()
 
         method_label = QLabel("Alignment Method:")
         self.method_combo = QComboBox()
@@ -446,17 +445,9 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             "Fast / Super5 (–super5): heuristic — suitable for thousands of sequences"
         )
 
-        row1.addWidget(type_label)
-        row1.addWidget(self.seq_type_combo)
-        row1.addSpacing(20)
         row1.addWidget(method_label)
         row1.addWidget(self.method_combo)
-        row1.addStretch()
-
-        # Row 2: sequence order  |  threads
-        row2 = QHBoxLayout()
-        row2.setSpacing(20)
-
+        row1.addSpacing(20)
         order_label = QLabel("Sequence Order:")
         self.order_combo = QComboBox()
         self.order_combo.addItems([
@@ -464,26 +455,16 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             "MUSCLE output order",
         ])
         self.order_combo.setMinimumWidth(220)
-        self.order_combo.setToolTip(
-            "Input sequence order: reorder the aligned FASTA to match the original input order\n"
-            "MUSCLE output order: keep the order returned by MUSCLE"
-        )
-
-        threads_label = QLabel("Threads:")
+        row1.addWidget(order_label)
+        row1.addWidget(self.order_combo)
+        row1.addSpacing(20)
+        row1.addWidget(QLabel("Threads:"))
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, min(64, (os.cpu_count() or 4)))
         self.threads_spin.setValue(1)
         self.threads_spin.setFixedWidth(70)
-        self.threads_spin.setToolTip(
-            "Number of CPU threads passed to MUSCLE (-threads)"
-        )
-
-        row2.addWidget(order_label)
-        row2.addWidget(self.order_combo)
-        row2.addSpacing(20)
-        row2.addWidget(threads_label)
-        row2.addWidget(self.threads_spin)
-        row2.addStretch()
+        row1.addWidget(self.threads_spin)
+        row1.addStretch()
 
         # Row 3: single-file output path
         row3 = QHBoxLayout()
@@ -524,10 +505,11 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         row4.addWidget(self.muscle_path_edit)
         row4.addWidget(self.muscle_browse_btn)
 
-        self.content_area.insertLayout(2, row1)
-        self.content_area.insertLayout(3, row2)
-        self.content_area.insertLayout(4, row3)
-        self.content_area.insertLayout(5, row4)
+        pg_layout.addLayout(row1)
+        pg_layout.addLayout(row3)
+        pg_layout.addLayout(row4)
+
+        self.content_area.insertWidget(1, param_group)
 
     def _setup_output(self):
         self.output_label.setText("Alignment Result:")
@@ -535,10 +517,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         mono.setStyleHint(QFont.StyleHint.Monospace)
         self.output_text.setFont(mono)
         self.output_text.setMinimumHeight(220)
-        self.output_label.hide()
-        self.output_text.hide()
-        self.copy_btn.hide()
-        self.export_btn.hide()
+        self.output_group.hide()
         self.run_btn.setText("Align")
 
     def _setup_mode_tabs(self):
@@ -711,6 +690,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
                     with open(path, "r", encoding="utf-8") as f:
                         widget.setPlainText(f.read())
                     hint.clear()
+                    base, _ = os.path.splitext(path)
+                    self.output_file_edit.setText(base + "_muscle5.fasta")
                     e.acceptProposedAction()
                 except Exception as ex:
                     QMessageBox.warning(self, "File Read Error", str(ex))
@@ -797,6 +778,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
                 with open(path, "r", encoding="utf-8") as f:
                     self.input_text.setPlainText(f.read())
                 self.input_hint.clear()
+                base, _ = os.path.splitext(path)
+                self.output_file_edit.setText(base + "_muscle5.fasta")
             except Exception as e:
                 QMessageBox.warning(self, "File Read Error", str(e))
 
@@ -806,6 +789,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self._aligned_fasta = ""
         self._input_sequence_order = []
         self.input_hint.setText("")
+        self.output_file_edit.clear()
         if hasattr(self, "batch_files_list"):
             self.batch_files_list.clear()
             self.batch_files_edit.clear()
@@ -910,12 +894,12 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _on_batch_finished(self, summary: str):
         self.batch_run_btn.setEnabled(True)
         self.batch_log.append("\n" + summary)
-        self.status_label.setText("Batch alignment completed.")
+        self.status_label.setText("Batch done.")
 
     def _on_batch_error(self, msg: str):
         self.batch_run_btn.setEnabled(True)
         self.batch_log.append("Error: " + msg)
-        self.status_label.setText("Batch alignment failed.")
+        self.status_label.setText("Batch failed.")
         QMessageBox.critical(self, "Batch MUSCLE Error", msg)
 
     # ------------------------------------------------------------------ run
@@ -928,6 +912,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         output_path = self._normalized_output_file_path()
         if not output_path:
+            self.status_label.setText("Output file path not set.")
             QMessageBox.warning(
                 self,
                 "Output File Error",
@@ -939,6 +924,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         # Validate: need ≥ 2 sequences
         seqs = self._parse_fasta(raw)
         if len(seqs) < 2:
+            self.status_label.setText("Need ≥ 2 sequences for MSA.")
             QMessageBox.warning(
                 self,
                 "Input Error",
@@ -949,11 +935,12 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         # Detect / validate sequence type
         seq_type = self._detect_type(seqs)
         if seq_type is None:
+            self.status_label.setText("Unrecognized sequence alphabet.")
             QMessageBox.warning(
                 self,
                 "Input Error",
                 "Sequences contain characters that do not match DNA or protein alphabets.\n"
-                "Please check your input or manually select the Sequence Type.",
+                "Please check your input.",
             )
             return
 
@@ -967,6 +954,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self._save_muscle_path(muscle_exe)
 
         if not os.path.isfile(muscle_exe):
+            self.status_label.setText("MUSCLE executable not found.")
             QMessageBox.warning(
                 self,
                 "MUSCLE Path Error",
@@ -999,7 +987,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         try:
             saved_path = self._write_single_file_output(self._aligned_fasta)
         except OSError as exc:
-            self.status_label.setText("Alignment finished but output save failed.")
+            self.status_label.setText("Output save failed.")
             QMessageBox.critical(
                 self,
                 "Output Save Error",
@@ -1009,14 +997,13 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         n_seq = len(ordered_seqs)
         aln_len = len(next(iter(ordered_seqs.values())))
-        self.status_label.setText(
-            f"Done — {n_seq} sequences | alignment length: {aln_len} bp/aa | saved to {saved_path}"
-        )
+        fname = os.path.basename(saved_path)
+        self.status_label.setText(f"Done — {n_seq} seqs, {aln_len} bp, → {fname}")
 
     def _on_alignment_error(self, msg: str):
         self.run_btn.setEnabled(True)
         self._aligned_fasta = ""
-        self.status_label.setText("Alignment failed.")
+        self.status_label.setText("MUSCLE alignment failed.")
         QMessageBox.critical(self, "MUSCLE Error", msg)
 
     # ------------------------------------------------------------ helpers
@@ -1068,7 +1055,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _normalized_output_file_path(self) -> str:
         path = self.output_file_edit.text().strip()
         if not path:
-            return ""
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = os.path.join(os.getcwd(), f"muscle5_alignment_{ts}.fasta")
         root, ext = os.path.splitext(path)
         if not ext:
             return path + ".fasta"

@@ -26,7 +26,7 @@ class DotPlotTab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("DotPlot", "sequence")
 
-        self.run_btn.setText("Generate DotPlot")
+        self.run_btn.setText("Start")
         self._matrix = None
         self._seq_a_name = "Sequence A"
         self._seq_b_name = "Sequence B"
@@ -48,10 +48,7 @@ class DotPlotTab(BaseTabWidget):
         )
         self.input_text.setMinimumHeight(170)
         self.input_hint.hide()
-        self.output_label.hide()
-        self.output_text.hide()
-        self.export_btn.hide()
-        self.copy_btn.hide()
+        self.output_group.hide()
 
     def _setup_parameters(self):
         # Comparison mode

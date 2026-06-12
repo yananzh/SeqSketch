@@ -5,7 +5,7 @@ from typing import cast
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
+from PyQt6.QtWidgets import QApplication, QFrame, QLabel, QPushButton
 
 from main_window import MainWindow
 from modules.alignment_format_converter_tab import AlignmentFormatConverterTab
@@ -399,18 +399,20 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
         assert "border: none;" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
-    # PairwiseAlignmentTab: input_text inherits borderless from init_sequence_ui;
-    # seq2_text / output_text are re-styled in _rebuild_input_area / _setup_output.
+    # PairwiseAlignmentTab: input_text / seq2_text use inline
+    # stylesheets (direct declarations) for a single visible border;
+    # output_text keeps border:none (QGroupBox provides container border).
     pairwise_tab = PairwiseAlignmentTab()
-    assert "border: none;" in pairwise_tab.input_text.styleSheet()
+    assert "border: 1px solid #94a3b8;" in pairwise_tab.input_text.styleSheet()
     assert "border: 1px solid #94a3b8;" in pairwise_tab.seq2_text.styleSheet()
-    assert "border: 1px solid #94a3b8;" in pairwise_tab.output_text.styleSheet()
+    assert "border: none;" in pairwise_tab.output_text.styleSheet()
     for editor in (
         pairwise_tab.input_text,
         pairwise_tab.seq2_text,
         pairwise_tab.output_text,
     ):
         assert editor.property("sequenceEditorStyled") is True
+        assert editor.frameShape() == QFrame.Shape.NoFrame
         assert "border-radius" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
@@ -448,11 +450,11 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
         == "background: transparent; border: none;"
     )
 
-    # PairwiseAlignmentTab's output_text is re-styled by _setup_output()
-    # (apply_transparent_text_edit_background) which adds the old border back.
+    # PairwiseAlignmentTab's output_text stays borderless inside the
+    # QGroupBox (same pattern as other DNA analysis tabs).
     pairwise_tab = PairwiseAlignmentTab()
     assert "background: transparent;" in pairwise_tab.output_text.styleSheet()
-    assert "border: 1px solid #94a3b8;" in pairwise_tab.output_text.styleSheet()
+    assert "border: none;" in pairwise_tab.output_text.styleSheet()
     assert "border-radius: 6px;" in pairwise_tab.output_text.styleSheet()
     assert "#f7f9fc" not in pairwise_tab.output_text.styleSheet()
     assert (
@@ -464,10 +466,8 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
 def test_dotplot_tab_hides_output_panel_and_removes_reverse_complement_option(qapp):
     tab = DotPlotTab()
 
-    assert tab.output_label.isHidden()
-    assert tab.output_text.isHidden()
-    assert tab.export_btn.isHidden()
-    assert tab.copy_btn.isHidden()
+    assert tab.output_group.isHidden()
+    assert tab.run_btn.text() == "Start"
     assert not hasattr(tab, "rc_check")
 
 
@@ -543,10 +543,7 @@ def test_pairwise_alignment_defaults_gap_open_penalty_to_ten_for_both_modes(qapp
 def test_msa_single_file_tab_hides_output_panel_and_locks_export_to_fasta(qapp):
     tab = MultipleSequenceAlignmentTab()
 
-    assert tab.output_label.isHidden()
-    assert tab.output_text.isHidden()
-    assert tab.copy_btn.isHidden()
-    assert tab.export_btn.isHidden()
+    assert tab.output_group.isHidden()
     assert tab.input_hint.isHidden()
     assert tab.order_combo.currentText() == "Input sequence order"
     assert tab.output_file_edit.text() == ""
@@ -728,10 +725,7 @@ def test_mafft_single_file_tab_hides_output_panel_and_uses_mode_subtabs(qapp):
         "Single-file",
         "Batch Multi-file",
     ]
-    assert tab.output_label.isHidden()
-    assert tab.output_text.isHidden()
-    assert tab.copy_btn.isHidden()
-    assert tab.export_btn.isHidden()
+    assert tab.output_group.isHidden()
     assert tab.input_hint.isHidden()
     assert tab.output_file_edit.text() == ""
 
