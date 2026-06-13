@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import QTextBrowser, QDialog
+from utils.common_components import BaseTabWidget
 import os
 
 # Reuse thread classes and config from the existing dialog modules
@@ -42,93 +43,6 @@ from .blast_config import (
 )
 
 _DEFAULT_MAX_HITS = 50
-
-
-_LOCAL_BLAST_STYLE = """
-QTabWidget::pane {
-    border: 1px solid #d7e2ee;
-    border-radius: 10px;
-    background: #ffffff;
-    top: -1px;
-}
-QTabBar::tab {
-    background: #eef2f7;
-    border: 1px solid #d7e2ee;
-    border-bottom: none;
-    padding: 9px 16px;
-    margin-right: 6px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    color: #334155;
-}
-QTabBar::tab:selected {
-    background: #ffffff;
-    color: #0f172a;
-}
-QFrame[blastCard="true"] {
-    background: #f8fafc;
-    border: 1px solid #d7e2ee;
-    border-radius: 10px;
-}
-QGroupBox {
-    border: 1px solid #d7e2ee;
-    border-radius: 8px;
-    margin-top: 10px;
-    padding-top: 14px;
-    font-weight: 600;
-    color: #0f172a;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 12px;
-    padding: 0 6px;
-}
-QLabel[heroTitle="true"] {
-    color: #0f172a;
-    font-size: 18px;
-    font-weight: 600;
-}
-QLabel[sectionTitle="true"] {
-    color: #0f172a;
-    font-size: 13px;
-    font-weight: 600;
-}
-QLabel[mutedText="true"] {
-    color: #475569;
-}
-QLabel[statusText="true"] {
-    color: #64748b;
-}
-QLineEdit,
-QComboBox {
-    min-height: 34px;
-    padding: 0 10px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    background: #ffffff;
-}
-QPushButton {
-    min-height: 36px;
-    padding: 0 14px;
-    border-radius: 6px;
-}
-QPushButton[actionRole="secondary"] {
-    color: #0f172a;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-}
-QPushButton[actionRole="primary"] {
-    color: #ffffff;
-    background: #2563eb;
-    border: 1px solid #2563eb;
-    font-weight: 600;
-}
-QPushButton:disabled {
-    background: #cbd5e1;
-    border-color: #cbd5e1;
-    color: #f8fafc;
-}
-"""
 
 
 def _default_blast_threads() -> int:
@@ -485,14 +399,6 @@ class _BuildDbWidget(QWidget):
         btn_row.addWidget(self.build_btn)
         btn_row.addWidget(self.cancel_build_btn)
         btn_row.addStretch()
-        if not self._embedded:
-            help_btn = QPushButton(self.tr("Help"))
-            _set_action_role(help_btn, "secondary")
-            help_btn.setFixedWidth(64)
-            help_btn.clicked.connect(
-                lambda: _show_help(self, self.tr("Help - Build Database"), _HELP_BUILD)
-            )
-            btn_row.addWidget(help_btn)
         root.addLayout(btn_row)
 
         self.status_lbl = QLabel("")
@@ -748,9 +654,8 @@ class _RunQueryWidget(QWidget):
         self.pin_db_btn.clicked.connect(self._pin_current_database)
         refresh_btn = QPushButton(self.tr("↻"))
         _set_action_role(refresh_btn, "secondary")
-        refresh_btn.setFixedWidth(44)
+        refresh_btn.setFixedWidth(52)
         refresh_btn.setToolTip(self.tr("Refresh database list"))
-        refresh_btn.setStyleSheet("QPushButton { padding: 0 6px; }")
         refresh_btn.clicked.connect(self.refresh_database_library)
         lib_row.addWidget(self.db_library_combo, 1)
         lib_row.addWidget(self.pin_db_btn)
@@ -815,8 +720,8 @@ class _RunQueryWidget(QWidget):
         self.status_lbl.setProperty("statusText", True)
         root.addWidget(self.status_lbl)
 
-        btn_row = QHBoxLayout()
-        btn_row.setContentsMargins(9, 0, 9, 0)
+        # run_btn / cancel_run_btn are created here but placed by the parent
+        # BlastLocalTab in its status bar so they sit beside Help.
         self.run_btn = QPushButton(self.tr("Run BLAST"))
         _set_action_role(self.run_btn, "primary")
         self.run_btn.clicked.connect(self._start_run)
@@ -825,17 +730,6 @@ class _RunQueryWidget(QWidget):
         self.cancel_run_btn.setFixedWidth(80)
         self.cancel_run_btn.clicked.connect(self._cancel_run)
         self.cancel_run_btn.setVisible(False)
-        help_btn = QPushButton(self.tr("Help"))
-        _set_action_role(help_btn, "primary")
-        help_btn.setFixedWidth(64)
-        help_btn.clicked.connect(
-            lambda: _show_help(self, self.tr("Local BLAST Help"), _HELP_RUN)
-        )
-        btn_row.addWidget(self.run_btn)
-        btn_row.addWidget(self.cancel_run_btn)
-        btn_row.addStretch()
-        btn_row.addWidget(help_btn)
-        root.addLayout(btn_row)
 
         root.addStretch()
         self.refresh_database_library()
@@ -1132,29 +1026,33 @@ class _RunQueryWidget(QWidget):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class BlastLocalTab(QWidget):
+class BlastLocalTab(BaseTabWidget):
     """
     Main-window tab for Local BLAST. Database creation is available inline on
     the Run Query page and auto-selects the newly built database.
     """
 
     def __init__(self, status_callback=None, result_callback=None, parent=None):
-        super().__init__(parent)
-        self.setStyleSheet(_LOCAL_BLAST_STYLE)
+        super().__init__("Local BLAST", "blast")
         self._build_ui(status_callback, result_callback)
         self._check_blast_bin()
 
     def _build_ui(self, status_callback, result_callback):
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
-
         self._run_tab = _RunQueryWidget(
             status_callback=status_callback,
             result_callback=result_callback,
             blast_bin_dir_getter=get_blast_bin_dir,
         )
-        root.addWidget(self._run_tab)
+        self.content_area.addWidget(self._run_tab)
+        self.content_area.addStretch()
+
+        # Place Run BLAST / Cancel beside Help in the bottom status row
+        self.status_layout.insertWidget(
+            self.status_layout.count() - 1, self._run_tab.run_btn
+        )
+        self.status_layout.insertWidget(
+            self.status_layout.count() - 1, self._run_tab.cancel_run_btn
+        )
 
     def _get_blast_bin_dir(self) -> str:
         return (
@@ -1185,3 +1083,7 @@ class BlastLocalTab(QWidget):
                     "Please click BLAST+ Path... to specify the folder containing blastn.exe, makeblastdb.exe, and related tools."
                 ),
             )
+
+    def show_help(self):
+        """Show Local BLAST help dialog."""
+        _show_help(self, self.tr("Local BLAST Help"), _HELP_RUN)

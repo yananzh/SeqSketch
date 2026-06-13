@@ -84,6 +84,21 @@ QPushButton {
 QPushButton:hover {
     background: #357ab8;
 }
+/* Secondary action button — same blue fill, consistent across all buttons */
+QPushButton[actionRole="secondary"] {
+    color: #ffffff;
+    background: #4a90e2;
+    border: 1px solid #4a90e2;
+}
+QPushButton[actionRole="secondary"]:hover {
+    background: #357ab8;
+    border-color: #357ab8;
+}
+QPushButton:disabled {
+    background: #cbd5e1;
+    border-color: #cbd5e1;
+    color: #f8fafc;
+}
 
 /* 5. 输入控件 */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QPlainTextEdit {
@@ -118,6 +133,14 @@ QLabel[logSectionTitle="true"] {
     color: #334155;
     font-weight: 600;
     padding-top: 2px;
+}
+QLabel[sectionTitle="true"] {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 600;
+}
+QLabel[mutedText="true"] {
+    color: #475569;
 }
 QTextEdit[logViewer="true"],
 QTextEdit[logViewer="true"]:focus {

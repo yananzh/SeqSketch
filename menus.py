@@ -111,7 +111,9 @@ def create_menus(window):
     annotation_menu.addAction(interpro_action)
     cd_search_action = QAction("NCBI CD-Search", window)
     cd_search_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://www.ncbi.nlm.nih.gov/Structure/cdd/wrpsb.cgi")
+        lambda: window.open_url_in_browser(
+            "https://www.ncbi.nlm.nih.gov/Structure/cdd/wrpsb.cgi"
+        )
     )
     annotation_menu.addAction(cd_search_action)
     scanprosite_action = QAction("ScanProsite", window)
@@ -128,17 +130,23 @@ def create_menus(window):
     # Signal / Topology / Localization
     signalp_action = QAction("SignalP 6.0", window)
     signalp_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://services.healthtech.dtu.dk/services/SignalP-6.0/")
+        lambda: window.open_url_in_browser(
+            "https://services.healthtech.dtu.dk/services/SignalP-6.0/"
+        )
     )
     annotation_menu.addAction(signalp_action)
     deeptmhmm_action = QAction("DeepTMHMM 1.0", window)
     deeptmhmm_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://services.healthtech.dtu.dk/services/DeepTMHMM-1.0/")
+        lambda: window.open_url_in_browser(
+            "https://services.healthtech.dtu.dk/services/DeepTMHMM-1.0/"
+        )
     )
     annotation_menu.addAction(deeptmhmm_action)
     deeploc_action = QAction("DeepLoc 2.1", window)
     deeploc_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://services.healthtech.dtu.dk/services/DeepLoc-2.1/")
+        lambda: window.open_url_in_browser(
+            "https://services.healthtech.dtu.dk/services/DeepLoc-2.1/"
+        )
     )
     annotation_menu.addAction(deeploc_action)
     protein_menu.addMenu(annotation_menu)
@@ -208,7 +216,9 @@ def create_menus(window):
     function_menu.addAction(mobidb_action)
     hmmer_action = QAction("HMMER (phmmer)", window)
     hmmer_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://www.ebi.ac.uk/Tools/hmmer/search/phmmer")
+        lambda: window.open_url_in_browser(
+            "https://www.ebi.ac.uk/Tools/hmmer/search/phmmer"
+        )
     )
     function_menu.addAction(hmmer_action)
     protein_menu.addMenu(function_menu)
