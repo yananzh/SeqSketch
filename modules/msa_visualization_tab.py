@@ -197,10 +197,11 @@ class MSAVisualizationTab(BaseTabWidget):
     def _add_canvas(self):
         """Insert a scrollable matplotlib canvas below the parameters."""
         self._canvas_container = QScrollArea()
-        # Do NOT use setWidgetResizable(True) — that squashes the figure to
-        # fit the viewport, making long alignments blurry.
-        self._canvas_container.setWidgetResizable(False)
+        # Start with widgetResizable=True so the placeholder fills the viewport
+        # and appears centred.  Switched to False when a real canvas is shown.
+        self._canvas_container.setWidgetResizable(True)
         self._canvas_container.setMinimumHeight(320)
+        self._canvas_container.setStyleSheet("background: transparent; border: none;")
 
         self._canvas_inner = QWidget()
         self._canvas_vbox = QVBoxLayout(self._canvas_inner)
@@ -212,6 +213,18 @@ class MSAVisualizationTab(BaseTabWidget):
         # Toolbar placeholder — populated after first render
         self._toolbar_placeholder = QHBoxLayout()
         self._canvas_vbox.addLayout(self._toolbar_placeholder)
+
+        # Placeholder hint — shown when no alignment is loaded
+        self._placeholder_label = QLabel(
+            "MSA visualization will appear here after clicking 'Visualize'"
+        )
+        self._placeholder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._placeholder_label.setStyleSheet(
+            "color: #999; font-size: 16px; background: transparent; border: none;"
+        )
+        self._canvas_vbox.addWidget(self._placeholder_label, 1)
+
+        self._canvas_inner.setStyleSheet("background: transparent;")
 
         self.canvas = None
         self.nav_bar = None
@@ -354,8 +367,9 @@ class MSAVisualizationTab(BaseTabWidget):
                     item.widget().setParent(None)
             self.nav_bar = None
         self._current_figure = None
-        # Reset inner container so scroll area shows nothing
-        self._canvas_inner.setFixedSize(0, 0)
+        # Restore resizable mode so the placeholder fills the viewport again
+        self._canvas_container.setWidgetResizable(True)
+        self._placeholder_label.show()
 
     # ------------------------------------------------------------------ run
 
@@ -423,6 +437,9 @@ class MSAVisualizationTab(BaseTabWidget):
                     lbl.set_fontsize(max(5, target_size - 2))
 
             self._clear_canvas()
+            self._placeholder_label.hide()
+            # Switch to non-resizable so the canvas keeps its native pixel size
+            self._canvas_container.setWidgetResizable(False)
             self._current_figure = fig
             self.canvas = FigureCanvas(fig)
 

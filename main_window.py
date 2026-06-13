@@ -270,6 +270,28 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, self.tr("Physicochemical Properties"))
         self.tabs.setCurrentWidget(tab)
 
+    def open_hydrophobicity_plot_tab(self):
+        from modules.hydrophobicity_plot_tab import HydrophobicityPlotTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), HydrophobicityPlotTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = HydrophobicityPlotTab()
+        self.tabs.addTab(tab, self.tr("Hydrophobicity Plot"))
+        self.tabs.setCurrentWidget(tab)
+
+    def open_protease_cleavage_tab(self):
+        from modules.protease_cleavage_tab import ProteaseCleavageTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), ProteaseCleavageTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = ProteaseCleavageTab()
+        self.tabs.addTab(tab, self.tr("Protease Cleavage Map"))
+        self.tabs.setCurrentWidget(tab)
+
     def open_url_in_browser(self, url):
         from PyQt6.QtGui import QDesktopServices
         from PyQt6.QtCore import QUrl

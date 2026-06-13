@@ -72,17 +72,26 @@ def create_menus(window):
     dna_menu.addAction(restriction_action)
     # 3. Protein Analysis
     protein_menu = menubar.addMenu(window.tr("Protein Analysis"))
-    # 1. 氨基酸组成
+
+    # ── Local Analysis (submenu) ──────────────────────────────────────
+    local_analysis_menu = QMenu(window.tr("Local Analysis"), window)
     aa_comp_action = QAction(window.tr("Amino Acid Composition"), window)
     aa_comp_action.triggered.connect(window.open_amino_acid_composition_tab)
-    protein_menu.addAction(aa_comp_action)
-    # 2. 物化性质计算
+    local_analysis_menu.addAction(aa_comp_action)
     physchem_action = QAction(window.tr("Physicochemical Properties"), window)
     physchem_action.triggered.connect(window.open_physicochemical_properties_tab)
-    protein_menu.addAction(physchem_action)
+    local_analysis_menu.addAction(physchem_action)
+    hydro_plot_action = QAction(window.tr("Hydrophobicity Plot"), window)
+    hydro_plot_action.triggered.connect(window.open_hydrophobicity_plot_tab)
+    local_analysis_menu.addAction(hydro_plot_action)
+    protease_cleavage_action = QAction(window.tr("Protease Cleavage Map"), window)
+    protease_cleavage_action.triggered.connect(window.open_protease_cleavage_tab)
+    local_analysis_menu.addAction(protease_cleavage_action)
+    protein_menu.addMenu(local_analysis_menu)
     protein_menu.addSeparator()
-    # 3. Protein Annotation and Reference (submenu)
-    annotation_menu = QMenu(window.tr("Protein Annotation and Reference"), window)
+
+    # ── Sequence Annotation & Features (submenu) ───────────────────────
+    annotation_menu = QMenu(window.tr("Annotation & Features"), window)
     uniprotkb_action = QAction("UniProtKB", window)
     uniprotkb_action.triggered.connect(
         lambda: window.open_url_in_browser("https://www.uniprot.org/uniprotkb")
@@ -93,100 +102,100 @@ def create_menus(window):
         lambda: window.open_url_in_browser("https://www.uniprot.org/id-mapping")
     )
     annotation_menu.addAction(uniprot_mapping_action)
-    protein_menu.addMenu(annotation_menu)
-    # 3. Secondary Structure Prediction (submenu)
-    sec_struct_menu = QMenu(window.tr("Secondary Structure Prediction"), window)
-    psipred_action = QAction("PSIPRED", window)
-    psipred_action.triggered.connect(
-        lambda: window.open_url_in_browser("http://bioinf.cs.ucl.ac.uk/psipred/")
-    )
-    sec_struct_menu.addAction(psipred_action)
-    jpred_action = QAction("Jpred4", window)
-    jpred_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://www.compbio.dundee.ac.uk/jpred/")
-    )
-    sec_struct_menu.addAction(jpred_action)
-    protein_menu.addMenu(sec_struct_menu)
-    # 4. Tertiary Structure Prediction (submenu)
-    tert_struct_menu = QMenu(window.tr("Tertiary Structure Prediction"), window)
-    swiss_model_action = QAction("SWISS-MODEL", window)
-    swiss_model_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://swissmodel.expasy.org/")
-    )
-    tert_struct_menu.addAction(swiss_model_action)
-    alphafold_action = QAction("AlphaFold Server", window)
-    alphafold_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://alphafoldserver.com/")
-    )
-    tert_struct_menu.addAction(alphafold_action)
-    protein_menu.addMenu(tert_struct_menu)
-    # 5. Tertiary Structure Reference (submenu)
-    tert_reference_menu = QMenu(window.tr("Tertiary Structure Reference"), window)
-    alphafold_db_action = QAction("AlphaFold DB", window)
-    alphafold_db_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://alphafold.ebi.ac.uk/")
-    )
-    tert_reference_menu.addAction(alphafold_db_action)
-    rcsb_pdb_action = QAction("RCSB PDB", window)
-    rcsb_pdb_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://www.rcsb.org/")
-    )
-    tert_reference_menu.addAction(rcsb_pdb_action)
-    protein_menu.addMenu(tert_reference_menu)
-    # 5. Domain and Motif Analysis (submenu)
-    domain_menu = QMenu(window.tr("Domain and Motif Analysis"), window)
+    annotation_menu.addSeparator()
+    # Domain & Motif
     interpro_action = QAction("InterPro", window)
     interpro_action.triggered.connect(
         lambda: window.open_url_in_browser("https://www.ebi.ac.uk/interpro/")
     )
-    domain_menu.addAction(interpro_action)
-    meme_suite_action = QAction("MEME Suite", window)
-    meme_suite_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://meme-suite.org/meme/")
+    annotation_menu.addAction(interpro_action)
+    cd_search_action = QAction("NCBI CD-Search", window)
+    cd_search_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://www.ncbi.nlm.nih.gov/Structure/cdd/wrpsb.cgi")
     )
-    domain_menu.addAction(meme_suite_action)
+    annotation_menu.addAction(cd_search_action)
     scanprosite_action = QAction("ScanProsite", window)
     scanprosite_action.triggered.connect(
         lambda: window.open_url_in_browser("https://prosite.expasy.org/scanprosite/")
     )
-    domain_menu.addAction(scanprosite_action)
-    cd_search_action = QAction("NCBI CD-Search", window)
-    cd_search_action.triggered.connect(
-        lambda: window.open_url_in_browser(
-            "https://www.ncbi.nlm.nih.gov/Structure/cdd/wrpsb.cgi"
-        )
+    annotation_menu.addAction(scanprosite_action)
+    meme_suite_action = QAction("MEME Suite", window)
+    meme_suite_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://meme-suite.org/meme/")
     )
-    domain_menu.addAction(cd_search_action)
-    protein_menu.addMenu(domain_menu)
-    # 6. Signal Peptide and Topology Prediction (submenu)
-    signal_menu = QMenu(window.tr("Signal Peptide and Topology Prediction"), window)
+    annotation_menu.addAction(meme_suite_action)
+    annotation_menu.addSeparator()
+    # Signal / Topology / Localization
     signalp_action = QAction("SignalP 6.0", window)
     signalp_action.triggered.connect(
-        lambda: window.open_url_in_browser(
-            "https://services.healthtech.dtu.dk/services/SignalP-6.0/"
-        )
+        lambda: window.open_url_in_browser("https://services.healthtech.dtu.dk/services/SignalP-6.0/")
     )
-    signal_menu.addAction(signalp_action)
+    annotation_menu.addAction(signalp_action)
     deeptmhmm_action = QAction("DeepTMHMM 1.0", window)
     deeptmhmm_action.triggered.connect(
-        lambda: window.open_url_in_browser(
-            "https://services.healthtech.dtu.dk/services/DeepTMHMM-1.0/"
-        )
+        lambda: window.open_url_in_browser("https://services.healthtech.dtu.dk/services/DeepTMHMM-1.0/")
     )
-    signal_menu.addAction(deeptmhmm_action)
-    protein_menu.addMenu(signal_menu)
-    # 8. Protein Homology Search (submenu)
-    homolog_menu = QMenu(window.tr("Protein Homology Search"), window)
-    hmmer_action = QAction("HMMER", window)
-    hmmer_action.triggered.connect(
-        lambda: window.open_url_in_browser(
-            "https://www.ebi.ac.uk/Tools/hmmer/search/phmmer"
-        )
+    annotation_menu.addAction(deeptmhmm_action)
+    deeploc_action = QAction("DeepLoc 2.1", window)
+    deeploc_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://services.healthtech.dtu.dk/services/DeepLoc-2.1/")
     )
-    homolog_menu.addAction(hmmer_action)
-    protein_menu.addMenu(homolog_menu)
-    # 9. Protein Function and Interaction (submenu)
-    function_menu = QMenu(window.tr("Protein Function and Interaction"), window)
+    annotation_menu.addAction(deeploc_action)
+    protein_menu.addMenu(annotation_menu)
+
+    # ── Structure (submenu) ────────────────────────────────────────────
+    structure_menu = QMenu(window.tr("Structure"), window)
+    # Secondary structure
+    psipred_action = QAction("PSIPRED", window)
+    psipred_action.triggered.connect(
+        lambda: window.open_url_in_browser("http://bioinf.cs.ucl.ac.uk/psipred/")
+    )
+    structure_menu.addAction(psipred_action)
+    jpred_action = QAction("Jpred4", window)
+    jpred_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://www.compbio.dundee.ac.uk/jpred/")
+    )
+    structure_menu.addAction(jpred_action)
+    structure_menu.addSeparator()
+    # Tertiary prediction
+    swiss_model_action = QAction("SWISS-MODEL", window)
+    swiss_model_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://swissmodel.expasy.org/")
+    )
+    structure_menu.addAction(swiss_model_action)
+    alphafold_action = QAction("AlphaFold Server", window)
+    alphafold_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://alphafoldserver.com/")
+    )
+    structure_menu.addAction(alphafold_action)
+    structure_menu.addSeparator()
+    # Structure databases
+    alphafold_db_action = QAction("AlphaFold DB", window)
+    alphafold_db_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://alphafold.ebi.ac.uk/")
+    )
+    structure_menu.addAction(alphafold_db_action)
+    rcsb_pdb_action = QAction("RCSB PDB", window)
+    rcsb_pdb_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://www.rcsb.org/")
+    )
+    structure_menu.addAction(rcsb_pdb_action)
+    structure_menu.addSeparator()
+    # Structure comparison
+    foldseek_action = QAction("Foldseek Search", window)
+    foldseek_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://search.foldseek.com/search")
+    )
+    structure_menu.addAction(foldseek_action)
+    rcsb_structure_alignment_action = QAction("RCSB Pairwise Alignment", window)
+    rcsb_structure_alignment_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://www.rcsb.org/alignment")
+    )
+    structure_menu.addAction(rcsb_structure_alignment_action)
+    protein_menu.addMenu(structure_menu)
+
+    # ── Function & Interaction (submenu) ───────────────────────────────
+    function_menu = QMenu(window.tr("Function & Interaction"), window)
     string_action = QAction("STRING", window)
     string_action.triggered.connect(
         lambda: window.open_url_in_browser("https://string-db.org/")
@@ -197,29 +206,12 @@ def create_menus(window):
         lambda: window.open_url_in_browser("https://mobidb.org/")
     )
     function_menu.addAction(mobidb_action)
+    hmmer_action = QAction("HMMER (phmmer)", window)
+    hmmer_action.triggered.connect(
+        lambda: window.open_url_in_browser("https://www.ebi.ac.uk/Tools/hmmer/search/phmmer")
+    )
+    function_menu.addAction(hmmer_action)
     protein_menu.addMenu(function_menu)
-    # 9. Protein Structure Similarity Search (submenu)
-    structure_similarity_menu = QMenu(
-        window.tr("Protein Structure Similarity Search"), window
-    )
-    foldseek_action = QAction("Foldseek Search", window)
-    foldseek_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://search.foldseek.com/search")
-    )
-    structure_similarity_menu.addAction(foldseek_action)
-    protein_menu.addMenu(structure_similarity_menu)
-    # 10. Pairwise Protein Structure Alignment (submenu)
-    pairwise_structure_menu = QMenu(
-        window.tr("Pairwise Protein Structure Alignment"), window
-    )
-    rcsb_structure_alignment_action = QAction(
-        window.tr("RCSB Pairwise Structure Alignment"), window
-    )
-    rcsb_structure_alignment_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://www.rcsb.org/alignment")
-    )
-    pairwise_structure_menu.addAction(rcsb_structure_alignment_action)
-    protein_menu.addMenu(pairwise_structure_menu)
     # 4. Alignment
     align_menu = menubar.addMenu(window.tr("Alignment"))
     # 1. 双序列比对 (本地)
