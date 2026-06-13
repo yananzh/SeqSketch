@@ -5,10 +5,11 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QComboBox,
-    QDialog,
-    QTextBrowser,
+    QGroupBox,
+    QScrollArea,
     QPushButton,
 )
+
 from utils.common_components import BaseTabWidget
 import matplotlib
 
@@ -25,15 +26,17 @@ class SequenceLogoTab(BaseTabWidget):
 
     def __init__(self, parent=None):
         super().__init__("Sequence Logo (Logomaker)", "sequence")
+        self._logo_generated = False
 
-        # Customize UI elements
+        # Customize base widgets
         self.run_btn.setText("Generate Logo")
+        self.run_btn.setFixedWidth(140)
         if hasattr(self, "copy_btn"):
-            self.copy_btn.hide()  # Hide copy button for this tab
+            self.copy_btn.hide()
         if hasattr(self, "export_btn"):
             self.export_btn.hide()
 
-        # Update placeholders
+        # Update placeholder text
         self.input_text.setPlaceholderText(
             "Paste aligned sequences in FASTA format or drag-and-drop a file...\n\n"
             "Examples:\n"
@@ -46,16 +49,17 @@ class SequenceLogoTab(BaseTabWidget):
             ">prot2\nMKTFFVAG\n"
             ">prot3\nMKTFFVSG"
         )
-        self.output_text.hide()  # Hide text output area
+        self.output_group.hide()
+        self.output_text.hide()
         self.output_label.hide()
         self.input_hint.hide()
+        self.input_text.setMaximumHeight(160)
 
-        # Add sequence type selector and mode selector
-        self.add_sequence_type_selector()
-        self.add_mode_selector()
+        # ── Parameter group ───────────────────────────────────────────
+        self._setup_parameters()
 
-        # Add matplotlib canvas
-        self.add_plot_canvas()
+        # ── Matplotlib canvas ─────────────────────────────────────────
+        self._add_plot_canvas()
 
         # Enable drag-and-drop
         self._setup_drag_drop()
@@ -71,58 +75,105 @@ class SequenceLogoTab(BaseTabWidget):
         super().open_file()
         self._clear_loaded_hint()
 
-    def add_sequence_type_selector(self):
-        """Add sequence type selector"""
-        type_layout = QHBoxLayout()
+    # ── Layout helpers ──────────────────────────────────────────────────────
+
+    def _setup_parameters(self):
+        """Create a grouped parameter section with both controls in one row."""
+        param_group = QGroupBox("Logo Options")
+        param_group.setFlat(True)
+        pg_layout = QVBoxLayout(param_group)
+        pg_layout.setContentsMargins(12, 12, 0, 12)
+        pg_layout.setSpacing(0)
+
+        row = QHBoxLayout()
+        row.setSpacing(16)
+
+        # Sequence Type
         type_label = QLabel("Sequence Type:")
         self.seq_type_combo = QComboBox()
         self.seq_type_combo.addItems(["Auto Detect", "DNA", "Protein"])
         self.seq_type_combo.setCurrentIndex(0)
+        self.seq_type_combo.setMinimumWidth(140)
+        row.addWidget(type_label)
+        row.addWidget(self.seq_type_combo)
 
-        type_layout.addWidget(type_label)
-        type_layout.addWidget(self.seq_type_combo)
-        type_layout.addStretch()
-
-        # Insert before run button
-        self.content_area.insertLayout(self.content_area.count() - 1, type_layout)
-
-    def add_mode_selector(self):
-        """Add mode selector for probability vs information"""
-        mode_layout = QHBoxLayout()
+        # Display Mode
         mode_label = QLabel("Display Mode:")
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["Probability", "Information"])
         self.mode_combo.setCurrentIndex(0)
+        self.mode_combo.setMinimumWidth(140)
         self.mode_combo.setToolTip(
             "Probability: Shows frequency of each base/residue at each position\n"
             "Information: Shows information content (bits) based on sequence conservation"
         )
+        row.addWidget(mode_label)
+        row.addWidget(self.mode_combo)
 
-        mode_layout.addWidget(mode_label)
-        mode_layout.addWidget(self.mode_combo)
-        mode_layout.addStretch()
+        # Inline hint for the currently selected mode
+        self._mode_hint = QLabel("Height = letter frequency (0–1)")
+        self._mode_hint.setStyleSheet("color: #777; font-size: 12px;")
+        self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
+        row.addWidget(self._mode_hint)
+        row.addStretch()
 
-        # Insert before run button
-        self.content_area.insertLayout(self.content_area.count() - 1, mode_layout)
+        pg_layout.addLayout(row)
+        self.content_area.insertWidget(1, param_group)
 
-    def add_plot_canvas(self):
-        """Add matplotlib canvas for displaying sequence logo"""
-        # Create figure and canvas
+    def _on_mode_changed(self, text):
+        hints = {
+            "Probability": "Height = letter frequency (0–1)",
+            "Information": "Height = conservation in bits (DNA max 2, protein max ~4.32)",
+        }
+        self._mode_hint.setText(hints.get(text, ""))
+
+    def _add_plot_canvas(self):
+        """Add a horizontally scrollable matplotlib canvas for long sequences."""
+        # Scroll area — setWidgetResizable(False) keeps native figure size,
+        # preventing squashing for wide logos (same pattern as MSA tab).
+        # Canvas is set as the *direct* child so its sizeHint drives scrollbars.
+        self._scroll_area = QScrollArea()
+        self._scroll_area.setWidgetResizable(False)
+        self._scroll_area.setMinimumHeight(240)
+
         self.figure = Figure(figsize=(10, 3))
         self.canvas = FigureCanvas(self.figure)
+        self.canvas.setMinimumHeight(200)
 
-        # Add navigation toolbar
+        self._scroll_area.setWidget(self.canvas)
+
         self.toolbar = NavigationToolbar(self.canvas, self)
+        self.toolbar.hide()  # hidden until first logo is generated
 
-        # Create layout for plot
-        plot_layout = QVBoxLayout()
         plot_label = QLabel("Sequence Logo:")
+        plot_layout = QVBoxLayout()
         plot_layout.addWidget(plot_label)
         plot_layout.addWidget(self.toolbar)
-        plot_layout.addWidget(self.canvas)
+        plot_layout.addWidget(self._scroll_area)
 
-        # Insert before control buttons
         self.content_area.insertLayout(self.content_area.count() - 1, plot_layout)
+
+        self._draw_placeholder_plot()
+
+    def _draw_placeholder_plot(self):
+        """Draw a simple placeholder on the canvas."""
+        self.figure.clear()
+        ax = self.figure.add_subplot(111)
+        ax.text(
+            0.5,
+            0.5,
+            "Sequence Logo will appear here after generation",
+            ha="center",
+            va="center",
+            fontsize=12,
+            color="#999",
+            transform=ax.transAxes,
+        )
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        self.canvas.draw()
 
     def run(self):
         """Generate sequence logo"""
@@ -310,11 +361,26 @@ class SequenceLogoTab(BaseTabWidget):
         # Set x-axis to show positions starting from 1
         ax.set_xlim((0.5, len(matrix) + 0.5))
 
+        # Dynamically widen figure for long sequences so each position is legible
+        num_pos = len(matrix)
+        if num_pos > 30:
+            fig_width = max(10, num_pos * 0.35)
+            self.figure.set_size_inches(fig_width, 3)
+            # Canvas is the scroll area's direct child with setWidgetResizable(False).
+            # adjustSize() resizes it to match the new figure dimensions, which
+            # triggers the QScrollArea to show the horizontal scrollbar.
+            self.canvas.adjustSize()
+
         # Adjust layout
         self.figure.tight_layout()
 
         # Store current figure for export
         self.current_figure = self.figure
+
+        # Show toolbar after first successful generation
+        if not self._logo_generated:
+            self.toolbar.show()
+            self._logo_generated = True
 
         # Refresh canvas
         self.canvas.draw()
@@ -346,85 +412,89 @@ class SequenceLogoTab(BaseTabWidget):
                 )
 
     def clear(self):
-        """Clear input, output and figure"""
+        """Clear input, output and figure, restoring the placeholder."""
         self.input_text.clear()
         self._clear_loaded_hint()
-        self.figure.clear()
-        self.canvas.draw()
+        self._draw_placeholder_plot()
+        self.toolbar.hide()
+        self._logo_generated = False
         self.current_figure = None
         self.status_label.setText("Cleared")
 
     def show_help(self):
-        """Show help dialog"""
+        """Show help dialog — follows the FASTA-tools QLabel+QScrollArea pattern."""
+        from PyQt6.QtWidgets import (
+            QDialog,
+            QVBoxLayout,
+            QLabel,
+            QPushButton,
+            QScrollArea,
+        )
+        from PyQt6.QtCore import Qt
+
         help_text = """
-<h3>Sequence Logo Generator</h3>
+<h2>Sequence Logo &mdash; Visualize Sequence Conservation</h2>
 
-<p><b>Purpose:</b> Generate sequence logos to visualize sequence conservation patterns in aligned DNA or protein sequences.</p>
+<p><b>What does this tool do?</b><br>
+It generates a sequence logo from a set of aligned DNA or protein sequences.
+Each position in the alignment is represented as a stack of letters whose
+height reflects how often that letter appears.</p>
 
-<p><b>Input Format:</b></p>
+<h3>Input Requirements</h3>
 <ul>
-<li>Aligned sequences in FASTA format</li>
-<li>All sequences must have the same length</li>
-<li>Gaps (-) are ignored in the logo</li>
+<li>Paste or upload aligned sequences in <b>FASTA format</b>.</li>
+<li>All sequences must have the <b>same length</b> (pre-aligned).</li>
+<li>Gap characters (<code>-</code>) are ignored when building the logo.</li>
 </ul>
 
-<p><b>Sequence Types:</b></p>
+<h3>Sequence Type</h3>
 <ul>
-<li><b>DNA:</b> Displays nucleotides (A, T, G, C) with classic color scheme</li>
-<li><b>Protein:</b> Displays amino acids with chemistry-based color scheme</li>
-<li><b>Auto Detect:</b> Automatically determines sequence type</li>
+<li><b>DNA</b> &mdash; shows A, T, G, C with the classic nucleotide colour scheme
+(A&nbsp;green, T&nbsp;red, G&nbsp;orange, C&nbsp;blue).</li>
+<li><b>Protein</b> &mdash; shows the 20 standard amino acids with a
+chemistry-based colour scheme (hydrophobic, polar, charged, etc.).</li>
+<li><b>Auto Detect</b> &mdash; guesses the type from the letters present.
+Change it manually if the guess is wrong.</li>
 </ul>
 
-<p><b>Display Modes:</b></p>
+<h3>Display Modes</h3>
 <ul>
-<li><b>Probability:</b> Shows the frequency/probability of each base or amino acid at each position. The height of each letter represents its probability (0-1).</li>
-<li><b>Information:</b> Shows the information content (in bits) at each position. Higher values indicate greater conservation. The total height reflects sequence conservation (max 2 bits for DNA, ~4.32 bits for proteins).</li>
+<li><b>Probability</b> &mdash; each letter's height is its observed frequency
+at that position (range&nbsp;0&ndash;1). Useful for seeing the raw
+composition.</li>
+<li><b>Information</b> &mdash; height is scaled by conservation in
+<b>bits</b>. A fully conserved column reaches ~2&nbsp;bits for DNA or
+~4.32&nbsp;bits for proteins. Best for highlighting conserved regions.</li>
 </ul>
 
-<p><b>Output:</b></p>
+<h3>Tips</h3>
 <ul>
-<li>Interactive sequence logo plot</li>
-<li>Height of letters indicates probability/frequency (Probability mode) or information content (Information mode)</li>
-<li>Use toolbar to zoom, pan, or save the figure</li>
+<li>For long sequences the canvas widens automatically and a horizontal
+scrollbar appears &mdash; scroll to inspect every position.</li>
+<li>Use the Matplotlib toolbar above the logo to <b>zoom</b>, <b>pan</b>,
+or <b>save</b> the figure directly.</li>
+<li>Export a high-resolution copy (300&nbsp;DPI) via <b>Export Result</b>
+in PNG, PDF, or SVG format.</li>
+<li>If you are new to sequence logos, start with a small alignment
+(5&ndash;10 sequences, 20&ndash;50 positions) to get a feel for the output.</li>
 </ul>
-
-<p><b>Export:</b> Save the logo as PNG, PDF, or SVG format (high resolution, 300 DPI)</p>
-
-<p><b>Example DNA sequences:</b></p>
-<pre>
->seq1
-ATGCATGC
->seq2
-ATGCATGC
->seq3
-ATGCATGT
-</pre>
-
-<p><b>Note:</b> This is a local implementation using the logomaker Python package.</p>
         """
-
-        # Create custom dialog with wider width
         dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Sequence Logo (Logomaker)")
-        dialog.setMinimumWidth(700)
-        dialog.setMinimumHeight(500)
-
+        dialog.setWindowTitle("Help - Sequence Logo")
+        dialog.setFixedSize(700, 480)
         layout = QVBoxLayout()
-
-        # Text browser for HTML content
-        text_browser = QTextBrowser()
-        text_browser.setHtml(help_text)
-        text_browser.setOpenExternalLinks(True)
-        layout.addWidget(text_browser)
-
-        # Close button
-        close_btn = QPushButton("Close")
-        close_btn.clicked.connect(dialog.accept)
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        btn_layout.addWidget(close_btn)
-        layout.addLayout(btn_layout)
-
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(True)
+        label.setMargin(20)
+        scroll_area.setWidget(label)
+        layout.addWidget(scroll_area)
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button)
         dialog.setLayout(layout)
         dialog.exec()
 

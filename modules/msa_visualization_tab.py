@@ -169,7 +169,7 @@ class MSAVisualizationTab(BaseTabWidget):
         row3.addWidget(QLabel("Font Size:"))
         self.font_spin = QSpinBox()
         self.font_spin.setRange(4, 24)
-        self.font_spin.setValue(8)
+        self.font_spin.setValue(6)
         self.font_spin.setFixedWidth(70)
         self.font_spin.setToolTip(
             "Base font size for sequence characters and labels.\n"
@@ -394,7 +394,6 @@ class MSAVisualizationTab(BaseTabWidget):
                 format="fasta",
                 color_scheme=color_arg,
                 wrap_length=wrap,
-                font_size=self.font_spin.value(),
                 show_label=True,
                 show_seq_char=self.chk_seq_char.isChecked(),
                 show_grid=self.chk_grid.isChecked(),
@@ -411,6 +410,17 @@ class MSAVisualizationTab(BaseTabWidget):
 
             fig = mv.plotfig(dpi=self.dpi_spin.value())
             self._reserve_label_space(fig, headers)
+
+            # Apply user-chosen font size to all text in the figure
+            target_size = self.font_spin.value()
+            for ax in fig.axes:
+                for txt in ax.texts:
+                    txt.set_fontsize(target_size)
+                ax.title.set_fontsize(target_size + 1)
+                ax.xaxis.label.set_fontsize(target_size)
+                ax.yaxis.label.set_fontsize(target_size)
+                for lbl in ax.get_xticklabels() + ax.get_yticklabels():
+                    lbl.set_fontsize(max(5, target_size - 2))
 
             self._clear_canvas()
             self._current_figure = fig
