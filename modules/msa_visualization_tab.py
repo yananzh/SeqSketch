@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QSpinBox,
     QFrame,
+    QGroupBox,
     QDialog,
     QTextBrowser,
     QScrollArea,
@@ -60,6 +61,7 @@ class MSAVisualizationTab(BaseTabWidget):
         # Rewire base widgets
         self.run_btn.setText("Visualize")
         self.export_btn.setText("Save Figure")
+        self.output_group.hide()
         self.export_btn.hide()
         self.copy_btn.hide()
         self.output_text.hide()
@@ -68,14 +70,14 @@ class MSAVisualizationTab(BaseTabWidget):
         # Placeholder
         self.input_label.setText("Input Alignment (FASTA):")
         self.input_text.setPlaceholderText(
-            "Paste an aligned FASTA file (all sequences must be the same length), "
-            "or drag-and-drop a file…\n\n"
+            "Paste a pre-aligned FASTA file, or drag-and-drop a file…\n\n"
+            "⚠ All sequences must be the same length (already aligned).\n\n"
             "Example:\n"
             ">seq1\nATGCATGCATGC\n"
             ">seq2\nATGCATGCATGC\n"
             ">seq3\nATGCATGCATGT"
         )
-        self.input_text.setMaximumHeight(150)
+        self.input_text.setMaximumHeight(250)
         self.upload_btn.setText("Upload FASTA File")
         self.input_hint.setStyleSheet("color: #888;")
         self.input_hint.hide()
@@ -87,10 +89,11 @@ class MSAVisualizationTab(BaseTabWidget):
     # ---------------------------------------------------------------- layout
 
     def _setup_parameters(self):
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setFrameShadow(QFrame.Shadow.Sunken)
-        self.content_area.insertWidget(1, line)
+        param_group = QGroupBox("Visualization Options")
+        param_group.setFlat(True)
+        pg_layout = QVBoxLayout(param_group)
+        pg_layout.setContentsMargins(12, 16, 0, 4)
+        pg_layout.setSpacing(6)
 
         # Row 1 — color scheme + wrap length
         row1 = QHBoxLayout()
@@ -163,6 +166,17 @@ class MSAVisualizationTab(BaseTabWidget):
         row3.addWidget(self.chk_highlight)
         row3.addWidget(self.ident_spin)
         row3.addSpacing(30)
+        row3.addWidget(QLabel("Font Size:"))
+        self.font_spin = QSpinBox()
+        self.font_spin.setRange(4, 24)
+        self.font_spin.setValue(8)
+        self.font_spin.setFixedWidth(70)
+        self.font_spin.setToolTip(
+            "Base font size for sequence characters and labels.\n"
+            "Default 8 gives a compact alignment view."
+        )
+        row3.addWidget(self.font_spin)
+        row3.addSpacing(20)
         row3.addWidget(QLabel("DPI:"))
         self.dpi_spin = QSpinBox()
         self.dpi_spin.setRange(72, 600)
@@ -174,9 +188,11 @@ class MSAVisualizationTab(BaseTabWidget):
         row3.addWidget(self.dpi_spin)
         row3.addStretch()
 
-        self.content_area.insertLayout(2, row1)
-        self.content_area.insertLayout(3, row2)
-        self.content_area.insertLayout(4, row3)
+        pg_layout.addLayout(row1)
+        pg_layout.addLayout(row2)
+        pg_layout.addLayout(row3)
+
+        self.content_area.insertWidget(1, param_group)
 
     def _add_canvas(self):
         """Insert a scrollable matplotlib canvas below the parameters."""
@@ -261,10 +277,19 @@ class MSAVisualizationTab(BaseTabWidget):
             "PDF (*.pdf)": ".pdf",
             "TIFF (*.tiff)": ".tiff",
         }
+        # Derive default filename from input (first FASTA header) or fallback
+        raw = self.input_text.toPlainText().strip()
+        stem = "msa_viz"
+        if raw:
+            for line in raw.splitlines():
+                line = line.strip()
+                if line.startswith(">"):
+                    stem = line[1:].strip().split()[0] + "_viz"
+                    break
         path, selected_filter = QFileDialog.getSaveFileName(
             self,
             "Save Figure",
-            "msa_visualization.png",
+            f"{stem}.png",
             ";;".join(_EXT_MAP.keys()),
         )
         if not path:
@@ -369,6 +394,7 @@ class MSAVisualizationTab(BaseTabWidget):
                 format="fasta",
                 color_scheme=color_arg,
                 wrap_length=wrap,
+                font_size=self.font_spin.value(),
                 show_label=True,
                 show_seq_char=self.chk_seq_char.isChecked(),
                 show_grid=self.chk_grid.isChecked(),
@@ -406,9 +432,17 @@ class MSAVisualizationTab(BaseTabWidget):
             self._canvas_vbox.addWidget(self.canvas)
 
             aln_len = mv.alignment_length
+            # Count gap characters across all sequences for the stats bar
+            seq_lines = [
+                ln.strip()
+                for ln in raw.splitlines()
+                if ln.strip() and not ln.strip().startswith(">")
+            ]
+            total_chars = sum(len(s) for s in seq_lines)
+            gap_chars = sum(s.count("-") + s.count(".") for s in seq_lines)
+            gap_pct = round(gap_chars / total_chars * 100, 1) if total_chars else 0.0
             self.status_label.setText(
-                f"Rendered — {n_seq} sequences | alignment length: {aln_len} | "
-                f"color: {color}"
+                f"Rendered — {n_seq} seqs, {aln_len} cols, {gap_pct}% gaps | {color}"
             )
 
         except Exception as e:
@@ -425,58 +459,55 @@ class MSAVisualizationTab(BaseTabWidget):
 
     def show_help(self):
         html = """
-<h3>MSA Visualization</h3>
-<p>Renders a colored multiple sequence alignment figure using
-<b>pyMSAviz</b> — a Python wrapper around Matplotlib.</p>
+<h2>MSA Visualization &mdash; pyMSAviz</h2>
 
-<h4>Input</h4>
+<p><b>What does this tool do?</b><br>
+Renders a colored multiple sequence alignment figure using pyMSAviz,
+a Python wrapper around Matplotlib. Perfect for generating publication-quality
+MSA figures.</p>
+
+<h3>Quick Start</h3>
+<ol>
+<li>Paste a <b>pre-aligned</b> FASTA file (all sequences must be the same length)</li>
+<li>Choose a <b>Color Scheme</b> and adjust display options</li>
+<li>Click <b>Visualize</b> &mdash; the rendered figure appears in the scrollable area below</li>
+<li>Use the <b>toolbar</b> above the figure to pan, zoom, and export as PNG / SVG / PDF / TIFF</li>
+</ol>
+
+<h3>Color Schemes</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Clustal</b></td><td>&rarr; classic Clustal-X colors (protein default)</td></tr>
+<tr><td><b>Nucleotide</b></td><td>&rarr; recommended for DNA alignments</td></tr>
+<tr><td><b>Purine/Pyrimidine</b></td><td>&rarr; alternative DNA scheme</td></tr>
+<tr><td><b>Taylor, Zappo, Flower, &hellip;</b></td><td>&rarr; alternative protein schemes</td></tr>
+<tr><td><b>Identity</b></td><td>&rarr; colors by residue conservation level</td></tr>
+<tr><td><b>None</b></td><td>&rarr; plain gray residues</td></tr>
+</table>
+
+<h3>Display Options</h3>
 <ul>
-  <li>Paste a <b>pre-aligned</b> FASTA file (all sequences must be the same length,
-      with gap characters <code>-</code>), or click <b>Upload FASTA File</b> /
-      drag-and-drop.</li>
-  <li>At least <b>2 sequences</b> are required.</li>
-  <li>Use the <b>Multiple Sequence Alignment (Muscle5)</b> tab to generate the
-      alignment first, then paste the output here.</li>
+<li><b>Sequence Characters</b> &mdash; show/hide residue letters inside each cell</li>
+<li><b>Grid</b> &mdash; draw cell borders</li>
+<li><b>Position Count</b> &mdash; show column numbers along the x-axis</li>
+<li><b>Consensus</b> &mdash; consensus bar below the alignment</li>
+<li><b>Sort by Similarity</b> &mdash; reorder by similarity to the first sequence</li>
+<li><b>Highlight Conserved Columns</b> &mdash; light blue background on columns
+    meeting the identity threshold</li>
 </ul>
 
-<h4>Color Scheme</h4>
+<h3>Tips</h3>
 <ul>
-  <li><b>Clustal</b> — classic Clustal-X colors (protein default).</li>
-  <li><b>Nucleotide</b> / <b>Purine/Pyrimidine</b> — recommended for DNA.</li>
-  <li><b>Taylor, Zappo, Flower, …</b> — alternative protein color schemes.</li>
-  <li><b>Identity</b> — colors by residue conservation level.</li>
-  <li><b>None</b> — plain gray residues.</li>
+<li>Use the <b>Multiple Sequence Alignment (Muscle5 / MAFFT)</b> tabs to
+    generate an alignment first, then paste the output here</li>
+<li>Set <b>Wrap Length</b> to 0 for a single continuous row</li>
+<li>Higher <b>DPI</b> = sharper figures but slower rendering (300 is a good default)</li>
+<li>Use the toolbar to save as PNG, SVG, PDF, or TIFF</li>
 </ul>
-
-<h4>Display Options</h4>
-<ul>
-  <li><b>Sequence Characters</b> — show/hide residue letters inside each cell.</li>
-  <li><b>Grid</b> — draw cell borders between residues.</li>
-  <li><b>Position Count</b> — show position numbers along the x-axis.</li>
-  <li><b>Consensus</b> — draw a consensus sequence bar below the alignment.</li>
-  <li><b>Sort by Similarity</b> — reorder sequences by similarity to the first.</li>
-</ul>
-
-<h4>Highlight Conserved Columns</h4>
-<p>Columns where the fraction of identical residues meets the identity threshold
-are highlighted with a light blue background, making conserved regions easy to spot.</p>
-
-<h4>Wrap Length</h4>
-<p>Maximum number of residue columns per row.
-Set to <b>0</b> for a single, continuous (unwrapped) row.</p>
-
-<h4>DPI</h4>
-<p>Rendering and export resolution in dots-per-inch. Higher values produce
-sharper figures but take longer to render.</p>
-
-<h4>Export</h4>
-<p>Use the toolbar above the figure to save/export the current visualization as
-PNG, SVG, PDF, or TIFF, and to zoom, pan, and interactively explore the alignment.</p>
 """
         dlg = QDialog(self)
         dlg.setWindowTitle("Help – MSA Visualization (pyMSAviz)")
         dlg.setMinimumWidth(660)
-        dlg.setMinimumHeight(520)
+        dlg.setMinimumHeight(480)
         layout = QVBoxLayout()
         browser = QTextBrowser()
         browser.setHtml(html)

@@ -282,10 +282,68 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         self.show_status("Ready")
 
     def show_help(self):
-        from PyQt6.QtWidgets import QMessageBox
+        html = """
+<h2>Alignment Format Converter</h2>
 
-        QMessageBox.information(
-            self,
-            "Alignment Format Converter Help",
-            "Convert aligned FASTA, CLUSTAL, PHYLIP, or NEXUS files into another alignment format. Input sequences must already be aligned to the same length.",
+<p><b>What does this tool do?</b><br>
+Converts alignment files between common bioinformatics formats:
+FASTA, CLUSTAL, PHYLIP, and NEXUS. Input sequences must already be
+aligned to the same length.</p>
+
+<h3>Quick Start</h3>
+<ol>
+<li>Select an aligned input file (or drag &amp; drop)</li>
+<li>Verify the <b>Input Format</b> &mdash; the tool auto-detects from the file extension</li>
+<li>Choose the <b>Output Format</b> and an output path</li>
+<li>Click <b>Convert</b></li>
+</ol>
+
+<h3>Supported Formats</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>FASTA</b></td><td>&rarr; standard aligned FASTA (<code>.fasta</code>, <code>.fa</code>, <code>.afa</code>)</td></tr>
+<tr><td><b>CLUSTAL</b></td><td>&rarr; CLUSTAL-W alignment format (<code>.aln</code>, <code>.clustal</code>)</td></tr>
+<tr><td><b>PHYLIP</b></td><td>&rarr; relaxed interleaved PHYLIP (<code>.phy</code>)</td></tr>
+<tr><td><b>NEXUS</b></td><td>&rarr; NEXUS alignment block (<code>.nex</code>)</td></tr>
+</table>
+
+<h3>Auto-Detection</h3>
+<p>The input format is inferred from the file extension when you select a file.
+Common extensions are recognised automatically; you can override the
+detection manually if needed.</p>
+
+<h3>Output Auto-Naming</h3>
+<p>When you select an input file the output path is pre-filled with the
+same base name and the extension matching the chosen output format.
+Click <b>Save As</b> to choose a different location.</p>
+
+<h3>Limitations</h3>
+<ul>
+<li>Input sequences must already be <b>aligned to the same length</b>
+    (columns must match). This tool does not perform alignment.</li>
+<li>NEXUS input may contain a single DATA block with one alignment.</li>
+</ul>
+"""
+        from PyQt6.QtWidgets import (
+            QDialog,
+            QTextBrowser,
+            QVBoxLayout,
+            QHBoxLayout,
+            QPushButton,
         )
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Help – Alignment Format Converter")
+        dlg.setMinimumWidth(660)
+        dlg.setMinimumHeight(440)
+        layout = QVBoxLayout()
+        browser = QTextBrowser()
+        browser.setHtml(html)
+        layout.addWidget(browser)
+        btn_row = QHBoxLayout()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dlg.accept)
+        btn_row.addStretch()
+        btn_row.addWidget(close_btn)
+        layout.addLayout(btn_row)
+        dlg.setLayout(layout)
+        dlg.exec()
