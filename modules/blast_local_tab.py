@@ -313,6 +313,7 @@ class _BuildDbWidget(QWidget):
         blast_bin_dir_getter=None,
         database_callback=None,
         embedded: bool = False,
+        label_width: int = 0,
         parent=None,
     ):
         super().__init__(parent)
@@ -320,6 +321,7 @@ class _BuildDbWidget(QWidget):
         self._blast_bin_dir_getter = blast_bin_dir_getter or get_blast_bin_dir
         self._database_callback = database_callback
         self._embedded = embedded
+        self._label_width = label_width
         self._thread = None
         self._build_ui()
 
@@ -362,7 +364,10 @@ class _BuildDbWidget(QWidget):
         fasta_btn.clicked.connect(self._choose_fasta)
         fasta_row.addWidget(self.fasta_edit)
         fasta_row.addWidget(fasta_btn)
-        create_form.addRow(QLabel(self.tr("Input FASTA")), fasta_row)
+        fasta_lbl = QLabel(self.tr("Input FASTA"))
+        if self._label_width:
+            fasta_lbl.setFixedWidth(self._label_width)
+        create_form.addRow(fasta_lbl, fasta_row)
 
         outdir_row = QHBoxLayout()
         self.outdir_edit = QLineEdit()
@@ -376,11 +381,17 @@ class _BuildDbWidget(QWidget):
         outdir_btn.clicked.connect(self._choose_outdir)
         outdir_row.addWidget(self.outdir_edit)
         outdir_row.addWidget(outdir_btn)
-        create_form.addRow(QLabel(self.tr("Output folder")), outdir_row)
+        outdir_lbl = QLabel(self.tr("Output folder"))
+        if self._label_width:
+            outdir_lbl.setFixedWidth(self._label_width)
+        create_form.addRow(outdir_lbl, outdir_row)
 
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText(self.tr("my_reference_db"))
-        create_form.addRow(QLabel(self.tr("Database name")), self.name_edit)
+        name_lbl = QLabel(self.tr("Database name"))
+        if self._label_width:
+            name_lbl.setFixedWidth(self._label_width)
+        create_form.addRow(name_lbl, self.name_edit)
 
         if self._embedded:
             root.addLayout(create_form)
@@ -639,13 +650,18 @@ class _RunQueryWidget(QWidget):
         _set_action_role(db_btn, "secondary")
         db_btn.setFixedWidth(80)
         db_btn.clicked.connect(self._choose_db)
-        db_row.addWidget(QLabel(self.tr("Existing DB")))
+        db_lbl = QLabel(self.tr("Existing DB"))
+        db_lbl.setFixedWidth(lbl_width)
+        db_row.addWidget(db_lbl)
         db_row.addWidget(self.db_edit, 1)
         db_row.addWidget(db_btn)
         grp2_layout.addLayout(db_row)
 
         lib_row = QHBoxLayout()
-        lib_row.setSpacing(6)
+        lib_row.setSpacing(8)
+        # Offset the combo left edge to match the line-edits in the row above:
+        # label_width + inter-widget spacing = lbl_width + 8
+        lib_row.setContentsMargins(lbl_width + 8, 0, 0, 0)
         self.db_library_combo = QComboBox()
         self.db_library_combo.currentIndexChanged.connect(self._use_selected_database)
         self.pin_db_btn = QPushButton(self.tr("Pin"))
@@ -667,6 +683,7 @@ class _RunQueryWidget(QWidget):
             blast_bin_dir_getter=self._blast_bin_dir_getter,
             database_callback=self._select_built_database,
             embedded=True,
+            label_width=lbl_width,
         )
         grp2_layout.addWidget(self._build_db_widget)
         root.addWidget(grp2)
