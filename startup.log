@@ -1407,3 +1407,176 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:42:26.804295
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: 'BookmarkManager' object has no attribute '_cat_display'
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 342, in open_favorites_manager_tab
+    tab = BookmarkManager()
+  File "f:\ui\modules\favorites_manager.py", line 148, in __init__
+    self._populate_categories()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "f:\ui\modules\favorites_manager.py", line 293, in _populate_categories
+    item = QTreeWidgetItem([self._cat_display(cat, count)])
+                            ^^^^^^^^^^^^^^^^^
+AttributeError: 'BookmarkManager' object has no attribute '_cat_display'
+
+============================================================
+startup : 2026-06-14 16:43:15.680102
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: '学习'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: '学习'
+UNHANDLED: 'python (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)'
+UNHANDLED: 'python (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    self.bookmarks[new_name] = self.bookmarks.pop(old_name)
+                               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    return
+    
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    return
+    
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    return
+    
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    return
+    
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+UNHANDLED: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+Traceback (most recent call last):
+  File "f:\ui\modules\favorites_manager.py", line 373, in on_category_renamed
+    return
+    
+KeyError: 'python (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)  (2)'
+
+============================================================
+startup : 2026-06-14 16:46:25.013800
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:47:58.021278
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:50:25.552107
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:52:58.153923
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A

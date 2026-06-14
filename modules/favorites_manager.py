@@ -181,14 +181,18 @@ class BookmarkManager(QWidget):
         import_btn.clicked.connect(self.import_bookmarks)
         toolbar.addWidget(import_btn)
 
-        self.export_btn = QPushButton("Export ▼")
+        self.export_btn = QPushButton("Export")
         self.export_btn.setToolTip("Export bookmarks to JSON or HTML")
         export_menu = QMenu(self)
         export_json = export_menu.addAction("Export JSON")
         export_json.triggered.connect(self.export_bookmarks)
         export_html = export_menu.addAction("Export HTML")
         export_html.triggered.connect(self.export_to_html)
-        self.export_btn.setMenu(export_menu)
+        self.export_btn.clicked.connect(
+            lambda: export_menu.exec(
+                self.export_btn.mapToGlobal(self.export_btn.rect().bottomLeft())
+            )
+        )
         toolbar.addWidget(self.export_btn)
 
         root.addLayout(toolbar)
@@ -198,6 +202,12 @@ class BookmarkManager(QWidget):
         root.addLayout(h_layout, 1)
 
         self.category_tree = CategoryTree(self)
+        self.category_tree.setStyleSheet("font-size: 14px;")
+        self.category_tree.setIndentation(12)
+        # Increase vertical spacing between items via stylesheet
+        self.category_tree.setStyleSheet(
+            "QTreeWidget { font-size: 14px; }QTreeWidget::item { padding: 3px 0; }"
+        )
         self.category_tree.itemClicked.connect(self.on_category_clicked)
         self.category_tree.itemChanged.connect(self.on_category_renamed)
         self.category_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -206,6 +216,9 @@ class BookmarkManager(QWidget):
 
         self.bookmark_list = BookmarkList(self)
         self.bookmark_list.setAlternatingRowColors(True)
+        self.bookmark_list.setStyleSheet(
+            "QListWidget { font-size: 14px; } QListWidget::item { padding: 2px 0; }"
+        )
         self.bookmark_list.itemDoubleClicked.connect(self.open_bookmark)
         self.bookmark_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.bookmark_list.customContextMenuRequested.connect(self.show_bookmark_menu)
@@ -281,16 +294,15 @@ class BookmarkManager(QWidget):
     # ============== UI Sync ==============
     @staticmethod
     def _cat_name(item: QTreeWidgetItem | None) -> str:
-        """Extract real category name from a tree item (stripping count)."""
+        """Extract real category name from a tree item."""
         if item is None:
             return ""
-        return item.data(0, Qt.ItemDataRole.UserRole) or item.text(0).split("  (")[0]
+        return item.data(0, Qt.ItemDataRole.UserRole) or item.text(0)
 
     def _populate_categories(self):
         self.category_tree.clear()
         for cat in self.categories:
-            count = len(self.bookmarks.get(cat, []))
-            item = QTreeWidgetItem([self._cat_display(cat, count)])
+            item = QTreeWidgetItem([cat])
             item.setData(0, Qt.ItemDataRole.UserRole, cat)
             item.setFlags(
                 item.flags()
@@ -302,7 +314,7 @@ class BookmarkManager(QWidget):
             self.category_tree.addTopLevelItem(item)
 
     def on_category_clicked(self, item, col=0):
-        cat = item.data(0, Qt.ItemDataRole.UserRole) or item.text(0)
+        cat = self._cat_name(item)
         self._display_bookmarks(cat)
 
     def _display_bookmarks(self, category: str):
@@ -347,31 +359,26 @@ class BookmarkManager(QWidget):
         self.category_tree.editItem(item, 0)
 
     def on_category_renamed(self, item, column):
-        old_name = item.data(0, Qt.ItemDataRole.UserRole)
+        old_name = self._cat_name(item)
         new_name = item.text(0).strip()
         if not new_name:
             QMessageBox.warning(self, "Notice", "Category name cannot be empty.")
             if old_name:
-                count = len(self.bookmarks.get(old_name, []))
-                item.setText(0, self._cat_display(old_name, count))
+                item.setText(0, old_name)
             return
         if new_name == old_name:
-            count = len(self.bookmarks.get(old_name, []))
-            item.setText(0, self._cat_display(old_name, count))
             return
         if new_name in self.bookmarks:
             QMessageBox.warning(self, "Notice", "Target category already exists.")
             if old_name:
-                count = len(self.bookmarks.get(old_name, []))
-                item.setText(0, self._cat_display(old_name, count))
+                item.setText(0, old_name)
             return
-        if old_name:
+        if old_name and old_name in self.bookmarks:
             self.bookmarks[new_name] = self.bookmarks.pop(old_name)
             idx = self.category_tree.indexOfTopLevelItem(item)
             if 0 <= idx < len(self.categories):
                 self.categories[idx] = new_name
-            count = len(self.bookmarks[new_name])
-            item.setText(0, self._cat_display(new_name, count))
+            item.setText(0, new_name)
             item.setData(0, Qt.ItemDataRole.UserRole, new_name)
             self._save_bookmarks()
 
@@ -399,6 +406,9 @@ class BookmarkManager(QWidget):
     def show_category_menu(self, pos):
         item = self.category_tree.itemAt(pos)
         menu = QMenu(self)
+        new_cat_act = QAction("New Category", self)
+        new_cat_act.triggered.connect(self.add_category)
+        menu.addAction(new_cat_act)
         add_act = QAction("Add Bookmark Here", self)
         add_act.triggered.connect(self.add_bookmark_in_context)
         menu.addAction(add_act)
@@ -552,29 +562,34 @@ class BookmarkManager(QWidget):
 
     def show_bookmark_menu(self, pos):
         items = self.bookmark_list.selectedItems()
-        if not items:
-            return
         menu = QMenu(self)
-        open_act = QAction("Open", self)
-        open_act.triggered.connect(lambda: self.open_bookmark(items[0]))
-        menu.addAction(open_act)
 
-        edit_act = QAction("Edit", self)
-        edit_act.triggered.connect(lambda: self.edit_bookmark(items[0]))
-        menu.addAction(edit_act)
+        add_bm_act = QAction("Add Bookmark", self)
+        add_bm_act.triggered.connect(self.add_bookmark)
+        menu.addAction(add_bm_act)
 
-        del_act = QAction("Delete", self)
-        del_act.triggered.connect(self.delete_selected_bookmarks)
-        menu.addAction(del_act)
+        if items:
+            menu.addSeparator()
+            open_act = QAction("Open", self)
+            open_act.triggered.connect(lambda: self.open_bookmark(items[0]))
+            menu.addAction(open_act)
 
-        move_menu = QMenu("Move to", self)
-        for cat in self.categories:
-            a = QAction(cat, self)
-            a.triggered.connect(
-                lambda checked=False, c=cat: self.move_selected_to_category(c)
-            )
-            move_menu.addAction(a)
-        menu.addMenu(move_menu)
+            edit_act = QAction("Edit", self)
+            edit_act.triggered.connect(lambda: self.edit_bookmark(items[0]))
+            menu.addAction(edit_act)
+
+            del_act = QAction("Delete", self)
+            del_act.triggered.connect(self.delete_selected_bookmarks)
+            menu.addAction(del_act)
+
+            move_menu = QMenu("Move to", self)
+            for cat in self.categories:
+                a = QAction(cat, self)
+                a.triggered.connect(
+                    lambda checked=False, c=cat: self.move_selected_to_category(c)
+                )
+                move_menu.addAction(a)
+            menu.addMenu(move_menu)
         menu.exec(self.bookmark_list.viewport().mapToGlobal(pos))
 
     def move_selected_to_category(self, target_cat: str):
