@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from typing import Dict, List, Any
 
 from PyQt6.QtCore import Qt, QMimeData, QByteArray, QDataStream, QIODevice
-from PyQt6.QtGui import QAction, QDrag
+from PyQt6.QtGui import QAction, QDrag, QColor
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -18,9 +19,10 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
-    QMainWindow,
     QMenu,
     QMessageBox,
+    QPushButton,
+    QScrollArea,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -30,6 +32,16 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import user_data_file
+
+
+# URL validation regex
+_URL_RE = re.compile(
+    r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE
+)
+
+
+def _is_valid_url(url: str) -> bool:
+    return bool(_URL_RE.match(url.strip()))
 
 
 # 数据文件路径：放在项目根目录下（ui/bookmarks.json）
@@ -127,13 +139,9 @@ class BookmarkList(QListWidget):
         drag.exec(Qt.DropAction.MoveAction)
 
 
-class BookmarkManager(QMainWindow):
+class BookmarkManager(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Favorites Manager")
-        self.resize(1000, 600)
-
-        # 数据结构
         self.categories: List[str] = []
         self.bookmarks: Dict[str, List[Dict[str, str]]] = {}
 
@@ -146,62 +154,44 @@ class BookmarkManager(QMainWindow):
 
     # ============== UI ==============
     def _setup_ui(self):
-        menu_bar = self.menuBar()
-        fav_menu = menu_bar.addMenu("Favorites")
+        root = QVBoxLayout(self)
+        root.setContentsMargins(8, 8, 8, 8)
+        root.setSpacing(6)
 
-        add_category_act = QAction("New Category", self)
-        add_category_act.triggered.connect(self.add_category)
-        fav_menu.addAction(add_category_act)
-
-        rename_category_act = QAction("Rename Category", self)
-        rename_category_act.triggered.connect(self.rename_selected_category)
-        fav_menu.addAction(rename_category_act)
-
-        delete_category_act = QAction("Delete Category", self)
-        delete_category_act.triggered.connect(self.delete_selected_category)
-        fav_menu.addAction(delete_category_act)
-
-        fav_menu.addSeparator()
-
-        add_bookmark_act = QAction("Add Bookmark", self)
-        add_bookmark_act.setShortcut("Ctrl+D")
-        add_bookmark_act.triggered.connect(self.add_bookmark)
-        fav_menu.addAction(add_bookmark_act)
-
-        fav_menu.addSeparator()
-
-        import_act = QAction("Import (JSON)", self)
-        import_act.triggered.connect(self.import_bookmarks)
-        fav_menu.addAction(import_act)
-
-        export_act = QAction("Export (JSON)", self)
-        export_act.triggered.connect(self.export_bookmarks)
-        fav_menu.addAction(export_act)
-
-        export_html_act = QAction("Export as HTML Bookmarks", self)
-        export_html_act.triggered.connect(self.export_to_html)
-        fav_menu.addAction(export_html_act)
-
-        fav_menu.addSeparator()
-        exit_act = QAction("Exit", self)
-        exit_act.triggered.connect(self.close)
-        fav_menu.addAction(exit_act)
-
-        central = QWidget()
-        self.setCentralWidget(central)
-        main_layout = QVBoxLayout()
-        central.setLayout(main_layout)
-
+        # ── Toolbar row ──────────────────────────────────────────
+        toolbar = QHBoxLayout()
         self.search_box = QLineEdit()
         self.search_box.setPlaceholderText(
             "Search bookmarks (name and URL, live filter)"
         )
         self.search_box.textChanged.connect(self.filter_bookmarks)
-        main_layout.addWidget(self.search_box)
+        toolbar.addWidget(self.search_box, 1)
 
-        # 主区域
+        add_cat_btn = QPushButton("+ Category")
+        add_cat_btn.setToolTip("Create a new category folder")
+        add_cat_btn.clicked.connect(self.add_category)
+        toolbar.addWidget(add_cat_btn)
+
+        add_bm_btn = QPushButton("+ Bookmark")
+        add_bm_btn.setToolTip("Add a new bookmark (Ctrl+D)")
+        add_bm_btn.clicked.connect(self.add_bookmark)
+        toolbar.addWidget(add_bm_btn)
+
+        import_btn = QPushButton("Import")
+        import_btn.setToolTip("Import bookmarks from JSON file")
+        import_btn.clicked.connect(self.import_bookmarks)
+        toolbar.addWidget(import_btn)
+
+        export_btn = QPushButton("Export")
+        export_btn.setToolTip("Export bookmarks to JSON or HTML")
+        export_btn.clicked.connect(self.export_bookmarks)
+        toolbar.addWidget(export_btn)
+
+        root.addLayout(toolbar)
+
+        # ── Main area ─────────────────────────────────────────────
         h_layout = QHBoxLayout()
-        main_layout.addLayout(h_layout)
+        root.addLayout(h_layout, 1)
 
         self.category_tree = CategoryTree(self)
         self.category_tree.itemClicked.connect(self.on_category_clicked)
@@ -216,7 +206,18 @@ class BookmarkManager(QMainWindow):
         self.bookmark_list.customContextMenuRequested.connect(self.show_bookmark_menu)
         h_layout.addWidget(self.bookmark_list, 6)
 
-        # 快捷键
+        # ── Status bar ────────────────────────────────────────────
+        status_row = QHBoxLayout()
+        self.status_label = QLabel("Ready")
+        self.status_label.setStyleSheet("color: #666; padding: 2px 8px;")
+        status_row.addWidget(self.status_label)
+        status_row.addStretch()
+        self.help_btn = QPushButton("Help")
+        self.help_btn.clicked.connect(self._show_help)
+        status_row.addWidget(self.help_btn)
+        root.addLayout(status_row)
+
+        # Keyboard shortcuts
         delete_short = QAction(self)
         delete_short.setShortcut("Delete")
         delete_short.triggered.connect(self.delete_selected_bookmarks)
@@ -226,6 +227,11 @@ class BookmarkManager(QMainWindow):
         rename_short.setShortcut("F2")
         rename_short.triggered.connect(self.rename_selected_bookmark)
         self.addAction(rename_short)
+
+        add_short = QAction(self)
+        add_short.setShortcut("Ctrl+D")
+        add_short.triggered.connect(self.add_bookmark)
+        self.addAction(add_short)
 
     # ============== 数据 ==============
     def _load_bookmarks(self):
@@ -404,6 +410,23 @@ class BookmarkManager(QMainWindow):
             if not name or not url:
                 QMessageBox.warning(self, "Notice", "Name and URL cannot be empty.")
                 return
+            if not _is_valid_url(url):
+                QMessageBox.warning(
+                    self, "Invalid URL",
+                    "URL must start with http:// or https:// and contain a valid domain."
+                )
+                return
+            # Duplicate detection
+            for bm in self.bookmarks.get(category, []):
+                if bm["url"].strip().lower() == url.strip().lower():
+                    reply = QMessageBox.question(
+                        self, "Duplicate URL",
+                        f"URL already exists in this category:\n{url}\n\nAdd anyway?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    )
+                    if reply != QMessageBox.StandardButton.Yes:
+                        return
+                    break
             self.bookmarks.setdefault(category, []).append({"name": name, "url": url})
             self._display_bookmarks(category)
             self._save_bookmarks()

@@ -1311,3 +1311,91 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:00:46.395172
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:03:46.769309
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: 'primer3.thermoanalysis.ThermoResult' object has no attribute 'no_structure'
+Traceback (most recent call last):
+  File "f:\ui\modules\primer_analysis_tab.py", line 249, in run_analysis
+    if not fwd_homodimer.no_structure:
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'primer3.thermoanalysis.ThermoResult' object has no attribute 'no_structure'. Did you mean: 'ascii_structure'?
+
+============================================================
+startup : 2026-06-14 16:05:15.957181
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:12:36.955616
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:15:47.194479
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:17:49.156761
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: 'PrimerAnalysisTab' object has no attribute 'fwd_len_label'
+Traceback (most recent call last):
+  File "f:\ui\modules\primer_analysis_tab.py", line 200, in _on_input_changed
+    self.fwd_len_label.setText(f"{len(fwd)} nt")
+    ^^^^^^^^^^^^^^^^^^
+AttributeError: 'PrimerAnalysisTab' object has no attribute 'fwd_len_label'. Did you mean: 'rev_len_label'?
+UNHANDLED: 'PrimerAnalysisTab' object has no attribute 'fwd_len_label'
+Traceback (most recent call last):
+  File "f:\ui\modules\primer_analysis_tab.py", line 200, in _on_input_changed
+AttributeError: 'PrimerAnalysisTab' object has no attribute 'fwd_len_label'. Did you mean: 'rev_len_label'?
+
+============================================================
+startup : 2026-06-14 16:18:38.868381
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:22:29.469700
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-06-14 16:25:22.704855
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A

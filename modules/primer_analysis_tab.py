@@ -9,16 +9,21 @@ from typing import Any
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QApplication,
+    QDialog,
+    QDialogButtonBox,
     QDoubleSpinBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
+
+from utils.common_components import apply_sequence_editor_style
 
 try:
     import primer3
@@ -36,9 +41,14 @@ def _gc_percent(seq: str) -> float:
     return gc / len(seq) * 100.0
 
 
+EXAMPLE_FWD = "ATCGATCGATCGATCGATCG"
+EXAMPLE_REV = "GCTAGCTAGCTAGCTAGCTA"
+
+
 class PrimerAnalysisTab(QWidget):
     def __init__(self):
         super().__init__()
+        self._last_results: str = ""
         self.init_ui()
         self.connect_signals()
 
@@ -56,9 +66,7 @@ class PrimerAnalysisTab(QWidget):
         self.fwd_edit = QLineEdit()
         self.fwd_edit.setPlaceholderText(self.tr("e.g. ATCGATCGATCGATCGATCG"))
         self.fwd_edit.setMinimumWidth(240)
-        self.fwd_len_label = QLabel("0 nt")
         fwd_row.addWidget(self.fwd_edit, 1)
-        fwd_row.addWidget(self.fwd_len_label)
         input_v.addLayout(fwd_row)
 
         rev_row = QHBoxLayout()
@@ -68,8 +76,14 @@ class PrimerAnalysisTab(QWidget):
         self.rev_edit.setMinimumWidth(240)
         self.rev_len_label = QLabel("0 nt")
         rev_row.addWidget(self.rev_edit, 1)
-        rev_row.addWidget(self.rev_len_label)
         input_v.addLayout(rev_row)
+
+        example_row = QHBoxLayout()
+        self.example_btn = QPushButton(self.tr("Load Example"))
+        self.example_btn.setToolTip(self.tr("Load a sample primer pair for testing"))
+        example_row.addWidget(self.example_btn)
+        example_row.addStretch()
+        input_v.addLayout(example_row)
 
         root.addWidget(input_group)
 
@@ -77,6 +91,7 @@ class PrimerAnalysisTab(QWidget):
         template_group = QGroupBox(self.tr("2. Template Sequence (optional)"))
         template_v = QVBoxLayout(template_group)
         self.template_edit = QTextEdit()
+        apply_sequence_editor_style(self.template_edit)
         self.template_edit.setPlaceholderText(
             self.tr("Paste template to check binding positions and product size...")
         )
@@ -84,55 +99,160 @@ class PrimerAnalysisTab(QWidget):
         template_v.addWidget(self.template_edit)
         root.addWidget(template_group)
 
-        # ── 3. Salt parameters ──────────────────────────────────────
-        params_row = QHBoxLayout()
-        params_row.addWidget(QLabel(self.tr("Salt (mM):")))
+        # ── 3. Salt Conditions ──────────────────────────────────────
+        salt_group = QGroupBox(self.tr("3. Salt Conditions"))
+        salt_row = QHBoxLayout(salt_group)
+        salt_row.addWidget(QLabel(self.tr("Salt (mM):")))
         self.mv_spin = QDoubleSpinBox()
         self.mv_spin.setRange(10, 200)
         self.mv_spin.setValue(50)
         self.mv_spin.setFixedWidth(104)
         self.mv_spin.setToolTip(self.tr("Monovalent salt (Na⁺/K⁺) concentration"))
-        params_row.addWidget(self.mv_spin)
+        salt_row.addWidget(self.mv_spin)
 
-        params_row.addSpacing(16)
-        params_row.addWidget(QLabel(self.tr("Mg²⁺ (mM):")))
+        salt_row.addSpacing(16)
+        salt_row.addWidget(QLabel(self.tr("Mg²⁺ (mM):")))
         self.dv_spin = QDoubleSpinBox()
         self.dv_spin.setRange(0.5, 10)
         self.dv_spin.setValue(3.0)
         self.dv_spin.setFixedWidth(104)
         self.dv_spin.setToolTip(self.tr("Divalent salt (Mg²⁺) concentration"))
-        params_row.addWidget(self.dv_spin)
-        params_row.addStretch()
-        root.addLayout(params_row)
+        salt_row.addWidget(self.dv_spin)
+        salt_row.addStretch()
+        root.addWidget(salt_group)
 
-        # ── Analyze button ──────────────────────────────────────────
-        self.analyze_btn = QPushButton(self.tr("Analyze Primer Pair"))
-        self.analyze_btn.setMinimumHeight(38)
-        root.addWidget(self.analyze_btn)
-
-        # ── Results ─────────────────────────────────────────────────
+        # ── 4. Results ──────────────────────────────────────────────
+        results_group = QGroupBox(self.tr("4. Analysis Results"))
+        results_v = QVBoxLayout(results_group)
         self.results_text = QTextEdit()
         self.results_text.setReadOnly(True)
         self.results_text.setPlaceholderText(
             self.tr("Enter forward and reverse primer sequences, then click Analyze.")
         )
-        root.addWidget(self.results_text, 1)
+        results_v.addWidget(self.results_text)
+        root.addWidget(results_group, 1)
 
-        # ── Status ──────────────────────────────────────────────────
+        # ── Bottom bar: Status + Analyze / Copy / Help ──────────────
+        status_row = QHBoxLayout()
         self.status_label = QLabel(self.tr("Ready"))
         self.status_label.setStyleSheet("color: #666; padding: 2px 8px;")
-        root.addWidget(self.status_label)
+        status_row.addWidget(self.status_label)
+        status_row.addStretch()
+        self.analyze_btn = QPushButton(self.tr("Analyze"))
+        self.analyze_btn.setMinimumHeight(34)
+        self.copy_btn = QPushButton(self.tr("Copy Results"))
+        self.copy_btn.setMinimumHeight(34)
+        self.clear_btn = QPushButton(self.tr("Clear"))
+        self.clear_btn.setMinimumHeight(34)
+        self.help_btn = QPushButton(self.tr("Help"))
+        self.help_btn.setMinimumHeight(34)
+        status_row.addWidget(self.analyze_btn)
+        status_row.addWidget(self.copy_btn)
+        status_row.addWidget(self.clear_btn)
+        status_row.addWidget(self.help_btn)
+        root.addLayout(status_row)
 
     def connect_signals(self):
-        self.fwd_edit.textChanged.connect(self._on_input_changed)
-        self.rev_edit.textChanged.connect(self._on_input_changed)
         self.analyze_btn.clicked.connect(self.run_analysis)
+        self.example_btn.clicked.connect(self._load_example)
+        self.copy_btn.clicked.connect(self._copy_results)
+        self.clear_btn.clicked.connect(self._clear_all)
+        self.help_btn.clicked.connect(self._show_help)
+
+    def _load_example(self):
+        self.fwd_edit.setText(EXAMPLE_FWD)
+        self.rev_edit.setText(EXAMPLE_REV)
+        self.status_label.setText("Loaded example primer pair.")
+
+    def _copy_results(self):
+        if not self._last_results:
+            self.status_label.setText("No results to copy.")
+            return
+        QApplication.clipboard().setText(self._last_results)
+        self.status_label.setText("Results copied to clipboard.")
+
+    def _clear_all(self):
+        self.fwd_edit.clear()
+        self.rev_edit.clear()
+        self.template_edit.clear()
+        self.results_text.clear()
+        self._last_results = ""
+        self.status_label.setText("Cleared.")
+
+    def _show_help(self):
+        from PyQt6.QtWidgets import QScrollArea
+        from PyQt6.QtCore import Qt as QtCore
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("Primer Analysis - Help"))
+        dlg.setFixedSize(600, 440)
+        layout = QVBoxLayout(dlg)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        label = QLabel(
+            self.tr("""
+<h2>Primer Analysis</h2>
+
+<p><b>What does this tool do?</b><br>
+Analyzes a user-specified primer pair for key thermodynamic properties
+including Tm, GC%, hairpin formation, self-dimer, and cross-dimer potential.
+Optionally, you can provide a template sequence to check binding positions
+and expected product size.</p>
+
+<h3>Quick Start</h3>
+<ol>
+<li><b>Enter primer sequences</b> — forward and reverse, in 5'&rarr;3'
+    orientation. Or click <b>Load Example</b> to try with sample data.</li>
+<li><b>Optionally paste a template</b> to detect binding positions and
+    calculate the expected PCR product size.</li>
+<li><b>Adjust salt conditions</b> if your PCR buffer differs from defaults
+    (50 mM Na&plus;/K&plus;, 3 mM Mg&sup2;&plus;).</li>
+<li><b>Click "Analyze"</b> to compute all properties.</li>
+<li><b>Review the results table</b> and quality assessment.</li>
+<li><b>Copy Results</b> saves the full report to your clipboard.</li>
+</ol>
+
+<h3>What each metric means</h3>
+<table border='0' cellpadding='4' cellspacing='2'>
+<tr><td><b>Tm</b></td><td>Melting temperature. Fwd and Rev should be
+    within 2°C of each other for qPCR.</td></tr>
+<tr><td><b>GC%</b></td><td>GC content. 40-60% is optimal.</td></tr>
+<tr><td><b>Hairpin &Delta;G</b></td><td>Energy of internal secondary
+    structure. More negative = stronger hairpin (bad).</td></tr>
+<tr><td><b>Self-Dimer</b></td><td>A primer binding to itself.
+    Can cause PCR failure. Avoid any dimer formation.</td></tr>
+<tr><td><b>Cross-Dimer</b></td><td>Forward binding to reverse primer.
+    Produces primer-dimers instead of product.</td></tr>
+<tr><td><b>Tm Difference</b></td><td>|Fwd Tm - Rev Tm|. Keep &lt;2°C
+    for synchronized annealing.</td></tr>
+</table>
+
+<h3>Quality Assessment</h3>
+<p>The tool automatically checks:</p>
+<ul>
+<li>Tm difference &lt; 2°C</li>
+<li>GC% within 40-60%</li>
+<li>No self-dimer or cross-dimer formation</li>
+</ul>
+<p>Green checkmark = all good. Orange warnings = potential issues to review.</p>
+""")
+        )
+        label.setTextFormat(QtCore.TextFormat.RichText)
+        label.setWordWrap(True)
+        label.setMargin(16)
+        scroll.setWidget(label)
+        layout.addWidget(scroll)
+
+        ok = QPushButton("OK")
+        ok.clicked.connect(dlg.accept)
+        layout.addWidget(ok)
+        dlg.exec()
 
     def _on_input_changed(self):
-        fwd = self._normalize(self.fwd_edit.text())
-        rev = self._normalize(self.rev_edit.text())
-        self.fwd_len_label.setText(f"{len(fwd)} nt")
-        self.rev_len_label.setText(f"{len(rev)} nt")
+        pass
 
     def _normalize(self, raw: str) -> str:
         return raw.strip().upper().replace(" ", "").replace("\r", "").replace("\n", "")
@@ -178,8 +298,8 @@ class PrimerAnalysisTab(QWidget):
         self.status_label.setText("Analyzing...")
 
         try:
-            fwd_tm = primer3.calc_tm(fwd, mv_conc=mv, dv_conc=dv).tm
-            rev_tm = primer3.calc_tm(rev, mv_conc=mv, dv_conc=dv).tm
+            fwd_tm = primer3.calc_tm(fwd, mv_conc=mv, dv_conc=dv)
+            rev_tm = primer3.calc_tm(rev, mv_conc=mv, dv_conc=dv)
             fwd_hairpin = primer3.calc_hairpin(fwd, mv_conc=mv, dv_conc=dv)
             rev_hairpin = primer3.calc_hairpin(rev, mv_conc=mv, dv_conc=dv)
             fwd_homodimer = primer3.calc_homodimer(fwd, mv_conc=mv, dv_conc=dv)
@@ -194,71 +314,179 @@ class PrimerAnalysisTab(QWidget):
         rev_gc = _gc_percent(rev)
         tm_diff = abs(fwd_tm - rev_tm)
 
-        lines = []
-        lines.append("=" * 60)
-        lines.append("  PRIMER PAIR ANALYSIS RESULTS")
-        lines.append("=" * 60)
+        # Color helpers
+        def _tm_color(tm):
+            if 58 <= tm <= 62:
+                return "#2e7d32"
+            if 55 <= tm <= 65:
+                return "#e65100"
+            return "#c62828"
 
-        lines.append(f"\n{'Property':<28} {'Forward':>14} {'Reverse':>14}")
-        lines.append("-" * 56)
-        lines.append(f"{'Length':<28} {len(fwd):>14} nt {len(rev):>14} nt")
-        lines.append(f"{'Tm':<28} {fwd_tm:>14.1f} °C {rev_tm:>14.1f} °C")
-        lines.append(f"{'GC%':<28} {fwd_gc:>14.1f} %  {rev_gc:>14.1f} %")
-        lines.append(
-            f"{'Hairpin ΔG':<28} {fwd_hairpin.dg:>14.2f}  {rev_hairpin.dg:>14.2f} kcal/mol"
-        )
+        def _gc_color(gc):
+            if 40 <= gc <= 60:
+                return "#2e7d32"
+            if 30 <= gc <= 70:
+                return "#e65100"
+            return "#c62828"
+
+        def _dg_color(dimer):
+            dg = dimer.dg
+            if dg >= -3:
+                return "#2e7d32"
+            if dg >= -6:
+                return "#e65100"
+            return "#c62828"
+
+        def _dim_label(dimer):
+            return "✓ None" if not dimer.ascii_structure else f"⚠ {dimer.dg:.1f}"
+
         hp_fwd_tm = getattr(fwd_hairpin, "tm", 0)
         hp_rev_tm = getattr(rev_hairpin, "tm", 0)
-        lines.append(f"{'Hairpin Tm':<28} {hp_fwd_tm:>14.1f} °C {hp_rev_tm:>14.1f} °C")
-        lines.append(
-            f"{'Self-Dimer ΔG':<28} {fwd_homodimer.dg:>14.2f}  {rev_homodimer.dg:>14.2f} kcal/mol"
+
+        html = []
+        html.append('<div style="font-family:Segoe UI,sans-serif;">')
+        html.append(
+            '<h3 style="color:#1976d2;margin:0 0 8px 0;">Primer Pair Analysis Results</h3>'
         )
-        lines.append("-" * 56)
-        lines.append(f"{'Tm Difference':<28} {tm_diff:>14.1f} °C")
-        lines.append(f"{'Cross-Dimer ΔG':<28} {heterodimer.dg:>14.2f} kcal/mol")
-        lines.append(f"{'Cross-Dimer Tm':<28} {heterodimer.tm:>14.1f} °C")
+
+        # Main metrics table
+        html.append(
+            '<table cellpadding="5" cellspacing="0" style="border-collapse:collapse;width:100%;">'
+        )
+        html.append(
+            '<tr style="background:#e3f2fd;font-weight:bold;"><td>Property</td><td>Forward</td><td>Reverse</td></tr>'
+        )
+
+        rows = [
+            ("Length", f"{len(fwd)} nt", f"{len(rev)} nt", None),
+            ("Tm (°C)", f"{fwd_tm:.1f}", f"{rev_tm:.1f}", None),
+            ("GC%", f"{fwd_gc:.1f}%", f"{rev_gc:.1f}%", None),
+            (
+                f"Hairpin ΔG",
+                f"{fwd_hairpin.dg:.2f} kcal/mol",
+                f"{rev_hairpin.dg:.2f} kcal/mol",
+                None,
+            ),
+            (
+                f"Hairpin Tm",
+                f"{hp_fwd_tm:.1f} °C" if hp_fwd_tm else "n/a",
+                f"{hp_rev_tm:.1f} °C" if hp_rev_tm else "n/a",
+                None,
+            ),
+            ("Self-Dimer", _dim_label(fwd_homodimer), _dim_label(rev_homodimer), None),
+        ]
+        for label, f_val, r_val, _ in rows:
+            bg = "#fafafa" if rows.index((label, f_val, r_val, _)) % 2 == 0 else "#fff"
+            html.append(
+                f'<tr style="background:{bg};"><td><b>{label}</b></td><td>{f_val}</td><td>{r_val}</td></tr>'
+            )
+
+        # Pair-level metrics
+        html.append(
+            '<tr style="background:#fff3e0;"><td colspan="3"><b>Pair Metrics</b></td></tr>'
+        )
+        pair_rows = [
+            ("Tm Difference", f"{tm_diff:.1f} °C", ""),
+            ("Cross-Dimer ΔG", f"{heterodimer.dg:.2f} kcal/mol", ""),
+            ("Cross-Dimer Tm", f"{heterodimer.tm:.1f} °C", ""),
+        ]
+        for label, val, _ in pair_rows:
+            html.append(
+                f'<tr style="background:#fff8e1;"><td><b>{label}</b></td><td colspan="2">{val}</td></tr>'
+            )
+        html.append("</table>")
 
         # Template binding
         template_raw = self._normalize(self.template_edit.toPlainText())
         if template_raw and len(template_raw) >= len(fwd) + len(rev):
             fwd_pos = self._find_binding(template_raw, fwd)
             rev_pos = self._find_binding(template_raw, rev)
-            lines.append("-" * 56)
-            if fwd_pos > 0 and rev_pos > 0:
-                lines.append(f"{'Fwd Binding Position':<28} {fwd_pos:>14}")
-                lines.append(f"{'Rev Binding Position':<28} {rev_pos:>14}")
-                product_size = abs(rev_pos - fwd_pos) + len(rev)
-                lines.append(f"{'Product Size':<28} {product_size:>14} bp")
+            product_size = (
+                abs(rev_pos - fwd_pos) + len(rev) if fwd_pos > 0 and rev_pos > 0 else 0
+            )
+            html.append(
+                '<h4 style="color:#1976d2;margin:12px 0 6px 0;">Template Binding</h4>'
+            )
+            html.append(
+                '<table cellpadding="5" cellspacing="0" style="border-collapse:collapse;width:100%;">'
+            )
+            html.append(
+                '<tr style="background:#e8f5e9;font-weight:bold;"><td>Property</td><td>Value</td></tr>'
+            )
+            if fwd_pos > 0:
+                html.append(f"<tr><td>Fwd Binding Position</td><td>{fwd_pos}</td></tr>")
             else:
-                if fwd_pos < 0:
-                    lines.append(f"{'Fwd Binding':<28} {'NOT FOUND':>14}")
-                if rev_pos < 0:
-                    lines.append(f"{'Rev Binding':<28} {'NOT FOUND':>14}")
+                html.append(
+                    '<tr style="color:#c62828;"><td>Fwd Binding</td><td>NOT FOUND</td></tr>'
+                )
+            if rev_pos > 0:
+                html.append(f"<tr><td>Rev Binding Position</td><td>{rev_pos}</td></tr>")
+            else:
+                html.append(
+                    '<tr style="color:#c62828;"><td>Rev Binding</td><td>NOT FOUND</td></tr>'
+                )
+            if product_size:
+                html.append(
+                    f'<tr style="background:#e8f5e9;"><td><b>Product Size</b></td><td><b>{product_size} bp</b></td></tr>'
+                )
+            html.append("</table>")
+
+        # Dimer structures
+        dimer_sections = []
+        for label, result in [
+            ("Forward Self-Dimer", fwd_homodimer),
+            ("Reverse Self-Dimer", rev_homodimer),
+            ("Cross-Dimer", heterodimer),
+        ]:
+            asc = getattr(result, "ascii_structure", None)
+            if asc and str(asc).strip():
+                dimer_sections.append((label, str(asc)))
+        if dimer_sections:
+            html.append(
+                '<h4 style="color:#1976d2;margin:12px 0 6px 0;">Dimer Structures</h4>'
+            )
+            for label, structure in dimer_sections:
+                html.append(f"<p><b>{label}:</b></p>")
+                html.append(
+                    f'<pre style="background:#f5f5f5;padding:6px;font-family:Cascadia Mono,Consolas,monospace;font-size:12px;border-radius:4px;">{structure}</pre>'
+                )
 
         # Quality assessment
-        lines.append("\n" + "-" * 56)
-        lines.append("  QUALITY ASSESSMENT")
-        lines.append("-" * 56)
+        html.append(
+            '<h4 style="color:#1976d2;margin:12px 0 6px 0;">Quality Assessment</h4>'
+        )
         warnings = []
         if tm_diff > 2.0:
-            warnings.append(f"⚠ Tm difference > 2°C ({tm_diff:.1f}°C)")
+            warnings.append(("warn", f"Tm difference > 2°C ({tm_diff:.1f}°C)"))
         if fwd_gc < 40 or fwd_gc > 60:
-            warnings.append(f"⚠ Forward GC% out of 40-60%: {fwd_gc:.1f}%")
+            warnings.append(("warn", f"Forward GC% out of 40-60% ({fwd_gc:.1f}%)"))
         if rev_gc < 40 or rev_gc > 60:
-            warnings.append(f"⚠ Reverse GC% out of 40-60%: {rev_gc:.1f}%")
-        if not fwd_homodimer.no_structure:
-            warnings.append(f"⚠ Forward self-dimer (ΔG={fwd_homodimer.dg:.1f})")
-        if not rev_homodimer.no_structure:
-            warnings.append(f"⚠ Reverse self-dimer (ΔG={rev_homodimer.dg:.1f})")
-        if not heterodimer.no_structure:
-            warnings.append(f"⚠ Cross-dimer detected (ΔG={heterodimer.dg:.1f})")
+            warnings.append(("warn", f"Reverse GC% out of 40-60% ({rev_gc:.1f}%)"))
+        if fwd_homodimer.ascii_structure:
+            warnings.append((
+                "warn",
+                f"Forward self-dimer detected (ΔG={fwd_homodimer.dg:.1f})",
+            ))
+        if rev_homodimer.ascii_structure:
+            warnings.append((
+                "warn",
+                f"Reverse self-dimer detected (ΔG={rev_homodimer.dg:.1f})",
+            ))
+        if heterodimer.ascii_structure:
+            warnings.append(("warn", f"Cross-dimer detected (ΔG={heterodimer.dg:.1f})"))
         if not warnings:
-            warnings.append("✓ All checks passed.")
-        for w in warnings:
-            lines.append(f"  {w}")
+            html.append(
+                '<p style="color:#2e7d32;font-weight:bold;">✓ All checks passed. Primer pair looks good!</p>'
+            )
+        else:
+            html.append('<ul style="color:#e65100;">')
+            for level, msg in warnings:
+                html.append(f"<li>{msg}</li>")
+            html.append("</ul>")
 
-        lines.append("\n" + "=" * 60)
-        self.results_text.setPlainText("\n".join(lines))
+        html.append("</div>")
+        self._last_results = "".join(html)
+        self.results_text.setHtml(self._last_results)
         self.status_label.setText(
             f"Done. ΔTm={tm_diff:.1f}°C, Fwd={len(fwd)}nt, Rev={len(rev)}nt"
         )

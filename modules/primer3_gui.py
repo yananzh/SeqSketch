@@ -118,9 +118,36 @@ class PrimerDesignTab(QWidget):
         seq_v = QVBoxLayout(seq_group)
         self.seq_input = QTextEdit()
         apply_sequence_editor_style(self.seq_input)
+        self.seq_input.setAcceptDrops(True)
         self.seq_input.setPlaceholderText(
-            self.tr("Paste FASTA or raw DNA sequence here...")
+            self.tr("Paste FASTA or raw DNA sequence here, or drag & drop a file...")
         )
+
+        # Patch drag-drop to load file content directly
+        def _drag_enter(event, self=self):
+            if event.mimeData().hasUrls():
+                event.acceptProposedAction()
+            else:
+                QTextEdit.dragEnterEvent(self.seq_input, event)
+
+        def _drop(event, self=self):
+            if event.mimeData().hasUrls():
+                for url in event.mimeData().urls():
+                    path = url.toLocalFile()
+                    if path and os.path.isfile(path):
+                        try:
+                            with open(path, "r", encoding="utf-8") as f:
+                                self.seq_input.setText(f.read())
+                            self.status_label.setText(f"Dropped file: {path}")
+                        except Exception:
+                            pass
+                        return
+            QTextEdit.dropEvent(self.seq_input, event)
+
+        import types
+
+        self.seq_input.dragEnterEvent = types.MethodType(_drag_enter, self.seq_input)
+        self.seq_input.dropEvent = types.MethodType(_drop, self.seq_input)
 
         seq_btn_row = QHBoxLayout()
         self.load_seq_btn = QPushButton("Load from File")
@@ -419,6 +446,7 @@ class PrimerDesignTab(QWidget):
         status_row.addWidget(self.design_button)
         status_row.addWidget(self.export_excel_btn)
         status_row.addWidget(self.help_btn)
+        status_row.addSpacing(8)
         root_layout.addLayout(status_row)
 
     def connect_signals(self):
@@ -993,128 +1021,92 @@ class PrimerDesignTab(QWidget):
     # ── Help Dialog ─────────────────────────────────────────────────
 
     def show_help_dialog(self):
-        """Show a structured help dialog with tabbed sections."""
-        dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("PCR Primer Assistant - Help"))
-        dlg.setMinimumSize(600, 480)
+        from PyQt6.QtWidgets import QScrollArea
+        from PyQt6.QtCore import Qt as QtCore
 
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("qPCR Primer Design - Help"))
+        dlg.setFixedSize(680, 500)
         layout = QVBoxLayout(dlg)
 
-        tabs = QTabWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        # ── Quick Start ──────────────────────────────────────────
-        quick_tab = QWidget()
-        quick_layout = QVBoxLayout(quick_tab)
-        quick_text = QTextEdit()
-        quick_text.setReadOnly(True)
-        quick_text.setHtml(
+        label = QLabel(
             self.tr("""
-<h3>Quick Start Guide</h3>
+<h2>qPCR Primer Design</h2>
+
+<p><b>What does this tool do?</b><br>
+Designs optimal primer pairs for quantitative PCR (qPCR / real-time PCR)
+using the Primer3 engine. It searches your template DNA for primer pairs
+that meet strict Tm, GC%, and product-size constraints suitable for qPCR.</p>
+
+<h3>Quick Start</h3>
 <ol>
-<li><b>Enter a template DNA sequence</b> — paste a raw sequence or FASTA format (A/C/G/T/U/N allowed).<br>
-    You can also click <b>Load from File</b> to open a .fa/.fasta/.txt file.</li>
-<li><b>Adjust parameters</b> if needed (defaults work well for most cases).</li>
-<li><b>Click "Design Primers"</b> to run Primer3.</li>
-<li><b>Review results</b> in the table — click any row to see detailed metrics and primer binding map.</li>
-<li><b>Export</b> via Copy, CSV, or Excel for downstream use.</li>
+<li><b>Enter a template DNA sequence</b> — paste raw sequence or FASTA format
+    (bases A/C/G/T/U/N allowed). Click <b>Load from File</b> to open a
+    .fa / .fasta / .txt file.</li>
+<li><b>Adjust parameters</b> if needed — the defaults (80-150 bp product,
+    57-63°C Tm, 40-60% GC) work well for most qPCR applications.</li>
+<li><b>Click "Design Primers"</b> to launch Primer3 in the background.</li>
+<li><b>Review results</b> in the table — select any row to see the primer
+    binding positions drawn on the template map below.</li>
+<li><b>Export</b> your results to Excel for downstream use.</li>
 </ol>
-<p><i>Tip: Hover over any parameter label to see a detailed tooltip.</i></p>
-""")
-        )
-        quick_layout.addWidget(quick_text)
-        tabs.addTab(quick_tab, self.tr("Quick Start"))
 
-        # ── Parameters ───────────────────────────────────────────
-        param_tab = QWidget()
-        param_layout = QVBoxLayout(param_tab)
-        param_text = QTextEdit()
-        param_text.setReadOnly(True)
-        param_text.setHtml(
-            self.tr("""
 <h3>Parameter Guide</h3>
-<table border='0' cellpadding='4' cellspacing='0'>
-<tr><td><b>Product Size</b></td><td>Expected amplicon length range (Min-Max).<br>qPCR: 80-200 bp; Conventional: 200-1000 bp.</td></tr>
-<tr><td><b>Primer Pair Count</b></td><td>How many primer pairs to return. More pairs = more options.</td></tr>
-<tr><td><b>Primer Length</b></td><td>Min/Opt/Max primer length in nucleotides. Typical: 18-25 nt.</td></tr>
-<tr><td><b>Primer Tm</b></td><td>Min/Opt/Max melting temperature (°C). Typical: 57-63°C.<br>Forward and reverse primers should have similar Tm (&lt;2°C difference).</td></tr>
-<tr><td><b>Primer GC%</b></td><td>Min/Opt/Max GC content (%). Typical: 40-60%.<br>Higher GC means stronger binding but may cause non-specific amplification.</td></tr>
-<tr><td><b>Salt (Monovalent)</b></td><td>Na⁺/K⁺ concentration (mM). Affects Tm calculation.<br>Standard: 50 mM. Higher values increase Tm.</td></tr>
-<tr><td><b>Mg²⁺</b></td><td>Magnesium ion concentration (mM).<br>qPCR typical: 2.5-3.5 mM. Higher values increase Tm, lower specificity.</td></tr>
+<table border='0' cellpadding='4' cellspacing='2'>
+<tr><td><b>Product Size</b></td><td>Expected amplicon length (Min-Max).
+    qPCR: 70-200 bp for optimal efficiency.</td></tr>
+<tr><td><b>Primer Pair Count</b></td><td>How many pairs to return.
+    More = more candidates to choose from.</td></tr>
+<tr><td><b>Length (Min/Opt/Max)</b></td><td>Primer length in nt.
+    Typical: 18-25 nt.</td></tr>
+<tr><td><b>Tm (Min/Opt/Max)</b></td><td>Melting temperature in °C.
+    Typical for qPCR: 57-63°C. Min &le; Opt &le; Max.</td></tr>
+<tr><td><b>GC% (Min/Opt/Max)</b></td><td>GC content percentage.
+    Typical: 40-60%. Min &le; Opt &le; Max.</td></tr>
+<tr><td><b>Salt (Monovalent)</b></td><td>Na&plus;/K&plus; concentration (mM).
+    Affects Tm calculation. Standard PCR: 50 mM.</td></tr>
+<tr><td><b>Mg&sup2;&plus;</b></td><td>Magnesium concentration (mM).
+    qPCR typically 2.5-3.5 mM. Affects Tm and specificity.</td></tr>
 </table>
-<p><i>Min ≤ Opt ≤ Max must hold for Length, Tm, and GC.</i></p>
-""")
-        )
-        param_layout.addWidget(param_text)
-        tabs.addTab(param_tab, self.tr("Parameters"))
 
-        # ── Interpreting Results ─────────────────────────────────
-        results_tab = QWidget()
-        results_layout = QVBoxLayout(results_tab)
-        results_text = QTextEdit()
-        results_text.setReadOnly(True)
-        results_text.setHtml(
-            self.tr("""
 <h3>Interpreting Results</h3>
 <ul>
-<li><b>Pair #</b> — Primer pair index (1 = best scored by Primer3).</li>
+<li><b>Pair #</b> — ranked by Primer3 (1 = best score).</li>
 <li><b>Fwd/Rev</b> — Forward (sense) or Reverse (antisense) primer.</li>
-<li><b>Position</b> — 5' start position of the primer on the template (1-based).</li>
-<li><b>Length</b> — Primer length in nucleotides.</li>
-<li><b>Tm</b> — Melting temperature (°C). Ideally Fwd and Rev should be within 2°C of each other.</li>
-<li><b>GC%</b> — GC content percentage. Between 40-60% is optimal.</li>
-<li><b>Product Size</b> — Expected PCR product length in bp.</li>
+<li><b>Position</b> — 5' start on the template (1-based).</li>
+<li><b>Tm</b> — melting temperature. Fwd and Rev should be within 2°C.</li>
+<li><b>GC%</b> — between 40-60% is optimal for qPCR.</li>
+<li><b>Product Size</b> — expected amplicon length in bp.</li>
 </ul>
-<p><b>Detail Panel</b> shows additional metrics:<br>
-Penalty (lower = better), Self-complementarity scores, Hairpin stability.</p>
-<p><b>Binding Site Map</b> — Visual representation of primer positions on the template.<br>
-Blue arrows = Forward primers, Orange arrows = Reverse primers.</p>
-""")
-        )
-        results_layout.addWidget(results_text)
-        tabs.addTab(results_tab, self.tr("Interpreting Results"))
+<p><b>Binding Site Map</b> — Blue arrows = Forward primers,
+Orange arrows = Reverse primers, placed on the template line.</p>
 
-        # ── Troubleshooting ──────────────────────────────────────
-        trouble_tab = QWidget()
-        trouble_layout = QVBoxLayout(trouble_tab)
-        trouble_text = QTextEdit()
-        trouble_text.setReadOnly(True)
-        trouble_text.setHtml(
-            self.tr("""
 <h3>Troubleshooting</h3>
 <p><b>"No primer pairs found"</b></p>
 <ul>
-<li>Relax your constraints — widen Tm, GC%, or length ranges.</li>
+<li>Relax constraints — widen Tm, GC%, or length ranges.</li>
+<li>Increase the product size range (e.g. 70-200 bp).</li>
 <li>Increase the number of primer pairs requested.</li>
-<li>Increase <b>Max Self Any</b> or <b>Max Self End</b> thresholds.</li>
-<li>Check that your template sequence is valid (A/C/G/T/U/N only).</li>
+<li>Check that your template is valid (A/C/G/T/U/N only).</li>
 <li>For short templates (&lt;100 bp), reduce the product size range.</li>
+<li>Verify primer3-py is installed: <code>pip install primer3-py</code></li>
 </ul>
-<p><b>Primers have high self-complementarity</b></p>
-<ul>
-<li>Lower <b>Max Self Any</b> and <b>Max Self End</b> values.</li>
-<li>Increase the number of primer pairs requested to get more candidates.</li>
-</ul>
-<p><b>Tm mismatch between forward and reverse</b></p>
-<ul>
-<li>Narrow the Tm range (e.g., 58-62°C instead of 57-63°C).</li>
-<li>Manually review the primer pair with the smallest Tm difference.</li>
-</ul>
-<p><b>Application not responding</b></p>
-<ul>
-<li>For very long sequences (&gt;10000 bp), try reducing the product size range or relaxing constraints.</li>
-<li>Check that primer3-py is installed: <code>pip install primer3-py</code></li>
-</ul>
+<p><b>Tm mismatch</b> — narrow the Tm range (e.g. 58-62°C).</p>
 """)
         )
-        trouble_layout.addWidget(trouble_text)
-        tabs.addTab(trouble_tab, self.tr("Troubleshooting"))
+        label.setTextFormat(QtCore.TextFormat.RichText)
+        label.setWordWrap(True)
+        label.setMargin(16)
+        scroll.setWidget(label)
+        layout.addWidget(scroll)
 
-        layout.addWidget(tabs)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
-        buttons.accepted.connect(dlg.accept)
-        layout.addWidget(buttons)
-
+        ok = QPushButton("OK")
+        ok.clicked.connect(dlg.accept)
+        layout.addWidget(ok)
         dlg.exec()
 
     def show_error_message(self, message: str):
