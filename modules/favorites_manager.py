@@ -35,16 +35,14 @@ from utils.app_paths import user_data_file
 
 
 # URL validation regex
-_URL_RE = re.compile(
-    r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE
-)
+_URL_RE = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
 
 
 def _is_valid_url(url: str) -> bool:
     return bool(_URL_RE.match(url.strip()))
 
 
-# 数据文件路径：放在项目根目录下（ui/bookmarks.json）
+# Data file path: stored in per-user directory (bookmarks.json)
 def _resolve_data_file() -> str:
     return user_data_file("bookmarks.json")
 
@@ -164,15 +162,16 @@ class BookmarkManager(QWidget):
         self.search_box.setPlaceholderText(
             "Search bookmarks (name and URL, live filter)"
         )
+        self.search_box.setClearButtonEnabled(True)
         self.search_box.textChanged.connect(self.filter_bookmarks)
         toolbar.addWidget(self.search_box, 1)
 
-        add_cat_btn = QPushButton("+ Category")
+        add_cat_btn = QPushButton("Add Category")
         add_cat_btn.setToolTip("Create a new category folder")
         add_cat_btn.clicked.connect(self.add_category)
         toolbar.addWidget(add_cat_btn)
 
-        add_bm_btn = QPushButton("+ Bookmark")
+        add_bm_btn = QPushButton("Add Bookmark")
         add_bm_btn.setToolTip("Add a new bookmark (Ctrl+D)")
         add_bm_btn.clicked.connect(self.add_bookmark)
         toolbar.addWidget(add_bm_btn)
@@ -182,10 +181,15 @@ class BookmarkManager(QWidget):
         import_btn.clicked.connect(self.import_bookmarks)
         toolbar.addWidget(import_btn)
 
-        export_btn = QPushButton("Export")
-        export_btn.setToolTip("Export bookmarks to JSON or HTML")
-        export_btn.clicked.connect(self.export_bookmarks)
-        toolbar.addWidget(export_btn)
+        self.export_btn = QPushButton("Export ▼")
+        self.export_btn.setToolTip("Export bookmarks to JSON or HTML")
+        export_menu = QMenu(self)
+        export_json = export_menu.addAction("Export JSON")
+        export_json.triggered.connect(self.export_bookmarks)
+        export_html = export_menu.addAction("Export HTML")
+        export_html.triggered.connect(self.export_to_html)
+        self.export_btn.setMenu(export_menu)
+        toolbar.addWidget(self.export_btn)
 
         root.addLayout(toolbar)
 
@@ -201,7 +205,8 @@ class BookmarkManager(QWidget):
         h_layout.addWidget(self.category_tree, 2)
 
         self.bookmark_list = BookmarkList(self)
-        self.bookmark_list.itemClicked.connect(self.open_bookmark)
+        self.bookmark_list.setAlternatingRowColors(True)
+        self.bookmark_list.itemDoubleClicked.connect(self.open_bookmark)
         self.bookmark_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.bookmark_list.customContextMenuRequested.connect(self.show_bookmark_menu)
         h_layout.addWidget(self.bookmark_list, 6)
@@ -233,7 +238,7 @@ class BookmarkManager(QWidget):
         add_short.triggered.connect(self.add_bookmark)
         self.addAction(add_short)
 
-    # ============== 数据 ==============
+    # ============== Data ==============
     def _load_bookmarks(self):
         if os.path.exists(DATA_FILE):
             try:
@@ -251,15 +256,15 @@ class BookmarkManager(QWidget):
 
     def _load_sample_data(self):
         self.bookmarks = {
-            "学习": [
-                {"name": "Python 官网", "url": "https://www.python.org"},
-                {"name": "PyQt6 文档", "url": "https://doc.qt.io/qtforpython-6/"},
+            "Learning": [
+                {"name": "Python Official", "url": "https://www.python.org"},
+                {"name": "PyQt6 Docs", "url": "https://doc.qt.io/qtforpython-6/"},
             ],
-            "新闻": [
-                {"name": "BBC 新闻", "url": "https://www.bbc.com"},
+            "News": [
+                {"name": "BBC News", "url": "https://www.bbc.com"},
                 {"name": "CNN", "url": "https://www.cnn.com"},
             ],
-            "工具": [
+            "Tools": [
                 {"name": "GitHub", "url": "https://github.com"},
             ],
         }
@@ -273,11 +278,20 @@ class BookmarkManager(QWidget):
         except Exception as e:
             QMessageBox.warning(self, "Save Error", f"Failed to save bookmarks: {e}")
 
-    # ============== UI 同步 ==============
+    # ============== UI Sync ==============
+    @staticmethod
+    def _cat_name(item: QTreeWidgetItem | None) -> str:
+        """Extract real category name from a tree item (stripping count)."""
+        if item is None:
+            return ""
+        return item.data(0, Qt.ItemDataRole.UserRole) or item.text(0).split("  (")[0]
+
     def _populate_categories(self):
         self.category_tree.clear()
         for cat in self.categories:
-            item = QTreeWidgetItem([cat])
+            count = len(self.bookmarks.get(cat, []))
+            item = QTreeWidgetItem([self._cat_display(cat, count)])
+            item.setData(0, Qt.ItemDataRole.UserRole, cat)
             item.setFlags(
                 item.flags()
                 | Qt.ItemFlag.ItemIsEditable
@@ -288,7 +302,7 @@ class BookmarkManager(QWidget):
             self.category_tree.addTopLevelItem(item)
 
     def on_category_clicked(self, item, col=0):
-        cat = item.text(0)
+        cat = item.data(0, Qt.ItemDataRole.UserRole) or item.text(0)
         self._display_bookmarks(cat)
 
     def _display_bookmarks(self, category: str):
@@ -298,15 +312,19 @@ class BookmarkManager(QWidget):
             it = QListWidgetItem(display)
             it.setData(Qt.ItemDataRole.UserRole, bm)
             self.bookmark_list.addItem(it)
+        count = len(self.bookmarks.get(category, []))
+        self.status_label.setText(f"{category}: {count} bookmark(s)")
 
     def reorder_categories_by_tree(self):
         new_order = []
         for i in range(self.category_tree.topLevelItemCount()):
-            new_order.append(self.category_tree.topLevelItem(i).text(0))
+            item = self.category_tree.topLevelItem(i)
+            cat = item.data(0, Qt.ItemDataRole.UserRole) or item.text(0)
+            new_order.append(cat)
         self.categories = [c for c in new_order if c in self.bookmarks]
         self._save_bookmarks()
 
-    # ============== 分类管理 ==============
+    # ============== Category Management ==============
     def add_category(self):
         text, ok = QInputDialog.getText(self, "New Category", "Enter category name:")
         if ok and text:
@@ -329,24 +347,32 @@ class BookmarkManager(QWidget):
         self.category_tree.editItem(item, 0)
 
     def on_category_renamed(self, item, column):
-        idx = self.category_tree.indexOfTopLevelItem(item)
-        old_name = self.categories[idx] if 0 <= idx < len(self.categories) else None
+        old_name = item.data(0, Qt.ItemDataRole.UserRole)
         new_name = item.text(0).strip()
         if not new_name:
             QMessageBox.warning(self, "Notice", "Category name cannot be empty.")
             if old_name:
-                item.setText(0, old_name)
+                count = len(self.bookmarks.get(old_name, []))
+                item.setText(0, self._cat_display(old_name, count))
             return
         if new_name == old_name:
+            count = len(self.bookmarks.get(old_name, []))
+            item.setText(0, self._cat_display(old_name, count))
             return
         if new_name in self.bookmarks:
             QMessageBox.warning(self, "Notice", "Target category already exists.")
             if old_name:
-                item.setText(0, old_name)
+                count = len(self.bookmarks.get(old_name, []))
+                item.setText(0, self._cat_display(old_name, count))
             return
         if old_name:
             self.bookmarks[new_name] = self.bookmarks.pop(old_name)
-            self.categories[idx] = new_name
+            idx = self.category_tree.indexOfTopLevelItem(item)
+            if 0 <= idx < len(self.categories):
+                self.categories[idx] = new_name
+            count = len(self.bookmarks[new_name])
+            item.setText(0, self._cat_display(new_name, count))
+            item.setData(0, Qt.ItemDataRole.UserRole, new_name)
             self._save_bookmarks()
 
     def delete_selected_category(self):
@@ -354,7 +380,7 @@ class BookmarkManager(QWidget):
         if not item:
             QMessageBox.warning(self, "Notice", "Please select a category first.")
             return
-        cat = item.text(0)
+        cat = self._cat_name(item)
         reply = QMessageBox.question(
             self,
             "Confirm Delete",
@@ -377,6 +403,10 @@ class BookmarkManager(QWidget):
         add_act.triggered.connect(self.add_bookmark_in_context)
         menu.addAction(add_act)
         if item:
+            open_all_act = QAction("Open All in Category", self)
+            open_all_act.triggered.connect(self._open_all_in_category)
+            menu.addAction(open_all_act)
+            menu.addSeparator()
             rename_act = QAction("Rename Category", self)
             rename_act.triggered.connect(self.rename_selected_category)
             menu.addAction(rename_act)
@@ -385,21 +415,35 @@ class BookmarkManager(QWidget):
             menu.addAction(del_act)
         menu.exec(self.category_tree.viewport().mapToGlobal(pos))
 
+    def _open_all_in_category(self):
+        item = self.category_tree.currentItem()
+        if not item:
+            return
+        cat = item.data(0, Qt.ItemDataRole.UserRole) or item.text(0)
+        import webbrowser
+
+        for bm in self.bookmarks.get(cat, []):
+            try:
+                webbrowser.open(bm["url"])
+            except Exception:
+                pass
+        self.status_label.setText(f"Opened all in '{cat}'")
+
     def add_bookmark_in_context(self):
         item = self.category_tree.currentItem()
         if not item:
             QMessageBox.warning(self, "Notice", "Select a category first.")
             return
-        self.add_bookmark(to_category=item.text(0))
+        self.add_bookmark(to_category=self._cat_name(item))
 
-    # ============== 收藏项管理 ==============
+    # ============== Bookmark Management ==============
     def add_bookmark(self, to_category: str | None = None):
         category_item = self.category_tree.currentItem()
         if to_category is None:
             if not category_item:
-                QMessageBox.warning(self, "提示", "请先选择一个分类。")
+                QMessageBox.warning(self, "Notice", "Please select a category first.")
                 return
-            category = category_item.text(0)
+            category = self._cat_name(category_item)
         else:
             category = to_category
 
@@ -412,15 +456,17 @@ class BookmarkManager(QWidget):
                 return
             if not _is_valid_url(url):
                 QMessageBox.warning(
-                    self, "Invalid URL",
-                    "URL must start with http:// or https:// and contain a valid domain."
+                    self,
+                    "Invalid URL",
+                    "URL must start with http:// or https:// and contain a valid domain.",
                 )
                 return
             # Duplicate detection
             for bm in self.bookmarks.get(category, []):
                 if bm["url"].strip().lower() == url.strip().lower():
                     reply = QMessageBox.question(
-                        self, "Duplicate URL",
+                        self,
+                        "Duplicate URL",
                         f"URL already exists in this category:\n{url}\n\nAdd anyway?",
                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     )
@@ -445,7 +491,7 @@ class BookmarkManager(QWidget):
             category_item = self.category_tree.currentItem()
             if not category_item:
                 return
-            category = category_item.text(0)
+            category = self._cat_name(category_item)
             row = self.bookmark_list.row(item)
             if (
                 row >= 0
@@ -496,7 +542,7 @@ class BookmarkManager(QWidget):
         category_item = self.category_tree.currentItem()
         if not category_item:
             return
-        category = category_item.text(0)
+        category = self._cat_name(category_item)
         rows = sorted([self.bookmark_list.row(it) for it in items], reverse=True)
         for r in rows:
             if 0 <= r < len(self.bookmarks.get(category, [])):
@@ -538,7 +584,7 @@ class BookmarkManager(QWidget):
         src_item = self.category_tree.currentItem()
         if not src_item:
             return
-        src_cat = src_item.text(0)
+        src_cat = self._cat_name(src_item)
         if src_cat == target_cat:
             QMessageBox.information(
                 self, "Notice", "Target category is the same as current."
@@ -554,7 +600,7 @@ class BookmarkManager(QWidget):
         self._display_bookmarks(src_cat)
         self._save_bookmarks()
 
-    # ============== 拖放 ==============
+    # ============== Drag & Drop ==============
     def handle_bookmark_drop_on_category(self, drop_event):
         mime = drop_event.mimeData()
         data = mime.data(MIME_TYPE)
@@ -577,10 +623,10 @@ class BookmarkManager(QWidget):
                 )
                 return
             target_item = self.category_tree.topLevelItem(0)
-        target_cat = target_item.text(0)
+        target_cat = self._cat_name(target_item)
 
         src_item = self.category_tree.currentItem()
-        src_cat = src_item.text(0) if src_item else None
+        src_cat = self._cat_name(src_item)
 
         selected = self.bookmark_list.selectedItems()
         moved = False
@@ -602,34 +648,38 @@ class BookmarkManager(QWidget):
                 name = bm.get("name") if isinstance(bm, dict) else ""
                 url = bm.get("url") if isinstance(bm, dict) else ""
                 if name and url:
-                    self.bookmarks.setdefault(target_cat, []).append(
-                        {"name": name, "url": url}
-                    )
+                    self.bookmarks.setdefault(target_cat, []).append({
+                        "name": name,
+                        "url": url,
+                    })
 
         cur_item = self.category_tree.currentItem()
-        cur_cat = cur_item.text(0) if cur_item else None
+        cur_cat = self._cat_name(cur_item)
         if cur_cat == src_cat:
             self._display_bookmarks(src_cat)
         if cur_cat == target_cat:
             self._display_bookmarks(target_cat)
         self._save_bookmarks()
 
-    # ============== 搜索 ==============
+    # ============== Search ==============
     def filter_bookmarks(self, text: str):
         text = text.strip().lower()
         cat_item = self.category_tree.currentItem()
         self.bookmark_list.clear()
         if not text:
             if cat_item:
-                self._display_bookmarks(cat_item.text(0))
+                self._display_bookmarks(self._cat_name(cat_item))
+            self.status_label.setText("Ready")
             return
+        count = 0
         if cat_item:
-            cat = cat_item.text(0)
+            cat = self._cat_name(cat_item)
             for bm in self.bookmarks.get(cat, []):
                 if text in bm["name"].lower() or text in bm["url"].lower():
                     it = QListWidgetItem(f"{bm['name']}  ({bm['url']})")
                     it.setData(Qt.ItemDataRole.UserRole, bm)
                     self.bookmark_list.addItem(it)
+                    count += 1
         else:
             for cat, arr in self.bookmarks.items():
                 for bm in arr:
@@ -637,8 +687,62 @@ class BookmarkManager(QWidget):
                         it = QListWidgetItem(f"[{cat}] {bm['name']}  ({bm['url']})")
                         it.setData(Qt.ItemDataRole.UserRole, bm)
                         self.bookmark_list.addItem(it)
+                        count += 1
+        self.status_label.setText(f"Search: {count} match(es) for '{text}'")
 
-    # ============== 导入 / 导出 ==============
+    # ============== Help ==============
+    def _show_help(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Favorites Manager - Help")
+        dlg.setFixedSize(550, 420)
+        layout = QVBoxLayout(dlg)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        label = QLabel("""
+<h2>Favorites Manager</h2>
+
+<p><b>What does this tool do?</b><br>
+Organize your URLs into categories with drag-and-drop, search, and import/export.
+Bookmarks are saved automatically to <code>bookmarks.json</code>.</p>
+
+<h3>Quick Start</h3>
+<ol>
+<li><b>Create a category</b> — click <b>+ Category</b> or right-click the left panel.</li>
+<li><b>Add bookmarks</b> — click <b>+ Bookmark</b>, press <b>Ctrl+D</b>, or right-click a category.</li>
+<li><b>Open a bookmark</b> — click it in the list. It opens in your default browser.</li>
+<li><b>Search</b> — type in the search box to filter by name or URL.</li>
+<li><b>Organize</b> — drag bookmarks onto categories, or use right-click "Move to".</li>
+</ol>
+
+<h3>Keyboard Shortcuts</h3>
+<table border='0' cellpadding='4' cellspacing='2'>
+<tr><td><b>Ctrl+D</b></td><td>Add bookmark to current category</td></tr>
+<tr><td><b>F2</b></td><td>Rename selected bookmark</td></tr>
+<tr><td><b>Delete</b></td><td>Delete selected bookmark(s)</td></tr>
+</table>
+
+<h3>Import / Export</h3>
+<ul>
+<li><b>Import</b> — merge bookmarks from a JSON file.</li>
+<li><b>Export</b> — save all bookmarks as JSON (or HTML via right-click menu).</li>
+<li>Right-click a category for <b>Export as HTML</b> — compatible with browser import.</li>
+</ul>
+""")
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(True)
+        label.setMargin(16)
+        scroll.setWidget(label)
+        layout.addWidget(scroll)
+
+        ok = QPushButton("OK")
+        ok.clicked.connect(dlg.accept)
+        layout.addWidget(ok)
+        dlg.exec()
+
+    # ============== Import / Export ==============
     def import_bookmarks(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "Import Bookmarks", "", "JSON Files (*.json)"
@@ -730,7 +834,7 @@ class BookmarkManager(QWidget):
             .replace('"', "&quot;")
         )
 
-    # ============== 关闭 ==============
+    # ============== Close ==============
     def closeEvent(self, event):
         self._save_bookmarks()
         event.accept()

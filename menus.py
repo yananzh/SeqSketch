@@ -1,6 +1,5 @@
 from PyQt6.QtWidgets import QMenuBar, QMenu
 from PyQt6.QtGui import QAction
-from modules.favorites_manager import BookmarkManager
 import os
 import sys
 import importlib.util
@@ -295,16 +294,7 @@ def create_menus(window):
     # 8. Favorites
     fav_menu = menubar.addMenu(window.tr("Favorites"))
     manage_fav_action = QAction(window.tr("Manage Favorites"), window)
-
-    def _open_bookmark_manager():
-        # 保持引用，避免窗口被回收
-        if not hasattr(window, "_bookmark_manager") or window._bookmark_manager is None:
-            window._bookmark_manager = BookmarkManager()
-        window._bookmark_manager.show()
-        window._bookmark_manager.raise_()
-        window._bookmark_manager.activateWindow()
-
-    manage_fav_action.triggered.connect(_open_bookmark_manager)
+    manage_fav_action.triggered.connect(window.open_favorites_manager_tab)
     fav_menu.addAction(manage_fav_action)
     # Settings menu
     settings_menu = menubar.addMenu(window.tr("Settings"))

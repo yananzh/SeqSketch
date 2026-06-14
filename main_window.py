@@ -332,6 +332,17 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, self.tr("Primer Analysis"))
         self.tabs.setCurrentWidget(tab)
 
+    def open_favorites_manager_tab(self):
+        from modules.favorites_manager import BookmarkManager
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), BookmarkManager):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = BookmarkManager()
+        self.tabs.addTab(tab, self.tr("Favorites"))
+        self.tabs.setCurrentWidget(tab)
+
     def open_dotplot_tab(self):
         from modules.dotplot_tab import DotPlotTab
 
