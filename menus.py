@@ -261,28 +261,12 @@ def create_menus(window):
     blast_menu.addAction(local_blast_action)
     # 6. Primer Design
     primer_menu = menubar.addMenu(window.tr("Primer Design"))
-    open_primer_action = QAction(window.tr("PCR Primer Assistant"), window)
-
-    def _open_primer_designer():
-        # 弹出 modules/primer3_gui.py 中的 MainWindow 作为独立窗口
-        try:
-            from modules.primer3_gui import MainWindow as Primer3MainWindow
-
-            # 保持窗口引用，避免被回收
-            if not hasattr(window, "_primer3_window") or window._primer3_window is None:
-                window._primer3_window = Primer3MainWindow()
-            window._primer3_window.show()
-            window._primer3_window.raise_()
-            window._primer3_window.activateWindow()
-        except Exception as e:
-            from PyQt6.QtWidgets import QMessageBox
-
-            QMessageBox.critical(
-                window, "Error", f"Failed to load primer designer: {e}"
-            )
-
-    open_primer_action.triggered.connect(_open_primer_designer)
+    open_primer_action = QAction(window.tr("qPCR Primer Design"), window)
+    open_primer_action.triggered.connect(window.open_primer_design_tab)
     primer_menu.addAction(open_primer_action)
+    open_analysis_action = QAction(window.tr("Primer Analysis"), window)
+    open_analysis_action.triggered.connect(window.open_primer_analysis_tab)
+    primer_menu.addAction(open_analysis_action)
     # 7. Phylogenetic Tree
     evolution_menu = menubar.addMenu(window.tr("Phylogenetic Tree"))
     # 7.1 Alignment Trimming (trimAl)

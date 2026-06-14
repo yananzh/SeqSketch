@@ -310,6 +310,28 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(tab, self.tr("Pairwise Sequence Alignment"))
         self.tabs.setCurrentWidget(tab)
 
+    def open_primer_design_tab(self):
+        from modules.primer3_gui import PrimerDesignTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), PrimerDesignTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = PrimerDesignTab()
+        self.tabs.addTab(tab, self.tr("qPCR Primer Design"))
+        self.tabs.setCurrentWidget(tab)
+
+    def open_primer_analysis_tab(self):
+        from modules.primer_analysis_tab import PrimerAnalysisTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), PrimerAnalysisTab):
+                self.tabs.setCurrentIndex(i)
+                return
+        tab = PrimerAnalysisTab()
+        self.tabs.addTab(tab, self.tr("Primer Analysis"))
+        self.tabs.setCurrentWidget(tab)
+
     def open_dotplot_tab(self):
         from modules.dotplot_tab import DotPlotTab
 

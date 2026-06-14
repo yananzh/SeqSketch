@@ -11,26 +11,44 @@ from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
-    QMainWindow,
     QMessageBox,
-    QPlainTextEdit,
     QPushButton,
-    QRadioButton,
     QSplitter,
     QSpinBox,
-    QDoubleSpinBox,
-    QStatusBar,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
+
+# matplotlib for primer binding site map
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+
+# openpyxl for Excel export
+try:
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    _HAS_OPENPYXL = True
+except ImportError:
+    _HAS_OPENPYXL = False
+
+# Shared styling
+from utils.common_components import apply_sequence_editor_style
 
 try:
     p3_bindings = importlib.import_module("primer3.bindings")
@@ -72,41 +90,37 @@ class Worker(QObject):
             self.error.emit(f"Error: {exc}")
 
 
-class MainWindow(QMainWindow):
+class PrimerDesignTab(QWidget):
     def __init__(self):
         super().__init__()
         self.worker: Worker | None = None
         self.worker_thread: QThread | None = None
         self.current_results: dict[str, Any] = {}
         self.row_detail_cache: list[dict[str, Any]] = []
-        self._last_mode: str = "standard"
+        self._current_template_seq: str = ""
 
         self.init_ui()
         self.connect_signals()
-        self.update_ui_for_mode()
-        self.setMenuBar(None)
 
     def init_ui(self):
-        self.setWindowTitle("PCR Primer Assistant")
-        self.setGeometry(100, 100, 1450, 820)
-
-        central = QWidget()
-        self.setCentralWidget(central)
-        root_layout = QVBoxLayout(central)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        root_layout.addWidget(splitter)
+        root_layout.addWidget(splitter, 1)
 
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(8, 8, 8, 8)
         left_layout.setSpacing(8)
 
-        seq_group = QGroupBox("1. Template Sequence")
+        seq_group = QGroupBox(self.tr("1. Template Sequence"))
         seq_v = QVBoxLayout(seq_group)
-        self.seq_input = QPlainTextEdit()
-        self.seq_input.setPlaceholderText("Paste FASTA or raw DNA sequence here...")
-        self.seq_len_label = QLabel("Sequence Length: 0 bp")
+        self.seq_input = QTextEdit()
+        apply_sequence_editor_style(self.seq_input)
+        self.seq_input.setPlaceholderText(
+            self.tr("Paste FASTA or raw DNA sequence here...")
+        )
 
         seq_btn_row = QHBoxLayout()
         self.load_seq_btn = QPushButton("Load from File")
@@ -117,53 +131,60 @@ class MainWindow(QMainWindow):
 
         seq_v.addWidget(self.seq_input)
         seq_v.addLayout(seq_btn_row)
-        seq_v.addWidget(self.seq_len_label)
 
-        mode_group = QGroupBox("2. Design Mode")
-        mode_v = QVBoxLayout(mode_group)
-        self.rb_standard = QRadioButton("Standard Primer Design (internal fragment)")
-        self.rb_specific = QRadioButton("Specific Region (within target)")
-        self.rb_cloning = QRadioButton("Full-length Cloning (entire template)")
-        self.rb_standard.setChecked(True)
-        mode_v.addWidget(self.rb_standard)
-        mode_v.addWidget(self.rb_specific)
-        mode_v.addWidget(self.rb_cloning)
-
-        self.region_group = QGroupBox("Target Region")
-        region_form = QFormLayout(self.region_group)
-        self.region_start_spin = QSpinBox()
-        self.region_end_spin = QSpinBox()
-        self.region_start_spin.setRange(1, 999999)
-        self.region_end_spin.setRange(1, 999999)
-        self.region_start_spin.setValue(1)
-        self.region_end_spin.setValue(300)
-        region_form.addRow("Start:", self.region_start_spin)
-        region_form.addRow("End:", self.region_end_spin)
-
-        general_group = QGroupBox("3. Product and Basic Parameters")
+        general_group = QGroupBox(self.tr("2. Product Parameters"))
         general_form = QFormLayout(general_group)
 
         self.prod_size_min = QSpinBox()
         self.prod_size_max = QSpinBox()
         self.prod_size_min.setRange(50, 10000)
         self.prod_size_max.setRange(50, 10000)
-        self.prod_size_min.setValue(150)
-        self.prod_size_max.setValue(300)
+        self.prod_size_min.setValue(80)
+        self.prod_size_max.setValue(150)
+        self.prod_size_min.setFixedWidth(76)
+        self.prod_size_max.setFixedWidth(76)
+        self.prod_size_min.setToolTip(
+            self.tr(
+                "Minimum expected PCR product size (bp).\n"
+                "Recommended: 80-200 bp for qPCR, 200-1000 bp for conventional PCR."
+            )
+        )
+        self.prod_size_max.setToolTip(
+            self.tr("Maximum expected PCR product size (bp).\nMust be >= minimum size.")
+        )
         size_box = QWidget()
         size_h = QHBoxLayout(size_box)
         size_h.setContentsMargins(0, 0, 0, 0)
         size_h.setSpacing(6)
         size_h.addWidget(self.prod_size_min)
         size_h.addWidget(self.prod_size_max)
+        size_h.addStretch()
 
         self.num_primers_spin = QSpinBox()
         self.num_primers_spin.setRange(1, 30)
         self.num_primers_spin.setValue(5)
+        self.num_primers_spin.setFixedWidth(76)
+        self.num_primers_spin.setToolTip(
+            self.tr(
+                "Number of primer pairs to return.\n"
+                "Higher values give more options but take longer to compute."
+            )
+        )
+        count_box = QWidget()
+        count_h = QHBoxLayout(count_box)
+        count_h.setContentsMargins(0, 0, 0, 0)
+        count_h.setSpacing(6)
+        count_h.addWidget(self.num_primers_spin)
+        count_h.addStretch()
 
-        general_form.addRow("Product Size Range (Min/Max):", size_box)
-        general_form.addRow("Primer Pair Count:", self.num_primers_spin)
+        size_label = QLabel(self.tr("Product Size (Min/Max):"))
+        size_label.setFixedWidth(180)
+        general_form.addRow(size_label, size_box)
+        count_label = QLabel(self.tr("Primer Pair Count:"))
+        count_label.setFixedWidth(180)
+        general_form.addRow(count_label, count_box)
 
-        primer_group = QGroupBox("4. Primer Specifications")
+        primer_group = QGroupBox(self.tr("3. Primer Parameters"))
         primer_form = QFormLayout(primer_group)
 
         self.p_len_min = QSpinBox()
@@ -171,9 +192,15 @@ class MainWindow(QMainWindow):
         self.p_len_max = QSpinBox()
         for spin in (self.p_len_min, self.p_len_opt, self.p_len_max):
             spin.setRange(15, 35)
+            spin.setFixedWidth(68)
         self.p_len_min.setValue(18)
         self.p_len_opt.setValue(20)
         self.p_len_max.setValue(25)
+        self.p_len_min.setToolTip(self.tr("Minimum acceptable primer length (nt)."))
+        self.p_len_opt.setToolTip(
+            self.tr("Optimal primer length (nt). Primer3 will prefer this length.")
+        )
+        self.p_len_max.setToolTip(self.tr("Maximum acceptable primer length (nt)."))
         len_box = QWidget()
         len_h = QHBoxLayout(len_box)
         len_h.setContentsMargins(0, 0, 0, 0)
@@ -189,9 +216,25 @@ class MainWindow(QMainWindow):
             spin.setRange(40.0, 85.0)
             spin.setDecimals(1)
             spin.setSingleStep(0.1)
+            spin.setFixedWidth(68)
         self.p_tm_min.setValue(57.0)
         self.p_tm_opt.setValue(60.0)
         self.p_tm_max.setValue(63.0)
+        self.p_tm_min.setToolTip(
+            self.tr(
+                "Minimum acceptable melting temperature (°C).\nTypical range: 55-60°C."
+            )
+        )
+        self.p_tm_opt.setToolTip(
+            self.tr(
+                "Optimal melting temperature (°C).\nPrimer3 will prefer primers near this Tm."
+            )
+        )
+        self.p_tm_max.setToolTip(
+            self.tr(
+                "Maximum acceptable melting temperature (°C).\nTypical range: 60-65°C."
+            )
+        )
         tm_box = QWidget()
         tm_h = QHBoxLayout(tm_box)
         tm_h.setContentsMargins(0, 0, 0, 0)
@@ -207,9 +250,21 @@ class MainWindow(QMainWindow):
             spin.setRange(20.0, 80.0)
             spin.setDecimals(1)
             spin.setSingleStep(0.1)
+            spin.setFixedWidth(68)
         self.p_gc_min.setValue(40.0)
         self.p_gc_opt.setValue(50.0)
         self.p_gc_max.setValue(60.0)
+        self.p_gc_min.setToolTip(
+            self.tr("Minimum acceptable GC content (%).\nTypical range: 40-60%.")
+        )
+        self.p_gc_opt.setToolTip(
+            self.tr(
+                "Optimal GC content (%).\nPrimer3 will prefer primers near this GC%."
+            )
+        )
+        self.p_gc_max.setToolTip(
+            self.tr("Maximum acceptable GC content (%).\nTypical range: 40-60%.")
+        )
         gc_box = QWidget()
         gc_h = QHBoxLayout(gc_box)
         gc_h.setContentsMargins(0, 0, 0, 0)
@@ -218,79 +273,113 @@ class MainWindow(QMainWindow):
         gc_h.addWidget(self.p_gc_opt)
         gc_h.addWidget(self.p_gc_max)
 
-        primer_form.addRow("Primer Length (Min/Opt/Max):", len_box)
-        primer_form.addRow("Primer Tm (°C) (Min/Opt/Max):", tm_box)
-        primer_form.addRow("Primer GC (%) (Min/Opt/Max):", gc_box)
+        len_label = QLabel(self.tr("Length (Min/Opt/Max):"))
+        len_label.setFixedWidth(150)
+        primer_form.addRow(len_label, len_box)
+        tm_label = QLabel(self.tr("Tm (°C) (Min/Opt/Max):"))
+        tm_label.setFixedWidth(150)
+        primer_form.addRow(tm_label, tm_box)
+        gc_label = QLabel(self.tr("GC (%) (Min/Opt/Max):"))
+        gc_label.setFixedWidth(150)
+        primer_form.addRow(gc_label, gc_box)
 
-        advanced_group = QGroupBox("5. Advanced Constraints")
-        adv_form = QFormLayout(advanced_group)
+        # ── 4. Advanced Parameters ──────────────────────────────────
+        adv_group = QGroupBox(self.tr("4. Advanced Parameters"))
+        adv_form = QFormLayout(adv_group)
 
+        self.salt_mono_spin = QDoubleSpinBox()
+        self.salt_mono_spin.setRange(10.0, 200.0)
+        self.salt_mono_spin.setDecimals(1)
+        self.salt_mono_spin.setValue(50.0)
+        self.salt_mono_spin.setFixedWidth(68)
+        self.salt_mono_spin.setSuffix(" mM")
+        self.salt_mono_spin.setToolTip(
+            self.tr(
+                "Monovalent salt concentration (Na⁺/K⁺).\n"
+                "Affects Tm calculation. Standard PCR: 50 mM."
+            )
+        )
+        salt_label = QLabel(self.tr("Salt (Monovalent):"))
+        salt_label.setFixedWidth(150)
+        adv_form.addRow(salt_label, self.salt_mono_spin)
+
+        self.mg_spin = QDoubleSpinBox()
+        self.mg_spin.setRange(0.5, 10.0)
+        self.mg_spin.setDecimals(1)
+        self.mg_spin.setValue(3.0)
+        self.mg_spin.setFixedWidth(68)
+        self.mg_spin.setSuffix(" mM")
+        self.mg_spin.setToolTip(
+            self.tr(
+                "Divalent salt concentration (Mg²⁺).\n"
+                "Standard PCR: 1.5 mM; qPCR typically: 2.5-3.5 mM."
+            )
+        )
+        mg_label = QLabel(self.tr("Mg²⁺:"))
+        mg_label.setFixedWidth(150)
+        adv_form.addRow(mg_label, self.mg_spin)
+
+        # Hidden defaults for less-commonly-adjusted parameters
         self.max_poly_x_spin = QSpinBox()
-        self.max_poly_x_spin.setRange(2, 10)
         self.max_poly_x_spin.setValue(4)
-
         self.max_self_any_spin = QDoubleSpinBox()
-        self.max_self_any_spin.setRange(2.0, 20.0)
-        self.max_self_any_spin.setDecimals(1)
         self.max_self_any_spin.setValue(8.0)
-
         self.max_self_end_spin = QDoubleSpinBox()
-        self.max_self_end_spin.setRange(1.0, 20.0)
-        self.max_self_end_spin.setDecimals(1)
         self.max_self_end_spin.setValue(3.0)
-
         self.max_hairpin_tm_spin = QDoubleSpinBox()
-        self.max_hairpin_tm_spin.setRange(10.0, 80.0)
-        self.max_hairpin_tm_spin.setDecimals(1)
         self.max_hairpin_tm_spin.setValue(47.0)
-
-        adv_form.addRow("Max Poly-X:", self.max_poly_x_spin)
-        adv_form.addRow("Max Self Any:", self.max_self_any_spin)
-        adv_form.addRow("Max Self End:", self.max_self_end_spin)
-        adv_form.addRow("Max Hairpin Tm:", self.max_hairpin_tm_spin)
+        self.max_diff_tm_spin = QDoubleSpinBox()
+        self.max_diff_tm_spin.setValue(2.0)
+        self.gc_clamp_spin = QSpinBox()
+        self.gc_clamp_spin.setValue(1)
 
         self.design_button = QPushButton("Design Primers")
         self.design_button.setMinimumHeight(38)
+        self.help_btn = QPushButton(self.tr("Help"))
+        self.help_btn.setMinimumHeight(38)
+        self.export_excel_btn = QPushButton(self.tr("Export Excel"))
+        self.export_excel_btn.setMinimumHeight(38)
+        if not _HAS_OPENPYXL:
+            self.export_excel_btn.setEnabled(False)
+            self.export_excel_btn.setToolTip(
+                self.tr("Excel export requires openpyxl. Install: pip install openpyxl")
+            )
 
         left_layout.addWidget(seq_group)
-        left_layout.addWidget(mode_group)
-        left_layout.addWidget(self.region_group)
         left_layout.addWidget(general_group)
         left_layout.addWidget(primer_group)
-        left_layout.addWidget(advanced_group)
+        left_layout.addWidget(adv_group)
         left_layout.addStretch()
-        left_layout.addWidget(self.design_button)
 
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(8, 8, 8, 8)
         right_layout.setSpacing(8)
 
-        top_actions = QHBoxLayout()
-        self.copy_selected_btn = QPushButton("Copy Selected")
-        self.copy_all_btn = QPushButton("Copy All")
-        self.export_csv_btn = QPushButton("Export CSV")
-        self.help_btn = QPushButton("Help")
-        top_actions.addWidget(self.copy_selected_btn)
-        top_actions.addWidget(self.copy_all_btn)
-        top_actions.addWidget(self.export_csv_btn)
-        top_actions.addWidget(self.help_btn)
-        top_actions.addStretch()
+        # ── Primer binding site map (Matplotlib) ─────────────────
+        map_group = QGroupBox(self.tr("Primer Binding Site Map"))
+        map_v = QVBoxLayout(map_group)
+        map_v.setContentsMargins(4, 4, 4, 4)
+        map_v.setSpacing(2)
+        self._primer_fig = Figure(figsize=(8, 4.0), dpi=100)
+        self._primer_canvas = FigureCanvas(self._primer_fig)
+        self._primer_canvas.setMinimumHeight(220)
+        self._primer_toolbar = NavigationToolbar(self._primer_canvas, map_group)
+        map_v.addWidget(self._primer_toolbar)
+        map_v.addWidget(self._primer_canvas)
 
         self.results_table = QTableWidget()
         self.results_table.setColumnCount(8)
-        self.results_table.setHorizontalHeaderLabels(
-            [
-                "Pair #",
-                "Type",
-                "Sequence",
-                "Position",
-                "Length",
-                "Tm",
-                "GC%",
-                "Product Size",
-            ]
-        )
+        self.results_table.setHorizontalHeaderLabels([
+            "Pair #",
+            "Type",
+            "Sequence",
+            "Position",
+            "Length",
+            "Tm",
+            "GC%",
+            "Product Size",
+        ])
         self.results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.results_table.setSelectionBehavior(
             QTableWidget.SelectionBehavior.SelectRows
@@ -306,50 +395,41 @@ class MainWindow(QMainWindow):
             header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
             header.setSectionResizeMode(6, QHeaderView.ResizeMode.Fixed)
             header.setSectionResizeMode(7, QHeaderView.ResizeMode.Fixed)
-            self.results_table.setColumnWidth(0, 68)
-            self.results_table.setColumnWidth(1, 72)
-            self.results_table.setColumnWidth(3, 90)
-            self.results_table.setColumnWidth(4, 82)
-            self.results_table.setColumnWidth(5, 72)
-            self.results_table.setColumnWidth(6, 72)
-            self.results_table.setColumnWidth(7, 102)
+            self.results_table.setColumnWidth(0, 50)
+            self.results_table.setColumnWidth(1, 50)
+            self.results_table.setColumnWidth(3, 65)
+            self.results_table.setColumnWidth(4, 55)
+            self.results_table.setColumnWidth(5, 55)
+            self.results_table.setColumnWidth(6, 50)
+            self.results_table.setColumnWidth(7, 95)
 
-        detail_group = QGroupBox("Selected Primer Detail")
-        detail_layout = QVBoxLayout(detail_group)
-        self.detail_text = QPlainTextEdit()
-        self.detail_text.setReadOnly(True)
-        self.detail_text.setPlaceholderText(
-            "Select a primer row to inspect detailed metrics."
-        )
-        self.detail_text.setMaximumBlockCount(500)
-        detail_layout.addWidget(self.detail_text)
-
-        right_layout.addLayout(top_actions)
+        right_layout.addWidget(map_group, 2)
         right_layout.addWidget(self.results_table, 3)
-        right_layout.addWidget(detail_group, 2)
 
         splitter.addWidget(left_panel)
         splitter.addWidget(right_panel)
-        splitter.setSizes([560, 860])
+        splitter.setSizes([380, 1040])
 
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Ready.")
+        # ── Status bar with buttons at the bottom ──
+        status_row = QHBoxLayout()
+        self.status_label = QLabel(self.tr("Ready"))
+        self.status_label.setStyleSheet("color: #666; padding: 2px 8px;")
+        status_row.addWidget(self.status_label)
+        status_row.addStretch()
+        status_row.addWidget(self.design_button)
+        status_row.addWidget(self.export_excel_btn)
+        status_row.addWidget(self.help_btn)
+        root_layout.addLayout(status_row)
 
     def connect_signals(self):
         self.design_button.clicked.connect(self.start_design_task)
-        self.rb_standard.toggled.connect(self.update_ui_for_mode)
-        self.rb_specific.toggled.connect(self.update_ui_for_mode)
-        self.rb_cloning.toggled.connect(self.update_ui_for_mode)
         self.seq_input.textChanged.connect(self.on_sequence_changed)
 
         self.load_seq_btn.clicked.connect(self.load_sequence_from_file)
         self.clear_seq_btn.clicked.connect(self.clear_sequence)
-        self.copy_selected_btn.clicked.connect(self.copy_selected_rows)
-        self.copy_all_btn.clicked.connect(self.copy_all_rows)
-        self.export_csv_btn.clicked.connect(self.export_results_csv)
+        self.export_excel_btn.clicked.connect(self.export_results_excel)
         self.help_btn.clicked.connect(self.show_help_dialog)
-        self.results_table.itemSelectionChanged.connect(self.update_detail_panel)
+        self.results_table.itemSelectionChanged.connect(self._draw_primer_map)
 
     def _normalize_sequence(self, raw_text: str) -> str:
         text = raw_text.strip()
@@ -357,7 +437,8 @@ class MainWindow(QMainWindow):
             lines = text.splitlines()
             seq_lines = [line.strip() for line in lines if not line.startswith(">")]
             return (
-                "".join(seq_lines)
+                ""
+                .join(seq_lines)
                 .replace(" ", "")
                 .replace("\r", "")
                 .replace("\n", "")
@@ -381,41 +462,21 @@ class MainWindow(QMainWindow):
             with open(file_path, "r", encoding="utf-8") as handle:
                 text = handle.read()
             self.seq_input.setPlainText(text)
-            self.status_bar.showMessage(f"Loaded sequence: {file_path}")
+            self.status_label.setText(f"Loaded sequence: {file_path}")
         except Exception as exc:
             QMessageBox.critical(self, "Load Error", f"Failed to read file:\n{exc}")
 
     def clear_sequence(self):
         self.seq_input.clear()
         self.results_table.setRowCount(0)
-        self.detail_text.clear()
         self.current_results.clear()
         self.row_detail_cache.clear()
-        self.status_bar.showMessage("Sequence and results cleared.")
-
-    def update_ui_for_mode(self):
-        is_specific = self.rb_specific.isChecked()
-        is_cloning = self.rb_cloning.isChecked()
-        mode = "cloning" if is_cloning else ("specific" if is_specific else "standard")
-
-        if mode != self._last_mode:
-            if mode == "standard":
-                self.apply_standard_presets()
-            elif mode == "specific":
-                self.apply_specific_presets()
-            else:
-                self.apply_cloning_relaxed_presets()
-
-        self.region_group.setEnabled(is_specific)
-        self.prod_size_min.setEnabled(not is_cloning)
-        self.prod_size_max.setEnabled(not is_cloning)
-        if is_cloning:
-            self.update_cloning_product_size()
-
-        self._last_mode = mode
+        self._current_template_seq = ""
+        self._clear_primer_map()
+        self.status_label.setText(self.tr("Sequence and results cleared."))
 
     def apply_standard_presets(self):
-        """Apply balanced preset values for standard primer design."""
+        """Apply balanced preset values for qPCR primer design."""
         self.p_len_min.setValue(18)
         self.p_len_opt.setValue(20)
         self.p_len_max.setValue(25)
@@ -434,56 +495,16 @@ class MainWindow(QMainWindow):
         self.max_hairpin_tm_spin.setValue(47.0)
         self.num_primers_spin.setValue(5)
 
-        self.prod_size_min.setValue(150)
-        self.prod_size_max.setValue(300)
-        self.status_bar.showMessage("Applied standard preset parameters.")
+        self.salt_mono_spin.setValue(50.0)
+        self.mg_spin.setValue(3.0)
 
-    def apply_specific_presets(self):
-        """Keep specific mode presets identical to standard mode parameters."""
-        self.apply_standard_presets()
-        self.status_bar.showMessage(
-            "Applied specific-region preset parameters (same as standard mode)."
-        )
-
-    def apply_cloning_relaxed_presets(self):
-        """Apply a looser preset suitable for full-length cloning mode."""
-        self.p_len_min.setValue(16)
-        self.p_len_opt.setValue(20)
-        self.p_len_max.setValue(30)
-
-        self.p_tm_min.setValue(55.0)
-        self.p_tm_opt.setValue(60.0)
-        self.p_tm_max.setValue(66.0)
-
-        self.p_gc_min.setValue(30.0)
-        self.p_gc_opt.setValue(50.0)
-        self.p_gc_max.setValue(70.0)
-
-        self.max_poly_x_spin.setValue(5)
-        self.max_self_any_spin.setValue(10.0)
-        self.max_self_end_spin.setValue(5.0)
-        self.max_hairpin_tm_spin.setValue(55.0)
-
-        # Full-length cloning default: two primer pairs.
-        self.num_primers_spin.setValue(2)
-        self.status_bar.showMessage(
-            "Applied relaxed preset for Full-length Cloning mode."
-        )
+        self.prod_size_min.setValue(80)
+        self.prod_size_max.setValue(150)
+        self.status_label.setText("Applied qPCR preset parameters.")
 
     def on_sequence_changed(self):
         sequence = self._normalize_sequence(self.seq_input.toPlainText())
-        self.seq_len_label.setText(f"Sequence Length: {len(sequence)} bp")
-        if self.rb_cloning.isChecked():
-            self.update_cloning_product_size()
-
-    def update_cloning_product_size(self):
-        seq_len = len(self._normalize_sequence(self.seq_input.toPlainText()))
-        if seq_len > 0:
-            self.prod_size_min.setValue(max(50, seq_len - 50))
-            self.prod_size_max.setValue(seq_len + 50)
-        else:
-            self.prod_size_min.setValue(150)
-            self.prod_size_max.setValue(300)
+        self._current_template_seq = sequence
 
     def _validate_parameter_ranges(self) -> bool:
         if (
@@ -534,9 +555,8 @@ class MainWindow(QMainWindow):
             return
 
         self.design_button.setEnabled(False)
-        self.status_bar.showMessage("Preparing parameters...")
+        self.status_label.setText("Preparing parameters...")
         self.results_table.setRowCount(0)
-        self.detail_text.clear()
         self.current_results.clear()
         self.row_detail_cache.clear()
 
@@ -556,6 +576,10 @@ class MainWindow(QMainWindow):
             "PRIMER_OPT_GC_PERCENT": self.p_gc_opt.value(),
             "PRIMER_NUM_RETURN": self.num_primers_spin.value(),
             "PRIMER_EXPLAIN_FLAG": 1,
+            "PRIMER_SALT_MONOVALENT": self.salt_mono_spin.value(),
+            "PRIMER_SALT_DIVALENT": self.mg_spin.value(),
+            "PRIMER_MAX_DIFF_TM": self.max_diff_tm_spin.value(),
+            "PRIMER_GC_CLAMP": self.gc_clamp_spin.value(),
             "PRIMER_MAX_POLY_X": self.max_poly_x_spin.value(),
             "PRIMER_MAX_SELF_ANY": self.max_self_any_spin.value(),
             "PRIMER_MAX_SELF_END": self.max_self_end_spin.value(),
@@ -563,32 +587,10 @@ class MainWindow(QMainWindow):
         }
 
         seq_len = len(sequence)
-        if self.rb_specific.isChecked():
-            start_pos = self.region_start_spin.value()
-            end_pos = self.region_end_spin.value()
-            if start_pos >= end_pos or end_pos > seq_len:
-                self.show_error_message(
-                    "Invalid target region. Check start/end positions."
-                )
-                return
-            seq_args["SEQUENCE_INCLUDED_REGION"] = (
-                f"{start_pos - 1},{end_pos - start_pos + 1}"
-            )
-            global_args["PRIMER_PRODUCT_SIZE_RANGE"] = [
-                self.prod_size_min.value(),
-                self.prod_size_max.value(),
-            ]
-        elif self.rb_cloning.isChecked():
-            seq_args["SEQUENCE_TARGET"] = f"0,{seq_len}"
-            global_args["PRIMER_PRODUCT_SIZE_RANGE"] = [
-                max(50, seq_len - 50),
-                seq_len + 50,
-            ]
-        else:
-            global_args["PRIMER_PRODUCT_SIZE_RANGE"] = [
-                self.prod_size_min.value(),
-                self.prod_size_max.value(),
-            ]
+        global_args["PRIMER_PRODUCT_SIZE_RANGE"] = [
+            self.prod_size_min.value(),
+            self.prod_size_max.value(),
+        ]
 
         self.worker_thread = QThread()
         self.worker = Worker(seq_args, global_args)
@@ -597,7 +599,7 @@ class MainWindow(QMainWindow):
         self.worker_thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.update_results_table)
         self.worker.error.connect(self.show_error_message)
-        self.worker.progress.connect(self.status_bar.showMessage)
+        self.worker.progress.connect(self.status_label.setText)
 
         self.worker.finished.connect(self.worker_thread.quit)
         self.worker.error.connect(self.worker_thread.quit)
@@ -606,7 +608,7 @@ class MainWindow(QMainWindow):
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
 
         self.worker_thread.start()
-        self.status_bar.showMessage("Background task started. Designing primers...")
+        self.status_label.setText("Background task started. Designing primers...")
 
     def _to_float_text(self, value: Any) -> str:
         if isinstance(value, (int, float)):
@@ -631,6 +633,7 @@ class MainWindow(QMainWindow):
                 "No primer pairs found. Try relaxing constraints."
                 + (f"\n\nPrimer3 explain: {explain}" if explain else "")
             )
+            self.design_button.setEnabled(True)
             return
 
         self.results_table.setRowCount(num_returned * 2)
@@ -694,34 +697,10 @@ class MainWindow(QMainWindow):
                 self.row_detail_cache.append(detail)
                 row_idx += 1
 
-        self.status_bar.showMessage(f"Found {num_returned} primer pairs.")
+        self.status_label.setText(self.tr("Found %d primer pairs.") % num_returned)
         self.design_button.setEnabled(True)
         if self.results_table.rowCount() > 0:
             self.results_table.selectRow(0)
-
-    def update_detail_panel(self):
-        current_row = self.results_table.currentRow()
-        if current_row < 0 or current_row >= len(self.row_detail_cache):
-            self.detail_text.clear()
-            return
-
-        d = self.row_detail_cache[current_row]
-        pos_text, len_text = self._safe_pos_length(d["pos_len"])
-        lines = [
-            f"Pair #{d['pair_index']}  ({d['type']})",
-            f"Sequence: {d['seq']}",
-            f"Position: {pos_text}",
-            f"Length: {len_text}",
-            f"Tm: {self._to_float_text(d['tm'])}",
-            f"GC%: {self._to_float_text(d['gc'])}",
-            f"Penalty: {self._to_float_text(d['penalty'])}",
-            f"Pair Penalty: {self._to_float_text(d['pair_penalty'])}",
-            f"Self Any (TH): {self._to_float_text(d['self_any'])}",
-            f"Self End (TH): {self._to_float_text(d['self_end'])}",
-            f"Hairpin (TH): {self._to_float_text(d['hairpin'])}",
-            f"Product Size: {d['product_size']}",
-        ]
-        self.detail_text.setPlainText("\n".join(lines))
 
     def _table_to_tsv(self, selected_only: bool) -> str:
         headers = [
@@ -731,12 +710,9 @@ class MainWindow(QMainWindow):
         lines = ["\t".join(headers)]
 
         if selected_only:
-            rows = sorted(
-                {
-                    idx.row()
-                    for idx in self.results_table.selectionModel().selectedRows()
-                }
-            )
+            rows = sorted({
+                idx.row() for idx in self.results_table.selectionModel().selectedRows()
+            })
         else:
             rows = list(range(self.results_table.rowCount()))
 
@@ -754,7 +730,7 @@ class MainWindow(QMainWindow):
             return
         text = self._table_to_tsv(selected_only=True)
         QApplication.clipboard().setText(text)
-        self.status_bar.showMessage("Selected rows copied to clipboard.")
+        self.status_label.setText("Selected rows copied to clipboard.")
 
     def copy_all_rows(self):
         if self.results_table.rowCount() == 0:
@@ -762,7 +738,7 @@ class MainWindow(QMainWindow):
             return
         text = self._table_to_tsv(selected_only=False)
         QApplication.clipboard().setText(text)
-        self.status_bar.showMessage("All rows copied to clipboard.")
+        self.status_label.setText("All rows copied to clipboard.")
 
     def export_results_csv(self):
         if self.results_table.rowCount() == 0:
@@ -792,40 +768,363 @@ class MainWindow(QMainWindow):
                         item = self.results_table.item(row, col)
                         vals.append(item.text() if item else "")
                     writer.writerow(vals)
-            self.status_bar.showMessage(f"Exported CSV: {out_path}")
+            self.status_label.setText(f"Exported CSV: {out_path}")
         except Exception as exc:
             self.show_error_message(f"Failed to export CSV: {exc}")
 
-    def show_help_dialog(self):
-        help_text = (
-            "PCR Primer Assistant - Quick Help\n\n"
-            "1) Template sequence\n"
-            "   - Supports FASTA or raw sequence\n"
-            "   - Allowed bases: A/C/G/T/U/N\n\n"
-            "2) Design mode\n"
-            "   - Standard: internal fragment amplification\n"
-            "   - Specific Region: primer design within target coordinates\n"
-            "   - Full-length Cloning: auto product range around template length\n\n"
-            "3) Parameter tips\n"
-            "   - Keep Min ≤ Opt ≤ Max for Length / Tm / GC\n"
-            "   - Typical Tm range: 57-63°C\n"
-            "   - Typical GC range: 40-60%\n"
-            "   - Increase PRIMER_NUM_RETURN to get more candidates\n"
-            "   - Relax constraints if no primer pair is returned\n\n"
-            "4) Results\n"
-            "   - Click a row to inspect penalty, self-complementarity, and hairpin values\n"
-            "   - Use Copy Selected / Copy All / Export CSV for downstream analysis"
+    # ── Excel Export ─────────────────────────────────────────────────
+
+    def export_results_excel(self):
+        """Export primer results to an Excel (.xlsx) file."""
+        if not _HAS_OPENPYXL:
+            self.show_error_message(
+                self.tr("Excel export requires openpyxl. Install: pip install openpyxl")
+            )
+            return
+        if self.results_table.rowCount() == 0:
+            self.show_error_message(self.tr("No results to export."))
+            return
+
+        out_path, _ = QFileDialog.getSaveFileName(
+            self,
+            self.tr("Export Primer Results to Excel"),
+            "primer_results.xlsx",
+            "Excel files (*.xlsx)",
         )
-        QMessageBox.information(self, "PCR Primer Assistant Help", help_text)
+        if not out_path:
+            return
+
+        try:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Primer Results"
+
+            # Header styling
+            header_font = Font(name="Segoe UI", bold=True, color="FFFFFF", size=11)
+            header_fill = PatternFill(
+                start_color="4a90e2", end_color="4a90e2", fill_type="solid"
+            )
+            header_align = Alignment(horizontal="center", vertical="center")
+            thin_border = Border(
+                left=Side(style="thin", color="cccccc"),
+                right=Side(style="thin", color="cccccc"),
+                top=Side(style="thin", color="cccccc"),
+                bottom=Side(style="thin", color="cccccc"),
+            )
+
+            # Write headers
+            for col in range(self.results_table.columnCount()):
+                hdr_item = self.results_table.horizontalHeaderItem(col)
+                cell = ws.cell(
+                    row=1, column=col + 1, value=hdr_item.text() if hdr_item else ""
+                )
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_align
+                cell.border = thin_border
+
+            # Fwd/Rev row fills
+            fwd_fill = PatternFill(
+                start_color="eef7ff", end_color="eef7ff", fill_type="solid"
+            )
+            rev_fill = PatternFill(
+                start_color="fff4ee", end_color="fff4ee", fill_type="solid"
+            )
+            data_align = Alignment(vertical="center")
+
+            # Write data rows
+            for row in range(self.results_table.rowCount()):
+                type_item = self.results_table.item(row, 1)
+                row_fill = (
+                    fwd_fill if (type_item and type_item.text() == "Fwd") else rev_fill
+                )
+                for col in range(self.results_table.columnCount()):
+                    item = self.results_table.item(row, col)
+                    cell = ws.cell(
+                        row=row + 2, column=col + 1, value=item.text() if item else ""
+                    )
+                    cell.fill = row_fill
+                    cell.alignment = data_align
+                    cell.border = thin_border
+                    cell.font = Font(name="Segoe UI", size=11)
+
+            # Auto-fit column widths
+            for col in range(self.results_table.columnCount()):
+                max_width = 10
+                for row in range(self.results_table.rowCount() + 1):
+                    cell_val = ws.cell(row=row + 1, column=col + 1).value
+                    if cell_val:
+                        max_width = max(max_width, len(str(cell_val)) + 2)
+                ws.column_dimensions[get_column_letter(col + 1)].width = min(
+                    max_width, 60
+                )
+
+            # Freeze header row
+            ws.freeze_panes = "A2"
+
+            wb.save(out_path)
+            self.status_label.setText(self.tr("Exported Excel: %s") % out_path)
+        except Exception as exc:
+            self.show_error_message(self.tr("Failed to export Excel: %s") % exc)
+
+    # ── Primer Binding Site Map (Matplotlib) ─────────────────────────
+
+    def _clear_primer_map(self):
+        """Clear the primer binding site map figure."""
+        self._primer_fig.clear()
+        self._primer_canvas.draw_idle()
+
+    def _draw_primer_map(self):
+        """Draw a linear map showing primer binding positions on the template."""
+        self._primer_fig.clear()
+
+        template = self._current_template_seq
+        if not template:
+            self._primer_canvas.draw_idle()
+            return
+
+        ax = self._primer_fig.add_subplot(111)
+        seq_len = len(template)
+
+        # Draw template as a thick horizontal line at the top
+        ax.plot([0, seq_len], [0, 0], "k-", linewidth=3, label="Template", zorder=1)
+
+        # Collect primer pairs from row_detail_cache
+        colors_fwd = ["#2196F3", "#1976D2", "#0D47A1", "#42A5F5", "#64B5F6"]
+        colors_rev = ["#FF5722", "#E64A19", "#BF360C", "#FF7043", "#FF8A65"]
+
+        # Group by pair index
+        pairs: dict[int, dict[str, Any]] = {}
+        for d in self.row_detail_cache:
+            pi = d["pair_index"]
+            if pi not in pairs:
+                pairs[pi] = {}
+            pairs[pi][d["type"]] = d
+
+        y_offset = -1.2
+        max_offset = 0
+        for pair_idx in sorted(pairs.keys()):
+            pair = pairs[pair_idx]
+            fwd = pair.get("Fwd")
+            rev = pair.get("Rev")
+
+            if fwd:
+                pos_text, len_text = self._safe_pos_length(fwd["pos_len"])
+                try:
+                    fwd_start = int(pos_text)
+                    fwd_len = int(len_text)
+                except (ValueError, TypeError):
+                    fwd_start, fwd_len = 0, 0
+                if fwd_start > 0 and fwd_len > 0:
+                    color = colors_fwd[(pair_idx - 1) % len(colors_fwd)]
+                    ax.arrow(
+                        fwd_start,
+                        y_offset,
+                        fwd_len,
+                        0,
+                        head_width=0.35,
+                        head_length=min(fwd_len * 0.3, seq_len * 0.02),
+                        fc=color,
+                        ec=color,
+                        linewidth=1.5,
+                        zorder=3,
+                        length_includes_head=True,
+                    )
+                    ax.text(
+                        fwd_start + fwd_len / 2,
+                        y_offset - 0.55,
+                        f"P{pair_idx}F",
+                        ha="center",
+                        va="top",
+                        fontsize=7,
+                        color=color,
+                        fontweight="bold",
+                    )
+
+            if rev:
+                pos_text, len_text = self._safe_pos_length(rev["pos_len"])
+                try:
+                    rev_start = int(pos_text)
+                    rev_len = int(len_text)
+                except (ValueError, TypeError):
+                    rev_start, rev_len = 0, 0
+                if rev_start > 0 and rev_len > 0:
+                    color = colors_rev[(pair_idx - 1) % len(colors_rev)]
+                    ax.arrow(
+                        rev_start,
+                        y_offset,
+                        -rev_len,
+                        0,
+                        head_width=0.35,
+                        head_length=min(rev_len * 0.3, seq_len * 0.02),
+                        fc=color,
+                        ec=color,
+                        linewidth=1.5,
+                        zorder=3,
+                        length_includes_head=True,
+                    )
+                    ax.text(
+                        rev_start - rev_len / 2,
+                        y_offset - 0.55,
+                        f"P{pair_idx}R",
+                        ha="center",
+                        va="top",
+                        fontsize=7,
+                        color=color,
+                        fontweight="bold",
+                    )
+
+            y_offset -= 1.5
+            max_offset = abs(y_offset)
+
+        # Styling
+        ax.set_xlim(-seq_len * 0.02, seq_len * 1.02)
+        ax.set_ylim(-max_offset - 1.0, 0.8)
+        ax.set_xlabel("Template Position (bp)")
+        ax.set_yticks([])
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+        ax.set_title("Primer Binding Sites on Template", fontweight="bold", fontsize=11)
+
+        self._primer_fig.tight_layout()
+        self._primer_canvas.draw_idle()
+
+    # ── Help Dialog ─────────────────────────────────────────────────
+
+    def show_help_dialog(self):
+        """Show a structured help dialog with tabbed sections."""
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("PCR Primer Assistant - Help"))
+        dlg.setMinimumSize(600, 480)
+
+        layout = QVBoxLayout(dlg)
+
+        tabs = QTabWidget()
+
+        # ── Quick Start ──────────────────────────────────────────
+        quick_tab = QWidget()
+        quick_layout = QVBoxLayout(quick_tab)
+        quick_text = QTextEdit()
+        quick_text.setReadOnly(True)
+        quick_text.setHtml(
+            self.tr("""
+<h3>Quick Start Guide</h3>
+<ol>
+<li><b>Enter a template DNA sequence</b> — paste a raw sequence or FASTA format (A/C/G/T/U/N allowed).<br>
+    You can also click <b>Load from File</b> to open a .fa/.fasta/.txt file.</li>
+<li><b>Adjust parameters</b> if needed (defaults work well for most cases).</li>
+<li><b>Click "Design Primers"</b> to run Primer3.</li>
+<li><b>Review results</b> in the table — click any row to see detailed metrics and primer binding map.</li>
+<li><b>Export</b> via Copy, CSV, or Excel for downstream use.</li>
+</ol>
+<p><i>Tip: Hover over any parameter label to see a detailed tooltip.</i></p>
+""")
+        )
+        quick_layout.addWidget(quick_text)
+        tabs.addTab(quick_tab, self.tr("Quick Start"))
+
+        # ── Parameters ───────────────────────────────────────────
+        param_tab = QWidget()
+        param_layout = QVBoxLayout(param_tab)
+        param_text = QTextEdit()
+        param_text.setReadOnly(True)
+        param_text.setHtml(
+            self.tr("""
+<h3>Parameter Guide</h3>
+<table border='0' cellpadding='4' cellspacing='0'>
+<tr><td><b>Product Size</b></td><td>Expected amplicon length range (Min-Max).<br>qPCR: 80-200 bp; Conventional: 200-1000 bp.</td></tr>
+<tr><td><b>Primer Pair Count</b></td><td>How many primer pairs to return. More pairs = more options.</td></tr>
+<tr><td><b>Primer Length</b></td><td>Min/Opt/Max primer length in nucleotides. Typical: 18-25 nt.</td></tr>
+<tr><td><b>Primer Tm</b></td><td>Min/Opt/Max melting temperature (°C). Typical: 57-63°C.<br>Forward and reverse primers should have similar Tm (&lt;2°C difference).</td></tr>
+<tr><td><b>Primer GC%</b></td><td>Min/Opt/Max GC content (%). Typical: 40-60%.<br>Higher GC means stronger binding but may cause non-specific amplification.</td></tr>
+<tr><td><b>Salt (Monovalent)</b></td><td>Na⁺/K⁺ concentration (mM). Affects Tm calculation.<br>Standard: 50 mM. Higher values increase Tm.</td></tr>
+<tr><td><b>Mg²⁺</b></td><td>Magnesium ion concentration (mM).<br>qPCR typical: 2.5-3.5 mM. Higher values increase Tm, lower specificity.</td></tr>
+</table>
+<p><i>Min ≤ Opt ≤ Max must hold for Length, Tm, and GC.</i></p>
+""")
+        )
+        param_layout.addWidget(param_text)
+        tabs.addTab(param_tab, self.tr("Parameters"))
+
+        # ── Interpreting Results ─────────────────────────────────
+        results_tab = QWidget()
+        results_layout = QVBoxLayout(results_tab)
+        results_text = QTextEdit()
+        results_text.setReadOnly(True)
+        results_text.setHtml(
+            self.tr("""
+<h3>Interpreting Results</h3>
+<ul>
+<li><b>Pair #</b> — Primer pair index (1 = best scored by Primer3).</li>
+<li><b>Fwd/Rev</b> — Forward (sense) or Reverse (antisense) primer.</li>
+<li><b>Position</b> — 5' start position of the primer on the template (1-based).</li>
+<li><b>Length</b> — Primer length in nucleotides.</li>
+<li><b>Tm</b> — Melting temperature (°C). Ideally Fwd and Rev should be within 2°C of each other.</li>
+<li><b>GC%</b> — GC content percentage. Between 40-60% is optimal.</li>
+<li><b>Product Size</b> — Expected PCR product length in bp.</li>
+</ul>
+<p><b>Detail Panel</b> shows additional metrics:<br>
+Penalty (lower = better), Self-complementarity scores, Hairpin stability.</p>
+<p><b>Binding Site Map</b> — Visual representation of primer positions on the template.<br>
+Blue arrows = Forward primers, Orange arrows = Reverse primers.</p>
+""")
+        )
+        results_layout.addWidget(results_text)
+        tabs.addTab(results_tab, self.tr("Interpreting Results"))
+
+        # ── Troubleshooting ──────────────────────────────────────
+        trouble_tab = QWidget()
+        trouble_layout = QVBoxLayout(trouble_tab)
+        trouble_text = QTextEdit()
+        trouble_text.setReadOnly(True)
+        trouble_text.setHtml(
+            self.tr("""
+<h3>Troubleshooting</h3>
+<p><b>"No primer pairs found"</b></p>
+<ul>
+<li>Relax your constraints — widen Tm, GC%, or length ranges.</li>
+<li>Increase the number of primer pairs requested.</li>
+<li>Increase <b>Max Self Any</b> or <b>Max Self End</b> thresholds.</li>
+<li>Check that your template sequence is valid (A/C/G/T/U/N only).</li>
+<li>For short templates (&lt;100 bp), reduce the product size range.</li>
+</ul>
+<p><b>Primers have high self-complementarity</b></p>
+<ul>
+<li>Lower <b>Max Self Any</b> and <b>Max Self End</b> values.</li>
+<li>Increase the number of primer pairs requested to get more candidates.</li>
+</ul>
+<p><b>Tm mismatch between forward and reverse</b></p>
+<ul>
+<li>Narrow the Tm range (e.g., 58-62°C instead of 57-63°C).</li>
+<li>Manually review the primer pair with the smallest Tm difference.</li>
+</ul>
+<p><b>Application not responding</b></p>
+<ul>
+<li>For very long sequences (&gt;10000 bp), try reducing the product size range or relaxing constraints.</li>
+<li>Check that primer3-py is installed: <code>pip install primer3-py</code></li>
+</ul>
+""")
+        )
+        trouble_layout.addWidget(trouble_text)
+        tabs.addTab(trouble_tab, self.tr("Troubleshooting"))
+
+        layout.addWidget(tabs)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        buttons.accepted.connect(dlg.accept)
+        layout.addWidget(buttons)
+
+        dlg.exec()
 
     def show_error_message(self, message: str):
         QMessageBox.critical(self, "Error", message)
-        self.status_bar.showMessage("Task failed or no results found.")
+        self.status_label.setText("Task failed or no results found.")
         self.design_button.setEnabled(True)
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    w = MainWindow()
+    w = PrimerDesignTab()
     w.show()
     sys.exit(app.exec())
