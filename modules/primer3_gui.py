@@ -291,7 +291,7 @@ class PrimerDesignTab(QWidget):
         self.salt_mono_spin.setRange(10.0, 200.0)
         self.salt_mono_spin.setDecimals(1)
         self.salt_mono_spin.setValue(50.0)
-        self.salt_mono_spin.setFixedWidth(68)
+        self.salt_mono_spin.setFixedWidth(104)
         self.salt_mono_spin.setSuffix(" mM")
         self.salt_mono_spin.setToolTip(
             self.tr(
@@ -307,7 +307,7 @@ class PrimerDesignTab(QWidget):
         self.mg_spin.setRange(0.5, 10.0)
         self.mg_spin.setDecimals(1)
         self.mg_spin.setValue(3.0)
-        self.mg_spin.setFixedWidth(68)
+        self.mg_spin.setFixedWidth(104)
         self.mg_spin.setSuffix(" mM")
         self.mg_spin.setToolTip(
             self.tr(

@@ -90,7 +90,7 @@ class PrimerAnalysisTab(QWidget):
         self.mv_spin = QDoubleSpinBox()
         self.mv_spin.setRange(10, 200)
         self.mv_spin.setValue(50)
-        self.mv_spin.setFixedWidth(70)
+        self.mv_spin.setFixedWidth(104)
         self.mv_spin.setToolTip(self.tr("Monovalent salt (Na⁺/K⁺) concentration"))
         params_row.addWidget(self.mv_spin)
 
@@ -99,7 +99,7 @@ class PrimerAnalysisTab(QWidget):
         self.dv_spin = QDoubleSpinBox()
         self.dv_spin.setRange(0.5, 10)
         self.dv_spin.setValue(3.0)
-        self.dv_spin.setFixedWidth(70)
+        self.dv_spin.setFixedWidth(104)
         self.dv_spin.setToolTip(self.tr("Divalent salt (Mg²⁺) concentration"))
         params_row.addWidget(self.dv_spin)
         params_row.addStretch()
