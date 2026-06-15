@@ -709,7 +709,7 @@ class BookmarkManager(QWidget):
     def _show_help(self):
         dlg = QDialog(self)
         dlg.setWindowTitle("Favorites Manager - Help")
-        dlg.setFixedSize(550, 420)
+        dlg.setFixedSize(600, 500)
         layout = QVBoxLayout(dlg)
 
         scroll = QScrollArea()
@@ -720,30 +720,55 @@ class BookmarkManager(QWidget):
 <h2>Favorites Manager</h2>
 
 <p><b>What does this tool do?</b><br>
-Organize your URLs into categories with drag-and-drop, search, and import/export.
-Bookmarks are saved automatically to <code>bookmarks.json</code>.</p>
+Organize your frequently-used URLs into categories with drag-and-drop,
+live search, and JSON/HTML import/export. All bookmarks are saved
+automatically to <code>bookmarks.json</code> in your user data folder.</p>
 
 <h3>Quick Start</h3>
 <ol>
-<li><b>Create a category</b> — click <b>+ Category</b> or right-click the left panel.</li>
-<li><b>Add bookmarks</b> — click <b>+ Bookmark</b>, press <b>Ctrl+D</b>, or right-click a category.</li>
-<li><b>Open a bookmark</b> — click it in the list. It opens in your default browser.</li>
-<li><b>Search</b> — type in the search box to filter by name or URL.</li>
-<li><b>Organize</b> — drag bookmarks onto categories, or use right-click "Move to".</li>
+<li><b>Create a category</b> — click <b>Add Category</b> in the toolbar,
+    or right-click the left panel and choose <b>New Category</b>.</li>
+<li><b>Add bookmarks</b> — click <b>Add Bookmark</b>, press <b>Ctrl+D</b>,
+    or right-click the right panel and choose <b>Add Bookmark</b>.</li>
+<li><b>Open a bookmark</b> — <b>double-click</b> it in the list.
+    It opens in your default web browser.</li>
+<li><b>Search</b> — type in the search box to filter by name or URL.
+    Results update live. Clear the box to see all bookmarks again.</li>
+<li><b>Organize</b> — drag bookmarks from the list and drop them
+    onto a category in the tree, or use right-click <b>Move to</b>.</li>
 </ol>
+
+<h3>Right-Click Menus</h3>
+<table border='0' cellpadding='4' cellspacing='2'>
+<tr><td><b>Left panel (Categories)</b></td><td>New Category, Add Bookmark,
+    Open All in Category, Rename, Delete</td></tr>
+<tr><td><b>Right panel (Bookmarks)</b></td><td>Add Bookmark, Open, Edit,
+    Delete, Move to (any category)</td></tr>
+</table>
 
 <h3>Keyboard Shortcuts</h3>
 <table border='0' cellpadding='4' cellspacing='2'>
-<tr><td><b>Ctrl+D</b></td><td>Add bookmark to current category</td></tr>
-<tr><td><b>F2</b></td><td>Rename selected bookmark</td></tr>
+<tr><td><b>Ctrl+D</b></td><td>Add a new bookmark to the current category</td></tr>
+<tr><td><b>F2</b></td><td>Rename the selected bookmark</td></tr>
 <tr><td><b>Delete</b></td><td>Delete selected bookmark(s)</td></tr>
 </table>
 
 <h3>Import / Export</h3>
 <ul>
-<li><b>Import</b> — merge bookmarks from a JSON file.</li>
-<li><b>Export</b> — save all bookmarks as JSON (or HTML via right-click menu).</li>
-<li>Right-click a category for <b>Export as HTML</b> — compatible with browser import.</li>
+<li><b>Import</b> — merge bookmarks from a JSON file. Duplicate
+    categories are renamed with an <code>_import</code> suffix.</li>
+<li><b>Export (dropdown)</b> — choose <b>JSON</b> (for backup/sharing)
+    or <b>HTML</b> (Netscape bookmark format, compatible with Chrome,
+    Firefox, Edge).</li>
+</ul>
+
+<h3>Tips</h3>
+<ul>
+<li>Categories can be renamed by double-clicking or pressing F2.</li>
+<li>Drag bookmarks between categories to reorganize quickly.</li>
+<li>The status bar shows how many bookmarks are in the current category.</li>
+<li>URLs are validated — only <code>http://</code> and <code>https://</code>
+    links are accepted. Duplicate URLs trigger a confirmation prompt.</li>
 </ul>
 """)
         label.setTextFormat(Qt.TextFormat.RichText)
