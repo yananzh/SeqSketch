@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import re
+import time
 from typing import cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -491,6 +492,17 @@ def test_extract_by_regex_zero_match_exports_report(
     assert "No-match report saved to:" in log_text(tab)
 
 
+def _wait_for_worker(tab, timeout: float = 5.0) -> None:
+    """Process events until the NCBI download worker finishes (async refactor)."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        QApplication.processEvents()
+        if tab._thread is None and tab._worker is None:
+            return
+        time.sleep(0.05)
+    pytest.fail("Download worker did not finish within timeout")
+
+
 def test_download_from_ncbi_happy_path(qapp, tmp_path: Path, monkeypatch):
     print("[Download from NCBI] start happy-path flow")
     output_path = tmp_path / "downloaded.fasta"
@@ -526,6 +538,7 @@ def test_download_from_ncbi_happy_path(qapp, tmp_path: Path, monkeypatch):
     tab.acc_edit.setPlainText("NM_001\nNP_001")
     tab.output_edit.setText(str(output_path))
     tab.run_download()
+    _wait_for_worker(tab)
 
     assert output_path.exists()
     assert read_text(output_path).count(">") == 2
@@ -578,6 +591,7 @@ def test_download_from_ncbi_deduplicates_accessions_and_exports_report(
     tab.output_edit.setText(str(output_path))
     tab.export_report_checkbox.setChecked(True)
     tab.run_download()
+    _wait_for_worker(tab)
 
     assert output_path.exists()
     assert report_path.exists()
@@ -626,6 +640,7 @@ def test_download_from_ncbi_runs_multiple_batches(qapp, tmp_path: Path, monkeypa
     tab.output_edit.setText(str(output_path))
     tab.batch_size_spin.setValue(1)
     tab.run_download()
+    _wait_for_worker(tab)
 
     assert output_path.exists()
     assert calls == ["NM_001", "NP_001", "AF123456"]
@@ -669,6 +684,7 @@ def test_download_from_ncbi_retries_after_network_error(
     tab.output_edit.setText(str(output_path))
     tab.retry_count_spin.setValue(1)
     tab.run_download()
+    _wait_for_worker(tab)
 
     assert output_path.exists()
     assert attempts["count"] == 2
@@ -707,6 +723,7 @@ def test_download_from_ncbi_empty_result_exports_failure_report(
     tab.output_edit.setText(str(output_path))
     tab.export_report_checkbox.setChecked(True)
     tab.run_download()
+    _wait_for_worker(tab)
 
     assert not output_path.exists()
     assert report_path.exists()
@@ -982,6 +999,7 @@ def test_download_from_ncbi_network_error(qapp, tmp_path: Path, monkeypatch):
     tab.acc_edit.setPlainText("NM_001")
     tab.output_edit.setText(str(output_path))
     tab.run_download()
+    _wait_for_worker(tab)
 
     assert not output_path.exists()
     assert "Network error" in log_text(tab)

@@ -293,8 +293,13 @@ class SequenceLogoTab(BaseTabWidget):
         # Convert to DataFrame
         df = pd.DataFrame(counts)
 
-        # Convert counts to probabilities
-        df = df.div(df.sum(axis=1), axis=0)
+        # Convert counts to probabilities (all-gap columns → uniform; avoids NaN)
+        row_sums = df.sum(axis=1)
+        zero_sum_mask = row_sums == 0
+        df = df.div(row_sums, axis=0)
+        # Fill all-gap columns with 0.0 so they contribute zero information.
+        if zero_sum_mask.any():
+            df.loc[zero_sum_mask] = 0.0
 
         return df
 

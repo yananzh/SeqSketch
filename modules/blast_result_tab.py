@@ -46,6 +46,19 @@ _KEYS = [c[1] for c in _COLUMNS]
 _NUM_COLS = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
 
 
+class _NumericTableItem(QTableWidgetItem):
+    """QTableWidgetItem that compares numerically when column is in _NUM_COLS."""
+
+    def __lt__(self, other: QTableWidgetItem) -> bool:
+        col = self.column()
+        if col in _NUM_COLS:
+            try:
+                return float(self.text()) < float(other.text())
+            except (ValueError, TypeError):
+                pass  # fall through to text comparison
+        return super().__lt__(other)
+
+
 def _identity_color(pident_str: str) -> QColor | None:
     try:
         v = float(pident_str)
@@ -220,7 +233,7 @@ class BlastResultTab(QWidget):
         self.table.setRowCount(len(rows))
         for r, row in enumerate(rows):
             for c, val in enumerate(row):
-                item = QTableWidgetItem(val)
+                item = _NumericTableItem(val) if c in _NUM_COLS else QTableWidgetItem(val)
                 if c in _NUM_COLS:
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter

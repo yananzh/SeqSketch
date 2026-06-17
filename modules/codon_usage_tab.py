@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import collections
 import math
+import re
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib
@@ -348,16 +349,53 @@ def _compute_cai(codon_counts: Dict[str, int], ref_name: str) -> Optional[float]
     if not ref_name or ref_name not in _CAI_REFERENCES:
         return None
     ref = _CAI_REFERENCES[ref_name]
+    # Convert RSCU-like reference values to standard relative adaptiveness.
+    # w_i = value_i / max(family)  where family == all codons for the same
+    # amino acid. Without normalization the RSCU-derived weights can exceed 1
+    # and the geometric mean can drift above the valid [0,1] range.
+    w_map = _normalize_cai_reference(ref)
     log_sum = 0.0
     total = 0
     for codon, cnt in codon_counts.items():
-        w = ref.get(codon, 0.0)
+        w = w_map.get(codon, 0.0)
         if w > 0 and cnt > 0:
             log_sum += cnt * math.log(w)
             total += cnt
     if total == 0:
         return None
     return math.exp(log_sum / total)
+
+
+def _normalize_cai_reference(ref: Dict[str, float]) -> Dict[str, float]:
+    """Convert RSCU-like reference values to relative adaptiveness (0–1 range).
+
+    Standard CAI (Sharp & Li) uses w_i = value_i / max_value(family).
+    This ensures exp(mean(log w)) ∈ (0,1] and makes CAI values
+    comparable across reference organisms.
+    """
+    from Bio.Data import CodonTable
+
+    # Use the standard genetic code (ID 1) to group codons into families.
+    # All built-in CAI references target the standard code.
+    table = CodonTable.unambiguous_dna_by_id[1]
+    # Build amino-acid → list of codons mapping
+    family: Dict[str, List[str]] = {}
+    for codon in ref:
+        aa = table.forward_table.get(codon) or table.back_table.get(codon)
+        if aa is None:
+            aa_key = codon  # fallback (should not happen for standard code)
+        else:
+            aa_key = aa if isinstance(aa, str) else aa.upper()
+        family.setdefault(aa_key, []).append(codon)
+
+    w_map: Dict[str, float] = {}
+    for codons in family.values():
+        max_val = max(ref.get(c, 0.0) for c in codons)
+        if max_val > 0:
+            for c in codons:
+                w_map[c] = ref.get(c, 0.0) / max_val
+    # Any codon not in a family (e.g. stops) gets weight 0.
+    return w_map
 
 
 def _parse_fasta(text: str) -> List[Tuple[str, str]]:
@@ -411,8 +449,12 @@ class _Worker(QObject):
                     self.cancelled.emit()
                     return
                 self.progress.emit(idx + 1, total)
-                seq_clean = "".join(c for c in seq.upper() if c in "ACGTU")
-                seq_clean = seq_clean.replace("U", "T")
+                seq_clean = seq.upper().replace("U", "T")
+                # Reject ambiguous sequences instead of silently deleting
+                # non-ACGT characters (which would shift the reading frame).
+                if not re.fullmatch(r"[ACGT]+", seq_clean):
+                    # Skip this record; its absence from results serves as a signal.
+                    continue
                 if self._frame_offset:
                     seq_clean = seq_clean[self._frame_offset :]
 

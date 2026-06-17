@@ -210,63 +210,81 @@ class ORFTab(BaseTabWidget):
             self.status_label.setText("Please enter a DNA sequence.")
             return
 
+        # Parse FASTA records (support single raw sequence and multi-FASTA)
         header = None
+        records: list[tuple[str, str]] = []  # (header_or_label, clean_seq)
         if ">" in raw:
             lines = raw.split("\n")
-            seq_lines = []
+            seq_lines: list[str] = []
+            current_header = None
             for line in lines:
                 line = line.strip()
                 if line.startswith(">"):
-                    header = line
+                    if current_header is not None and seq_lines:
+                        seq = "".join(seq_lines)
+                        records.append((current_header, seq))
+                        seq_lines = []
+                    current_header = line
                 elif line:
                     seq_lines.append(line)
-            seq = "".join(seq_lines)
+            if current_header is not None and seq_lines:
+                records.append((current_header, "".join(seq_lines)))
         else:
-            seq = raw
-
-        seq = seq.replace("\n", "").replace(" ", "").upper().replace("U", "T")
-        if not seq:
-            self.status_label.setText("No valid sequence found.")
-            return
-        if not re.fullmatch(r"[ACGTN]+", seq):
-            self.status_label.setText("Invalid characters. Only A/T/G/C/N allowed.")
-            return
+            records = [("Single sequence", raw)]
 
         min_len = self.min_len_box.value()
         chain_mode = self.chain_box.currentIndex()
         use_alt_start = self.start_codon_box.currentIndex() == 1
 
-        results = []
-        if chain_mode in (0, 2):
-            results += self.find_orfs(seq, "+", use_alt_start)
-        if chain_mode in (1, 2):
-            revcomp = self.reverse_complement(seq)
-            results += self.find_orfs(
-                revcomp, "-", use_alt_start, original_len=len(seq)
-            )
-        results = [o for o in results if o["length"] >= min_len]
-        results.sort(key=lambda o: o["length"], reverse=True)
+        all_results: list[dict] = []
+        for record_idx, (rec_header, seq) in enumerate(records):
+            seq = seq.replace(" ", "").upper().replace("U", "T")
+            if not seq:
+                continue
+            if not re.fullmatch(r"[ACGTN]+", seq):
+                self.status_label.setText(
+                    f"Invalid characters in record \"{rec_header}\". "
+                    "Only A/T/G/C/N allowed."
+                )
+                return
 
-        self._results = results
-        self._populate_table(results)
-        self._draw_orf_map(results, len(seq))
+            # Tag with origin header so multi-record output is readable
+            prefix = f" [{rec_header}]" if len(records) > 1 else ""
+            results = []
+            if chain_mode in (0, 2):
+                results += self.find_orfs(seq, "+", use_alt_start)
+            if chain_mode in (1, 2):
+                revcomp = self.reverse_complement(seq)
+                results += self.find_orfs(
+                    revcomp, "-", use_alt_start, original_len=len(seq)
+                )
+            for o in results:
+                o["header_tag"] = prefix
+            results = [o for o in results if o["length"] >= min_len]
+            all_results.extend(results)
+
+        all_results.sort(key=lambda o: o["length"], reverse=True)
+
+        self._results = all_results
+        self._populate_table(all_results)
+        if records:
+            self._draw_orf_map(all_results, len(records[0][1]))
 
         # Also populate output_text for export/copy
         out_lines = []
-        if header:
-            out_lines.append(f"{header}\n")
-        for idx, o in enumerate(results, 1):
+        for idx, o in enumerate(all_results, 1):
             start_disp = o["start"]
             end_disp = o["end"]
             if o["frame"].startswith("-") and start_disp < end_disp:
                 start_disp, end_disp = end_disp, start_disp
+            tag = o.get("header_tag", "")
             out_lines.append(
-                f"ORF #{idx} | Frame: {o['frame']} | "
+                f"ORF #{idx}{tag} | Frame: {o['frame']} | "
                 f"Position: {start_disp}-{end_disp} | Length: {o['length']} nt\n"
                 f"Sequence: {o['seq']}\nTranslation: {o['aa']}\n"
             )
         self.output_text.setPlainText("\n".join(out_lines))
-        self.status_label.setText(f"Found {len(results)} ORFs  (sorted by length)")
+        self.status_label.setText(f"Found {len(all_results)} ORFs  (sorted by length)")
 
     def find_orfs(self, seq, strand, use_alt_start=False, original_len=None):
         """Find ORFs.  *seq* is already reverse-complemented for the '-' strand."""

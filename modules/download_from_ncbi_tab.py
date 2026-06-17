@@ -1,5 +1,6 @@
 from collections import Counter
 from datetime import datetime
+import time
 
 from PyQt6.QtWidgets import (
     QVBoxLayout,
@@ -15,7 +16,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QGroupBox,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QThread, QObject, pyqtSignal
 from utils.common_components import BaseTabWidget
 from urllib.error import URLError
 import os
@@ -79,7 +80,7 @@ def write_download_report(output_path: str, report: dict):
     lines = [
         "Metric\tValue",
         f"Database\t{report['db']}",
-        f"Email\t{report['email']}",
+        f"Email_Provided\t{bool(report.get('email'))}",
         f"Requested_Count\t{report['requested_count']}",
         f"Unique_Requested_Count\t{report['unique_requested_count']}",
         f"Duplicate_Requested_Count\t{report['duplicate_requested_count']}",
@@ -100,11 +101,156 @@ def write_download_report(output_path: str, report: dict):
         handle.write("\n".join(lines))
 
 
+class _NcbiDownloadWorker(QObject):
+    """Download NCBI sequences in batches with retries — runs on a worker thread."""
+
+    progress = pyqtSignal(int, int)  # batch_index, total_batches
+    log_message = pyqtSignal(str, str)  # message, level
+    finished = pyqtSignal(str, dict)  # fasta_data, report dict
+    error = pyqtSignal(str)
+    cancelled = pyqtSignal()
+
+    def __init__(
+        self,
+        db: str,
+        email: str,
+        acc_list: list[str],
+        batch_size: int,
+        retry_count: int,
+        requested_count: int,
+        unique_count: int,
+        duplicate_count: int,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self._db = db
+        self._email = email
+        self._acc_list = acc_list
+        self._batch_size = batch_size
+        self._retry_count = retry_count
+        self._requested_count = requested_count
+        self._unique_count = unique_count
+        self._duplicate_count = duplicate_count
+        self._cancel = False
+
+    def cancel(self):
+        self._cancel = True
+
+    def run(self):
+        try:
+            from Bio import Entrez
+        except ImportError:
+            self.error.emit(
+                "Biopython (Bio.Entrez) is required to download NCBI data."
+            )
+            return
+
+        Entrez.email = self._email
+
+        batches = split_batches(self._acc_list, self._batch_size)
+        fasta_chunks: list[str] = []
+        failed_accessions: list[str] = []
+        error_messages: list[str] = []
+        batches_succeeded = 0
+
+        for batch_index, batch in enumerate(batches, start=1):
+            if self._cancel:
+                self.cancelled.emit()
+                return
+
+            self.progress.emit(batch_index, len(batches))
+
+            # NCBI asks for ~3 requests/second without an API key.
+            if batch_index > 1:
+                time.sleep(0.34)
+
+            try:
+                fasta_data, retry_attempts_used = fetch_batch_with_retries(
+                    Entrez, self._db, batch, self._retry_count
+                )
+            except URLError as e:
+                failed_accessions.extend(batch)
+                error_messages.append(f"Batch {batch_index}: Network error: {e}")
+                self.log_message.emit(
+                    f"Network error after {self._retry_count + 1} attempt(s) "
+                    f"for batch {batch_index}: {e}",
+                    "ERROR",
+                )
+                continue
+            except Exception as e:
+                failed_accessions.extend(batch)
+                error_messages.append(f"Batch {batch_index}: NCBI download error: {e}")
+                self.log_message.emit(
+                    f"NCBI download error in batch {batch_index}: {e}", "ERROR"
+                )
+                continue
+
+            if retry_attempts_used:
+                self.log_message.emit(
+                    f"Batch {batch_index} succeeded after {retry_attempts_used + 1} attempt(s)",
+                    "WARNING",
+                )
+
+            if (
+                not fasta_data.strip()
+                or "Error" in fasta_data
+                or "not found" in fasta_data
+            ):
+                failed_accessions.extend(batch)
+                error_messages.append(
+                    f"Batch {batch_index}: empty or error response from NCBI"
+                )
+                self.log_message.emit(
+                    f"Batch {batch_index} returned no usable sequence data. "
+                    "Check DB type and accessions.",
+                    "ERROR",
+                )
+                continue
+
+            fasta_chunks.append(fasta_data.strip())
+            batches_succeeded += 1
+
+            returned_headers = parse_fasta_headers(fasta_data)
+            returned_keys = {header.casefold() for header in returned_headers}
+            batch_missing = [
+                accession
+                for accession in batch
+                if accession.casefold() not in returned_keys
+            ]
+            if batch_missing:
+                failed_accessions.extend(batch_missing)
+                preview = ", ".join(batch_missing[:5])
+                self.log_message.emit(
+                    f"Batch {batch_index} may have missing accession(s): {preview}",
+                    "WARNING",
+                )
+
+        fasta_data = "\n".join(chunk for chunk in fasta_chunks if chunk)
+        report = {
+            "db": self._db,
+            "email": self._email,
+            "requested_count": self._requested_count,
+            "unique_requested_count": self._unique_count,
+            "duplicate_requested_count": self._duplicate_count,
+            "batch_size": self._batch_size,
+            "retry_count": self._retry_count,
+            "batches_attempted": len(batches),
+            "batches_succeeded": batches_succeeded,
+            "sequences_returned": fasta_data.count(">"),
+            "failed_accessions": sorted(set(failed_accessions)),
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "errors": error_messages,
+        }
+        self.finished.emit(fasta_data, report)
+
+
 class DownloadFromNCBITab(BaseTabWidget):
     """NCBI download Tab"""
 
     def __init__(self):
         super().__init__("NCBI Download", "file")
+        self._thread: QThread | None = None
+        self._worker: _NcbiDownloadWorker | None = None
         self.init_ui()
         self.connect_signals()
 
@@ -218,9 +364,12 @@ class DownloadFromNCBITab(BaseTabWidget):
         # ── Control buttons ──
         control_layout = QHBoxLayout()
         self.run_btn = QPushButton("Start")
+        self.stop_btn = QPushButton("Stop")
+        self.stop_btn.setVisible(False)
         self.clear_btn = QPushButton("Clear")
         control_layout.addStretch(1)
         control_layout.addWidget(self.run_btn)
+        control_layout.addWidget(self.stop_btn)
         control_layout.addWidget(self.clear_btn)
 
         # ── Assemble ──
@@ -234,6 +383,7 @@ class DownloadFromNCBITab(BaseTabWidget):
     def connect_signals(self):
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_download)
+        self.stop_btn.clicked.connect(self.stop_download)
         self.clear_btn.clicked.connect(self.clear_all)
         self.load_acc_btn.clicked.connect(self.load_accessions_from_file)
 
@@ -279,7 +429,8 @@ class DownloadFromNCBITab(BaseTabWidget):
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
         super().set_running_state(running)
-        self.run_btn.setEnabled(not running)
+        self.run_btn.setVisible(not running)
+        self.stop_btn.setVisible(running)
         self.output_btn.setEnabled(not running)
         self.db_combo.setEnabled(not running)
         self.email_edit.setEnabled(not running)
@@ -316,7 +467,6 @@ class DownloadFromNCBITab(BaseTabWidget):
             self.log_message(error, "ERROR")
             return
 
-        # 处理检索号列表
         requested_acc_list = [
             line.strip() for line in acc_text.split("\n") if line.strip()
         ]
@@ -325,178 +475,116 @@ class DownloadFromNCBITab(BaseTabWidget):
             self.log_message("Accession list is empty", "ERROR")
             return
 
-        # 单线程执行下载
+        if duplicate_accessions:
+            preview = ", ".join(duplicate_accessions[:5])
+            self.log_message(
+                f"Duplicate accession IDs ignored after first occurrence: {preview}",
+                "WARNING",
+            )
+
+        # Run download on a worker thread so the UI stays responsive.
         self.set_running_state(True)
-        try:
-            self.show_status("Connecting to NCBI...")
-            try:
-                from Bio import Entrez
-            except ImportError:
-                self.log_message(
-                    "Biopython (Bio.Entrez) is required to download NCBI data", "ERROR"
-                )
-                return
-            Entrez.email = email
-            if duplicate_accessions:
-                preview = ", ".join(duplicate_accessions[:5])
-                self.log_message(
-                    f"Duplicate accession IDs ignored after first occurrence: {preview}",
-                    "WARNING",
-                )
+        self.show_status("Starting download worker...")
 
-            batches = split_batches(acc_list, batch_size)
-            fasta_chunks = []
-            failed_accessions = []
-            error_messages = []
-            batches_succeeded = 0
+        self._worker = _NcbiDownloadWorker(
+            db=db,
+            email=email,
+            acc_list=acc_list,
+            batch_size=batch_size,
+            retry_count=retry_count,
+            requested_count=len(requested_acc_list),
+            unique_count=len(acc_list),
+            duplicate_count=len(duplicate_accessions),
+        )
+        self._thread = QThread(self)
+        self._worker.moveToThread(self._thread)
 
-            for batch_index, batch in enumerate(batches, start=1):
-                self.show_status(
-                    f"Downloading batch {batch_index}/{len(batches)} ({len(batch)} accessions)..."
-                )
-                try:
-                    fasta_data, retry_attempts_used = fetch_batch_with_retries(
-                        Entrez,
-                        db,
-                        batch,
-                        retry_count,
-                    )
-                except URLError as e:
-                    failed_accessions.extend(batch)
-                    error_messages.append(f"Batch {batch_index}: Network error: {e}")
-                    self.log_message(
-                        f"Network error after {retry_count + 1} attempt(s) for batch {batch_index}: {e}",
-                        "ERROR",
-                    )
-                    continue
-                except Exception as e:
-                    failed_accessions.extend(batch)
-                    error_messages.append(
-                        f"Batch {batch_index}: NCBI download error: {e}"
-                    )
-                    self.log_message(
-                        f"NCBI download error in batch {batch_index}: {e}", "ERROR"
-                    )
-                    continue
+        self._thread.started.connect(self._worker.run)
+        self._worker.progress.connect(self._on_download_progress)
+        self._worker.log_message.connect(self.log_message)
+        self._worker.finished.connect(self._on_download_finished)
+        self._worker.error.connect(self._on_download_error)
+        self._worker.cancelled.connect(self._on_download_cancelled)
 
-                if retry_attempts_used:
-                    self.log_message(
-                        f"Batch {batch_index} succeeded after {retry_attempts_used + 1} attempt(s)",
-                        "WARNING",
-                    )
+        self._worker.finished.connect(self._thread.quit)
+        self._worker.error.connect(self._thread.quit)
+        self._worker.cancelled.connect(self._thread.quit)
+        self._thread.finished.connect(self._cleanup_thread)
 
-                if (
-                    not fasta_data.strip()
-                    or "Error" in fasta_data
-                    or "not found" in fasta_data
-                ):
-                    failed_accessions.extend(batch)
-                    error_messages.append(
-                        f"Batch {batch_index}: empty or error response from NCBI"
-                    )
-                    self.log_message(
-                        f"Batch {batch_index} returned no usable sequence data. Check DB type and accessions.",
-                        "ERROR",
-                    )
-                    continue
+        self._thread.start()
 
-                fasta_chunks.append(fasta_data.strip())
-                batches_succeeded += 1
+    def stop_download(self):
+        self.log_message("Stopping download...", "WARNING")
+        if self._worker:
+            self._worker.cancel()
 
-                returned_headers = parse_fasta_headers(fasta_data)
-                returned_keys = {header.casefold() for header in returned_headers}
-                batch_missing = [
-                    accession
-                    for accession in batch
-                    if accession.casefold() not in returned_keys
-                ]
-                if batch_missing:
-                    failed_accessions.extend(batch_missing)
-                    preview = ", ".join(batch_missing[:5])
-                    self.log_message(
-                        f"Batch {batch_index} may have missing accession(s): {preview}",
-                        "WARNING",
-                    )
+    def _cleanup_thread(self):
+        if self._thread:
+            self._thread.deleteLater()
+            self._thread = None
+        self._worker = None
 
-            fasta_data = "\n".join(chunk for chunk in fasta_chunks if chunk)
-            if not fasta_data.strip():
-                if export_report and output_path:
-                    report_path = report_path_for_output(output_path)
-                    write_download_report(
-                        report_path,
-                        {
-                            "db": db,
-                            "email": email,
-                            "requested_count": len(requested_acc_list),
-                            "unique_requested_count": len(acc_list),
-                            "duplicate_requested_count": len(duplicate_accessions),
-                            "batch_size": batch_size,
-                            "retry_count": retry_count,
-                            "batches_attempted": len(batches),
-                            "batches_succeeded": batches_succeeded,
-                            "sequences_returned": 0,
-                            "failed_accessions": sorted(set(failed_accessions)),
-                            "generated_at": datetime.now().isoformat(
-                                timespec="seconds"
-                            ),
-                            "errors": error_messages,
-                        },
-                    )
-                    self.log_message(f"Download report saved to: {report_path}", "INFO")
-                self.log_message(
-                    "NCBI returned error or no sequences found. Check DB type and accessions.",
-                    "ERROR",
-                )
-                return
-            self.show_status("Saving file...")
-            try:
-                out_dir = os.path.dirname(output_path)
-                if out_dir:
-                    os.makedirs(out_dir, exist_ok=True)
-                with open(output_path, "w", encoding="utf-8") as f:
-                    f.write(fasta_data + "\n")
-            except Exception as e:
-                self.log_message(f"File save failed: {e}", "ERROR")
-                return
-            seq_count = fasta_data.count(">")
-            if export_report:
+    def _on_download_progress(self, batch_index: int, total_batches: int):
+        self.show_status(
+            f"Downloading batch {batch_index}/{total_batches}..."
+        )
+
+    def _on_download_finished(self, fasta_data: str, report: dict):
+        output_path = self.output_edit.text().strip()
+        export_report = self.export_report_checkbox.isChecked()
+
+        if not fasta_data.strip():
+            if export_report and output_path:
                 report_path = report_path_for_output(output_path)
-                write_download_report(
-                    report_path,
-                    {
-                        "db": db,
-                        "email": email,
-                        "requested_count": len(requested_acc_list),
-                        "unique_requested_count": len(acc_list),
-                        "duplicate_requested_count": len(duplicate_accessions),
-                        "batch_size": batch_size,
-                        "retry_count": retry_count,
-                        "batches_attempted": len(batches),
-                        "batches_succeeded": batches_succeeded,
-                        "sequences_returned": seq_count,
-                        "failed_accessions": sorted(set(failed_accessions)),
-                        "generated_at": datetime.now().isoformat(timespec="seconds"),
-                        "errors": error_messages,
-                    },
-                )
+                write_download_report(report_path, report)
                 self.log_message(f"Download report saved to: {report_path}", "INFO")
-            if failed_accessions:
-                preview = ", ".join(sorted(set(failed_accessions))[:5])
-                self.log_message(
-                    f"Partial download: {len(set(failed_accessions))} accession(s) may have failed or returned no sequence: {preview}",
-                    "WARNING",
-                )
             self.log_message(
-                f"Download complete. {seq_count} sequences saved to: {output_path}"
+                "NCBI returned error or no sequences found. Check DB type and accessions.",
+                "ERROR",
             )
-        except Exception as e:
-            import traceback
-
-            self.log_message(
-                f"Error during download: {e}\n{traceback.format_exc()}", "ERROR"
-            )
-        finally:
             self.set_running_state(False)
+            return
+
+        self.show_status("Saving file...")
+        try:
+            out_dir = os.path.dirname(output_path)
+            if out_dir:
+                os.makedirs(out_dir, exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(fasta_data + "\n")
+        except Exception as e:
+            self.log_message(f"File save failed: {e}", "ERROR")
+            self.set_running_state(False)
+            return
+
+        if export_report:
+            report_path = report_path_for_output(output_path)
+            write_download_report(report_path, report)
+            self.log_message(f"Download report saved to: {report_path}", "INFO")
+
+        failed = report.get("failed_accessions", [])
+        if failed:
+            preview = ", ".join(sorted(set(failed))[:5])
+            self.log_message(
+                f"Partial download: {len(set(failed))} accession(s) may have "
+                f"failed or returned no sequence: {preview}",
+                "WARNING",
+            )
+
+        seq_count = report.get("sequences_returned", 0)
+        self.log_message(
+            f"Download complete. {seq_count} sequences saved to: {output_path}"
+        )
+        self.set_running_state(False)
+
+    def _on_download_error(self, error_msg: str):
+        self.log_message(f"Download error: {error_msg}", "ERROR")
+        self.set_running_state(False)
+
+    def _on_download_cancelled(self):
+        self.log_message("Download cancelled by user.", "WARNING")
+        self.show_status("Cancelled")
+        self.set_running_state(False)
 
     def show_help(self):
         """Show help information"""

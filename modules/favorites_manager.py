@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import tempfile
 import time
 from typing import Dict, List, Any
 
@@ -262,10 +263,32 @@ class BookmarkManager(QWidget):
                     self.bookmarks = data
                 else:
                     raise ValueError("Invalid data format")
-            except Exception:
-                self._load_sample_data()
+            except Exception as exc:
+                # Corrupt/failed load — DO NOT silently overwrite user data
+                # with sample data. Preserve the bad file as a backup, start
+                # empty, and tell the user where to find their old data.
+                self._handle_corrupt_load(exc)
         else:
             self._load_sample_data()
+
+    def _handle_corrupt_load(self, exc: Exception) -> None:
+        """Recover from a corrupt/unreadable bookmarks file without data loss."""
+        backup_path = DATA_FILE + ".corrupt.bak"
+        try:
+            # Only keep the most recent corrupt copy; rename replaces atomically.
+            if os.path.exists(DATA_FILE):
+                os.replace(DATA_FILE, backup_path)
+        except OSError:
+            backup_path = "(backup unavailable)"
+        QMessageBox.warning(
+            self,
+            "Bookmarks could not be loaded",
+            "Your bookmarks file could not be read (it may be corrupted or "
+            "truncated).\n\nStarting with an empty collection so nothing is "
+            f"overwritten. Your previous file was backed up to:\n{backup_path}",
+        )
+        self.bookmarks = {}
+        self.categories = []
 
     def _load_sample_data(self):
         self.bookmarks = {
@@ -284,11 +307,35 @@ class BookmarkManager(QWidget):
         self.categories = list(self.bookmarks.keys())
 
     def _save_bookmarks(self):
+        # Atomic write: serialize to a temp file in the same directory, then
+        # os.replace() renames it over the real file. On Windows os.replace is
+        # atomic, so bookmarks.json is never left half-written even if the
+        # process is killed mid-save or a second instance is writing.
+        ordered = {cat: self.bookmarks.get(cat, []) for cat in self.categories}
+        data_dir = os.path.dirname(DATA_FILE)
         try:
-            ordered = {cat: self.bookmarks.get(cat, []) for cat in self.categories}
-            with open(DATA_FILE, "w", encoding="utf-8") as f:
-                json.dump(ordered, f, ensure_ascii=False, indent=2)
+            os.makedirs(data_dir, exist_ok=True)
+        except OSError:
+            data_dir = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=data_dir,
+                prefix=".bookmarks.",
+                suffix=".tmp",
+                delete=False,
+            ) as tmp:
+                json.dump(ordered, tmp, ensure_ascii=False, indent=2)
+                tmp_path = tmp.name
+            os.replace(tmp_path, DATA_FILE)
         except Exception as e:
+            # Clean up the temp file if the rename failed.
+            try:
+                if "tmp_path" in locals() and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except OSError:
+                pass
             QMessageBox.warning(self, "Save Error", f"Failed to save bookmarks: {e}")
 
     # ============== UI Sync ==============

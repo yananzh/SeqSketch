@@ -82,8 +82,8 @@ class RNATab(BaseTabWidget):
         return "\n".join(output_lines) if output_lines else None
 
     def is_valid_dna(self, seq):
-        # 允许IUPAC核苷酸代码
-        return re.fullmatch(r"[ACGTNacgtnRYMKSWBDHVrykmswbdhv\s]+", seq) is not None
+        # 允许IUPAC核苷酸代码 (incl. U — already-RNA input is accepted unchanged)
+        return re.fullmatch(r"[ACGTUNacgtunRYMKSWBDHVrykmswbdhv\s]+", seq) is not None
 
     def show_help(self):
         help_text = """

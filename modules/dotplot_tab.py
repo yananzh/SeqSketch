@@ -184,7 +184,7 @@ class DotPlotTab(BaseTabWidget):
             for j in hits:
                 dmax = min(k, len_a - i, len_b - j)
                 if dmax > 0:
-                    matrix[i : i + dmax, j : j + dmax] = np.eye(dmax, dtype=np.uint8)
+                    matrix[i : i + dmax, j : j + dmax] |= np.eye(dmax, dtype=np.uint8)
 
         return matrix
 

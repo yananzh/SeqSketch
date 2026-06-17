@@ -31,7 +31,12 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont
 
 from utils.common_components import BaseTabWidget
-from utils.app_paths import resource_path, tool_path_from_config
+from utils.app_paths import resource_path, tool_path_from_config, user_data_file
+
+# Per-user config file where the user-selected MUSCLE path is persisted.
+# Mirrors the pattern used by blast_config.py (legacy repo-root config.ini is
+# read at tool-path resolution time, but user overrides live here).
+CONFIG_INI = user_data_file("config.ini")
 
 
 def _resolve_muscle_exe() -> str:

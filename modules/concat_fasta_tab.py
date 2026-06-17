@@ -1,5 +1,7 @@
 """Concatenate multiple FASTA files into a single output file."""
 
+import re
+
 from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
@@ -158,12 +160,12 @@ class ConcatFastaTab(BaseTabWidget):
         cursor = self.files_edit.textCursor()
         if cursor.hasSelection():
             selected = cursor.selectedText().strip()
-            current = self.files_edit.toPlainText()
-            new_text = current.replace(selected, "", 1).strip()
-            # Clean up double newlines
-            import re
-
-            new_text = re.sub(r"\n\s*\n", "\n", new_text)
+            selected_lines = {s.strip() for s in selected.splitlines() if s.strip()}
+            current_lines = self.files_edit.toPlainText().splitlines()
+            # Remove lines whose trimmed text matches any selected line exactly
+            new_lines = [line for line in current_lines if line.strip() not in selected_lines]
+            # Clean up blank lines (collapsed multi-line gaps)
+            new_text = re.sub(r"\n\s*\n", "\n", "\n".join(new_lines))
             self.files_edit.setPlainText(new_text)
 
     def clear_files_list(self):
