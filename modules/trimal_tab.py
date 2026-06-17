@@ -26,7 +26,8 @@ from Bio import AlignIO
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from utils.app_paths import resource_path, tool_path_from_config
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QFont, QPainter
+from utils.common_components import BaseTabWidget, apply_log_viewer_style
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QComboBox,
@@ -43,11 +44,9 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMessageBox,
-    QProgressBar,
     QPushButton,
     QRadioButton,
     QTextBrowser,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -121,6 +120,64 @@ def _format_command(cmd: list[str]) -> str:
     return subprocess.list2cmdline(cmd)
 
 
+def _count_fasta_alignment_columns(path: str) -> int:
+    """Count alignment columns from a FASTA file by reading the first sequence."""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            seq_len = 0
+            in_seq = False
+            for line in f:
+                line = line.strip()
+                if line.startswith(">"):
+                    if in_seq:
+                        break  # all sequences same length in an alignment
+                    in_seq = True
+                elif in_seq:
+                    seq_len += len(line)
+            return seq_len
+    except Exception:
+        return 0
+
+
+def _parse_column_change(log: str, out_path: str = "", before_cols: int = 0) -> str:
+    """Extract before/after column counts from trimAl stdout.
+
+    Uses before_cols (counted from input before running) plus stdout or file
+    reading to determine the after count.
+    """
+    import re
+
+    # Try parsing "Original/Final" from stdout (automated1/strict/strictplus)
+    orig = re.search(r"Original\s+number\s+of\s+residues:\s*(\d+)", log, re.IGNORECASE)
+    final = re.search(r"Final\s+number\s+of\s+residues:\s*(\d+)", log, re.IGNORECASE)
+    if orig and final:
+        before, after = int(orig.group(1)), int(final.group(1))
+        pct = (before - after) / before * 100 if before else 0
+        return f"Columns: {before} → {after}  (removed {before - after}, {pct:.1f}%)"
+
+    # Determine after count: first from stdout, then from file
+    after = 0
+    selected = re.search(r"Selected\s+(\d+)\s+columns", log, re.IGNORECASE)
+    if selected:
+        after = int(selected.group(1))
+    elif out_path and os.path.isfile(out_path):
+        try:
+            after = _count_fasta_alignment_columns(out_path)
+        except Exception:
+            pass
+
+    # Build result using known before count
+    if before_cols > 0 and after > 0:
+        pct = (before_cols - after) / before_cols * 100
+        return f"Columns: {before_cols} → {after}  (removed {before_cols - after}, {pct:.1f}%)"
+    if after > 0:
+        return f"Selected {after} columns after trimming"
+    if before_cols > 0:
+        return f"Input had {before_cols} columns"
+
+    return ""
+
+
 def _show_help(parent: QWidget, title: str, html: str) -> None:
     dlg = QDialog(parent)
     dlg.setWindowTitle(title)
@@ -138,29 +195,29 @@ def _show_help(parent: QWidget, title: str, html: str) -> None:
 
 # ── help text ─────────────────────────────────────────────────────────────
 _HELP_HTML = """
-<h2>Alignment Trimming (trimAl)</h2>
-<p>trimAl removes poorly aligned or highly gapped columns from a multiple sequence
-alignment (MSA). Cleaner alignments produce more accurate phylogenetic trees.</p>
+<h2>Alignment Trimming (trimAl) &mdash; Clean Up Your MSA</h2>
 
-<hr>
-<h3>How to use</h3>
+<p><b>What does this tool do?</b><br>
+trimAl removes poorly aligned or gap-rich columns from a multiple sequence
+alignment (MSA). Cleaner alignments produce more accurate phylogenetic trees
+and more reliable downstream analyses.</p>
+
+<h3>Quick Start</h3>
 <ol>
-  <li>Add one or more alignment files using <b>Add Files…</b>, <b>Add Folder…</b>,
-      or by dragging files directly into the file list.</li>
-  <li>Choose an <b>output folder</b> (auto-filled from the first file's directory).</li>
-  <li>Select a <b>trimming method</b> (see below).</li>
+  <li>Add alignment files via <b>Add Files</b> or drag &amp; drop.</li>
+  <li>Choose an <b>output folder</b> (auto-filled from the first file).</li>
+  <li>Select a <b>trimming method</b> (start with <b>gappyout</b>).</li>
   <li>Click <b>▶ Run trimAl</b>.</li>
 </ol>
 <p>Output files are named <code>&lt;original_name&gt;.trimmed&lt;ext&gt;</code>
 and saved in the output folder.</p>
 
-<hr>
-<h3>Automated Methods <small>(recommended for beginners)</small></h3>
+<h3>Trimming Methods</h3>
 <table border="0" cellspacing="6" cellpadding="2">
 <tr>
   <td><b>gappyout</b></td>
   <td>Removes columns with unusually high gap proportions. Fast and effective —
-  good default choice.</td>
+  good default choice for most datasets.</td>
 </tr>
 <tr>
   <td><b>automated1</b></td>
@@ -169,7 +226,7 @@ and saved in the output folder.</p>
 </tr>
 <tr>
   <td><b>strict</b></td>
-  <td>Applies gap-score and similarity-score thresholds derived from alignment
+  <td>Applies gap-score and similarity thresholds derived from alignment
   statistics. More aggressive than <i>gappyout</i>.</td>
 </tr>
 <tr>
@@ -179,21 +236,30 @@ and saved in the output folder.</p>
 </tr>
 </table>
 
-<hr>
 <h3>Output Formats</h3>
 <ul>
-  <li><b>FASTA</b> — Default; compatible with most downstream tools.</li>
-  <li><b>PHYLIP</b> — For IQ-TREE, RAxML.</li>
-  <li><b>NEXUS</b> — For MrBayes, BEAST.</li>
-  <li><b>CLUSTAL</b> — ClustalW format.</li>
-  <li><b>HTML</b> — Colour-coded; for visual inspection only.</li>
+  <li><b>FASTA</b> &mdash; Default; compatible with most downstream tools.</li>
+  <li><b>PHYLIP</b> &mdash; For IQ-TREE, RAxML.</li>
+  <li><b>NEXUS</b> &mdash; For MrBayes, BEAST.</li>
+  <li><b>CLUSTAL</b> &mdash; ClustalW format.</li>
+  <li><b>PIR</b> / <b>MEGA</b> &mdash; NBRF/PIR and MEGA formats.</li>
+  <li><b>HTML</b> &mdash; Colour-coded alignment; for visual inspection only.</li>
 </ul>
 
-<hr>
+<h3>Use Cases</h3>
+<ul>
+  <li>Pre-process alignments before <b>Tree Construction (IQ-TREE)</b>.</li>
+  <li>Clean noisy NGS-derived alignments with many gap regions.</li>
+  <li>Batch-trim hundreds of gene alignments for phylogenomic pipelines.</li>
+</ul>
+
 <h3>Tips</h3>
 <ul>
   <li>Start with <b>gappyout</b> or <b>automated1</b> for most datasets.</li>
-  <li>After trimming, feed the output into <b>Tree Construction (IQ-TREE)</b>.</li>
+  <li>After trimming, feed the output into <b>Tree Construction (IQ-TREE)</b>
+  or <b>MSA Visualization</b>.</li>
+  <li>Check the log after each run for column-count changes and any warnings.</li>
+  <li>Supported input formats: FASTA, CLUSTAL, PHYLIP, NEXUS (auto-converted).</li>
 </ul>
 <hr>
 <p style="color:#888;font-size:11px;">
@@ -206,6 +272,8 @@ Reference: Capella-Gutiérrez et al. (2009) Bioinformatics 25(15):1972–1973.
 # ── drag-and-drop file list ───────────────────────────────────────────────
 class _DropFileList(QListWidget):
     """QListWidget accepting multiple file drops, with placeholder text."""
+
+    files_added = pyqtSignal()  # emitted after files are dropped
 
     def __init__(
         self, placeholder: str = "Drop alignment files here…", *args, **kwargs
@@ -227,10 +295,14 @@ class _DropFileList(QListWidget):
 
     def dropEvent(self, event: QDropEvent | None) -> None:
         if event and event.mimeData():
+            added = False
             for url in event.mimeData().urls():
                 path = url.toLocalFile()
                 if path and os.path.isfile(path):
                     self._add_path(path)
+                    added = True
+            if added:
+                self.files_added.emit()
             event.acceptProposedAction()
             return
         super().dropEvent(event)
@@ -293,9 +365,15 @@ class _BatchTrimThread(QThread):
         super().__init__()
         self.tasks = tasks
         self._killed = False
+        self._proc: subprocess.Popen | None = None
 
     def stop(self):
         self._killed = True
+        if self._proc and self._proc.poll() is None:
+            try:
+                self._proc.kill()
+            except Exception:
+                pass
 
     def run(self):
         total = len(self.tasks)
@@ -306,23 +384,25 @@ class _BatchTrimThread(QThread):
             fname = os.path.basename(out_path)
             self.progress.emit(idx + 1, total, fname)
             try:
-                proc = subprocess.Popen(
+                self._proc = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                 )
-                raw_out, _ = proc.communicate()
+                raw_out, _ = self._proc.communicate()
+                if self._killed:
+                    break
                 log = raw_out.decode("utf-8", errors="replace").strip()
                 output_exists = os.path.isfile(out_path)
-                if proc.returncode == 0 and output_exists:
+                if self._proc.returncode == 0 and output_exists:
                     succeeded += 1
                     self.file_done.emit(True, out_path, log)
                 else:
                     failed += 1
-                    if proc.returncode != 0 and not log:
-                        log = f"trimAl exited with code {proc.returncode}."
-                    if proc.returncode == 0 and not output_exists:
+                    if self._proc.returncode != 0 and not log:
+                        log = f"trimAl exited with code {self._proc.returncode}."
+                    if self._proc.returncode == 0 and not output_exists:
                         log = (
                             f"{log}\n" if log else ""
                         ) + f"trimAl did not create output file:\n{out_path}"
@@ -331,6 +411,7 @@ class _BatchTrimThread(QThread):
                 failed += 1
                 self.file_done.emit(False, out_path, f"Error: {exc}")
             finally:
+                self._proc = None
                 _cleanup_file(cleanup_input)
         self.all_done.emit(succeeded, failed)
 
@@ -338,7 +419,7 @@ class _BatchTrimThread(QThread):
 # ════════════════════════════════════════════════════════════════════════════
 # Public class — AlignmentTrimmingTab  (unified, no inner sub-tabs)
 # ════════════════════════════════════════════════════════════════════════════
-class AlignmentTrimmingTab(QWidget):
+class AlignmentTrimmingTab(BaseTabWidget):
     """
     Unified Alignment Trimming tab.
     • 1 file  → trims that file, output auto-named.
@@ -361,66 +442,58 @@ class AlignmentTrimmingTab(QWidget):
     }
 
     def __init__(self, status_callback=None, parent=None):
-        super().__init__(parent)
+        super().__init__(self.tr("Alignment Trimming (trimAl)"), "file")
         self.status_callback = status_callback
         self._thread: _BatchTrimThread | None = None
         self._build_ui()
 
     # ── UI construction ───────────────────────────────────────────────────
     def _build_ui(self):
-        root = QVBoxLayout(self)
-        root.setSpacing(10)
-        root.setContentsMargins(12, 12, 12, 12)
+        # ── Input & Output group ────────────────────────────────────────────
+        io_box = QGroupBox(self.tr("Input and Output"))
+        io_layout = QVBoxLayout(io_box)
+        io_layout.setSpacing(10)
+        io_layout.setContentsMargins(12, 12, 12, 12)
 
-        # ── exe path ──────────────────────────────────────────────────────────
+        # ── trimAl path ────────────────────────────────────────────────────
         exe_row = QHBoxLayout()
         self._exe_edit = _DropLineEdit(TRIMAL_EXE)
-        self._exe_edit.setPlaceholderText("Path to trimal.exe …")
-        self._exe_edit.setToolTip("Path to the trimAl executable")
-        exe_chg = QPushButton("Browse")
+        self._exe_edit.setPlaceholderText(self.tr("Path to trimal.exe …"))
+        self._exe_edit.setToolTip(self.tr("Path to the trimAl executable"))
+        exe_chg = QPushButton(self.tr("Browse"))
         exe_chg.setFixedWidth(90)
-        exe_chg.setToolTip("Choose trimal.exe manually")
+        exe_chg.setToolTip(self.tr("Choose trimal.exe manually"))
         exe_chg.clicked.connect(self._choose_exe)
-        exe_row.addWidget(QLabel("trimAl exe:"))
+        exe_row.addWidget(QLabel(self.tr("trimAl path:")))
         exe_row.addWidget(self._exe_edit, 1)
         exe_row.addWidget(exe_chg)
-        root.addLayout(exe_row)
+        io_layout.addLayout(exe_row)
 
-        # ── file list ─────────────────────────────────────────────────────
-        files_lbl = QLabel("Input alignment files:")
-        files_lbl.setStyleSheet("font-weight: bold;")
-        root.addWidget(files_lbl)
+        # ── input alignment files ──────────────────────────────────────────
+        files_lbl = QLabel(self.tr("Input alignment files:"))
+        files_lbl.setProperty("sectionTitle", True)
+        io_layout.addWidget(files_lbl)
 
         self.file_list = _DropFileList(
-            "Drag & drop alignment files here, or use the buttons below"
+            self.tr("Drag & drop alignment files here, or use the buttons below")
         )
         self.file_list.setMinimumHeight(96)
-        self.file_list.itemSelectionChanged.connect(self._update_count_lbl)
-        root.addWidget(self.file_list)
+        self.file_list.files_added.connect(self._auto_fill_outdir)
+        io_layout.addWidget(self.file_list)
 
         list_btns = QHBoxLayout()
-        add_btn = QPushButton("Add Files…")
-        add_btn.setToolTip("Select one or more alignment files.")
+        add_btn = QPushButton(self.tr("Add Files"))
+        add_btn.setToolTip(self.tr("Select one or more alignment files."))
         add_btn.clicked.connect(self._add_files)
-        add_dir_btn = QPushButton("Add Folder…")
-        add_dir_btn.setToolTip(
-            "Add all alignment files from a folder\n"
-            "(recognised extensions: .fasta .fa .aln .phy .nex .clustal …)"
-        )
-        add_dir_btn.clicked.connect(self._add_folder)
-        remove_btn = QPushButton("Remove Selected")
+        remove_btn = QPushButton(self.tr("Remove Selected"))
         remove_btn.clicked.connect(self._remove_selected)
-        clear_btn = QPushButton("Clear All")
+        clear_btn = QPushButton(self.tr("Clear All"))
         clear_btn.clicked.connect(self._clear_all)
-        self.count_lbl = QLabel("No files added")
-        self.count_lbl.setStyleSheet("color: #888; font-size: 11px;")
         list_btns.addWidget(add_btn)
-        list_btns.addWidget(add_dir_btn)
         list_btns.addWidget(remove_btn)
         list_btns.addWidget(clear_btn)
         list_btns.addStretch()
-        list_btns.addWidget(self.count_lbl)
-        root.addLayout(list_btns)
+        io_layout.addLayout(list_btns)
 
         # ── output folder ─────────────────────────────────────────────────
         out_form = QFormLayout()
@@ -429,24 +502,26 @@ class AlignmentTrimmingTab(QWidget):
         out_row = QHBoxLayout()
         self.outdir_edit = _DropLineEdit()
         self.outdir_edit.setPlaceholderText(
-            "Output folder  (auto-filled when files are added,  or drag & drop a folder here)"
+            self.tr(
+                "Output folder  (auto-filled when files are added,  or drag & drop a folder here)"
+            )
         )
-        outdir_btn = QPushButton("Browse")
+        outdir_btn = QPushButton(self.tr("Browse"))
         outdir_btn.setFixedWidth(90)
         outdir_btn.clicked.connect(self._choose_outdir)
         out_row.addWidget(self.outdir_edit)
         out_row.addWidget(outdir_btn)
-        out_lbl = QLabel("Output folder:")
-        out_lbl.setToolTip("Trimmed files saved here as <original_name>.trimmed<ext>")
+        out_lbl = QLabel(self.tr("Output folder:"))
+        out_lbl.setToolTip(
+            self.tr("Trimmed files saved here as <original_name>.trimmed<ext>")
+        )
         out_form.addRow(out_lbl, out_row)
-        root.addLayout(out_form)
+        io_layout.addLayout(out_form)
 
-        # ── parameters ────────────────────────────────────────────────────
-        params_layout = QVBoxLayout()
-        params_layout.setSpacing(10)
+        self.add_content_widget(io_box)
 
-        # trimming method group
-        method_box = QGroupBox("Trimming Method")
+        # ── trimming method group ──────────────────────────────────────────
+        method_box = QGroupBox(self.tr("Trimming Method"))
         method_layout = QVBoxLayout(method_box)
         method_layout.setSpacing(10)
         method_layout.setContentsMargins(12, 12, 12, 12)
@@ -459,10 +534,14 @@ class AlignmentTrimmingTab(QWidget):
         self.rb_strictplus = QRadioButton("strictplus")
 
         _auto_tooltips = {
-            self.rb_gappyout: "Good default for most alignments.",
-            self.rb_auto1: "Auto-selects trimAl strategy from alignment statistics.",
-            self.rb_strict: "More aggressive trimming based on alignment statistics.",
-            self.rb_strictplus: "Aggressive trimming plus fragment filtering.",
+            self.rb_gappyout: self.tr("Good default for most alignments."),
+            self.rb_auto1: self.tr(
+                "Auto-selects trimAl strategy from alignment statistics."
+            ),
+            self.rb_strict: self.tr(
+                "More aggressive trimming based on alignment statistics."
+            ),
+            self.rb_strictplus: self.tr("Aggressive trimming plus fragment filtering."),
         }
 
         for rb, desc in _auto_tooltips.items():
@@ -483,12 +562,12 @@ class AlignmentTrimmingTab(QWidget):
 
         method_layout.addLayout(auto_grid)
         self.rb_gappyout.setChecked(True)
-        params_layout.addWidget(method_box)
+        self.add_content_widget(method_box)
 
-        # output format group
-        fmt_box = QGroupBox("Output Format")
+        # ── output format group ────────────────────────────────────────────
+        fmt_box = QGroupBox(self.tr("Output Format"))
         fmt_layout = QHBoxLayout(fmt_box)
-        fmt_lbl = QLabel("Format:")
+        fmt_lbl = QLabel(self.tr("Format:"))
         self.fmt_combo = QComboBox()
         self.fmt_combo.addItems([
             "FASTA",
@@ -499,51 +578,32 @@ class AlignmentTrimmingTab(QWidget):
             "MEGA",
             "HTML",
         ])
-        self.fmt_combo.setFixedWidth(120)
+        self.fmt_combo.setMinimumWidth(130)
         self.fmt_combo.setToolTip(
-            "FASTA   — default, compatible with most tools\n"
-            "PHYLIP  — for IQ-TREE / RAxML\n"
-            "NEXUS   — for MrBayes / BEAST\n"
-            "HTML    — colour-coded, visual inspection only"
+            self.tr(
+                "FASTA   — default, compatible with most tools\n"
+                "PHYLIP  — for IQ-TREE / RAxML\n"
+                "NEXUS   — for MrBayes / BEAST\n"
+                "HTML    — colour-coded, visual inspection only"
+            )
         )
         fmt_layout.addWidget(fmt_lbl)
         fmt_layout.addWidget(self.fmt_combo)
         fmt_layout.addStretch()
-        params_layout.addWidget(fmt_box)
-        root.addLayout(params_layout)
+        self.add_content_widget(fmt_box)
 
-        # progress bar (hidden when trimming a single file)
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        root.addWidget(self.progress_bar)
-
-        # log
-        log_group = QGroupBox("Log")
-        log_layout = QVBoxLayout(log_group)
-        self.log_edit = QTextEdit()
-        self.log_edit.setReadOnly(True)
-        self.log_edit.setFont(QFont("Consolas", 9))
-        self.log_edit.setMaximumHeight(96)
-        self.log_edit.setPlaceholderText("trimAl output will appear here…")
-        log_layout.addWidget(self.log_edit)
-        root.addWidget(log_group)
-
-        # bottom buttons
-        btn_row = QHBoxLayout()
-        self.status_lbl = QLabel("")
-        self.status_lbl.setStyleSheet("color: #888;")
-        self.run_btn = QPushButton("▶  Run trimAl")
+        # ── run button (status bar, Help on its right) ───────────────────
+        self.run_btn = QPushButton(self.tr("Run trimAl"))
         self.run_btn.clicked.connect(self._run)
-        help_btn = QPushButton("Help")
-        help_btn.setFixedWidth(70)
-        help_btn.clicked.connect(
-            lambda: _show_help(self, "Alignment Trimming — Help", _HELP_HTML)
-        )
-        btn_row.addWidget(self.run_btn)
-        btn_row.addWidget(self.status_lbl)
-        btn_row.addStretch()
-        btn_row.addWidget(help_btn)
-        root.addLayout(btn_row)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
+
+        # Anchor the shared log area near the bottom
+        self.content_area.addStretch()
+
+    # ── Help ──────────────────────────────────────────────────────────────
+    def show_help(self):
+        """Show the trimAl help dialog."""
+        _show_help(self, self.tr("Alignment Trimming — Help"), _HELP_HTML)
 
     # ── file management ───────────────────────────────────────────────────
     def _add_files(self):
@@ -557,7 +617,6 @@ class AlignmentTrimmingTab(QWidget):
         for path in files:
             self.file_list._add_path(path)
         self._auto_fill_outdir()
-        self._update_count_lbl()
 
     def _add_folder(self):
         folder = QFileDialog.getExistingDirectory(
@@ -578,29 +637,16 @@ class AlignmentTrimmingTab(QWidget):
                 "Recognised: " + ", ".join(sorted(self._ALIGN_EXTS)),
             )
         self._auto_fill_outdir()
-        self._update_count_lbl()
 
     def _remove_selected(self):
         for item in self.file_list.selectedItems():
             self.file_list.takeItem(self.file_list.row(item))
-        self._update_count_lbl()
 
     def _clear_all(self):
         self.file_list.clear()
-        self._update_count_lbl()
-
-    def _update_count_lbl(self):
-        n = self.file_list.count()
-        if n == 0:
-            self.count_lbl.setText("No files added")
-        elif n == 1:
-            self.count_lbl.setText("1 file")
-        else:
-            self.count_lbl.setText(f"{n} files")
 
     def _auto_fill_outdir(self):
-        if self.outdir_edit.text().strip():
-            return
+        """Always set output folder to the first input file's directory."""
         if self.file_list.count() > 0:
             first = self.file_list.item(0)
             if first:
@@ -682,34 +728,41 @@ class AlignmentTrimmingTab(QWidget):
                 self,
                 "trimAl Not Found",
                 f"trimAl executable not found at:\n{exe}\n\n"
-                "Please use the ⚙ button to browse for trimal.exe, "
-                "or verify that softwares/trimAl_Windows_x86-64/ is present.",
+                "Please use the Browse button to locate trimal.exe, "
+                "or verify that softwares/trimAl_Windows_v1.5.1/ is present.",
             )
             return
 
         flags = self._build_flags()
         ext = self._out_ext()
-
-        self.log_edit.clear()
-        self.log_edit.append(f"trimAl executable: {exe}")
-        self.log_edit.append(f"Output folder: {outdir}")
+        fmt_name = self.fmt_combo.currentText()
+        method_name = self._selected_method_name()
 
         tasks: list[tuple[list[str], str, str | None]] = []
         prepared_inputs: list[str] = []
-        preparation_notes: list[str] = []
+        file_infos: list[tuple[str, str]] = []  # (filename, detected_format)
+        self._input_col_map: dict[
+            str, int
+        ] = {}  # out_path → column count before trimming
         try:
             for i in range(self.file_list.count()):
                 item = self.file_list.item(i)
                 if item is None:
                     continue
                 in_path = item.data(256)
+                in_ext = os.path.splitext(in_path)[1].lower()
+                if in_ext in _ALIGN_FORMATS:
+                    detected_fmt = _ALIGN_FORMATS[in_ext]
+                elif in_ext in {".fasta", ".fa", ".faa", ".fna"}:
+                    detected_fmt = "FASTA"
+                else:
+                    detected_fmt = f"{in_ext} → FASTA"
+                file_infos.append((os.path.basename(in_path), detected_fmt))
                 prepared_input, cleanup_input = _prepare_trimal_input(in_path)
                 if cleanup_input:
                     prepared_inputs.append(cleanup_input)
-                    preparation_notes.append(
-                        "Prepared FASTA input for trimAl: "
-                        f"{os.path.basename(in_path)} -> {prepared_input}"
-                    )
+                # Count input columns before trimming
+                input_cols = _count_fasta_alignment_columns(prepared_input)
                 base = os.path.splitext(os.path.basename(in_path))[0]
                 out_path = os.path.join(outdir, base + ".trimmed" + ext)
                 tasks.append((
@@ -717,6 +770,7 @@ class AlignmentTrimmingTab(QWidget):
                     out_path,
                     cleanup_input,
                 ))
+                self._input_col_map[out_path] = input_cols
         except Exception as exc:
             for path in prepared_inputs:
                 _cleanup_file(path)
@@ -728,23 +782,31 @@ class AlignmentTrimmingTab(QWidget):
             return
 
         total = len(tasks)
-        self.log_edit.append(f"Files to trim: {total}")
-        if preparation_notes:
-            for note in preparation_notes:
-                self.log_edit.append(note)
-        self.log_edit.append("")
+
+        # ── Structured pre-run summary ────────────────────────────────────
+        sep = "─" * 48
+        self.log_area.clear()
+        self.log_area.append(f"{sep}")
+        self.log_area.append(f"  TrimAl Run Summary")
+        self.log_area.append(f"{sep}")
+        self.log_area.append(f"  trimAl path      : {exe}")
+        self.log_area.append(f"  Output folder    : {outdir}")
+        self.log_area.append(f"  Trimming method  : {method_name}")
+        self.log_area.append(f"  Output format    : {fmt_name}")
+        self.log_area.append(f"  Files to trim    : {total}")
+        self.log_area.append(f"  ── Input files ──")
+        for fname, fmt_label in file_infos:
+            self.log_area.append(f"    {fname}  [{fmt_label}]")
+        self.log_area.append(f"  ── Commands ──")
         for index, (cmd, _, _) in enumerate(tasks, start=1):
-            self.log_edit.append(f"Command {index}: {_format_command(cmd)}")
-        self.log_edit.append("")
+            self.log_area.append(f"    [{index}] {_format_command(cmd)}")
+        self.log_area.append(f"{sep}")
+        self.log_area.append("")
 
-        # show progress bar only for batch (>1 file)
-        self.progress_bar.setMaximum(total)
-        self.progress_bar.setValue(0)
-        self.progress_bar.setVisible(total > 1)
-
+        # ── Switch to running state ───────────────────────────────────────
         self.run_btn.setEnabled(False)
         msg = "Running trimAl…" if total == 1 else f"Batch trimming {total} files…"
-        self.status_lbl.setText(msg)
+        self.show_status(msg)
         if self.status_callback:
             self.status_callback(msg)
 
@@ -754,30 +816,41 @@ class AlignmentTrimmingTab(QWidget):
         self._thread.all_done.connect(self._on_all_done)
         self._thread.start()
 
+    def _selected_method_name(self) -> str:
+        if self.rb_auto1.isChecked():
+            return "automated1"
+        if self.rb_gappyout.isChecked():
+            return "gappyout"
+        if self.rb_strict.isChecked():
+            return "strict"
+        return "strictplus"
+
     # ── thread callbacks ──────────────────────────────────────────────────
     def _on_progress(self, current: int, total: int, fname: str):
-        self.progress_bar.setValue(current - 1)
         msg = f"Trimming {current}/{total}: {fname}"
-        self.status_lbl.setText(msg)
+        self.show_status(msg)
         if self.status_callback:
             self.status_callback(msg)
 
     def _on_file_done(self, success: bool, out_path: str, log: str):
-        self.progress_bar.setValue(self.progress_bar.value() + 1)
         fname = os.path.basename(out_path)
         if success:
-            self.log_edit.append(f"✔  {fname}")
+            self.log_area.append(f"✔  {fname}")
             if log:
                 for line in log[:300].splitlines():
-                    self.log_edit.append(f"   {line}")
+                    self.log_area.append(f"   {line}")
+            # ── Extract column/residue count change ───────────────────────
+            before_cols = self._input_col_map.get(out_path, 0)
+            col_info = _parse_column_change(log, out_path, before_cols)
+            if col_info:
+                self.log_area.append(f"   {col_info}")
         else:
-            self.log_edit.append(f"✘  {fname}  — FAILED")
+            self.log_area.append(f"✘  {fname}  — FAILED")
             for line in log[:300].splitlines():
-                self.log_edit.append(f"   {line}")
+                self.log_area.append(f"   {line}")
 
     def _on_all_done(self, succeeded: int, failed: int):
         total = succeeded + failed
-        self.progress_bar.setValue(total)
         self.run_btn.setEnabled(True)
         if self.status_callback:
             self.status_callback("")
@@ -791,28 +864,15 @@ class AlignmentTrimmingTab(QWidget):
                 if item:
                     base = os.path.splitext(os.path.basename(item.data(256)))[0]
                     out_name = os.path.join(outdir, base + ".trimmed" + self._out_ext())
-                self.status_lbl.setText(f"✔ Done  →  {os.path.basename(out_name)}")
-                QMessageBox.information(
-                    self,
-                    "Trimming Complete",
-                    f"Alignment trimmed successfully.\n\nOutput file:\n{out_name}",
-                )
+                self.show_status(f"✔ Done  →  {os.path.basename(out_name)}")
+                self.log_area.append(f"Output: {out_name}")
             else:
-                self.status_lbl.setText(f"✔ All {succeeded} files trimmed successfully")
-                QMessageBox.information(
-                    self,
-                    "Batch Complete",
-                    f"All {succeeded} alignment files trimmed successfully.\n\n"
-                    f"Output folder:\n{outdir}",
+                self.show_status(f"✔ All {succeeded} files trimmed successfully")
+                self.log_area.append(
+                    f"All {succeeded} files trimmed successfully.\nOutput folder: {outdir}"
                 )
         else:
-            self.status_lbl.setText(
-                f"✔ {succeeded} succeeded   ✘ {failed} failed — see log"
-            )
-            QMessageBox.warning(
-                self,
-                "Completed with Errors",
-                f"{succeeded} file(s) trimmed successfully.\n"
-                f"{failed} file(s) failed — see the log for details.\n\n"
-                f"Output folder:\n{outdir}",
+            self.show_status(f"✔ {succeeded} succeeded   ✘ {failed} failed — see log")
+            self.log_area.append(
+                f"{succeeded} succeeded, {failed} failed.\nOutput folder: {outdir}"
             )

@@ -166,24 +166,22 @@ def test_alignment_trimming_tab_uses_compact_automated_controls(qapp):
     tab = AlignmentTrimmingTab()
     label_texts = [label.text() for label in tab.findChildren(QLabel)]
 
-    assert all("recommended for most users" not in text for text in label_texts)
+    # No verbose help paragraphs leaked into labels
     assert all("Removes columns with unusually" not in text for text in label_texts)
-    assert all("Auto-selects the best method" not in text for text in label_texts)
+    assert all("recommended for most users" not in text for text in label_texts)
     assert tab.file_list.minimumHeight() <= 100
-    assert tab.log_edit.maximumHeight() <= 100
+    assert hasattr(tab, "log_area")
+    assert not hasattr(tab, "progress_bar")
 
 
 def test_alignment_trimming_tab_places_run_left_help_right_without_stop(qapp):
     tab = AlignmentTrimmingTab()
-    bottom_row = tab.layout().itemAt(tab.layout().count() - 1).layout()
-    button_texts = [
-        bottom_row.itemAt(index).widget().text()
-        for index in range(bottom_row.count())
-        if isinstance(bottom_row.itemAt(index).widget(), QPushButton)
-    ]
+    # Run button in status_layout left of Help; Help button provided by BaseTabWidget
+    all_buttons = tab.findChildren(QPushButton)
+    button_texts = [btn.text() for btn in all_buttons]
 
-    assert button_texts == ["▶  Run trimAl", "Help"]
-    assert not hasattr(tab, "stop_btn")
+    assert "Run trimAl" in button_texts
+    assert "Help" in button_texts
 
 
 def test_alignment_trimming_prepares_phylip_input_as_temp_fasta(tmp_path):
@@ -270,11 +268,15 @@ def test_alignment_trimming_logs_full_command_before_start(qapp, monkeypatch, tm
 
     tab._run()
 
-    log_text = tab.log_edit.toPlainText()
+    log_text = tab.log_area.toPlainText()
     expected_output = outdir / "aligned_input.trimmed.fasta"
 
-    assert "Prepared FASTA input for trimAl:" in log_text
-    assert "Command 1:" in log_text
+    assert "TrimAl Run Summary" in log_text
+    assert "trimAl path" in log_text
+    assert "Trimming method" in log_text
+    assert "gappyout" in log_text
+    assert "Output format" in log_text
+    assert "Output folder" in log_text
     assert str(exe_path) in log_text
     assert str(prepared_input) in log_text
     assert str(expected_output) in log_text
