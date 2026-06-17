@@ -1,5 +1,5 @@
 """
-BioSeq Analyzer - 功能模块包
+SeqSketch - 功能模块包
 
 包含各种生物信息学分析功能模块：
 - fasta_processor: FASTA文件处理模块
@@ -11,7 +11,7 @@ BioSeq Analyzer - 功能模块包
 """
 
 __version__ = "1.0.0"
-__author__ = "BioSeq Analyzer Team"
+__author__ = "SeqSketch Team"
 
 # 导入主要模块
 from .fasta_processor import FASTAProcessor
@@ -43,14 +43,14 @@ except ImportError:
     PrimerMainWindow = None
 
 __all__ = [
-    'FASTAProcessor',
-    'SequenceAnalyzer',
-    'SequenceStatisticsTab',
-    'SimplifyIDsTab',
-    'ExtractByIDTab',
-    'ExtractByRegexTab',
-    'DownloadFromNCBITab',
-    'BatchRenameIDsTab',
-    'Primer3MainWindow',
-    'PrimerMainWindow',
-] 
+    "FASTAProcessor",
+    "SequenceAnalyzer",
+    "SequenceStatisticsTab",
+    "SimplifyIDsTab",
+    "ExtractByIDTab",
+    "ExtractByRegexTab",
+    "DownloadFromNCBITab",
+    "BatchRenameIDsTab",
+    "Primer3MainWindow",
+    "PrimerMainWindow",
+]

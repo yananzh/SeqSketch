@@ -223,7 +223,7 @@ class BaseTabWidget(QWidget):
         self.status_layout.addStretch()
 
         # Run/Clear buttons for sequence tabs — placed at bottom-right
-        if self.tab_type == "sequence" and hasattr(self, 'run_btn'):
+        if self.tab_type == "sequence" and hasattr(self, "run_btn"):
             self.run_btn.setFixedWidth(90)
             self.clear_btn.setFixedWidth(90)
             self.status_layout.addWidget(self.run_btn)
@@ -434,12 +434,12 @@ class BaseTabWidget(QWidget):
 
     def add_parameter_layout(self, layout):
         """Insert a parameter layout between the input and output sections."""
-        if hasattr(self, '_param_layout'):
+        if hasattr(self, "_param_layout"):
             self._param_layout.addLayout(layout)
 
     def add_content_layout(self, layout):
         """Add content layout — redirects to _param_layout in sequence mode."""
-        if hasattr(self, '_param_layout'):
+        if hasattr(self, "_param_layout"):
             self._param_layout.addLayout(layout)
         else:
             self.content_area.addLayout(layout)
@@ -591,7 +591,9 @@ def setup_logging():
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
-    log_file = os.path.join(log_dir, f"bioseq_{datetime.now().strftime('%Y%m%d')}.log")
+    log_file = os.path.join(
+        log_dir, f"seqsketch_{datetime.now().strftime('%Y%m%d')}.log"
+    )
 
     logging.basicConfig(
         level=logging.INFO,

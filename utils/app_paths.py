@@ -3,7 +3,7 @@ import os
 import sys
 
 
-APP_NAME = "BioSeqAnalyzer"
+APP_NAME = "SeqSketch"
 
 
 def runtime_root() -> str:

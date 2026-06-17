@@ -19,7 +19,7 @@ from utils.app_paths import resource_path
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(self.tr("BioSeq Analyzer"))
+        self.setWindowTitle(self.tr("SeqSketch"))
         self.resize(1100, 700)
         self.setAcceptDrops(True)
         # 设置窗口logo
@@ -523,34 +523,52 @@ class MainWindow(QMainWindow):
             self,
             self.tr("Check for Updates"),
             self.tr(
-                "Current version: v1.0.0\n\nNo updates available.\n\nVisit the project page for the latest info:\nhttps://github.com/yananzh/BioSeq-Analyzer"
+                "Current version: v1.0.0\n\nNo updates available.\n\nVisit the project page for the latest info:\nhttps://github.com/yananzh/SeqSketch"
             ),
         )
 
     def show_about_dialog(self):
         """Show About dialog"""
         about_text = self.tr("""
-<h2>BioSeq Analyzer</h2>
-<p><b>Version:</b> v1.0.0</p>
-<p><b>Developer:</b> yananzh</p>
-<p><b>Description:</b> A powerful toolkit for sequence analysis: FASTA processing, DNA/RNA tools, protein analysis, alignment, BLAST, primer design, and more.</p>
+<div style="text-align:center; margin-bottom:12px;">
+<h1 style="color:#2c7fb8; font-size:22px; margin:0;">🧬 SeqSketch</h1>
+<p style="color:#666; font-size:13px; margin:4px 0;">Sequence Analysis &amp; Visualization Toolkit</p>
+</div>
 
-<p><b>Main Features:</b></p>
-<ul>
-<li>FASTA Tools: statistics, ID simplification, extraction, NCBI download</li>
-<li>DNA Analysis: RNA conversion, complement, translation, ORF finder</li>
-<li>Protein Analysis: amino acid composition, physicochemical properties, structure prediction</li>
-<li>Alignment: pairwise, multiple, sequence logo</li>
-<li>BLAST: NCBI online BLAST, local BLAST</li>
-<li>Primer Design: PCR primer assistant</li>
-<li>Phylogenetics: build and visualize trees</li>
-</ul>
+<hr style="border:none; border-top:1px solid #ddd;">
 
-<p><b>Tech Stack:</b> Python 3, PyQt6</p>
-<p><b>License:</b> MIT License</p>
-<p><b>Project Page:</b> <a href="https://github.com/yananzh/BioSeq-Analyzer">https://github.com/yananzh/BioSeq-Analyzer</a></p>
+<table style="width:100%; font-size:13px; border-spacing:6px;">
+<tr><td style="color:#888; white-space:nowrap;">📌 Version</td><td><b>v1.0.0</b></td></tr>
+<tr><td style="color:#888; white-space:nowrap;">👤 Developer</td><td><b>yananzh</b></td></tr>
+<tr><td style="color:#888; white-space:nowrap;">📄 License</td><td>MIT License</td></tr>
+<tr><td style="color:#888; white-space:nowrap;">🐍 Tech Stack</td><td>Python 3 &middot; PyQt6 &middot; Biopython &middot; Matplotlib</td></tr>
+</table>
 
-<p>Thanks for using BioSeq Analyzer!</p>
+<hr style="border:none; border-top:1px solid #ddd;">
+
+<p style="font-size:13px; color:#444;">SeqSketch is a cross-platform bioinformatics desktop application that integrates <b>40+ analysis modules</b> covering the full spectrum of sequence work:</p>
+
+<table style="width:100%; font-size:12px; border-spacing:4px;">
+<tr><td>🔬 <b>FASTA Toolkit</b></td><td>Statistics, dedup, filter, extract, rename, concat, format convert</td></tr>
+<tr><td>🧬 <b>DNA / RNA</b></td><td>Complement, reverse-complement, transcription, ORF finder, codon usage</td></tr>
+<tr><td>🧪 <b>Protein</b></td><td>Amino acid composition, physicochemical properties, protease cleavage, hydrophobicity</td></tr>
+<tr><td>📐 <b>Alignment</b></td><td>Pairwise alignment, MAFFT, MUSCLE, MSA viewer</td></tr>
+<tr><td>🔍 <b>BLAST</b></td><td>NCBI online BLAST, local BLAST with custom databases</td></tr>
+<tr><td>🧬 <b>Primer Design</b></td><td>Primer3 integration, restriction enzyme analysis</td></tr>
+<tr><td>🌳 <b>Phylogenetics</b></td><td>IQ‑TREE, tree visualization (PhyloTreeViz), partition concatenation</td></tr>
+<tr><td>📊 <b>Visualization</b></td><td>Sequence logos, dot plots, Sanger electropherograms</td></tr>
+<tr><td>🌐 <b>Data Access</b></td><td>NCBI GenBank download, batch retrieval</td></tr>
+</table>
+
+<hr style="border:none; border-top:1px solid #ddd;">
+
+<p style="text-align:center; font-size:12px; color:#999; margin:8px 0;">
+🔗 <a href="https://github.com/yananzh/SeqSketch" style="color:#2c7fb8;">github.com/yananzh/SeqSketch</a>
+</p>
+
+<p style="text-align:center; font-size:12px; color:#aaa; margin:2px 0;">
+Made with ❤️ using Python &amp; PyQt6 — for the bioinformatics community
+</p>
         """)
 
-        QMessageBox.about(self, self.tr("About BioSeq Analyzer"), about_text)
+        QMessageBox.about(self, self.tr("About SeqSketch"), about_text)
