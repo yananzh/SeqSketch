@@ -40,6 +40,9 @@ def _wrap_layout(layout) -> QWidget:
 # Drag-and-drop QListWidget with placeholder when empty
 # ---------------------------------------------------------------------------
 class _DropFileList(QListWidget):
+
+    files_added = pyqtSignal()
+
     def __init__(self, placeholder: str = "Drop FASTA files here…", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._placeholder = placeholder
@@ -62,6 +65,7 @@ class _DropFileList(QListWidget):
         if event:
             mime = event.mimeData()
             if mime:
+                added = False
                 for url in mime.urls():
                     path = url.toLocalFile()
                     if path and os.path.isfile(path):
@@ -74,6 +78,9 @@ class _DropFileList(QListWidget):
                             item = QListWidgetItem(os.path.basename(path))
                             item.setData(256, path)
                             self.addItem(item)
+                            added = True
+                if added:
+                    self.files_added.emit()
                 event.acceptProposedAction()
                 return
         super().dropEvent(event)
@@ -102,6 +109,14 @@ class _DropFileList(QListWidget):
 def _read_fasta(filepath: str) -> tuple[list[str], list[str]]:
     ids, seqs = [], []
     current_id, current_seq = "", ""
+
+    def _parse_header(raw: str) -> str:
+        # Split on the first whitespace so only the primary ID (before any
+        # description) is used for taxon matching across files. This mirrors
+        # FASTAProcessor._add_record semantics and prevents the same taxon
+        # with different descriptions from being counted as two distinct taxa.
+        return raw.split(None, 1)[0]
+
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             for line in f:
@@ -110,7 +125,7 @@ def _read_fasta(filepath: str) -> tuple[list[str], list[str]]:
                     if current_id:
                         ids.append(current_id)
                         seqs.append(current_seq)
-                    current_id = line[1:]
+                    current_id = _parse_header(line[1:])
                     current_seq = ""
                 else:
                     current_seq += line
@@ -125,7 +140,7 @@ def _read_fasta(filepath: str) -> tuple[list[str], list[str]]:
                     if current_id:
                         ids.append(current_id)
                         seqs.append(current_seq)
-                    current_id = line[1:]
+                    current_id = _parse_header(line[1:])
                     current_seq = ""
                 else:
                     current_seq += line
@@ -137,6 +152,28 @@ def _read_fasta(filepath: str) -> tuple[list[str], list[str]]:
     return ids, seqs
 
 
+def _detect_seq_type(files: list[str]) -> str:
+    """Auto-detect DNA vs Protein from the first sequence in the first file.
+
+    If ≥85 % of characters are valid DNA (ACGTNU), returns 'DNA'.
+    Otherwise returns 'AA' (protein).
+    """
+    dna_chars = set("ACGTRYSWKMBDHVNUacgtryswkmbdhvnu.-")
+    try:
+        for fpath in files:
+            ids, seqs = _read_fasta(fpath)
+            if seqs:
+                first_seq = seqs[0].replace("-", "").replace(".", "").upper()
+                if not first_seq:
+                    continue
+                dna_count = sum(1 for c in first_seq if c in "ACGTRYSWKMBDHVNU")
+                ratio = dna_count / len(first_seq) if first_seq else 0
+                return "DNA" if ratio >= 0.85 else "AA"
+    except Exception:
+        pass
+    return "DNA"
+
+
 def _write_fasta(filepath: str, ids: list[str], seqs: list[str]) -> None:
     with open(filepath, "w", encoding="utf-8") as f:
         for id_, seq in zip(ids, seqs):
@@ -145,13 +182,21 @@ def _write_fasta(filepath: str, ids: list[str], seqs: list[str]) -> None:
 
 def _concatenate_alignments(
     files: list[str], gene_names: list[str] | None = None
-) -> tuple[list[str], list[str], list[tuple[str, int, int]]]:
+) -> tuple[list[str], list[str], list[tuple[str, int, int]], list[tuple[str, list[str]]]]:
+    """Concatenate aligned FASTA files into a supermatrix.
+
+    Returns (ids, seqs, partitions, gene_ids) where gene_ids is a list of
+    (gene_name, raw_ids_from_file) — the raw ID list (before dedup) for
+    each input file.
+    """
     if not files:
         raise ValueError("No files provided")
 
-    all_taxa: list[str] | None = None
+    all_taxa: list[str] = []
+    taxon_set: set[str] = set()
     concat_seqs: dict[str, str] = {}
     partitions: list[tuple[str, int, int]] = []
+    gene_ids: list[tuple[str, list[str]]] = []
     pos = 1
 
     for i, fpath in enumerate(files):
@@ -169,28 +214,40 @@ def _concatenate_alignments(
                 f"Unaligned sequences in {fpath} (lengths: {sorted(lengths)})"
             )
         seq_len = len(seqs[0]) if seqs else 0
-        if all_taxa is None:
-            all_taxa = ids
+
+        file_map = dict(zip(ids, seqs))
+        file_set = set(ids)
+        gene_ids.append((gene_name, ids))
+
+        if i == 0:
+            all_taxa = list(ids)
+            taxon_set = file_set
             for tid in ids:
+                concat_seqs[tid] = file_map[tid]
+            partitions.append((gene_name, pos, pos + seq_len - 1))
+            pos += seq_len
+            continue
+
+        new_taxa = file_set - taxon_set
+        if new_taxa:
+            gap_prefix = "-" * (pos - 1)
+            for tid in sorted(new_taxa):
+                concat_seqs[tid] = gap_prefix
+                all_taxa.append(tid)
+            taxon_set.update(new_taxa)
+
+        gap_fill = "-" * seq_len
+        for tid in all_taxa:
+            seq = file_map.get(tid, gap_fill)
+            if tid not in concat_seqs:
                 concat_seqs[tid] = ""
-        else:
-            if set(ids) != set(all_taxa):
-                missing_in_file = set(all_taxa) - set(ids)
-                missing_in_master = set(ids) - set(all_taxa)
-                detail = ""
-                if missing_in_file:
-                    detail += f" missing in {gene_name}: {sorted(missing_in_file)[:5]}"
-                if missing_in_master:
-                    detail += f" extra in {gene_name}: {sorted(missing_in_master)[:5]}"
-                raise ValueError(f"Taxa mismatch in {fpath}{detail}")
-        for tid, seq in zip(ids, seqs):
             concat_seqs[tid] += seq
+
         partitions.append((gene_name, pos, pos + seq_len - 1))
         pos += seq_len
 
-    final_ids = all_taxa or []
-    final_seqs = [concat_seqs[tid] for tid in final_ids]
-    return final_ids, final_seqs, partitions
+    final_seqs = [concat_seqs[tid] for tid in all_taxa]
+    return all_taxa, final_seqs, partitions, gene_ids
 
 
 # ---------------------------------------------------------------------------
@@ -256,7 +313,9 @@ class _ConcatPartitionWorker(BaseWorker):
         try:
             # --- Stage 1: Concatenate ---
             self.progress.emit("⏳ Concatenating aligned gene sequences…")
-            ids, seqs, partitions = _concatenate_alignments(self.files, self.gene_names)
+            ids, seqs, partitions, gene_ids = _concatenate_alignments(
+                self.files, self.gene_names
+            )
             total_len = len(seqs[0]) if seqs else 0
 
             _write_fasta(self.concat_output, ids, seqs)
@@ -282,6 +341,24 @@ class _ConcatPartitionWorker(BaseWorker):
             for gene, start, end in partitions:
                 summary += f"    {gene}: {start}-{end} ({end - start + 1} bp)\n"
 
+            # Compute missing-taxa table using raw ID lists from each file
+            final_set = set(ids)
+            summary += "\n  ── Missing Taxa (filled with gaps) ──\n"
+            summary += f"  Master taxa (deduplicated): {len(final_set)}\n"
+            summary += f"  {'Gene':<12} {'Present':>7}  Missing Taxa\n"
+            summary += f"  {'─' * 12} {'─' * 7}  {'─' * 30}\n"
+            for (_gene_name, raw_ids) in gene_ids:
+                taxa_set = set(raw_ids)
+                present = len(taxa_set)
+                missing = sorted(final_set - taxa_set)
+                if missing:
+                    taxa_str = ", ".join(missing[:8])
+                    if len(missing) > 8:
+                        taxa_str += f" … (+{len(missing) - 8})"
+                    summary += f"  {_gene_name:<12} {present:>7}  {taxa_str}\n"
+                else:
+                    summary += f"  {_gene_name:<12} {present:>7}  (all present)\n"
+
             summary += (
                 "\nReady for IQ-TREE, MrBayes, or RAxML-NG with partition-aware models."
             )
@@ -305,33 +382,34 @@ class PartitionConcatTab(BaseTabWidget):
     # UI construction
     # ------------------------------------------------------------------
     def _build_ui(self) -> None:
-        # ---- Input section ----
+        # ── Input section ─────────────────────────────────────────────────
         input_group = QGroupBox(self.tr("Input – Aligned Gene Files"))
         input_layout = QVBoxLayout(input_group)
 
         self._file_list = _DropFileList(
-            self.tr("Drag & drop aligned FASTA files here, or click Choose")
+            self.tr("Drag & drop aligned FASTA files here, or click Add Files")
         )
         self._file_list.setMinimumHeight(100)
         self._file_list.setMaximumHeight(160)
+        self._file_list.files_added.connect(self._auto_fill_outdir)
         input_layout.addWidget(self._file_list)
 
         file_btn_row = QHBoxLayout()
-        choose_btn = QPushButton(self.tr("Choose"))
-        choose_btn.clicked.connect(self._add_files)
+        add_btn = QPushButton(self.tr("Add Files"))
+        add_btn.clicked.connect(self._add_files)
         remove_btn = QPushButton(self.tr("Remove Selected"))
         remove_btn.clicked.connect(self._remove_selected)
-        clear_btn = QPushButton(self.tr("Clear All"))
-        clear_btn.clicked.connect(self._clear_files)
-        file_btn_row.addWidget(choose_btn)
+        clear_files_btn = QPushButton(self.tr("Clear All"))
+        clear_files_btn.clicked.connect(self._clear_files)
+        file_btn_row.addWidget(add_btn)
         file_btn_row.addWidget(remove_btn)
-        file_btn_row.addWidget(clear_btn)
+        file_btn_row.addWidget(clear_files_btn)
         file_btn_row.addStretch()
         input_layout.addLayout(file_btn_row)
 
         self.add_content_widget(input_group)
 
-        # ---- Parameters section ----
+        # ── Parameters section ────────────────────────────────────────────
         param_group = QGroupBox(self.tr("Parameters"))
         param_form = QFormLayout(param_group)
         param_form.setLabelAlignment(
@@ -340,79 +418,64 @@ class PartitionConcatTab(BaseTabWidget):
         param_form.setVerticalSpacing(10)
         param_form.setHorizontalSpacing(12)
 
-        # Sequence type
-        self._seqtype_combo = QComboBox()
-        self._seqtype_combo.addItems(["DNA", "Protein"])
-        self._seqtype_combo.setFixedWidth(140)
-        self._seqtype_combo.setToolTip(self.tr("DNA: nucleotide; Protein: amino-acid"))
-        seqtype_row = QHBoxLayout()
-        seqtype_row.setContentsMargins(0, 0, 0, 0)
-        seqtype_row.addWidget(self._seqtype_combo)
-        seqtype_row.addStretch()
-        param_form.addRow(self.tr("Sequence type:"), _wrap_layout(seqtype_row))
+        # Partition format + Output prefix (same row, separate labels)
+        fmt_prefix_row = QHBoxLayout()
+        fmt_prefix_row.setContentsMargins(0, 0, 0, 0)
 
-        # Partition output format
-        self._format_combo = QComboBox()
-        self._format_combo.addItems(["NEXUS (MrBayes / IQ-TREE)", "RAxML-style"])
-        self._format_combo.setFixedWidth(240)
-        self._format_combo.setToolTip(
-            self.tr(
-                "NEXUS: charset + SETS block for MrBayes & IQ-TREE.\n"
-                "RAxML-style: plain text model, gene = start-end lines."
-            )
+        fmt_prefix_row.addWidget(QLabel(self.tr("Partition format:")))
+        self._format_edit = QLineEdit(self.tr("NEXUS (MrBayes / IQ-TREE)"))
+        self._format_edit.setReadOnly(True)
+        self._format_edit.setFixedWidth(210)
+        self._format_edit.setToolTip(
+            self.tr("NEXUS: charset + SETS block for MrBayes & IQ-TREE.")
         )
-        format_row = QHBoxLayout()
-        format_row.setContentsMargins(0, 0, 0, 0)
-        format_row.addWidget(self._format_combo)
-        format_row.addStretch()
-        param_form.addRow(self.tr("Partition format:"), _wrap_layout(format_row))
+        fmt_prefix_row.addWidget(self._format_edit)
+
+        fmt_prefix_row.addSpacing(20)
+
+        fmt_prefix_row.addWidget(QLabel(self.tr("Output prefix:")))
+        self._prefix_edit = QLineEdit("concat_partition")
+        self._prefix_edit.setFixedWidth(130)
+        self._prefix_edit.setToolTip(
+            self.tr("Output files: <prefix>.fasta and <prefix>.nex")
+        )
+        fmt_prefix_row.addWidget(self._prefix_edit)
+        fmt_prefix_row.addStretch()
+        param_form.addRow(_wrap_layout(fmt_prefix_row))
 
         # Output directory
         outdir_row = QHBoxLayout()
         outdir_row.setContentsMargins(0, 0, 0, 0)
         self._output_dir_edit = QLineEdit()
         self._output_dir_edit.setPlaceholderText(
-            self.tr("Directory for concatenated FASTA and partition file")
+            self.tr("Auto-filled from first file; or choose a folder")
         )
         outdir_browse = QPushButton(self.tr("Browse"))
-        outdir_browse.setFixedWidth(80)
+        outdir_browse.setFixedWidth(90)
         outdir_browse.clicked.connect(self._browse_output_dir)
         outdir_row.addWidget(self._output_dir_edit, 1)
         outdir_row.addWidget(outdir_browse)
         param_form.addRow(self.tr("Output directory:"), _wrap_layout(outdir_row))
 
-        # Output file prefix
-        self._prefix_edit = QLineEdit("concat_partition")
-        self._prefix_edit.setFixedWidth(240)
-        self._prefix_edit.setToolTip(
-            self.tr("Output files: <prefix>.fasta and <prefix>.nex")
-        )
-        prefix_row = QHBoxLayout()
-        prefix_row.setContentsMargins(0, 0, 0, 0)
-        prefix_row.addWidget(self._prefix_edit)
-        prefix_row.addStretch()
-        param_form.addRow(self.tr("Output prefix:"), _wrap_layout(prefix_row))
-
         self.add_content_widget(param_group)
 
-        # ---- Primary actions (bottom) ----
-        action_row = QHBoxLayout()
-        self.run_btn = QPushButton(self.tr("▶  Run Concatenation"))
-        self.run_btn.setMinimumHeight(36)
+        # ── Run / Clear buttons in status bar ─────────────────────────────
+        self.run_btn = QPushButton(self.tr("Run Concatenation"))
         self.run_btn.clicked.connect(self.run)
-        self.clear_btn = QPushButton(self.tr("Clear All"))
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
+
+        self.clear_btn = QPushButton(self.tr("Clear"))
         self.clear_btn.clicked.connect(self.clear)
-        action_row.addWidget(self.run_btn)
-        action_row.addWidget(self.clear_btn)
-        # Replace status area with action buttons at bottom
-        self.main_layout.removeItem(self.status_layout)
-        for i in range(self.status_layout.count()):
-            w = self.status_layout.itemAt(i).widget()
-            if w and w is not self.help_btn:
-                w.hide()
-        action_row.addStretch()
-        action_row.addWidget(self.help_btn)
-        self.main_layout.addLayout(action_row)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
+
+        # Ensure status label is visible in the status row
+        self.status_label.show()
+
+        # Increase log area height
+        self.log_area.setMaximumHeight(280)
+
+        # Anchor the shared log area near the bottom
+        self.content_area.addStretch()
 
     # ------------------------------------------------------------------
     # Slots
@@ -435,7 +498,17 @@ class PartitionConcatTab(BaseTabWidget):
                 item.setData(256, path)
                 self._file_list.addItem(item)
         if paths:
-            self.show_status(self.tr("Added {n} file(s)").format(n=len(paths)))
+            self._auto_fill_outdir()
+            self.show_status(
+                self.tr("Added {n} file(s)").format(n=len(paths))
+            )
+
+    def _auto_fill_outdir(self) -> None:
+        """Set output directory to the first input file's directory."""
+        if self._file_list.count() > 0:
+            first = self._file_list.item(0)
+            if first:
+                self._output_dir_edit.setText(os.path.dirname(first.data(256)))
 
     def _remove_selected(self) -> None:
         for item in self._file_list.selectedItems():
@@ -492,17 +565,29 @@ class PartitionConcatTab(BaseTabWidget):
 
         prefix = self._prefix_edit.text().strip() or "concat_partition"
         concat_path = os.path.join(out_dir, f"{prefix}.fasta")
-        partition_ext = "nex"
-        if "RAxML" in self._format_combo.currentText():
-            partition_ext = "txt"
-        partition_path = os.path.join(out_dir, f"{prefix}.{partition_ext}")
+        partition_path = os.path.join(out_dir, f"{prefix}.nex")
 
-        seq_type = "DNA" if self._seqtype_combo.currentText() == "DNA" else "AA"
+        seq_type = _detect_seq_type(files)
+
+        # ── Pre-run summary ───────────────────────────────────────────────
+        sep = "─" * 48
+        self.log_area.clear()
+        self.log_area.append(f"{sep}")
+        self.log_area.append(f"  Sequence Concatenation Summary")
+        self.log_area.append(f"{sep}")
+        self.log_area.append(f"  Sequence type    : {seq_type} (auto-detected)")
+        self.log_area.append(f"  Partition format : NEXUS")
+        self.log_area.append(f"  Output directory : {out_dir}")
+        self.log_area.append(f"  Output prefix    : {prefix}")
+        self.log_area.append(f"  Files to merge   : {len(files)}")
+        self.log_area.append(f"  ── Input files ──")
+        for fname in gene_names:
+            self.log_area.append(f"    {fname}")
+        self.log_area.append(f"{sep}")
+        self.log_area.append("")
 
         self.run_btn.setEnabled(False)
         self.clear_btn.setEnabled(False)
-        self.log_message(self.tr("Starting concatenation workflow…"))
-        self.log_message(self.tr("  Input files: {n}").format(n=len(files)))
 
         self._worker = _ConcatPartitionWorker(
             files=files,
@@ -519,7 +604,7 @@ class PartitionConcatTab(BaseTabWidget):
         self._file_list.clear()
         self._output_dir_edit.clear()
         self._prefix_edit.setText("concat_partition")
-        self._seqtype_combo.setCurrentIndex(0)
+        self.log_area.clear()
         self.show_status(self.tr("Cleared"))
 
     # ------------------------------------------------------------------
@@ -529,9 +614,6 @@ class PartitionConcatTab(BaseTabWidget):
         super().handle_worker_finished(message)
         self.run_btn.setEnabled(True)
         self.clear_btn.setEnabled(True)
-        self.log_message(message)
-        if self._status_callback:
-            self._status_callback("Concatenation + partition complete", 0)
 
     def handle_worker_error(self, error_msg: str) -> None:
         super().handle_worker_error(error_msg)
@@ -568,7 +650,7 @@ concatenated supermatrix and a NEXUS-format partition file in one click.</p>
 <h3>Input</h3>
 <ul>
   <li>Add multiple <b>aligned</b> gene/locus FASTA files via drag &amp; drop
-  or the <b>Choose</b> button.</li>
+  or the <b>Add Files</b> button.</li>
   <li>Each file represents one gene partition. Gene names are derived from
   the file name (without extension).</li>
   <li>All files must share the same set of taxa — missing or extra taxa
@@ -582,13 +664,11 @@ concatenated supermatrix and a NEXUS-format partition file in one click.</p>
   Affects the NEXUS header.</li>
   <li><b>Partition format</b> – NEXUS (MrBayes / IQ-TREE) generates a
   <code>#NEXUS</code> block with <code>BEGIN SETS;</code> charset
-  definitions. RAxML-style writes plain text <code>model, gene =
-  start-end</code> lines.</li>
+  definitions.</li>
   <li><b>Output directory</b> – where the concatenated FASTA and partition
-  file are written.</li>
+  file are written (auto-filled from the first input file).</li>
   <li><b>Output prefix</b> – files will be named
-  <code>&lt;prefix&gt;.fasta</code> and <code>&lt;prefix&gt;.nex</code>
-  (or <code>.txt</code> for RAxML).</li>
+  <code>&lt;prefix&gt;.fasta</code> and <code>&lt;prefix&gt;.nex</code>.</li>
 </ul>
 
 <h3>Output Files</h3>
