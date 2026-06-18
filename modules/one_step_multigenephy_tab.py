@@ -73,8 +73,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.email_edit = QLineEdit()
         self.email_edit.setPlaceholderText(self.tr("name@example.com"))
         self.email_edit.setToolTip(
-            self.tr("NCBI requires an email for sequence fetching.\n"
-                    "Leave blank if all gene cells contain sequences (not accessions).")
+            self.tr(
+                "NCBI requires an email for sequence fetching.\n"
+                "Leave blank if all gene cells contain sequences (not accessions)."
+            )
         )
         self.output_dir_edit = QLineEdit()
         self.output_dir_edit.setPlaceholderText(self.tr("Select an output directory"))
@@ -142,7 +144,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         param_form = QFormLayout(param_group)
         param_form.setHorizontalSpacing(12)
         param_form.setVerticalSpacing(10)
-        param_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        param_form.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
 
         # MAFFT alignment mode
         self.mafft_mode_combo = QComboBox()
@@ -170,7 +174,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         ])
         self.trimal_mode_combo.setCurrentText("automated1")
         self.trimal_mode_combo.setToolTip(
-            self.tr("automated1: heuristic | nogaps: remove gap columns | gappyout: adaptive | strict/plus: conservative")
+            self.tr(
+                "automated1: heuristic | nogaps: remove gap columns | gappyout: adaptive | strict/plus: conservative"
+            )
         )
 
         self.threads_spin = QSpinBox()
@@ -454,22 +460,36 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
         try:
             import pandas as pd
+
             df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
             if strain_column not in df.columns:
                 self.log_area.append(
-                    self.tr('✗ Strain column "{col}" not found').format(col=strain_column))
+                    self.tr('✗ Strain column "{col}" not found').format(
+                        col=strain_column
+                    )
+                )
             else:
                 strain_names = df[strain_column].fillna("").astype(str).str.strip()
-                bad_names = [n for n in strain_names if not n or n != n.replace(" ", "_").replace("/", "_").replace("\\", "_")]
+                bad_names = [
+                    n
+                    for n in strain_names
+                    if not n
+                    or n != n.replace(" ", "_").replace("/", "_").replace("\\", "_")
+                ]
                 if bad_names:
                     self.log_area.append(
-                        self.tr("⚠ {count} strain name(s) contain spaces/special chars:").format(count=len(bad_names)))
+                        self.tr(
+                            "⚠ {count} strain name(s) contain spaces/special chars:"
+                        ).format(count=len(bad_names))
+                    )
                     for name in bad_names[:10]:
                         self.log_area.append(f"    • {name}")
                 else:
                     self.log_area.append(self.tr("✓ Strain names: all valid"))
         except Exception as exc:
-            self.log_area.append(self.tr("⚠ Could not check strain names: {error}").format(error=exc))
+            self.log_area.append(
+                self.tr("⚠ Could not check strain names: {error}").format(error=exc)
+            )
 
         tools = [
             ("MAFFT", _mafft_executable()),
@@ -479,12 +499,18 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         all_ok = True
         for tool_name, tool_path in tools:
             if os.path.isfile(tool_path):
-                self.log_area.append(self.tr("✓ {tool}: {path}").format(tool=tool_name, path=tool_path))
+                self.log_area.append(
+                    self.tr("✓ {tool}: {path}").format(tool=tool_name, path=tool_path)
+                )
             else:
-                self.log_area.append(self.tr("✗ {tool}: NOT FOUND").format(tool=tool_name))
+                self.log_area.append(
+                    self.tr("✗ {tool}: NOT FOUND").format(tool=tool_name)
+                )
                 all_ok = False
 
-        self.show_status(self.tr("Validation passed") if all_ok else self.tr("Issues found"))
+        self.show_status(
+            self.tr("Validation passed") if all_ok else self.tr("Issues found")
+        )
 
     # ------------------------------------------------------------------
     # Cancel support
@@ -546,10 +572,18 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.log_area.append(f"  Strain column  : {strain_column}")
         self.log_area.append(f"  Genes          : {len(checked_genes)}")
         self.log_area.append(f"  Output dir     : {output_dir}")
-        self.log_area.append(f"  MAFFT mode     : {self.mafft_mode_combo.currentText()}")
-        self.log_area.append(f"  trimAl mode    : {self.trimal_mode_combo.currentText()}")
-        self.log_area.append(f"  Bootstrap      : {self.bootstrap_spin.value()} ({self.bootstrap_mode_combo.currentText()})")
-        self.log_area.append(f"  Threads        : {'AUTO' if self.threads_spin.value() == 0 else self.threads_spin.value()}")
+        self.log_area.append(
+            f"  MAFFT mode     : {self.mafft_mode_combo.currentText()}"
+        )
+        self.log_area.append(
+            f"  trimAl mode    : {self.trimal_mode_combo.currentText()}"
+        )
+        self.log_area.append(
+            f"  Bootstrap      : {self.bootstrap_spin.value()} ({self.bootstrap_mode_combo.currentText()})"
+        )
+        self.log_area.append(
+            f"  Threads        : {'AUTO' if self.threads_spin.value() == 0 else self.threads_spin.value()}"
+        )
         self.log_area.append(f"{sep}")
         self.log_area.append("")
 
