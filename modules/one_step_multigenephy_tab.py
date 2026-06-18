@@ -72,6 +72,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         )
         self.email_edit = QLineEdit()
         self.email_edit.setPlaceholderText(self.tr("name@example.com"))
+        self.email_edit.setToolTip(
+            self.tr("NCBI requires an email for sequence fetching.\n"
+                    "Leave blank if all gene cells contain sequences (not accessions).")
+        )
         self.output_dir_edit = QLineEdit()
         self.output_dir_edit.setPlaceholderText(self.tr("Select an output directory"))
 
@@ -123,7 +127,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         input_form.addRow(self.tr("Output directory:"), _wrap_layout(output_row))
 
         # Validate button row
-        validate_btn = QPushButton(self.tr("🔍  Validate Inputs"))
+        validate_btn = QPushButton(self.tr("Validate Inputs"))
         validate_btn.clicked.connect(self._check_inputs)
         validate_row = QHBoxLayout()
         validate_row.setContentsMargins(0, 0, 0, 0)
@@ -136,6 +140,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         # ── Parameters section ──
         param_group = QGroupBox(self.tr("Pipeline Options"))
         param_form = QFormLayout(param_group)
+        param_form.setHorizontalSpacing(12)
+        param_form.setVerticalSpacing(10)
+        param_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
 
         # MAFFT alignment mode
         self.mafft_mode_combo = QComboBox()
@@ -152,9 +159,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 "--globalpair: global alignment; --genafpair: conserved region alignment"
             )
         )
-        param_form.addRow(self.tr("MAFFT mode:"), self.mafft_mode_combo)
 
-        # trimAl trimming strategy
         self.trimal_mode_combo = QComboBox()
         self.trimal_mode_combo.addItems([
             "automated1",
@@ -165,12 +170,26 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         ])
         self.trimal_mode_combo.setCurrentText("automated1")
         self.trimal_mode_combo.setToolTip(
-            self.tr(
-                "automated1: heuristic trimming; nogaps: remove columns with gaps; "
-                "gappyout: adaptive gap-based trimming; strict/strictplus: conservative trimming"
-            )
+            self.tr("automated1: heuristic | nogaps: remove gap columns | gappyout: adaptive | strict/plus: conservative")
         )
-        param_form.addRow(self.tr("trimAl mode:"), self.trimal_mode_combo)
+
+        self.threads_spin = QSpinBox()
+        self.threads_spin.setRange(0, 256)
+        self.threads_spin.setValue(0)
+        self.threads_spin.setSpecialValueText("AUTO")
+        self.threads_spin.setToolTip(self.tr("CPU threads (0 = auto-detect)"))
+
+        mt_row = QHBoxLayout()
+        mt_row.setContentsMargins(0, 0, 0, 0)
+        mt_row.addWidget(QLabel(self.tr("MAFFT:")))
+        mt_row.addWidget(self.mafft_mode_combo, 1)
+        mt_row.addSpacing(12)
+        mt_row.addWidget(QLabel(self.tr("trimAl:")))
+        mt_row.addWidget(self.trimal_mode_combo, 1)
+        mt_row.addSpacing(12)
+        mt_row.addWidget(QLabel(self.tr("Threads:")))
+        mt_row.addWidget(self.threads_spin)
+        param_form.addRow(self.tr("MAFFT / trimAl / Threads:"), _wrap_layout(mt_row))
 
         # IQ-TREE bootstrap
         self.bootstrap_mode_combo = QComboBox()
@@ -197,43 +216,32 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         boot_row.setContentsMargins(0, 0, 0, 0)
         boot_row.addWidget(self.bootstrap_mode_combo, 1)
         boot_row.addWidget(self.bootstrap_spin)
-        param_form.addRow(self.tr("IQ-TREE Bootstrap:"), _wrap_layout(boot_row))
-
-        # Thread count
-        self.threads_spin = QSpinBox()
-        self.threads_spin.setRange(0, 256)
-        self.threads_spin.setValue(0)
-        self.threads_spin.setSpecialValueText("AUTO")
-        self.threads_spin.setToolTip(
-            self.tr("CPU threads for MAFFT/IQ-TREE (0 = auto-detect)")
-        )
-        param_form.addRow(self.tr("Threads:"), self.threads_spin)
-
-        # Keep intermediate files
+        boot_row.addSpacing(12)
         self.keep_intermediates_check = QCheckBox(
-            self.tr("Preserve intermediate files (normalized, aligned, trimmed)")
+            self.tr("Preserve intermediate files")
         )
         self.keep_intermediates_check.setChecked(True)
-        param_form.addRow(self.tr("Intermediate files:"), self.keep_intermediates_check)
+        boot_row.addWidget(self.keep_intermediates_check)
+        param_form.addRow(self.tr("IQ-TREE Bootstrap:"), _wrap_layout(boot_row))
 
         self.add_content_widget(param_group)
         self.content_area.addStretch()
 
-        # ── Buttons in status bar (bottom-left) ──
-        self.start_btn = QPushButton(self.tr("▶  Start Workflow"))
-        self.start_btn.setMinimumHeight(32)
+        # ── Start / Cancel buttons in status bar ──────────────────────────
+        self.start_btn = QPushButton(self.tr("Start Workflow"))
         self.start_btn.clicked.connect(self.start_run)
-        self.cancel_btn = QPushButton(self.tr("■  Cancel"))
-        self.cancel_btn.setMinimumHeight(32)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.start_btn)
+
+        self.cancel_btn = QPushButton(self.tr("Cancel"))
         self.cancel_btn.setVisible(False)
+        self.cancel_btn.setStyleSheet(
+            "QPushButton{background:#d32f2f;color:white;border-radius:4px;font-weight:bold;}"
+            "QPushButton:hover{background:#b71c1c;}"
+        )
         self.cancel_btn.clicked.connect(self._cancel_workflow)
-        # Hide the "Status:" label and status text
-        for i in range(self.status_layout.count()):
-            w = self.status_layout.itemAt(i).widget()
-            if isinstance(w, QLabel):
-                w.setVisible(False)
-        self.status_layout.insertWidget(0, self.start_btn)
-        self.status_layout.insertWidget(1, self.cancel_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.cancel_btn)
+
+        self.log_area.setMaximumHeight(400)
 
     def _choose_excel(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
@@ -336,8 +344,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         message = f"{step_name}: {status}"
         self.show_status(message)
         self.log_message(message)
-        if self._status_callback is not None:
-            self._status_callback(message)
 
     def _append_log(self, line: str) -> None:
         self.log_message(line)
@@ -346,8 +352,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.show_status(self.tr("Workflow failed"))
         self.log_message(message, "ERROR")
         self._set_running_state(False)
-        if self._status_callback is not None:
-            self._status_callback(message)
 
     def _handle_run_completed(self, result) -> None:
         step_status = dict(getattr(result, "step_status", {}))
@@ -434,64 +438,39 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     # Input validation & tool checks
     # ------------------------------------------------------------------
     def _check_inputs(self) -> None:
-        """Validate file format and external tool availability."""
+        """Validate file format and external tool availability — output to log."""
         excel_path = self.excel_path_edit.text().strip()
         sheet_name = self.sheet_name_combo.currentText().strip() or "Sheet1"
         strain_column = self.strain_column_combo.currentText().strip()
 
-        lines = []
+        self.log_area.clear()
+        self.log_area.append(self.tr("── Input Validation ──"))
 
-        # 1. Check Excel file
         if not excel_path or not os.path.isfile(excel_path):
-            QMessageBox.warning(
-                self,
-                self.tr("Validation"),
-                self.tr("Excel file not found."),
-            )
+            self.log_area.append(self.tr("✗ Excel file not found."))
+            self.show_status(self.tr("Validation failed"))
             return
-        lines.append(self.tr("✓ Excel file: {path}").format(path=excel_path))
+        self.log_area.append(self.tr("✓ Excel file: {path}").format(path=excel_path))
 
-        # 2. Check strain names
         try:
             import pandas as pd
-
             df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
             if strain_column not in df.columns:
-                lines.append(
-                    self.tr('✗ Strain column "{col}" not found').format(
-                        col=strain_column
-                    )
-                )
+                self.log_area.append(
+                    self.tr('✗ Strain column "{col}" not found').format(col=strain_column))
             else:
                 strain_names = df[strain_column].fillna("").astype(str).str.strip()
-                bad_names: list[str] = []
-                for name in strain_names:
-                    if not name:
-                        bad_names.append("(blank)")
-                    elif name != name.replace(" ", "_").replace("/", "_").replace(
-                        "\\", "_"
-                    ):
-                        bad_names.append(name)
+                bad_names = [n for n in strain_names if not n or n != n.replace(" ", "_").replace("/", "_").replace("\\", "_")]
                 if bad_names:
-                    lines.append(
-                        self.tr(
-                            "⚠ {count} strain name(s) contain spaces/special chars:"
-                        ).format(count=len(bad_names))
-                    )
+                    self.log_area.append(
+                        self.tr("⚠ {count} strain name(s) contain spaces/special chars:").format(count=len(bad_names)))
                     for name in bad_names[:10]:
-                        lines.append(f"    • {name}")
-                    if len(bad_names) > 10:
-                        lines.append(
-                            f"    … and {len(bad_names) - 10} more"
-                        )
+                        self.log_area.append(f"    • {name}")
                 else:
-                    lines.append(self.tr("✓ Strain names: all valid"))
+                    self.log_area.append(self.tr("✓ Strain names: all valid"))
         except Exception as exc:
-            lines.append(
-                self.tr("⚠ Could not check strain names: {error}").format(error=exc)
-            )
+            self.log_area.append(self.tr("⚠ Could not check strain names: {error}").format(error=exc))
 
-        # 3. Check external tools
         tools = [
             ("MAFFT", _mafft_executable()),
             ("trimAl", _trimal_executable()),
@@ -500,23 +479,12 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         all_ok = True
         for tool_name, tool_path in tools:
             if os.path.isfile(tool_path):
-                lines.append(
-                    self.tr("✓ {tool}: {path}").format(tool=tool_name, path=tool_path)
-                )
+                self.log_area.append(self.tr("✓ {tool}: {path}").format(tool=tool_name, path=tool_path))
             else:
-                lines.append(
-                    self.tr("✗ {tool}: NOT FOUND").format(tool=tool_name)
-                )
+                self.log_area.append(self.tr("✗ {tool}: NOT FOUND").format(tool=tool_name))
                 all_ok = False
 
-        QMessageBox.information(
-            self,
-            self.tr("Input Validation"),
-            "\n".join(lines),
-        )
-        self.show_status(
-            self.tr("Validation passed") if all_ok else self.tr("Issues found")
-        )
+        self.show_status(self.tr("Validation passed") if all_ok else self.tr("Issues found"))
 
     # ------------------------------------------------------------------
     # Cancel support
@@ -566,6 +534,24 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             return
 
         self._log_import_summary(parsed.summary)
+
+        # ── Pre-run summary ───────────────────────────────────────────────
+        sep = "─" * 48
+        self.log_area.append("")
+        self.log_area.append(f"{sep}")
+        self.log_area.append(f"  MultiGenePhy Run Summary")
+        self.log_area.append(f"{sep}")
+        self.log_area.append(f"  Excel          : {excel_path}")
+        self.log_area.append(f"  Sheet          : {sheet_name}")
+        self.log_area.append(f"  Strain column  : {strain_column}")
+        self.log_area.append(f"  Genes          : {len(checked_genes)}")
+        self.log_area.append(f"  Output dir     : {output_dir}")
+        self.log_area.append(f"  MAFFT mode     : {self.mafft_mode_combo.currentText()}")
+        self.log_area.append(f"  trimAl mode    : {self.trimal_mode_combo.currentText()}")
+        self.log_area.append(f"  Bootstrap      : {self.bootstrap_spin.value()} ({self.bootstrap_mode_combo.currentText()})")
+        self.log_area.append(f"  Threads        : {'AUTO' if self.threads_spin.value() == 0 else self.threads_spin.value()}")
+        self.log_area.append(f"{sep}")
+        self.log_area.append("")
 
         project = ProjectInput(
             excel_path=excel_path,
@@ -626,92 +612,55 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
     def _help_html(self) -> str:
         return self.tr("""
-<h2>One Step MultiGenePhy</h2>
-<p>Import a gene-by-gene Excel workbook and run <b>download / normalize /
-alignment / trimming / concatenation / tree building</b> in one automated
-pipeline. Mixed public accessions and private sequences are supported in
-the same sheet.</p>
+<h2>One Step MultiGenePhy &mdash; Automated Phylogenomics Pipeline</h2>
 
-<h3>📋 Workbook Format</h3>
+<p><b>What does this tool do?</b><br>
+Import a gene-by-gene Excel workbook and run the complete
+<b>fetch → normalize → align → trim → concatenate → tree</b> pipeline
+in one step. Supports mixed NCBI accessions and private sequences.</p>
+
+<h3>Quick Start</h3>
+<ol>
+  <li><b>Browse</b> to select an Excel workbook — sheet and strain column
+  auto-populate.</li>
+  <li>Enter your <b>NCBI email</b> if any cells contain accessions.</li>
+  <li>Click <b>Validate Inputs</b> to check format and tool paths.</li>
+  <li>Select an <b>output directory</b> and click <b>Start Workflow</b>.</li>
+</ol>
+
+<h3>Workbook Format</h3>
 <ul>
   <li><b>First row</b> must be the header row.</li>
   <li>One column = <b>strain identifiers</b> (e.g. <i>Strain</i>).</li>
   <li>Remaining columns = <b>gene loci</b> (e.g. <i>ITS, TEF1, RPB2</i>).</li>
-  <li>Each gene cell contains either:
-    <ul>
-      <li>an <b>NCBI accession</b> — <code>ON123456.1</code></li>
-      <li>a <b>raw DNA sequence</b> — <code>ATGCGTAA...</code></li>
-      <li>a <b>blank</b> (missing gene for that strain)</li>
-    </ul>
-  </li>
+  <li>Each gene cell contains either an <b>NCBI accession</b>, a
+  <b>raw sequence</b>, or is <b>blank</b> (missing data).</li>
 </ul>
 
-<h3>🚀 Quick Start</h3>
-<ol>
-  <li><b>Browse</b> to select an Excel workbook — the sheet name and strain
-  column auto-populate after loading.</li>
-  <li><b>Check / uncheck</b> gene columns to include or exclude.</li>
-  <li>Enter your <b>NCBI email</b> if any cells contain accession values
-  (required by NCBI Entrez).</li>
-  <li>(Optional) Click <b>Validate Inputs</b> to check file format, strain
-  name validity, and external tool availability.</li>
-  <li>Adjust <b>pipeline options</b> if needed — MAFFT mode, trimAl
-  strategy, IQ-TREE bootstrap type and replicates, thread count.</li>
-  <li>Select an <b>output directory</b> and click <b>Start Workflow</b>.</li>
-</ol>
+<h3>Use Cases</h3>
+<ul>
+  <li>Build multi-locus phylogenies from mixed public/private data.</li>
+  <li>Rapidly test gene combinations for phylogenetic signal.</li>
+  <li>Reproducible batch processing of large gene-family datasets.</li>
+</ul>
 
-<h3>⚙️ Pipeline Steps</h3>
+<h3>Pipeline Steps</h3>
 <ol>
-  <li><b>Import</b> — parse Excel cells, classify accessions vs. sequences,
-  generate import summary.</li>
-  <li><b>Fetch / Normalize</b> — download NCBI sequences, normalize all
-  records into per-gene FASTA inputs.</li>
+  <li><b>Import</b> — parse Excel cells, classify accessions vs. sequences.</li>
+  <li><b>Fetch / Normalize</b> — download NCBI sequences, normalize into FASTA.</li>
   <li><b>Align per Gene</b> — run MAFFT on each gene independently.</li>
   <li><b>Trim per Gene</b> — run trimAl to remove poorly aligned columns.</li>
-  <li><b>Concatenate</b> — join trimmed alignments into a supermatrix with
-  NEXUS partition definitions; missing strains are gap-filled.</li>
+  <li><b>Concatenate</b> — join into supermatrix + NEXUS partition.</li>
   <li><b>Build Tree</b> — run IQ-TREE with partition-aware model.</li>
-  <li><b>Summarize</b> — write run report (HTML), plain-text summary,
-  and machine-readable manifest.</li>
+  <li><b>Summarize</b> — HTML report, summary, manifest.</li>
 </ol>
 
-<h3>📁 Output Directory Structure</h3>
+<h3>Tips</h3>
 <ul>
-  <li><code>00_import/</code> — import summary JSON</li>
-  <li><code>01_normalized/</code> — per-gene normalized FASTA files</li>
-  <li><code>02_alignments/</code> — per-gene aligned FASTA files</li>
-  <li><code>03_trimmed/</code> — per-gene trimmed FASTA files</li>
-  <li><code>04_concat/</code> — supermatrix FASTA + partitions NEXUS</li>
-  <li><code>05_iqtree/</code> — IQ-TREE results and tree files</li>
-  <li><code>06_reports/</code> — run_report.html, summary.txt,
-  run_manifest.json</li>
-</ul>
-
-<h3>⚠️ Important Notes</h3>
-<ul>
-  <li><b>Strain names</b> with spaces or special characters (<code>/ \\ :
-  ( ) [ ]</code>) may cause IQ-TREE to fail. Use <b>Validate Inputs</b>
-  to check before running.</li>
-  <li>Genes with <b>fewer than 2 usable sequences</b> are skipped with a
-  warning.</li>
-  <li>A <b>minimal HTML report</b> (<code>run_report.html</code>) is
-  generated with step status, per-gene details, tool commands, and
-  artifact paths.</li>
-  <li>Intermediate files (normalized/aligned/trimmed) are preserved by
-  default. Uncheck <b>Preserve intermediate files</b> to save disk space.</li>
-  <li>The <b>Operation Log</b> records all progress, warnings, and errors
-  in real time.</li>
-</ul>
-
-<h3>💡 Tips</h3>
-<ul>
-  <li>NCBI may rate-limit download requests. The pipeline retries up to
-  3 times with increasing delays.</li>
-  <li>For large datasets, increase the thread count in Pipeline Options
-  to speed up MAFFT and IQ-TREE.</li>
-  <li>Click <b>Cancel</b> to abort a running workflow — the current step
-  will finish before stopping.</li>
-  <li>The <b>UFBoot + SH-aLRT</b> bootstrap option provides robust branch
-  support for publication-quality trees.</li>
+  <li>Strain names with spaces or special characters may cause errors —
+  use <b>Validate Inputs</b> to check.</li>
+  <li>For large datasets, increase <b>Threads</b> to speed up MAFFT/IQ-TREE.</li>
+  <li>Click <b>Cancel</b> to abort a running workflow.</li>
+  <li>The <b>UFBoot + SH-aLRT</b> option provides robust branch support.</li>
 </ul>
 """)
