@@ -40,7 +40,6 @@ def _wrap_layout(layout) -> QWidget:
 # Drag-and-drop QListWidget with placeholder when empty
 # ---------------------------------------------------------------------------
 class _DropFileList(QListWidget):
-
     files_added = pyqtSignal()
 
     def __init__(self, placeholder: str = "Drop FASTA files here…", *args, **kwargs):
@@ -182,7 +181,9 @@ def _write_fasta(filepath: str, ids: list[str], seqs: list[str]) -> None:
 
 def _concatenate_alignments(
     files: list[str], gene_names: list[str] | None = None
-) -> tuple[list[str], list[str], list[tuple[str, int, int]], list[tuple[str, list[str]]]]:
+) -> tuple[
+    list[str], list[str], list[tuple[str, int, int]], list[tuple[str, list[str]]]
+]:
     """Concatenate aligned FASTA files into a supermatrix.
 
     Returns (ids, seqs, partitions, gene_ids) where gene_ids is a list of
@@ -347,7 +348,7 @@ class _ConcatPartitionWorker(BaseWorker):
             summary += f"  Master taxa (deduplicated): {len(final_set)}\n"
             summary += f"  {'Gene':<12} {'Present':>7}  Missing Taxa\n"
             summary += f"  {'─' * 12} {'─' * 7}  {'─' * 30}\n"
-            for (_gene_name, raw_ids) in gene_ids:
+            for _gene_name, raw_ids in gene_ids:
                 taxa_set = set(raw_ids)
                 present = len(taxa_set)
                 missing = sorted(final_set - taxa_set)
@@ -499,9 +500,7 @@ class PartitionConcatTab(BaseTabWidget):
                 self._file_list.addItem(item)
         if paths:
             self._auto_fill_outdir()
-            self.show_status(
-                self.tr("Added {n} file(s)").format(n=len(paths))
-            )
+            self.show_status(self.tr("Added {n} file(s)").format(n=len(paths)))
 
     def _auto_fill_outdir(self) -> None:
         """Set output directory to the first input file's directory."""
