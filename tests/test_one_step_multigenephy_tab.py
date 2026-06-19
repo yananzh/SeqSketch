@@ -1,11 +1,9 @@
 import os
 from types import SimpleNamespace
-from typing import cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PyQt6.QtWidgets import QApplication
 
 import modules.one_step_multigenephy_tab as tab_module
 from modules.one_step_multigenephy_tab import OneStepMultiGenePhyTab
@@ -30,19 +28,23 @@ class _FakeWorker:
         self.step_changed = _FakeSignal()
         self.log_line = _FakeSignal()
         self.start_calls = 0
+        self._abort = False
+        self.deleteLater_calls = 0
 
     def start(self):
         self.start_calls += 1
 
+    def isRunning(self):
+        return False
 
-@pytest.fixture(scope="session")
-def qapp():
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
-    app = cast(QApplication, app)
-    app.setQuitOnLastWindowClosed(False)
-    return app
+    def wait(self, msecs=None):
+        return True
+
+    def requestInterruption(self):
+        self._abort = True
+
+    def deleteLater(self):
+        self.deleteLater_calls += 1
 
 
 def test_tab_renders_import_summary_and_gene_list(qapp):

@@ -3,24 +3,24 @@ Common worker base classes and components
 Reduce duplication and provide unified error handling and signals
 """
 
-from PyQt6.QtCore import QObject, QThread, pyqtSignal
-from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QGroupBox,
-    QPushButton,
-    QFrame,
-    QTextEdit,
-    QLineEdit,
-    QFileDialog,
-    QMessageBox,
-)
-from typing import Any, Dict, Optional
 import logging
 import os
+from typing import Any, Dict, Optional
 
+from PyQt6.QtCore import QObject, QThread, pyqtSignal
+from PyQt6.QtWidgets import (
+    QFileDialog,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 # ── Shared file-drop line edit ──────────────────────────────────────────────
 
@@ -338,7 +338,6 @@ class BaseTabWidget(QWidget):
 
     def open_file(self):
         """Open file (sequence mode)"""
-        from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -357,7 +356,6 @@ class BaseTabWidget(QWidget):
 
     def export_result(self):
         """Export result (sequence mode)"""
-        from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,
@@ -543,40 +541,39 @@ class FASTAWorker(BaseWorker):
         self.output_path = output_path
 
     def validate_files(self) -> bool:
-        """验证输入输出文件路径"""
+        """Validate input/output file paths."""
         import os
 
         if not self.input_path or not os.path.isfile(self.input_path):
-            self.emit_error("输入文件无效或不存在")
+            self.emit_error("Input file is invalid or does not exist")
             return False
 
         if not self.output_path:
-            self.emit_error("输出文件路径不能为空")
+            self.emit_error("Output file path cannot be empty")
             return False
 
-        # 检查输出目录是否存在，不存在则创建
         output_dir = os.path.dirname(self.output_path)
         if output_dir and not os.path.exists(output_dir):
             try:
                 os.makedirs(output_dir)
             except Exception as e:
-                self.emit_error(f"无法创建输出目录: {e}")
+                self.emit_error(f"Failed to create output directory: {e}")
                 return False
 
         return True
 
     def load_fasta_processor(self):
-        """加载FASTA处理器"""
+        """Load FASTA processor."""
         try:
             from modules.fasta_processor import FASTAProcessor
 
             processor = FASTAProcessor()
             if not processor.read_file(self.input_path):
-                self.emit_error("无法读取FASTA文件")
+                self.emit_error("Failed to read FASTA file")
                 return None
             return processor
         except Exception as e:
-            self.emit_error(f"加载FASTA处理器失败: {e}")
+            self.emit_error(f"Failed to load FASTA processor: {e}")
             return None
 
 
@@ -605,48 +602,48 @@ def setup_logging():
 
 def validate_input_path(path: str, file_types: list | None = None) -> tuple[bool, str]:
     """
-    验证输入文件路径
+    Validate an input file path.
 
     Args:
-        path: 文件路径
-        file_types: 允许的文件扩展名列表，如 ['.fasta', '.fa', '.fas']
+        path: file path
+        file_types: allowed file extensions, e.g. ['.fasta', '.fa', '.fas']
 
     Returns:
-        (是否有效, 错误消息)
+        (is_valid, error_message)
     """
     import os
 
     if not path or not path.strip():
-        return False, "文件路径不能为空"
+        return False, "File path cannot be empty"
 
     if not os.path.isfile(path):
-        return False, "文件不存在或不是有效文件"
+        return False, "File does not exist or is not a valid file"
 
     if file_types:
         ext = os.path.splitext(path)[1].lower()
         if ext not in file_types:
-            return False, f"不支持的文件类型，请选择: {', '.join(file_types)}"
+            return False, f"Unsupported file type, please choose: {', '.join(file_types)}"
 
     return True, ""
 
 
 def validate_output_path(path: str) -> tuple[bool, str]:
     """
-    验证输出文件路径
+    Validate an output file path.
 
     Returns:
-        (是否有效, 错误消息)
+        (is_valid, error_message)
     """
     import os
 
     if not path or not path.strip():
-        return False, "输出路径不能为空"
+        return False, "Output path cannot be empty"
 
     output_dir = os.path.dirname(path)
     if output_dir and not os.path.exists(output_dir):
         try:
             os.makedirs(output_dir)
         except Exception as e:
-            return False, f"无法创建输出目录: {e}"
+            return False, f"Failed to create output directory: {e}"
 
     return True, ""

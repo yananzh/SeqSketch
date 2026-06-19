@@ -358,6 +358,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.show_status(self.tr("Workflow failed"))
         self.log_message(message, "ERROR")
         self._set_running_state(False)
+        self._cleanup_worker()
 
     def _handle_run_completed(self, result) -> None:
         step_status = dict(getattr(result, "step_status", {}))
@@ -386,6 +387,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         for warning in warnings:
             self.log_message(warning, "WARNING")
         self._set_running_state(False)
+        self._cleanup_worker()
 
     # ------------------------------------------------------------------
     # Button state management
@@ -531,6 +533,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 self._worker.requestInterruption()
                 self._worker._abort = True
                 self._worker.wait(5000)
+            self._worker.deleteLater()
             self._worker = None
 
     # ------------------------------------------------------------------

@@ -293,6 +293,16 @@ class _MafftBatchWorker(QThread):
         self.naming_pattern = naming_pattern
         self.overwrite = overwrite
         self.sequence_order = sequence_order
+        self._killed = False
+        self._proc: subprocess.Popen | None = None
+
+    def stop(self):
+        self._killed = True
+        if self._proc and self._proc.poll() is None:
+            try:
+                self._proc.kill()
+            except Exception:
+                pass
 
     def _render_name(self, stem: str, ext: str) -> str:
         safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_") or "sample"
@@ -340,6 +350,8 @@ class _MafftBatchWorker(QThread):
         fail_msgs = []
 
         for idx, in_path in enumerate(self.input_files, start=1):
+            if self._killed:
+                break
             tmp_in = None
             try:
                 self.progress.emit(
@@ -368,27 +380,29 @@ class _MafftBatchWorker(QThread):
                     tmp_in,
                     "FASTA",
                 )
-                result = subprocess.run(
+                self._proc = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
                     encoding="utf-8",
                     errors="replace",
-                    timeout=1200,
                     creationflags=(
                         subprocess.CREATE_NO_WINDOW
                         if os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW")
                         else 0
                     ),
                 )
-                if result.returncode != 0:
-                    details = (result.stderr or result.stdout or "").strip()
+                stdout_data, _ = self._proc.communicate(timeout=1200)
+                if self._killed:
+                    break
+                if self._proc.returncode != 0:
+                    details = (self._proc.stderr or self._proc.stdout or "").strip()
                     raise RuntimeError(
-                        f"MAFFT exited with code {result.returncode}: {details}"
+                        f"MAFFT exited with code {self._proc.returncode}: {details}"
                     )
 
-                aligned_fasta = (result.stdout or "").strip()
+                aligned_fasta = (stdout_data or "").strip()
                 out_seqs = _parse_fasta_to_dict(aligned_fasta)
                 if not out_seqs:
                     raise RuntimeError("MAFFT produced empty output")
@@ -420,17 +434,21 @@ class _MafftBatchWorker(QThread):
                     f"[{idx}/{total}] Failed: {os.path.basename(in_path)}"
                 )
             finally:
+                self._proc = None
                 if tmp_in and os.path.exists(tmp_in):
                     try:
                         os.remove(tmp_in)
                     except OSError:
                         pass
 
-        summary = [f"Batch completed: {ok}/{total} succeeded."]
-        if fail_msgs:
-            summary.append("\nFailures:")
-            summary.extend(f"- {msg}" for msg in fail_msgs)
-        self.finished.emit("\n".join(summary))
+        if self._killed:
+            self.finished.emit(f"Batch cancelled: {ok}/{total} succeeded before cancel.")
+        else:
+            summary = [f"Batch completed: {ok}/{total} succeeded."]
+            if fail_msgs:
+                summary.append("\nFailures:")
+                summary.extend(f"- {msg}" for msg in fail_msgs)
+            self.finished.emit("\n".join(summary))
 
 
 class MafftAlignmentTab(BaseTabWidget):
@@ -445,6 +463,18 @@ class MafftAlignmentTab(BaseTabWidget):
         self._setup_output()
         self._setup_drag_drop()
         self._setup_mode_tabs()
+        self._setup_stop_button()
+
+    def _setup_stop_button(self):
+        self.stop_btn = QPushButton(self.tr("Stop"))
+        self.stop_btn.setVisible(False)
+        self.stop_btn.clicked.connect(self._cancel_batch)
+        self.status_layout.insertWidget(self.status_layout.indexOf(self.run_btn) + 1, self.stop_btn)
+
+    def _cancel_batch(self):
+        if self._batch_worker is not None and self._batch_worker.isRunning():
+            self._batch_worker.stop()
+            self.status_label.setText(self.tr("Cancelling…"))
 
     def _rebuild_input_area(self):
         self.input_label.setText("Input Sequences (FASTA):")
@@ -842,6 +872,7 @@ class MafftAlignmentTab(BaseTabWidget):
             return
 
         self.run_btn.setEnabled(False)
+        self.stop_btn.setVisible(True)
         self.batch_log.clear()
         self.batch_log.append(f"Starting batch for {len(input_files)} file(s)...")
         self.status_label.setText("Running batch MAFFT alignment...")
@@ -868,14 +899,24 @@ class MafftAlignmentTab(BaseTabWidget):
 
     def _on_batch_finished(self, summary: str):
         self.run_btn.setEnabled(True)
+        self.stop_btn.setVisible(False)
         self.batch_log.append("\n" + summary)
         self.status_label.setText("Batch done.")
+        if self._batch_worker is not None:
+            self._batch_worker.wait()
+            self._batch_worker.deleteLater()
+            self._batch_worker = None
 
     def _on_batch_error(self, msg: str):
         self.run_btn.setEnabled(True)
+        self.stop_btn.setVisible(False)
         self.batch_log.append("Error: " + msg)
         self.status_label.setText("Batch failed.")
         QMessageBox.critical(self, "Batch MAFFT Error", msg)
+        if self._batch_worker is not None:
+            self._batch_worker.wait()
+            self._batch_worker.deleteLater()
+            self._batch_worker = None
 
     def set_running_state(self, running: bool):
         self.run_btn.setEnabled(not running)

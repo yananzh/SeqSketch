@@ -1,6 +1,25 @@
 softwares/
 .venv
 .vscode
-__pycache__
+__pycache__/
+*.pyc
 dist/
 build/
+
+# Per-user runtime data (favorites_manager writes to %APPDATA%/SeqSketch/)
+bookmarks.json
+favorites.json
+
+# Runtime logs and scratch files
+startup.log
+logs/
+nul
+
+# Stray dev scratch files
+all_files.txt
+tracked.txt
+tracked_py.txt
+_test_taxa.py
+
+# Ad-hoc alignment outputs produced while running the app
+*_alignment_*.fasta

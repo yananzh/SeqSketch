@@ -1,4 +1,4 @@
-# BioSeq Analyzer
+# SeqSketch
 
 一个基于PyQt6的生物信息学序列分析软件，支持FASTA、FASTQ、GenBank等格式，集成多种本地和在线分析工具，界面美观，支持中英文切换。
 
@@ -42,7 +42,7 @@ python main.py
 打包产物：
 
 ```text
-dist\BioSeqAnalyzer.exe
+dist\SeqSketch\SeqSketch.exe
 ```
 
 也可使用批处理：

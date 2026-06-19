@@ -1,8 +1,7 @@
 import os
-from pathlib import Path
 import re
 import time
-from typing import cast
+from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -16,16 +15,6 @@ from modules.extract_by_id_tab import ExtractByIDTab
 from modules.extract_by_regex_tab import ExtractByRegexTab
 from modules.sequence_statistics_tab import SequenceStatisticsTab
 from modules.simplify_ids_tab import SimplifyIDsTab
-
-
-@pytest.fixture(scope="session")
-def qapp():
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
-    app = cast(QApplication, app)
-    app.setQuitOnLastWindowClosed(False)
-    return app
 
 
 @pytest.fixture
@@ -666,8 +655,9 @@ def test_download_from_ncbi_retries_after_network_error(
         def read(self):
             return self._data
 
-    from Bio import Entrez
     from urllib.error import URLError
+
+    from Bio import Entrez
 
     attempts = {"count": 0}
 
@@ -987,8 +977,9 @@ def test_download_from_ncbi_network_error(qapp, tmp_path: Path, monkeypatch):
     output_path = tmp_path / "download_network_error.fasta"
     tab = DownloadFromNCBITab()
 
-    from Bio import Entrez
     from urllib.error import URLError
+
+    from Bio import Entrez
 
     def fake_efetch(**kwargs):
         raise URLError("temporary network failure")

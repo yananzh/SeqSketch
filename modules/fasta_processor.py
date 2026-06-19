@@ -83,10 +83,10 @@ class FASTAProcessor:
                             current_sequence += line
                 if current_header and current_sequence:
                     self._add_record(current_header, current_sequence)
-            logger.info(f"成功读取FASTA文件: {file_path}, 包含 {len(self.records)} 条序列")
+            logger.info(f"Successfully read FASTA file: {file_path}, {len(self.records)} records")
             return True
         except Exception as e:
-            logger.error(f"读取FASTA文件失败: {e}")
+            logger.error(f"Failed to read FASTA file: {e}")
             return False
     
     def _add_record(self, header: str, sequence: str):
@@ -114,20 +114,18 @@ class FASTAProcessor:
             Tuple[bool, List[str]]: (是否有效, 错误信息列表)
         """
         errors = []
-        
+
         if not self.records:
-            errors.append("文件为空或格式错误")
+            errors.append("File is empty or has invalid format")
             return False, errors
-        
+
         for i, record in enumerate(self.records):
-            # 检查序列长度
             if record.length == 0:
-                errors.append(f"记录 {i+1} ({record.header}): 序列为空")
-            
-            # 检查序列字符
+                errors.append(f"Record {i+1} ({record.header}): sequence is empty")
+
             invalid_chars = set(record.sequence) - set('ATGCUNRYMKSWBDHVatgcunrymkswbdhv')
             if invalid_chars:
-                errors.append(f"记录 {i+1} ({record.header}): 包含无效字符 {invalid_chars}")
+                errors.append(f"Record {i+1} ({record.header}): contains invalid characters {invalid_chars}")
         
         return len(errors) == 0, errors
     
@@ -232,11 +230,11 @@ class FASTAProcessor:
                     for i in range(0, len(sequence), 80):
                         f.write(sequence[i:i+80] + "\n")
             
-            logger.info(f"成功保存FASTA文件: {output_path}")
+            logger.info(f"Successfully saved FASTA file: {output_path}")
             return True
-            
+
         except Exception as e:
-            logger.error(f"保存FASTA文件失败: {e}")
+            logger.error(f"Failed to save FASTA file: {e}")
             return False
     
     def get_sequence_by_id(self, sequence_id: str) -> Optional[FASTARecord]:
@@ -351,12 +349,12 @@ def batch_process_fasta_files(file_paths: List[str],
                 else:
                     results[file_path] = {
                         'status': 'error',
-                        'message': '保存文件失败'
+                        'message': 'Failed to save file'
                     }
             else:
                 results[file_path] = {
                     'status': 'error',
-                    'message': '读取文件失败'
+                    'message': 'Failed to read file'
                 }
                 
         except Exception as e:

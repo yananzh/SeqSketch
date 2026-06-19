@@ -682,7 +682,10 @@ graphics, we recommend:</p>
             self._render_thread = None
 
     def _on_render_done(self, success: bool, png_path: str, msg: str):
-        self._render_thread = None
+        if self._render_thread is not None:
+            self._render_thread.wait()
+            self._render_thread.deleteLater()
+            self._render_thread = None
         self._draw_btn.setEnabled(True)
         if success:
             self._show_png(png_path)
@@ -738,7 +741,10 @@ graphics, we recommend:</p>
             self._export_thread = None
 
     def _on_export_done(self, success: bool, path: str, msg: str):
-        self._export_thread = None
+        if self._export_thread is not None:
+            self._export_thread.wait()
+            self._export_thread.deleteLater()
+            self._export_thread = None
         if success:
             self._set_status(self.tr(f"\u2714 Exported: {path}"))
         else:

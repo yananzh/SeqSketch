@@ -592,10 +592,14 @@ class AlignmentTrimmingTab(BaseTabWidget):
         fmt_layout.addStretch()
         self.add_content_widget(fmt_box)
 
-        # ── run button (status bar, Help on its right) ───────────────────
+        # ── run/stop buttons (status bar, Help on its right) ─────────────
         self.run_btn = QPushButton(self.tr("Run trimAl"))
         self.run_btn.clicked.connect(self._run)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
+        self.stop_btn = QPushButton(self.tr("Stop"))
+        self.stop_btn.setVisible(False)
+        self.stop_btn.clicked.connect(self._cancel)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.stop_btn)
 
         # Anchor the shared log area near the bottom
         self.content_area.addStretch()
@@ -805,6 +809,8 @@ class AlignmentTrimmingTab(BaseTabWidget):
 
         # ── Switch to running state ───────────────────────────────────────
         self.run_btn.setEnabled(False)
+        self.run_btn.setVisible(False)
+        self.stop_btn.setVisible(True)
         msg = "Running trimAl…" if total == 1 else f"Batch trimming {total} files…"
         self.show_status(msg)
         if self.status_callback:
@@ -815,6 +821,11 @@ class AlignmentTrimmingTab(BaseTabWidget):
         self._thread.file_done.connect(self._on_file_done)
         self._thread.all_done.connect(self._on_all_done)
         self._thread.start()
+
+    def _cancel(self):
+        if self._thread is not None and self._thread.isRunning():
+            self._thread.stop()
+            self.show_status(self.tr("Cancelling…"))
 
     def _selected_method_name(self) -> str:
         if self.rb_auto1.isChecked():
@@ -852,6 +863,8 @@ class AlignmentTrimmingTab(BaseTabWidget):
     def _on_all_done(self, succeeded: int, failed: int):
         total = succeeded + failed
         self.run_btn.setEnabled(True)
+        self.run_btn.setVisible(True)
+        self.stop_btn.setVisible(False)
         if self.status_callback:
             self.status_callback("")
 
@@ -876,3 +889,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
             self.log_area.append(
                 f"{succeeded} succeeded, {failed} failed.\nOutput folder: {outdir}"
             )
+        if self._thread is not None:
+            self._thread.wait()
+            self._thread.deleteLater()
+            self._thread = None

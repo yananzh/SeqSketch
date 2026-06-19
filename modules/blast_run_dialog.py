@@ -49,6 +49,7 @@ class _RunBlastThread(QThread):
         self.num_threads = str(num_threads)
         self.num_hits = str(num_hits)
         self._proc = None
+        self._cancelled = False
 
     def cancel(self):
         self._cancelled = True
@@ -92,6 +93,7 @@ class _RunBlastThread(QThread):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
             stdout, stderr = self._proc.communicate(timeout=3600)
 
@@ -462,3 +464,7 @@ class BlastRunDialog(QDialog):
             QMessageBox.critical(
                 self, "BLAST Failed", f"BLAST reported an error:\n\n{msg}"
             )
+        if self._thread is not None:
+            self._thread.wait()
+            self._thread.deleteLater()
+            self._thread = None

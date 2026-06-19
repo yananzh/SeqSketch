@@ -1,6 +1,6 @@
 ---
 name: standardizing-pyqt-tab-layout
-description: Use when creating or refactoring BioSeqAnalyzer PyQt tabs and they should follow the DNA Analysis layout pattern for sectioning, bottom action placement, horizontal form rows, and consistent control naming.
+description: Use when creating or refactoring SeqSketch PyQt tabs and they should follow the DNA Analysis layout pattern for sectioning, bottom action placement, horizontal form rows, and consistent control naming.
 ---
 
 # Standardizing PyQt Tab Layout

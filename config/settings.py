@@ -55,7 +55,7 @@ class Settings:
             with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(self.settings, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"保存设置失败: {e}")
+            print(f"Failed to save settings: {e}")
 
     def get(self, key_path: str, default=None):
         """获取设置值"""

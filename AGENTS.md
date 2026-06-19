@@ -1,4 +1,4 @@
-# BioSeqAnalyzer — Agent Instructions
+# SeqSketch — Agent Instructions
 
 PyQt6-based bioinformatics desktop app for sequence analysis. Keep this file minimal and actionable; link to [readme.txt](readme.txt) for user-facing feature descriptions.
 
@@ -8,9 +8,12 @@ Run from the repository root on Windows:
 
 ```bash
 pip install -r requirements.txt
+pip install -r dev-requirements.txt   # pytest, pytest-timeout, ruff
 python main.py
 py -m pytest tests/test_dna_analysis_tabs.py -q
 py -m pytest tests/test_fasta_tools_tabs.py -q
+py -m pytest -q                       # full suite (auto-timeout 60s per test)
+ruff check .                          # lint
 ```
 
 Build the Windows portable onedir distribution with PyInstaller:
@@ -19,13 +22,15 @@ Build the Windows portable onedir distribution with PyInstaller:
 .\scripts\build_onedir.ps1
 ```
 
-The output `dist/BioSeqAnalyzer/` is a self-contained portable folder — copy it anywhere.
+The output `dist/SeqSketch/` is a self-contained portable folder — copy it anywhere.
 
 Notes:
 
+- `tests/conftest.py` provides the shared `qapp` fixture and sets `QT_QPA_PLATFORM=offscreen`.
 - `tests/test_fasta_tools_tabs.py` covers the file-mode FASTA Tools tabs.
 - `tests/test_dna_analysis_tabs.py` covers sequence-mode DNA tabs plus `MainWindow` tab reuse and menu wiring.
-- The pytest suite sets `QT_QPA_PLATFORM=offscreen`, so prefer pytest over ad hoc GUI automation for FASTA Tools regressions.
+- `pyproject.toml` configures `pytest` (timeout=60s) and `ruff` (line-length=100, target=py310).
+- Prefer pytest over ad hoc GUI automation for FASTA Tools regressions.
 - `main.py` optionally shows a splash screen if `start_logo.png` exists in the repo root.
 
 ## Scoped Instructions

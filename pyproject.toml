@@ -1,0 +1,19 @@
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",   # line length handled by line-length above
+    "E402",   # module-level imports after non-import code (common in PyQt tabs)
+    "F401",   # unused import (Qt widgets import many names used in subclasses)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F401"]
+"modules/__init__.py" = ["F401"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+timeout = 60

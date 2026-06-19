@@ -1,19 +1,18 @@
-from PyQt6.QtWidgets import (
-    QMainWindow,
-    QTabWidget,
-    QStatusBar,
-    QFileDialog,
-    QMessageBox,
-    QApplication,
-)
-from PyQt6.QtCore import Qt
-from menus import create_menus
-from PyQt6.QtGui import QIcon, QPixmap
 import os
 
-from utils.app_paths import resource_path
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QMainWindow,
+    QMessageBox,
+    QStatusBar,
+    QTabWidget,
+)
 
-# 新增DNA序列分析相关Tab（按需导入）
+from menus import create_menus
+from utils.app_paths import resource_path
 
 
 class MainWindow(QMainWindow):
@@ -22,25 +21,20 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.tr("SeqSketch"))
         self.resize(1100, 700)
         self.setAcceptDrops(True)
-        # 设置窗口logo
         icon_path = resource_path("window_logo.png")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
-        # Keep references to child windows to prevent garbage collection
         self.child_windows = []
         self._init_ui()
         self._load_style()
 
     def _init_ui(self):
-        # Tab区域
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
         self.tabs.tabCloseRequested.connect(self.close_tab)
         self.setCentralWidget(self.tabs)
-        # 状态栏
         self.status = QStatusBar()
         self.setStatusBar(self.status)
-        # 菜单栏和工具栏
         create_menus(self)
 
     def _load_style(self, dark=False):
@@ -67,114 +61,73 @@ class MainWindow(QMainWindow):
         else:
             self.status.showMessage(text, 5000)
 
+    def _find_or_open(self, tab_class, title, factory=None, reuse=True):
+        """Reuse an existing tab of *tab_class*, or create a new one.
+
+        Args:
+            tab_class: tab class used for the isinstance reuse check.
+            title: tab title text (wrapped in self.tr()).
+            factory: callable returning a new tab; defaults to tab_class().
+            reuse: when True, focus an existing tab instead of creating a new one.
+        """
+        if reuse:
+            for i in range(self.tabs.count()):
+                if isinstance(self.tabs.widget(i), tab_class):
+                    self.tabs.setCurrentIndex(i)
+                    return None
+        tab = (factory or tab_class)()
+        self.tabs.addTab(tab, self.tr(title))
+        self.tabs.setCurrentWidget(tab)
+        return tab
+
+    def close_tab(self, index):
+        widget = self.tabs.widget(index)
+        self.tabs.removeTab(index)
+        widget.deleteLater()
+
+    # ── FASTA Tools ──────────────────────────────────────────────────────
+
     def open_sequence_statistics_tab(self):
         from modules.sequence_statistics_tab import SequenceStatisticsTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), SequenceStatisticsTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = SequenceStatisticsTab()
-        self.tabs.addTab(tab, self.tr("FASTA QC"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(SequenceStatisticsTab, "FASTA QC")
 
     def open_simplify_ids_tab(self):
         from modules.simplify_ids_tab import SimplifyIDsTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), SimplifyIDsTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = SimplifyIDsTab()
-        self.tabs.addTab(tab, self.tr("Simplify Headers"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(SimplifyIDsTab, "Simplify Headers")
 
     def open_extract_by_id_tab(self):
         from modules.extract_by_id_tab import ExtractByIDTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), ExtractByIDTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = ExtractByIDTab()
-        self.tabs.addTab(tab, self.tr("Filter by IDs"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(ExtractByIDTab, "Filter by IDs")
 
     def open_extract_by_regex_tab(self):
         from modules.extract_by_regex_tab import ExtractByRegexTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), ExtractByRegexTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = ExtractByRegexTab()
-        self.tabs.addTab(tab, self.tr("Regex Filter"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(ExtractByRegexTab, "Regex Filter")
 
     def open_download_from_ncbi_tab(self):
         from modules.download_from_ncbi_tab import DownloadFromNCBITab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), DownloadFromNCBITab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = DownloadFromNCBITab()
-        self.tabs.addTab(tab, self.tr("NCBI Download"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(DownloadFromNCBITab, "NCBI Download")
 
     def open_batch_rename_ids_tab(self):
         from modules.batch_rename_ids_tab import BatchRenameIDsTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), BatchRenameIDsTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = BatchRenameIDsTab()
-        self.tabs.addTab(tab, self.tr("Rename IDs"))
-        self.tabs.setCurrentWidget(tab)
-
-    # ── 新增 FASTA Tools ──
+        self._find_or_open(BatchRenameIDsTab, "Rename IDs")
 
     def open_deduplicate_tab(self):
         from modules.deduplicate_tab import DeduplicateTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), DeduplicateTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = DeduplicateTab()
-        self.tabs.addTab(tab, self.tr("Deduplicate"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(DeduplicateTab, "Deduplicate")
 
     def open_filter_by_length_tab(self):
         from modules.filter_by_length_tab import FilterByLengthTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), FilterByLengthTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = FilterByLengthTab()
-        self.tabs.addTab(tab, self.tr("Filter by Length"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(FilterByLengthTab, "Filter by Length")
 
     def open_concat_fasta_tab(self):
         from modules.concat_fasta_tab import ConcatFastaTab
+        self._find_or_open(ConcatFastaTab, "Concatenate FASTA")
 
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), ConcatFastaTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = ConcatFastaTab()
-        self.tabs.addTab(tab, self.tr("Concatenate FASTA"))
-        self.tabs.setCurrentWidget(tab)
+    # ── DNA Analysis ─────────────────────────────────────────────────────
 
-    # DNA序列分析六大功能Tab
     def open_rna_tab(self):
         from modules.rna_tab import RNATab
-
-        tab = RNATab()
-        self.tabs.addTab(tab, "Convert to RNA")
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(RNATab, "Convert to RNA", reuse=False)
 
     def _open_complement_tools_tab(self, mode: str):
         from modules.complement_tab import ComplementTab
@@ -187,7 +140,7 @@ class MainWindow(QMainWindow):
                 return
         tab = ComplementTab()
         tab.set_mode(mode)
-        self.tabs.addTab(tab, "Complement/Reverse Complement")
+        self.tabs.addTab(tab, self.tr("Complement/Reverse Complement"))
         self.tabs.setCurrentWidget(tab)
 
     def open_complement_tab(self):
@@ -198,221 +151,84 @@ class MainWindow(QMainWindow):
 
     def open_translate_tab(self):
         from modules.translate_tab import TranslateTab
-
-        tab = TranslateTab()
-        self.tabs.addTab(tab, "Translate")
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(TranslateTab, "Translate", reuse=False)
 
     def open_orf_tab(self):
         from modules.orf_tab import ORFTab
-
-        tab = ORFTab()
-        self.tabs.addTab(tab, "ORF Finder")
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(ORFTab, "ORF Finder", reuse=False)
 
     def open_sanger_tab(self):
         from modules.sanger_tab import SangerTab
-
-        tab = SangerTab()
-        self.tabs.addTab(tab, "Sanger Sequence Assembly")
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(SangerTab, "Sanger Sequence Assembly", reuse=False)
 
     def open_sanger_viewer_tab(self):
         from modules.sanger_viewer_tab import SangerViewerTab
-
-        tab = SangerViewerTab()
-        self.tabs.addTab(tab, self.tr("Sanger Seq Viewer"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(SangerViewerTab, "Sanger Seq Viewer", reuse=False)
 
     def open_codon_usage_tab(self):
         from modules.codon_usage_tab import CodonUsageTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), CodonUsageTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = CodonUsageTab(status_callback=self.status.showMessage)
-        self.tabs.addTab(tab, self.tr("Codon Usage Analysis"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(
+            CodonUsageTab,
+            "Codon Usage Analysis",
+            factory=lambda: CodonUsageTab(status_callback=self.status.showMessage),
+        )
 
     def open_restriction_enzyme_tab(self):
         from modules.restriction_enzyme_tab import RestrictionEnzymeTab
+        self._find_or_open(RestrictionEnzymeTab, "Restriction Enzyme Analysis", reuse=False)
 
-        tab = RestrictionEnzymeTab()
-        self.tabs.addTab(tab, self.tr("Restriction Enzyme Analysis"))
-        self.tabs.setCurrentWidget(tab)
+    # ── Protein Analysis ─────────────────────────────────────────────────
 
-    def close_tab(self, index):
-        widget = self.tabs.widget(index)
-        self.tabs.removeTab(index)
-        widget.deleteLater()
-
-    # 蛋白质序列分析相关槽函数
     def open_amino_acid_composition_tab(self):
         from modules.amino_acid_composition_tab import AminoAcidCompositionTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), AminoAcidCompositionTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = AminoAcidCompositionTab()
-        self.tabs.addTab(tab, self.tr("Amino Acid Composition"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(AminoAcidCompositionTab, "Amino Acid Composition")
 
     def open_physicochemical_properties_tab(self):
         from modules.physicochemical_properties_tab import PhysicochemicalPropertiesTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), PhysicochemicalPropertiesTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = PhysicochemicalPropertiesTab()
-        self.tabs.addTab(tab, self.tr("Physicochemical Properties"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(PhysicochemicalPropertiesTab, "Physicochemical Properties")
 
     def open_hydrophobicity_plot_tab(self):
         from modules.hydrophobicity_plot_tab import HydrophobicityPlotTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), HydrophobicityPlotTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = HydrophobicityPlotTab()
-        self.tabs.addTab(tab, self.tr("Hydrophobicity Plot"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(HydrophobicityPlotTab, "Hydrophobicity Plot")
 
     def open_protease_cleavage_tab(self):
         from modules.protease_cleavage_tab import ProteaseCleavageTab
+        self._find_or_open(ProteaseCleavageTab, "Protease Cleavage Map")
 
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), ProteaseCleavageTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = ProteaseCleavageTab()
-        self.tabs.addTab(tab, self.tr("Protease Cleavage Map"))
-        self.tabs.setCurrentWidget(tab)
+    # ── Alignment ────────────────────────────────────────────────────────
 
-    def open_url_in_browser(self, url):
-        from PyQt6.QtGui import QDesktopServices
-        from PyQt6.QtCore import QUrl
-
-        QDesktopServices.openUrl(QUrl(url))
-
-    # Alignment相关槽函数
     def open_pairwise_alignment_tab(self):
         from modules.pairwise_alignment_tab import PairwiseAlignmentTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), PairwiseAlignmentTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = PairwiseAlignmentTab()
-        self.tabs.addTab(tab, self.tr("Pairwise Sequence Alignment"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_primer_design_tab(self):
-        from modules.primer3_gui import PrimerDesignTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), PrimerDesignTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = PrimerDesignTab()
-        self.tabs.addTab(tab, self.tr("qPCR Primer Design"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_primer_analysis_tab(self):
-        from modules.primer_analysis_tab import PrimerAnalysisTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), PrimerAnalysisTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = PrimerAnalysisTab()
-        self.tabs.addTab(tab, self.tr("Primer Analysis"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_favorites_manager_tab(self):
-        from modules.favorites_manager import BookmarkManager
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), BookmarkManager):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = BookmarkManager()
-        self.tabs.addTab(tab, self.tr("Favorites"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(PairwiseAlignmentTab, "Pairwise Sequence Alignment")
 
     def open_dotplot_tab(self):
         from modules.dotplot_tab import DotPlotTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), DotPlotTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = DotPlotTab()
-        self.tabs.addTab(tab, self.tr("DotPlot"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(DotPlotTab, "DotPlot")
 
     def open_multiple_sequence_alignment_tab(self):
         from modules.multiple_sequence_alignment_tab import MultipleSequenceAlignmentTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), MultipleSequenceAlignmentTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = MultipleSequenceAlignmentTab()
-        self.tabs.addTab(tab, self.tr("Multiple Sequence Alignment (Muscle5)"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(MultipleSequenceAlignmentTab, "Multiple Sequence Alignment (Muscle5)")
 
     def open_mafft_alignment_tab(self):
         from modules.mafft_alignment_tab import MafftAlignmentTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), MafftAlignmentTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = MafftAlignmentTab()
-        self.tabs.addTab(tab, self.tr("Multiple Sequence Alignment (MAFFT)"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(MafftAlignmentTab, "Multiple Sequence Alignment (MAFFT)")
 
     def open_alignment_format_converter_tab(self):
         from modules.alignment_format_converter_tab import AlignmentFormatConverterTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), AlignmentFormatConverterTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = AlignmentFormatConverterTab()
-        self.tabs.addTab(tab, self.tr("Alignment Format Converter"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(AlignmentFormatConverterTab, "Alignment Format Converter")
 
     def open_msa_visualization_tab(self):
         from modules.msa_visualization_tab import MSAVisualizationTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), MSAVisualizationTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = MSAVisualizationTab()
-        self.tabs.addTab(tab, self.tr("MSA Visualization (pyMSAviz)"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(MSAVisualizationTab, "MSA Visualization (pyMSAviz)")
 
     def open_sequence_logo_tab(self):
         from modules.sequence_logo_tab import SequenceLogoTab
+        self._find_or_open(SequenceLogoTab, "Sequence Logo (Logomaker)")
 
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), SequenceLogoTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = SequenceLogoTab()
-        self.tabs.addTab(tab, self.tr("Sequence Logo (Logomaker)"))
-        self.tabs.setCurrentWidget(tab)
+    # ── BLAST ────────────────────────────────────────────────────────────
 
-    # BLAST分析相关槽函数
     def open_ncbi_blast_web(self):
         import webbrowser
-
         webbrowser.open_new_tab("https://blast.ncbi.nlm.nih.gov/Blast.cgi")
 
     def _open_blast_local_tab(self, sub_index: int = 0):
@@ -420,7 +236,6 @@ class MainWindow(QMainWindow):
         from modules.blast_local_tab import BlastLocalTab
         from modules.blast_result_tab import BlastResultTab
 
-        # Reuse existing tab if already open
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), BlastLocalTab):
                 self.tabs.setCurrentIndex(i)
@@ -429,14 +244,14 @@ class MainWindow(QMainWindow):
 
         def on_result(tsv_path):
             result_tab = BlastResultTab(tsv_path)
-            self.tabs.addTab(result_tab, "BLAST Result")
+            self.tabs.addTab(result_tab, self.tr("BLAST Result"))
             self.tabs.setCurrentWidget(result_tab)
 
         tab = BlastLocalTab(
             status_callback=self.status.showMessage,
             result_callback=on_result,
         )
-        self.tabs.addTab(tab, "Local BLAST")
+        self.tabs.addTab(tab, self.tr("Local BLAST"))
         self.tabs.setCurrentWidget(tab)
         tab.switch_to(sub_index)
 
@@ -449,82 +264,84 @@ class MainWindow(QMainWindow):
     def open_blast_run_dialog(self):
         self._open_blast_local_tab(sub_index=1)
 
+    # ── Primer Design ────────────────────────────────────────────────────
+
+    def open_primer_design_tab(self):
+        from modules.primer3_gui import PrimerDesignTab
+        self._find_or_open(PrimerDesignTab, "qPCR Primer Design")
+
+    def open_primer_analysis_tab(self):
+        from modules.primer_analysis_tab import PrimerAnalysisTab
+        self._find_or_open(PrimerAnalysisTab, "Primer Analysis")
+
+    # ── Phylogenetic Tree ────────────────────────────────────────────────
+
     def open_iqtree_tab(self):
-        """Open (or focus) the IQ-TREE Tree Construction tab."""
         from modules.iqtree_tab import IqTreeTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), IqTreeTab):
-                self.tabs.setCurrentIndex(i)
-                return
-
-        tab = IqTreeTab(status_callback=self.status.showMessage)
-        self.tabs.addTab(tab, self.tr("Tree Construction (IQ-TREE)"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(
+            IqTreeTab,
+            "Tree Construction (IQ-TREE)",
+            factory=lambda: IqTreeTab(status_callback=self.status.showMessage),
+        )
 
     def open_partition_concat_tab(self):
-        """Open (or focus) the Sequence Concatenation tab."""
         from modules.partition_concat_tab import PartitionConcatTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), PartitionConcatTab):
-                self.tabs.setCurrentIndex(i)
-                return
-
-        tab = PartitionConcatTab(status_callback=self.status.showMessage)
-        self.tabs.addTab(tab, self.tr("Sequence Concatenation"))
-        self.tabs.setCurrentWidget(tab)
+        self._find_or_open(
+            PartitionConcatTab,
+            "Sequence Concatenation",
+            factory=lambda: PartitionConcatTab(status_callback=self.status.showMessage),
+        )
 
     def open_one_step_multigenephy_tab(self):
-        """Open a new One Step MultiGenePhy tab (multi-instance)."""
         from modules.one_step_multigenephy_tab import OneStepMultiGenePhyTab
+        self._find_or_open(
+            OneStepMultiGenePhyTab,
+            "One Step MultiGenePhy",
+            factory=lambda: OneStepMultiGenePhyTab(status_callback=None),
+            reuse=False,
+        )
 
-        tab = OneStepMultiGenePhyTab(status_callback=None)
-        self.tabs.addTab(tab, self.tr("One Step MultiGenePhy"))
-        self.tabs.setCurrentWidget(tab)
+    def open_tree_visualization_tab(self):
+        from modules.tree_visualization_tab import SimpleTreeVisualizationTab
+        self._find_or_open(SimpleTreeVisualizationTab, "Tree Visualization")
+
+    def open_alignment_trimming_tab(self):
+        from modules.trimal_tab import AlignmentTrimmingTab
+        self._find_or_open(
+            AlignmentTrimmingTab,
+            "Alignment Trimming (trimAl)",
+            factory=lambda: AlignmentTrimmingTab(status_callback=self.status.showMessage),
+        )
+
+    # ── Favorites ────────────────────────────────────────────────────────
+
+    def open_favorites_manager_tab(self):
+        from modules.favorites_manager import BookmarkManager
+        self._find_or_open(BookmarkManager, "Favorites")
+
+    # ── Misc ─────────────────────────────────────────────────────────────
+
+    def open_url_in_browser(self, url):
+        from PyQt6.QtCore import QUrl
+        from PyQt6.QtGui import QDesktopServices
+        QDesktopServices.openUrl(QUrl(url))
 
     def _remove_child_window(self, window):
         if window in self.child_windows:
             self.child_windows.remove(window)
 
-    def open_tree_visualization_tab(self):
-        """Open (or focus) the Tree Visualization tab."""
-        from modules.tree_visualization_tab import SimpleTreeVisualizationTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), SimpleTreeVisualizationTab):
-                self.tabs.setCurrentIndex(i)
-                return
-
-        tab = SimpleTreeVisualizationTab()
-        self.tabs.addTab(tab, self.tr("Tree Visualization"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_alignment_trimming_tab(self):
-        """Open (or focus) the Alignment Trimming (trimAl) tab."""
-        from modules.trimal_tab import AlignmentTrimmingTab
-
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), AlignmentTrimmingTab):
-                self.tabs.setCurrentIndex(i)
-                return
-
-        tab = AlignmentTrimmingTab(status_callback=self.status.showMessage)
-        self.tabs.addTab(tab, self.tr("Alignment Trimming (trimAl)"))
-        self.tabs.setCurrentWidget(tab)
-
     def check_for_updates(self):
-        """Check for updates"""
         QMessageBox.information(
             self,
             self.tr("Check for Updates"),
             self.tr(
-                "Current version: v1.0.0\n\nNo updates available.\n\nVisit the project page for the latest info:\nhttps://github.com/yananzh/SeqSketch"
+                "Current version: v1.0.0\n\nNo updates available.\n\n"
+                "Visit the project page for the latest info:\n"
+                "https://github.com/yananzh/SeqSketch"
             ),
         )
 
     def show_about_dialog(self):
-        """Show About dialog"""
         about_text = self.tr("""
 <div style="text-align:center; margin-bottom:12px;">
 <h1 style="color:#2c7fb8; font-size:22px; margin:0;">🧬 SeqSketch</h1>
@@ -566,5 +383,4 @@ class MainWindow(QMainWindow):
 Made with ❤️ using Python &amp; PyQt6 — for the bioinformatics community
 </p>
         """)
-
         QMessageBox.about(self, self.tr("About SeqSketch"), about_text)

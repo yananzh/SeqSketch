@@ -565,3 +565,7 @@ class IqTreeTab(BaseTabWidget):
             self.show_status(self.tr("⛔ Run stopped by user."))
         else:
             self.show_status(self.tr("✖ IQ-TREE returned an error. See log below."))
+        if self._thread is not None:
+            self._thread.wait()
+            self._thread.deleteLater()
+            self._thread = None

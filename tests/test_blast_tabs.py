@@ -1,25 +1,14 @@
 import os
-from typing import cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PyQt6.QtWidgets import QApplication, QFileDialog, QLabel, QMessageBox, QPushButton
+from PyQt6.QtWidgets import QFileDialog, QLabel, QMessageBox, QPushButton
 
 from main_window import MainWindow
 from modules import blast_config
 from modules.blast_local_tab import BlastLocalTab
 from modules.blast_result_tab import BlastResultTab
-
-
-@pytest.fixture(scope="session")
-def qapp():
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
-    app = cast(QApplication, app)
-    app.setQuitOnLastWindowClosed(False)
-    return app
 
 
 def test_local_blast_tab_uses_inline_database_builder_and_shared_query_editor_style(

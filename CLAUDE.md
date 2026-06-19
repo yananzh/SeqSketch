@@ -6,20 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 pip install -r requirements.txt
+pip install -r dev-requirements.txt   # pytest, pytest-timeout, ruff
 python main.py
-py -m pytest tests/test_dna_analysis_tabs.py -q
-py -m pytest tests/test_fasta_tools_tabs.py -q
+py -m pytest -q                       # full suite (auto-timeout 60s per test)
+ruff check .                          # lint
 ```
 
 Build Windows portable distribution:
 ```powershell
 .\scripts\build_onedir.ps1
 ```
-Output: `dist/BioSeqAnalyzer/` — self-contained portable folder.
+Output: `dist/SeqSketch/` — self-contained portable folder.
 
 ## Project Overview
 
-**BioSeqAnalyzer** — PyQt6-based bioinformatics desktop app for sequence analysis. Tab-based UI with features spanning FASTA processing, DNA/RNA analysis, protein analysis, alignment, BLAST, primer design, phylogenetics, and Sanger sequencing.
+**SeqSketch** — PyQt6-based bioinformatics desktop app for sequence analysis. Tab-based UI with features spanning FASTA processing, DNA/RNA analysis, protein analysis, alignment, BLAST, primer design, phylogenetics, and Sanger sequencing.
 
 ## Architecture
 

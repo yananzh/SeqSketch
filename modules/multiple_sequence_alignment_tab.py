@@ -94,6 +94,7 @@ class _MuscleWorker(QThread):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 timeout=600,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
 
             if result.returncode != 0:
@@ -249,6 +250,16 @@ class _MuscleBatchWorker(QThread):
         self.naming_pattern = naming_pattern
         self.overwrite = overwrite
         self.sequence_order = sequence_order
+        self._killed = False
+        self._proc: subprocess.Popen | None = None
+
+    def stop(self):
+        self._killed = True
+        if self._proc and self._proc.poll() is None:
+            try:
+                self._proc.kill()
+            except Exception:
+                pass
 
     def _render_name(self, stem: str, ext: str) -> str:
         safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_") or "sample"
@@ -297,6 +308,8 @@ class _MuscleBatchWorker(QThread):
         flag = "-align" if self.method == "accurate" else "-super5"
 
         for idx, in_path in enumerate(self.input_files, start=1):
+            if self._killed:
+                break
             tmp_in = tmp_out = None
             try:
                 self.progress.emit(
@@ -325,16 +338,19 @@ class _MuscleBatchWorker(QThread):
                     "-threads",
                     str(self.threads),
                 ]
-                result = subprocess.run(
+                self._proc = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    timeout=1200,
+                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                 )
-                if result.returncode != 0:
-                    err = result.stderr.decode("utf-8", errors="replace").strip()
+                self._proc.communicate(timeout=1200)
+                if self._killed:
+                    break
+                if self._proc.returncode != 0:
+                    err = (self._proc.stderr.read() or b"").decode("utf-8", errors="replace").strip()
                     raise RuntimeError(
-                        f"MUSCLE exited with code {result.returncode}: {err}"
+                        f"MUSCLE exited with code {self._proc.returncode}: {err}"
                     )
 
                 with open(tmp_out, "r", encoding="utf-8") as fout:
@@ -369,6 +385,7 @@ class _MuscleBatchWorker(QThread):
                     f"[{idx}/{total}] Failed: {os.path.basename(in_path)}"
                 )
             finally:
+                self._proc = None
                 for p in (tmp_in, tmp_out):
                     if p and os.path.exists(p):
                         try:
@@ -376,11 +393,14 @@ class _MuscleBatchWorker(QThread):
                         except OSError:
                             pass
 
-        summary = [f"Batch completed: {ok}/{total} succeeded."]
-        if fail_msgs:
-            summary.append("\nFailures:")
-            summary.extend(f"- {m}" for m in fail_msgs)
-        self.finished.emit("\n".join(summary))
+        if self._killed:
+            self.finished.emit(f"Batch cancelled: {ok}/{total} succeeded before cancel.")
+        else:
+            summary = [f"Batch completed: {ok}/{total} succeeded."]
+            if fail_msgs:
+                summary.append("\nFailures:")
+                summary.extend(f"- {m}" for m in fail_msgs)
+            self.finished.emit("\n".join(summary))
 
 
 # ---------------------------------------------------------------------------
@@ -401,6 +421,18 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self._setup_output()
         self._setup_drag_drop()
         self._setup_mode_tabs()
+        self._setup_stop_button()
+
+    def _setup_stop_button(self):
+        self.stop_btn = QPushButton(self.tr("Stop"))
+        self.stop_btn.setVisible(False)
+        self.stop_btn.clicked.connect(self._cancel_batch)
+        self.status_layout.insertWidget(self.status_layout.indexOf(self.run_btn) + 1, self.stop_btn)
+
+    def _cancel_batch(self):
+        if self._batch_worker is not None and self._batch_worker.isRunning():
+            self._batch_worker.stop()
+            self.status_label.setText(self.tr("Cancelling…"))
 
     # ---------------------------------------------------------------- layout
 
@@ -880,6 +912,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         out_mode = self.batch_fmt_combo.currentText()
         self.run_btn.setEnabled(False)
+        self.stop_btn.setVisible(True)
         self.batch_log.clear()
         self.batch_log.append(f"Starting batch for {len(input_files)} file(s)...")
         self.status_label.setText("Running batch MUSCLE alignment...")
@@ -906,14 +939,24 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
     def _on_batch_finished(self, summary: str):
         self.run_btn.setEnabled(True)
+        self.stop_btn.setVisible(False)
         self.batch_log.append("\n" + summary)
         self.status_label.setText("Batch done.")
+        if self._batch_worker is not None:
+            self._batch_worker.wait()
+            self._batch_worker.deleteLater()
+            self._batch_worker = None
 
     def _on_batch_error(self, msg: str):
         self.run_btn.setEnabled(True)
+        self.stop_btn.setVisible(False)
         self.batch_log.append("Error: " + msg)
         self.status_label.setText("Batch failed.")
         QMessageBox.critical(self, "Batch MUSCLE Error", msg)
+        if self._batch_worker is not None:
+            self._batch_worker.wait()
+            self._batch_worker.deleteLater()
+            self._batch_worker = None
 
     # ------------------------------------------------------------------ run
 
@@ -1017,12 +1060,20 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         aln_len = len(next(iter(ordered_seqs.values())))
         fname = os.path.basename(saved_path)
         self.status_label.setText(f"Done — {n_seq} seqs, {aln_len} bp, → {fname}")
+        if self._worker is not None:
+            self._worker.wait()
+            self._worker.deleteLater()
+            self._worker = None
 
     def _on_alignment_error(self, msg: str):
         self.run_btn.setEnabled(True)
         self._aligned_fasta = ""
         self.status_label.setText("MUSCLE alignment failed.")
         QMessageBox.critical(self, "MUSCLE Error", msg)
+        if self._worker is not None:
+            self._worker.wait()
+            self._worker.deleteLater()
+            self._worker = None
 
     # ------------------------------------------------------------ helpers
 

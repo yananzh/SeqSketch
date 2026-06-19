@@ -29,6 +29,7 @@ class _MakeDbThread(QThread):
         self.dbtype = dbtype
         self.outpath = outpath
         self._proc = None
+        self._cancelled = False
 
     def cancel(self):
         self._cancelled = True
@@ -60,6 +61,7 @@ class _MakeDbThread(QThread):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
             stdout, stderr = self._proc.communicate(timeout=300)
             if self._cancelled:
@@ -310,3 +312,7 @@ class BlastMakeDbDialog(QDialog):
             QMessageBox.critical(
                 self, "Build Failed", f"makeblastdb reported an error:\n\n{msg}"
             )
+        if self._thread is not None:
+            self._thread.wait()
+            self._thread.deleteLater()
+            self._thread = None
