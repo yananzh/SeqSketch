@@ -17,15 +17,7 @@ phytreeviz API reference (v0.3.x):
 import os
 
 from PyQt6.QtCore import Qt, QRectF, QThread, pyqtSignal
-from PyQt6.QtGui import (
-    QAction,
-    QColor,
-    QDragEnterEvent,
-    QDropEvent,
-    QKeySequence,
-    QPainter,
-    QPixmap,
-)
+from PyQt6.QtGui import QColor, QDragEnterEvent, QDropEvent, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -37,16 +29,14 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMainWindow,
     QPushButton,
     QSplitter,
-    QStatusBar,
-    QToolBar,
     QVBoxLayout,
     QWidget,
 )
 
 from utils.app_paths import user_data_file
+from utils.common_components import BaseTabWidget
 
 
 # ---------------------------------------------------------------------------
@@ -286,50 +276,36 @@ class _ZoomableGraphicsView(QGraphicsView):
 # ---------------------------------------------------------------------------
 # Main Window
 # ---------------------------------------------------------------------------
-class SimpleTreeVisualizationWindow(QMainWindow):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(self.tr("Simple Tree Visualization (Phytreeviz)"))
-        self.resize(1100, 900)
+class SimpleTreeVisualizationTab(BaseTabWidget):
+    def __init__(self, status_callback=None, parent=None):
+        super().__init__("Tree Visualization", "file")
         self._render_thread: _RenderThread | None = None
         self._export_thread: _ExportThread | None = None
         self._tmp_png = user_data_file("_tree_preview.png")
         self._build_ui()
-        self._setup_shortcuts()
         self._show_placeholder()
+        self.log_group.hide()
 
-    # ------------------------------------------------------------------
-    # UI
-    # ------------------------------------------------------------------
     def _build_ui(self):
-        central = QWidget()
-        self.setCentralWidget(central)
-
-        root = QHBoxLayout(central)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
-
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        root.addWidget(splitter)
 
         # ── LEFT: control panel ────────────────────────────────────────
         ctrl_outer = QWidget()
-        ctrl_outer.setMinimumWidth(240)
-        ctrl_outer.setMaximumWidth(300)
+        ctrl_outer.setMinimumWidth(260)
+        ctrl_outer.setMaximumWidth(320)
         ctrl_vbox = QVBoxLayout(ctrl_outer)
-        ctrl_vbox.setContentsMargins(8, 8, 8, 8)
-        ctrl_vbox.setSpacing(10)
+        ctrl_vbox.setContentsMargins(12, 12, 12, 12)
+        ctrl_vbox.setSpacing(12)
         splitter.addWidget(ctrl_outer)
 
         # ── Input ──────────────────────────────────────────────────
-        grp_file = QGroupBox(self.tr("Input Tree File"))
+        grp_file = QGroupBox(self.tr("Input"))
         gl = QVBoxLayout(grp_file)
+        gl.setSpacing(8)
 
         file_row = QHBoxLayout()
         self._file_edit = _DropLineEdit()
-        self._file_edit.setPlaceholderText(
-            self.tr("Newick / Nexus / PhyloXML file (drag & drop supported)")
-        )
+        self._file_edit.setPlaceholderText(self.tr("Tree file (drag & drop or Browse)"))
         self._file_edit.fileDropped.connect(self._on_file_selected)
         browse_btn = QPushButton(self.tr("Browse"))
         browse_btn.setFixedWidth(90)
@@ -342,60 +318,65 @@ class SimpleTreeVisualizationWindow(QMainWindow):
         fmt_row.addWidget(QLabel(self.tr("Format:")))
         self._fmt_combo = QComboBox()
         self._fmt_combo.addItems(["Auto", "newick", "nexus", "phyloxml", "nexml"])
+        self._fmt_combo.setToolTip(self.tr("Auto-detected from file extension"))
         fmt_row.addWidget(self._fmt_combo, 1)
         gl.addLayout(fmt_row)
         ctrl_vbox.addWidget(grp_file)
 
-        # ── Layout ─────────────────────────────────────────────────
-        grp_layout = QGroupBox(self.tr("Tree Layout"))
-        ll = QVBoxLayout(grp_layout)
+        # ── Tree Options ───────────────────────────────────────────
+        grp_opts = QGroupBox(self.tr("Tree Options"))
+        ol = QVBoxLayout(grp_opts)
+        ol.setSpacing(8)
 
+        # layout row
+        lo_row = QHBoxLayout()
+        lbl_layout = QLabel(self.tr("Layout:"))
+        lbl_layout.setFixedWidth(80)
+        lo_row.addWidget(lbl_layout)
         self._layout_combo = QComboBox()
         self._layout_combo.addItems(["rectangular", "aligned"])
         self._layout_combo.setToolTip(
-            self.tr(
-                "rectangular: classic cladogram\n"
-                "aligned: leaf labels aligned at the right margin"
-            )
+            self.tr("rectangular: classic | aligned: labels right-aligned")
         )
-        ll.addWidget(self._layout_combo)
+        lo_row.addWidget(self._layout_combo, 1)
+        ol.addLayout(lo_row)
 
-        orient_row = QHBoxLayout()
-        orient_row.addWidget(QLabel(self.tr("Orientation:")))
+        # orient row
+        ori_row = QHBoxLayout()
+        lbl_orient = QLabel(self.tr("Orient:"))
+        lbl_orient.setFixedWidth(80)
+        ori_row.addWidget(lbl_orient)
         self._orient_combo = QComboBox()
         self._orient_combo.addItems(["right", "left"])
-        orient_row.addWidget(self._orient_combo, 1)
-        ll.addLayout(orient_row)
-        ctrl_vbox.addWidget(grp_layout)
+        ori_row.addWidget(self._orient_combo, 1)
+        ol.addLayout(ori_row)
 
-        # ── Rooting ─────────────────────────────────────────────────
-        grp_root = QGroupBox(self.tr("Rooting"))
-        rl = QVBoxLayout(grp_root)
-
+        # rooting row
         rm_row = QHBoxLayout()
-        rm_row.addWidget(QLabel(self.tr("Method:")))
+        lbl_rooting = QLabel(self.tr("Rooting:"))
+        lbl_rooting.setFixedWidth(80)
+        rm_row.addWidget(lbl_rooting)
         self._root_method_combo = QComboBox()
-        self._root_method_combo.addItems(["None (as-is)", "Midpoint", "Outgroup"])
+        self._root_method_combo.addItems(["None", "Midpoint", "Outgroup"])
         self._root_method_combo.setToolTip(
-            self.tr(
-                "None: use tree as-is\n"
-                "Midpoint: root at the midpoint of the longest branch\n"
-                "Outgroup: root by specifying an outgroup taxon"
-            )
+            self.tr("None: as-is | Midpoint: longest branch | Outgroup: specify taxon")
         )
         rm_row.addWidget(self._root_method_combo, 1)
-        rl.addLayout(rm_row)
+        ol.addLayout(rm_row)
 
+        # outgroup row
         og_row = QHBoxLayout()
-        og_row.addWidget(QLabel(self.tr("Outgroup:")))
+        lbl_outgroup = QLabel(self.tr("Outgroup:"))
+        lbl_outgroup.setFixedWidth(80)
+        og_row.addWidget(lbl_outgroup)
         self._outgroup_combo = QComboBox()
         self._outgroup_combo.setEditable(True)
         self._outgroup_combo.setEnabled(False)
         self._outgroup_combo.lineEdit().setPlaceholderText(
-            self.tr("Type or select a leaf name")
+            self.tr("Select a leaf name")
         )
         og_row.addWidget(self._outgroup_combo, 1)
-        rl.addLayout(og_row)
+        ol.addLayout(og_row)
 
         def _on_root_method_changed(text: str):
             is_og = text == "Outgroup"
@@ -404,54 +385,17 @@ class SimpleTreeVisualizationWindow(QMainWindow):
                 self._load_leaf_names()
 
         self._root_method_combo.currentTextChanged.connect(_on_root_method_changed)
-        ctrl_vbox.addWidget(grp_root)
-
-        # ── Display ────────────────────────────────────────────────
-        grp_display = QGroupBox(self.tr("Display"))
-        dl = QVBoxLayout(grp_display)
 
         self._show_support_check = QCheckBox(self.tr("Show bootstrap / support values"))
         self._show_support_check.setChecked(True)
-        dl.addWidget(self._show_support_check)
+        ol.addWidget(self._show_support_check)
 
         self._show_scale_check = QCheckBox(self.tr("Show scale axis"))
         self._show_scale_check.setChecked(True)
-        dl.addWidget(self._show_scale_check)
-        ctrl_vbox.addWidget(grp_display)
+        ol.addWidget(self._show_scale_check)
 
+        ctrl_vbox.addWidget(grp_opts)
         ctrl_vbox.addStretch()
-
-        # ── Actions ────────────────────────────────────────────────
-        self._draw_btn = QPushButton(self.tr("Draw Tree"))
-        self._draw_btn.setMinimumHeight(38)
-        self._draw_btn.setStyleSheet(
-            "QPushButton{background:#1976d2;color:white;"
-            "border-radius:4px;font-weight:bold;}"
-            "QPushButton:hover{background:#1565c0;}"
-            "QPushButton:disabled{background:#90a4ae;}"
-        )
-        self._draw_btn.clicked.connect(self._draw)
-        ctrl_vbox.addWidget(self._draw_btn)
-
-        self._export_btn = QPushButton(self.tr("Export Image"))
-        self._export_btn.setMinimumHeight(34)
-        self._export_btn.setStyleSheet(
-            "QPushButton{background:#388e3c;color:white;"
-            "border-radius:4px;font-weight:bold;}"
-            "QPushButton:hover{background:#2e7d32;}"
-        )
-        self._export_btn.clicked.connect(self._export)
-        ctrl_vbox.addWidget(self._export_btn)
-
-        self._help_btn = QPushButton(self.tr("Help"))
-        self._help_btn.setFixedHeight(30)
-        self._help_btn.setStyleSheet(
-            "QPushButton{background:#546e7a;color:white;"
-            "border-radius:4px;font-weight:bold;}"
-            "QPushButton:hover{background:#455a64;}"
-        )
-        self._help_btn.clicked.connect(self._show_help)
-        ctrl_vbox.addWidget(self._help_btn)
 
         # ── RIGHT: canvas ──────────────────────────────────────────
         canvas_outer = QWidget()
@@ -460,131 +404,28 @@ class SimpleTreeVisualizationWindow(QMainWindow):
         canvas_vbox.setSpacing(0)
         splitter.addWidget(canvas_outer)
 
-        # Mini toolbar
-        canvas_toolbar = QToolBar()
-        canvas_toolbar.setMovable(False)
-        canvas_toolbar.setStyleSheet(
-            "QToolBar{background:#f0f0f0;border-bottom:1px solid #ddd;"
-            "padding:2px 4px;spacing:2px;}"
-            "QToolButton{padding:3px 6px;border-radius:3px;}"
-            "QToolButton:hover{background:#e0e0e0;}"
-        )
-
-        self._zoom_in_action = QAction(self.tr("+"), self)
-        self._zoom_in_action.setToolTip(self.tr("Zoom In (Ctrl++)"))
-        self._zoom_in_action.triggered.connect(self._on_zoom_in)
-        canvas_toolbar.addAction(self._zoom_in_action)
-
-        self._zoom_out_action = QAction(self.tr("-"), self)
-        self._zoom_out_action.setToolTip(self.tr("Zoom Out (Ctrl+-)"))
-        self._zoom_out_action.triggered.connect(self._on_zoom_out)
-        canvas_toolbar.addAction(self._zoom_out_action)
-
-        self._fit_action = QAction(self.tr("Fit"), self)
-        self._fit_action.setToolTip(self.tr("Fit to Window (Ctrl+0)"))
-        self._fit_action.triggered.connect(self._on_fit)
-        canvas_toolbar.addAction(self._fit_action)
-
-        self._reset_action = QAction(self.tr("Reset"), self)
-        self._reset_action.setToolTip(self.tr("Reset View"))
-        self._reset_action.triggered.connect(self._on_reset_view)
-        canvas_toolbar.addAction(self._reset_action)
-
-        canvas_vbox.addWidget(canvas_toolbar)
-
-        # Graphics view with scene
         self._scene = QGraphicsScene(self)
         self._graphics_view = _ZoomableGraphicsView()
         self._graphics_view.setScene(self._scene)
         canvas_vbox.addWidget(self._graphics_view, 1)
 
         splitter.setSizes([320, 780])
+        self.add_content_widget(splitter)
 
-        # Status bar
-        self.setStatusBar(QStatusBar(self))
-        self.statusBar().showMessage(
-            self.tr("Ready — load a tree file and click Draw Tree")
+        # ── Buttons in status bar ────────────────────────────────────
+        self._draw_btn = QPushButton(self.tr("Draw Tree"))
+        self._draw_btn.clicked.connect(self._draw)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._draw_btn)
+
+        self._export_btn = QPushButton(self.tr("Export Image"))
+        self._export_btn.clicked.connect(self._export)
+        self.status_layout.insertWidget(
+            self.status_layout.count() - 1, self._export_btn
         )
 
-    # ------------------------------------------------------------------
-    # Shortcuts
-    # ------------------------------------------------------------------
-    def _setup_shortcuts(self):
-        # Draw: Ctrl+D
-        draw_sc = QAction(self)
-        draw_sc.setShortcut(QKeySequence("Ctrl+D"))
-        draw_sc.triggered.connect(self._draw)
-        self.addAction(draw_sc)
+        self.show_status(self.tr("Ready — load a tree file and click Draw Tree"))
 
-        # Open file: Ctrl+O
-        open_sc = QAction(self)
-        open_sc.setShortcut(QKeySequence.StandardKey.Open)
-        open_sc.triggered.connect(self._browse_file)
-        self.addAction(open_sc)
-
-        # Export: Ctrl+E
-        export_sc = QAction(self)
-        export_sc.setShortcut(QKeySequence("Ctrl+E"))
-        export_sc.triggered.connect(self._export)
-        self.addAction(export_sc)
-
-        # Zoom in: Ctrl+=
-        zoom_in_sc = QAction(self)
-        zoom_in_sc.setShortcut(QKeySequence.StandardKey.ZoomIn)
-        zoom_in_sc.triggered.connect(self._on_zoom_in)
-        self.addAction(zoom_in_sc)
-
-        # Zoom out: Ctrl+-
-        zoom_out_sc = QAction(self)
-        zoom_out_sc.setShortcut(QKeySequence.StandardKey.ZoomOut)
-        zoom_out_sc.triggered.connect(self._on_zoom_out)
-        self.addAction(zoom_out_sc)
-
-        # Fit: Ctrl+0
-        fit_sc = QAction(self)
-        fit_sc.setShortcut(QKeySequence("Ctrl+0"))
-        fit_sc.triggered.connect(self._on_fit)
-        self.addAction(fit_sc)
-
-        # Close: Ctrl+W
-        close_sc = QAction(self)
-        close_sc.setShortcut(QKeySequence.StandardKey.Close)
-        close_sc.triggered.connect(self.close)
-        self.addAction(close_sc)
-
-    # ------------------------------------------------------------------
-    # Canvas helpers
-    # ------------------------------------------------------------------
-    def _show_placeholder(self):
-        self._scene.clear()
-        text_item = self._scene.addSimpleText(
-            self.tr("Load a tree file and click Draw Tree")
-        )
-        text_item.setBrush(QColor("#aaa"))
-        self._graphics_view.fit_to_window()
-
-    def _show_png(self, path: str):
-        pix = QPixmap(path)
-        if pix.isNull():
-            return
-        self._scene.clear()
-        self._scene.addPixmap(pix)
-        self._scene.setSceneRect(QRectF(pix.rect()))
-        self._graphics_view.fit_to_window()
-
-    def _on_zoom_in(self):
-        self._graphics_view.zoom_in()
-
-    def _on_zoom_out(self):
-        self._graphics_view.zoom_out()
-
-    def _on_fit(self):
-        self._graphics_view.fit_to_window()
-
-    def _on_reset_view(self):
-        self._graphics_view.reset_view()
-
-    def _show_help(self):
+    def show_help(self):
         from PyQt6.QtWidgets import QDialog, QTextBrowser
 
         dlg = QDialog(self)
@@ -602,27 +443,28 @@ class SimpleTreeVisualizationWindow(QMainWindow):
 
     def _help_html(self) -> str:
         return self.tr("""
-<h2>Simple Tree Visualization (Phytreeviz)</h2>
-<p>Quickly render and export phylogenetic trees from standard file formats.
-Powered by <b>phytreeviz</b> + <b>Biopython</b>.</p>
+<h2>Simple Tree Visualization (Phytreeviz) &mdash; Quick Tree Rendering</h2>
+
+<p><b>What does this tool do?</b><br>
+Quickly render and export phylogenetic trees from standard file formats
+(Newick, Nexus, PhyloXML, NeXML). Powered by <b>phytreeviz</b> +
+<b>Biopython</b>. Ideal for quick previews, simple annotation, and
+publication-ready exports.</p>
 
 <h3>Quick Start</h3>
 <ol>
-  <li><b>Open</b> a tree file (Ctrl+O) or drag &amp; drop one onto the input field.</li>
+  <li><b>Open</b> a tree file or drag &amp; drop one onto the input field.</li>
   <li>Select the input <b>format</b> (auto-detected on browse).</li>
   <li>Choose <b>layout</b> (rectangular / aligned) and <b>orientation</b>.</li>
   <li>Optionally set <b>rooting</b> method and outgroup taxon.</li>
-  <li>Click <b>Draw Tree</b> (Ctrl+D) to render.</li>
-  <li>Click <b>Export Image</b> (Ctrl+E) to save as PNG, SVG, PDF, EPS, or TIFF.</li>
+  <li>Click <b>Draw Tree</b> to render.</li>
+  <li>Click <b>Export Image</b> to save as PNG, SVG, PDF, EPS, or TIFF.</li>
 </ol>
 
 <h3>Canvas Controls</h3>
 <table>
   <tr><td><b>Scroll wheel</b></td><td>&mdash; zoom in / out</td></tr>
   <tr><td><b>Click &amp; drag</b></td><td>&mdash; pan the view</td></tr>
-  <tr><td><b>Ctrl++ / Ctrl+&minus;</b></td><td>&mdash; zoom in / out</td></tr>
-  <tr><td><b>Ctrl+0</b></td><td>&mdash; fit to window</td></tr>
-  <tr><td><b>+ / &minus; / Fit / Reset toolbar</b></td><td>&mdash; zoom in, zoom out, fit, reset</td></tr>
 </table>
 
 <h3>Supported Formats</h3>
@@ -680,6 +522,38 @@ graphics, we recommend:</p>
 """)
 
     # ------------------------------------------------------------------
+    # Canvas helpers
+    # ------------------------------------------------------------------
+    def _show_placeholder(self):
+        self._scene.clear()
+        text_item = self._scene.addSimpleText(
+            self.tr("Load a tree file and click Draw Tree")
+        )
+        text_item.setBrush(QColor("#aaa"))
+        self._graphics_view.fit_to_window()
+
+    def _show_png(self, path: str):
+        pix = QPixmap(path)
+        if pix.isNull():
+            return
+        self._scene.clear()
+        self._scene.addPixmap(pix)
+        self._scene.setSceneRect(QRectF(pix.rect()))
+        self._graphics_view.fit_to_window()
+
+    def _on_zoom_in(self):
+        self._graphics_view.zoom_in()
+
+    def _on_zoom_out(self):
+        self._graphics_view.zoom_out()
+
+    def _on_fit(self):
+        self._graphics_view.fit_to_window()
+
+    def _on_reset_view(self):
+        self._graphics_view.reset_view()
+
+    # ------------------------------------------------------------------
     # Slots
     # ------------------------------------------------------------------
     def _browse_file(self):
@@ -709,6 +583,18 @@ graphics, we recommend:</p>
             self._fmt_combo.setCurrentText(fmt_map.get(ext, "newick"))
         if self._root_method_combo.currentText() == "Outgroup":
             self._load_leaf_names()
+        # Show tree statistics
+        try:
+            from Bio import Phylo
+
+            tree = Phylo.read(path, self._get_format())
+            leaves = len(list(tree.get_terminals()))
+            internals = len(list(tree.get_nonterminals()))
+            self._set_status(
+                self.tr(f"Loaded: {leaves} leaves, {internals} internal nodes")
+            )
+        except Exception:
+            pass
 
     def _collect_params(self) -> dict:
         return {
@@ -755,7 +641,7 @@ graphics, we recommend:</p>
             self._set_status(self.tr(f"\u2716 Could not read tree: {exc}"))
 
     def _set_status(self, msg: str):
-        self.statusBar().showMessage(msg)
+        self.show_status(msg)
 
     # ------------------------------------------------------------------
     # Draw / Render
