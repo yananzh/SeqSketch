@@ -267,8 +267,8 @@ def create_menus(window):
     partition_action = QAction(window.tr("Sequence Concatenation"), window)
     partition_action.triggered.connect(window.open_partition_concat_tab)
     evolution_menu.addAction(partition_action)
-    # 7.3 Distance Matrix & NJ Tree
-    dist_tree_action = QAction(window.tr("Distance Matrix & NJ Tree"), window)
+    # 7.3 Distance Tree Construction
+    dist_tree_action = QAction(window.tr("Distance Tree Construction"), window)
     dist_tree_action.triggered.connect(window.open_distance_tree_tab)
     evolution_menu.addAction(dist_tree_action)
     # 7.4 ML Tree Construction (IQ-TREE)

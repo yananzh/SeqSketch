@@ -309,7 +309,7 @@ class MainWindow(QMainWindow):
     def open_distance_tree_tab(self):
         from modules.distance_tree_tab import DistanceTreeTab
 
-        self._find_or_open(DistanceTreeTab, "Distance Matrix & NJ Tree")
+        self._find_or_open(DistanceTreeTab, "Distance Tree Construction")
 
     def open_iqtree_tab(self):
         from modules.iqtree_tab import IqTreeTab
@@ -404,7 +404,7 @@ Python 3 &middot; PyQt6 &middot; Biopython &middot; Matplotlib
 <tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Alignment</b></td><td>Pairwise, DotPlot, MUSCLE, MAFFT, MSA Viewer, Sequence Logo</td></tr>
 <tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>BLAST</b></td><td>NCBI Online BLAST, Local BLAST</td></tr>
 <tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Primer Design</b></td><td>qPCR Primer Design (Primer3), Primer Analysis</td></tr>
-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Phylogenetic Tree</b></td><td>trimAl, Concatenation, Distance Matrix &amp; NJ, ML IQ-TREE, One Step MultiGenePhy, Phytreeviz</td></tr>
+<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Phylogenetic Tree</b></td><td>trimAl, Concatenation, Distance Tree Construction, ML IQ-TREE, One Step MultiGenePhy, Phytreeviz</td></tr>
 <tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Favorites</b></td><td>Bookmark &amp; manage frequently used sequences</td></tr>
 </table>
 

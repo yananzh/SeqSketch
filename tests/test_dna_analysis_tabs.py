@@ -130,7 +130,7 @@ def test_phylogenetic_tree_menu_order(qapp):
 
     assert action_texts[0] == "Alignment Trimming (trimAl)"
     assert action_texts[1] == "Sequence Concatenation"
-    assert action_texts[2] == "Distance Matrix & NJ Tree"
+    assert action_texts[2] == "Distance Tree Construction"
     assert action_texts[3] == "ML Tree Construction (IQ-TREE)"
     assert "One Step MultiGenePhy" in action_texts
     assert any("Tree Visualization" in t for t in action_texts)
