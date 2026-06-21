@@ -1,5 +1,5 @@
 """
-IQ-TREE local tab  —  Tree Construction (IQ-TREE)
+IQ-TREE local tab  —  ML Tree Construction (IQ-TREE)
 Uses the bundled iqtree3.exe at softwares/iqtree-3.0.1-Windows/bin/iqtree3.exe
 """
 
@@ -143,7 +143,7 @@ class _IqTreeThread(QThread):
 # Help dialog
 # ---------------------------------------------------------------------------
 _HELP_HTML = """
-<h2>Tree Construction (IQ-TREE) &mdash; Build Phylogenetic Trees</h2>
+<h2>ML Tree Construction (IQ-TREE) &mdash; Build Phylogenetic Trees</h2>
 
 <p><b>What does this tool do?</b><br>
 Infers maximum-likelihood phylogenetic trees using the bundled
@@ -229,12 +229,12 @@ class _HelpDialog(QDialog):
 # Main tab widget
 # ---------------------------------------------------------------------------
 class IqTreeTab(BaseTabWidget):
-    """Tree Construction (IQ-TREE) tab."""
+    """ML Tree Construction (IQ-TREE) tab."""
 
     def __init__(self, status_callback=None, parent=None):
         self._status_cb = status_callback
         self._thread: _IqTreeThread | None = None
-        super().__init__("Tree Construction (IQ-TREE)", "file")
+        super().__init__("ML Tree Construction (IQ-TREE)", "file")
         self._build_ui()
 
     # ------------------------------------------------------------------

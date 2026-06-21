@@ -105,9 +105,7 @@ def _prepare_trimal_input(input_path: str) -> tuple[str, str | None]:
     with open(input_path, "r", encoding="utf-8", errors="replace") as handle:
         alignments = list(AlignIO.parse(handle, fmt))
     if not alignments:
-        raise ValueError(
-            f"No alignment records found in {os.path.basename(input_path)}"
-        )
+        raise ValueError(f"No alignment records found in {os.path.basename(input_path)}")
 
     fd, temp_path = tempfile.mkstemp(prefix="trimal_", suffix=".fasta")
     os.close(fd)
@@ -248,7 +246,7 @@ and saved in the output folder.</p>
 
 <h3>Use Cases</h3>
 <ul>
-  <li>Pre-process alignments before <b>Tree Construction (IQ-TREE)</b>.</li>
+  <li>Pre-process alignments before <b>ML Tree Construction (IQ-TREE)</b>.</li>
   <li>Clean noisy NGS-derived alignments with many gap regions.</li>
   <li>Batch-trim hundreds of gene alignments for phylogenomic pipelines.</li>
 </ul>
@@ -256,7 +254,7 @@ and saved in the output folder.</p>
 <h3>Tips</h3>
 <ul>
   <li>Start with <b>gappyout</b> or <b>automated1</b> for most datasets.</li>
-  <li>After trimming, feed the output into <b>Tree Construction (IQ-TREE)</b>
+  <li>After trimming, feed the output into <b>ML Tree Construction (IQ-TREE)</b>
   or <b>MSA Visualization</b>.</li>
   <li>Check the log after each run for column-count changes and any warnings.</li>
   <li>Supported input formats: FASTA, CLUSTAL, PHYLIP, NEXUS (auto-converted).</li>
@@ -275,9 +273,7 @@ class _DropFileList(QListWidget):
 
     files_added = pyqtSignal()  # emitted after files are dropped
 
-    def __init__(
-        self, placeholder: str = "Drop alignment files here…", *args, **kwargs
-    ):
+    def __init__(self, placeholder: str = "Drop alignment files here…", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._placeholder = placeholder
         self.setAcceptDrops(True)
@@ -512,9 +508,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
         out_row.addWidget(self.outdir_edit)
         out_row.addWidget(outdir_btn)
         out_lbl = QLabel(self.tr("Output folder:"))
-        out_lbl.setToolTip(
-            self.tr("Trimmed files saved here as <original_name>.trimmed<ext>")
-        )
+        out_lbl.setToolTip(self.tr("Trimmed files saved here as <original_name>.trimmed<ext>"))
         out_form.addRow(out_lbl, out_row)
         io_layout.addLayout(out_form)
 
@@ -535,12 +529,8 @@ class AlignmentTrimmingTab(BaseTabWidget):
 
         _auto_tooltips = {
             self.rb_gappyout: self.tr("Good default for most alignments."),
-            self.rb_auto1: self.tr(
-                "Auto-selects trimAl strategy from alignment statistics."
-            ),
-            self.rb_strict: self.tr(
-                "More aggressive trimming based on alignment statistics."
-            ),
+            self.rb_auto1: self.tr("Auto-selects trimAl strategy from alignment statistics."),
+            self.rb_strict: self.tr("More aggressive trimming based on alignment statistics."),
             self.rb_strictplus: self.tr("Aggressive trimming plus fragment filtering."),
         }
 
@@ -592,14 +582,18 @@ class AlignmentTrimmingTab(BaseTabWidget):
         fmt_layout.addStretch()
         self.add_content_widget(fmt_box)
 
-        # ── run/stop buttons (status bar, Help on its right) ─────────────
+        # ── Run / Stop / Clear buttons (same row as Help, in status_layout) ──
         self.run_btn = QPushButton(self.tr("Run trimAl"))
         self.run_btn.clicked.connect(self._run)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.stop_btn = QPushButton(self.tr("Stop"))
         self.stop_btn.setVisible(False)
         self.stop_btn.clicked.connect(self._cancel)
+        self.clear_btn = QPushButton(self.tr("Clear"))
+        self.clear_btn.clicked.connect(self._clear)
+        # Insert before Help (last widget in status_layout)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.stop_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
 
         # Anchor the shared log area near the bottom
         self.content_area.addStretch()
@@ -623,9 +617,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
         self._auto_fill_outdir()
 
     def _add_folder(self):
-        folder = QFileDialog.getExistingDirectory(
-            self, "Select folder with alignment files"
-        )
+        folder = QFileDialog.getExistingDirectory(self, "Select folder with alignment files")
         if not folder:
             return
         added = 0
@@ -648,6 +640,14 @@ class AlignmentTrimmingTab(BaseTabWidget):
 
     def _clear_all(self):
         self.file_list.clear()
+
+    def _clear(self):
+        """Clear all inputs, outputs, and log."""
+        self.file_list.clear()
+        self.outdir_edit.clear()
+        if hasattr(self, "log_area"):
+            self.log_area.clear()
+        self.show_status(self.tr("Cleared"))
 
     def _auto_fill_outdir(self):
         """Always set output folder to the first input file's directory."""
@@ -706,24 +706,18 @@ class AlignmentTrimmingTab(BaseTabWidget):
     # ── run / stop ────────────────────────────────────────────────────────
     def _run(self):
         if self.file_list.count() == 0:
-            QMessageBox.warning(
-                self, "No Input Files", "Please add at least one alignment file."
-            )
+            QMessageBox.warning(self, "No Input Files", "Please add at least one alignment file.")
             return
 
         outdir = self.outdir_edit.text().strip()
         if not outdir:
-            QMessageBox.warning(
-                self, "No Output Folder", "Please specify an output folder."
-            )
+            QMessageBox.warning(self, "No Output Folder", "Please specify an output folder.")
             return
         if not os.path.isdir(outdir):
             try:
                 os.makedirs(outdir, exist_ok=True)
             except Exception as e:
-                QMessageBox.critical(
-                    self, "Folder Error", f"Cannot create output folder:\n{e}"
-                )
+                QMessageBox.critical(self, "Folder Error", f"Cannot create output folder:\n{e}")
                 return
 
         exe = self._exe_edit.text().strip() or TRIMAL_EXE
@@ -745,9 +739,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
         tasks: list[tuple[list[str], str, str | None]] = []
         prepared_inputs: list[str] = []
         file_infos: list[tuple[str, str]] = []  # (filename, detected_format)
-        self._input_col_map: dict[
-            str, int
-        ] = {}  # out_path → column count before trimming
+        self._input_col_map: dict[str, int] = {}  # out_path → column count before trimming
         try:
             for i in range(self.file_list.count()):
                 item = self.file_list.item(i)

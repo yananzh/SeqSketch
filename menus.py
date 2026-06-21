@@ -1,8 +1,9 @@
-from PyQt6.QtWidgets import QMenuBar, QMenu
-from PyQt6.QtGui import QAction
+import importlib.util
 import os
 import sys
-import importlib.util
+
+from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import QMenu, QMenuBar
 
 
 def create_menus(window):
@@ -110,9 +111,7 @@ def create_menus(window):
     annotation_menu.addAction(interpro_action)
     cd_search_action = QAction("NCBI CD-Search", window)
     cd_search_action.triggered.connect(
-        lambda: window.open_url_in_browser(
-            "https://www.ncbi.nlm.nih.gov/Structure/cdd/wrpsb.cgi"
-        )
+        lambda: window.open_url_in_browser("https://www.ncbi.nlm.nih.gov/Structure/cdd/wrpsb.cgi")
     )
     annotation_menu.addAction(cd_search_action)
     scanprosite_action = QAction("ScanProsite", window)
@@ -183,9 +182,7 @@ def create_menus(window):
     )
     structure_menu.addAction(alphafold_db_action)
     rcsb_pdb_action = QAction("RCSB PDB", window)
-    rcsb_pdb_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://www.rcsb.org/")
-    )
+    rcsb_pdb_action.triggered.connect(lambda: window.open_url_in_browser("https://www.rcsb.org/"))
     structure_menu.addAction(rcsb_pdb_action)
     structure_menu.addSeparator()
     # Structure comparison
@@ -204,20 +201,14 @@ def create_menus(window):
     # ── Function & Interaction (submenu) ───────────────────────────────
     function_menu = QMenu(window.tr("Function & Interaction"), window)
     string_action = QAction("STRING", window)
-    string_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://string-db.org/")
-    )
+    string_action.triggered.connect(lambda: window.open_url_in_browser("https://string-db.org/"))
     function_menu.addAction(string_action)
     mobidb_action = QAction("MobiDB", window)
-    mobidb_action.triggered.connect(
-        lambda: window.open_url_in_browser("https://mobidb.org/")
-    )
+    mobidb_action.triggered.connect(lambda: window.open_url_in_browser("https://mobidb.org/"))
     function_menu.addAction(mobidb_action)
     hmmer_action = QAction("HMMER (phmmer)", window)
     hmmer_action.triggered.connect(
-        lambda: window.open_url_in_browser(
-            "https://www.ebi.ac.uk/Tools/hmmer/search/phmmer"
-        )
+        lambda: window.open_url_in_browser("https://www.ebi.ac.uk/Tools/hmmer/search/phmmer")
     )
     function_menu.addAction(hmmer_action)
     protein_menu.addMenu(function_menu)
@@ -276,19 +267,19 @@ def create_menus(window):
     partition_action = QAction(window.tr("Sequence Concatenation"), window)
     partition_action.triggered.connect(window.open_partition_concat_tab)
     evolution_menu.addAction(partition_action)
-    # 7.3 Tree Construction (IQ-TREE)
-    iqtree_local_action = QAction(window.tr("Tree Construction (IQ-TREE)"), window)
+    # 7.3 Distance Matrix & NJ Tree
+    dist_tree_action = QAction(window.tr("Distance Matrix & NJ Tree"), window)
+    dist_tree_action.triggered.connect(window.open_distance_tree_tab)
+    evolution_menu.addAction(dist_tree_action)
+    # 7.4 ML Tree Construction (IQ-TREE)
+    iqtree_local_action = QAction(window.tr("ML Tree Construction (IQ-TREE)"), window)
     iqtree_local_action.triggered.connect(window.open_iqtree_tab)
     evolution_menu.addAction(iqtree_local_action)
     one_step_multigenephy_action = QAction(window.tr("One Step MultiGenePhy"), window)
-    one_step_multigenephy_action.triggered.connect(
-        window.open_one_step_multigenephy_tab
-    )
+    one_step_multigenephy_action.triggered.connect(window.open_one_step_multigenephy_tab)
     evolution_menu.addAction(one_step_multigenephy_action)
-    # 7.4 Simple Tree Visualization (local, phytreeviz)
-    tree_vis_action = QAction(
-        window.tr("Simple Tree Visualization (Phytreeviz)"), window
-    )
+    # 7.5 Simple Tree Visualization (local, phytreeviz)
+    tree_vis_action = QAction(window.tr("Simple Tree Visualization (Phytreeviz)"), window)
     tree_vis_action.triggered.connect(window.open_tree_visualization_tab)
     evolution_menu.addAction(tree_vis_action)
     # 8. Favorites

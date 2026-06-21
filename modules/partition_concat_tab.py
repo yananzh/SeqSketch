@@ -419,11 +419,10 @@ class PartitionConcatTab(BaseTabWidget):
         param_form.setVerticalSpacing(10)
         param_form.setHorizontalSpacing(12)
 
-        # Partition format + Output prefix (same row, separate labels)
+        # Partition format (QFormLayout label for consistent width) + Output prefix
         fmt_prefix_row = QHBoxLayout()
         fmt_prefix_row.setContentsMargins(0, 0, 0, 0)
 
-        fmt_prefix_row.addWidget(QLabel(self.tr("Partition format:")))
         self._format_edit = QLineEdit(self.tr("NEXUS (MrBayes / IQ-TREE)"))
         self._format_edit.setReadOnly(True)
         self._format_edit.setFixedWidth(210)
@@ -442,7 +441,7 @@ class PartitionConcatTab(BaseTabWidget):
         )
         fmt_prefix_row.addWidget(self._prefix_edit)
         fmt_prefix_row.addStretch()
-        param_form.addRow(_wrap_layout(fmt_prefix_row))
+        param_form.addRow(self.tr("Partition format:"), _wrap_layout(fmt_prefix_row))
 
         # Output directory
         outdir_row = QHBoxLayout()
@@ -680,7 +679,7 @@ concatenated supermatrix and a NEXUS-format partition file in one click.</p>
 
 <h3>Next Steps</h3>
 <p>Use the concatenated FASTA and partition file with the
-<b>Tree Construction (IQ-TREE)</b> tab to infer a partition-aware
+<b>ML Tree Construction (IQ-TREE)</b> tab to infer a partition-aware
 phylogeny, or load them directly into MrBayes / RAxML-NG.</p>
 
 <h3>Tips</h3>

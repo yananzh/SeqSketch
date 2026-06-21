@@ -67,9 +67,7 @@ def test_dna_analysis_menu_uses_single_complement_tools_entry(qapp):
     window = MainWindow()
     menu_bar = window.menuBar()
     dna_menu = next(
-        action.menu()
-        for action in menu_bar.actions()
-        if action.text() == "DNA Analysis"
+        action.menu() for action in menu_bar.actions() if action.text() == "DNA Analysis"
     )
     action_texts = [action.text() for action in dna_menu.actions() if action.text()]
 
@@ -100,14 +98,10 @@ def test_phylogenetic_tree_menu_includes_one_step_multigenephy(qapp):
     window = MainWindow()
     menu_bar = window.menuBar()
     tree_menu = next(
-        action.menu()
-        for action in menu_bar.actions()
-        if action.text() == "Phylogenetic Tree"
+        action.menu() for action in menu_bar.actions() if action.text() == "Phylogenetic Tree"
     )
     one_step_action = next(
-        action
-        for action in tree_menu.actions()
-        if action.text() == "One Step MultiGenePhy"
+        action for action in tree_menu.actions() if action.text() == "One Step MultiGenePhy"
     )
 
     one_step_action.trigger()
@@ -126,17 +120,20 @@ def test_phylogenetic_tree_menu_includes_one_step_multigenephy(qapp):
     assert second_tab is not first_tab
 
 
-def test_phylogenetic_tree_menu_shows_alignment_trimming_first(qapp):
+def test_phylogenetic_tree_menu_order(qapp):
     window = MainWindow()
     menu_bar = window.menuBar()
     tree_menu = next(
-        action.menu()
-        for action in menu_bar.actions()
-        if action.text() == "Phylogenetic Tree"
+        action.menu() for action in menu_bar.actions() if action.text() == "Phylogenetic Tree"
     )
     action_texts = [action.text() for action in tree_menu.actions() if action.text()]
 
     assert action_texts[0] == "Alignment Trimming (trimAl)"
+    assert action_texts[1] == "Sequence Concatenation"
+    assert action_texts[2] == "Distance Matrix & NJ Tree"
+    assert action_texts[3] == "ML Tree Construction (IQ-TREE)"
+    assert "One Step MultiGenePhy" in action_texts
+    assert any("Tree Visualization" in t for t in action_texts)
 
 
 def test_alignment_trimming_tab_uses_simplified_parameter_layout(qapp):
@@ -190,9 +187,7 @@ def test_alignment_trimming_prepares_phylip_input_as_temp_fasta(tmp_path):
     os.remove(prepared_path)
 
 
-def test_alignment_trimming_worker_reports_missing_output_as_failure(
-    qapp, monkeypatch, tmp_path
-):
+def test_alignment_trimming_worker_reports_missing_output_as_failure(qapp, monkeypatch, tmp_path):
     class FakeProcess:
         returncode = 0
 
@@ -213,12 +208,8 @@ def test_alignment_trimming_worker_reports_missing_output_as_failure(
     ])
     results = []
     totals = []
-    thread.file_done.connect(
-        lambda success, path, log: results.append((success, path, log))
-    )
-    thread.all_done.connect(
-        lambda succeeded, failed: totals.append((succeeded, failed))
-    )
+    thread.file_done.connect(lambda success, path, log: results.append((success, path, log)))
+    thread.all_done.connect(lambda succeeded, failed: totals.append((succeeded, failed)))
 
     thread.run()
 
@@ -272,18 +263,14 @@ def test_alignment_trimming_logs_full_command_before_start(qapp, monkeypatch, tm
     assert "-gappyout" in log_text
 
 
-def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
-    qapp, monkeypatch
-):
+def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(qapp, monkeypatch):
     window = MainWindow()
     opened_urls = []
     monkeypatch.setattr(window, "open_url_in_browser", opened_urls.append)
 
     menu_bar = window.menuBar()
     protein_menu = next(
-        action.menu()
-        for action in menu_bar.actions()
-        if action.text() == "Protein Analysis"
+        action.menu() for action in menu_bar.actions() if action.text() == "Protein Analysis"
     )
     submenu_map = {
         action.text(): action.menu()
@@ -293,9 +280,7 @@ def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
 
     assert "Local Analysis" in submenu_map
     assert [
-        action.text()
-        for action in submenu_map["Local Analysis"].actions()
-        if action.text()
+        action.text() for action in submenu_map["Local Analysis"].actions() if action.text()
     ] == [
         "Amino Acid Composition",
         "Physicochemical Properties",
@@ -304,9 +289,7 @@ def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
     ]
     assert "Annotation & Features" in submenu_map
     assert [
-        action.text()
-        for action in submenu_map["Annotation & Features"].actions()
-        if action.text()
+        action.text() for action in submenu_map["Annotation & Features"].actions() if action.text()
     ] == [
         "UniProtKB",
         "UniProt ID Mapping",
@@ -319,11 +302,7 @@ def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
         "DeepLoc 2.1",
     ]
     assert "Structure" in submenu_map
-    assert [
-        action.text()
-        for action in submenu_map["Structure"].actions()
-        if action.text()
-    ] == [
+    assert [action.text() for action in submenu_map["Structure"].actions() if action.text()] == [
         "PSIPRED",
         "Jpred4",
         "SWISS-MODEL",
@@ -335,9 +314,7 @@ def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(
     ]
     assert "Function & Interaction" in submenu_map
     assert [
-        action.text()
-        for action in submenu_map["Function & Interaction"].actions()
-        if action.text()
+        action.text() for action in submenu_map["Function & Interaction"].actions() if action.text()
     ] == ["STRING", "MobiDB", "HMMER (phmmer)"]
 
     assert "Protein Annotation and Reference" not in submenu_map
@@ -431,10 +408,7 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
         assert "border: none;" in tab.output_text.styleSheet()
         assert "border-radius: 6px;" in tab.output_text.styleSheet()
         assert "#f7f9fc" not in tab.output_text.styleSheet()
-        assert (
-            tab.output_text.viewport().styleSheet()
-            == "background: transparent; border: none;"
-        )
+        assert tab.output_text.viewport().styleSheet() == "background: transparent; border: none;"
 
     sanger_tab = SangerTab()
     assert "background: transparent;" in sanger_tab.assembly_result.styleSheet()
@@ -463,8 +437,7 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
     assert "border-radius: 6px;" in pairwise_tab.output_text.styleSheet()
     assert "#f7f9fc" not in pairwise_tab.output_text.styleSheet()
     assert (
-        pairwise_tab.output_text.viewport().styleSheet()
-        == "background: transparent; border: none;"
+        pairwise_tab.output_text.viewport().styleSheet() == "background: transparent; border: none;"
     )
 
 
@@ -476,9 +449,7 @@ def test_dotplot_tab_hides_output_panel_and_removes_reverse_complement_option(qa
     assert not hasattr(tab, "rc_check")
 
 
-def test_dotplot_tab_loads_files_without_showing_loaded_file_hint(
-    qapp, monkeypatch, tmp_path
-):
+def test_dotplot_tab_loads_files_without_showing_loaded_file_hint(qapp, monkeypatch, tmp_path):
     tab = DotPlotTab()
     sample_text = ">seq1\nMKTFFVAG\n"
     sample_file = tmp_path / "protein.txt"
@@ -562,9 +533,7 @@ def test_msa_single_file_tab_adds_left_padding_inside_subpage(qapp):
     assert single_page_layout.contentsMargins().left() >= 8
 
 
-def test_msa_single_file_loads_input_without_showing_loaded_hint(
-    qapp, monkeypatch, tmp_path
-):
+def test_msa_single_file_loads_input_without_showing_loaded_hint(qapp, monkeypatch, tmp_path):
     tab = MultipleSequenceAlignmentTab()
     sample_text = ">seq1\nATG-C\n>seq2\nATGGC\n"
     sample_file = tmp_path / "msa_input.fasta"
@@ -621,9 +590,7 @@ def test_msa_single_file_loads_input_without_showing_loaded_hint(
     assert tab.input_hint.text() == ""
 
 
-def test_msa_single_file_alignment_done_writes_output_file_in_input_order(
-    qapp, tmp_path
-):
+def test_msa_single_file_alignment_done_writes_output_file_in_input_order(qapp, tmp_path):
     tab = MultipleSequenceAlignmentTab()
     output_path = tmp_path / "aligned_output"
     aligned_fasta = ">seqA\nATG-C\n>seqB\nATGGC\n"
@@ -750,9 +717,7 @@ def test_mafft_batch_tab_defaults_to_input_order_with_mafft_pattern(qapp):
     assert tab.batch_order_combo.currentText() == "Input sequence order"
 
 
-def test_msa_visualization_tab_loads_input_without_showing_loaded_hint(
-    qapp, monkeypatch, tmp_path
-):
+def test_msa_visualization_tab_loads_input_without_showing_loaded_hint(qapp, monkeypatch, tmp_path):
     tab = MSAVisualizationTab()
     sample_text = ">seq_alpha\nATGCATGC\n>seq_beta\nATGCATGC\n"
     sample_file = tmp_path / "aligned_input.fasta"
@@ -812,9 +777,7 @@ def test_msa_visualization_tab_loads_input_without_showing_loaded_hint(
 def test_msa_visualization_keeps_sequence_labels_visible_with_default_dpi(qapp):
     tab = MSAVisualizationTab()
     headers = ["seq_alpha", "seq_beta"]
-    tab.input_text.setPlainText(
-        ">seq_alpha\nATGCATGCATGCATGC\n>seq_beta\nATGCATGCATGCATGC\n"
-    )
+    tab.input_text.setPlainText(">seq_alpha\nATGCATGCATGCATGC\n>seq_beta\nATGCATGCATGCATGC\n")
 
     assert tab.title == "MSA Visualization (pyMSAviz)"
     assert tab.dpi_spin.value() == 300
@@ -837,18 +800,13 @@ def test_main_window_and_menu_use_msa_visualization_pymsaviz_label(qapp):
 
     window.open_msa_visualization_tab()
 
-    assert (
-        window.tabs.tabText(window.tabs.currentIndex())
-        == "MSA Visualization (pyMSAviz)"
-    )
+    assert window.tabs.tabText(window.tabs.currentIndex()) == "MSA Visualization (pyMSAviz)"
 
     menu_bar = window.menuBar()
     alignment_menu = next(
         action.menu() for action in menu_bar.actions() if action.text() == "Alignment"
     )
-    action_texts = [
-        action.text() for action in alignment_menu.actions() if action.text()
-    ]
+    action_texts = [action.text() for action in alignment_menu.actions() if action.text()]
 
     assert "MSA Visualization (pyMSAviz)" in action_texts
     assert "MSA Visualization" not in action_texts
@@ -859,18 +817,13 @@ def test_main_window_and_menu_use_mafft_label(qapp):
 
     window.open_mafft_alignment_tab()
 
-    assert (
-        window.tabs.tabText(window.tabs.currentIndex())
-        == "Multiple Sequence Alignment (MAFFT)"
-    )
+    assert window.tabs.tabText(window.tabs.currentIndex()) == "Multiple Sequence Alignment (MAFFT)"
 
     menu_bar = window.menuBar()
     alignment_menu = next(
         action.menu() for action in menu_bar.actions() if action.text() == "Alignment"
     )
-    action_texts = [
-        action.text() for action in alignment_menu.actions() if action.text()
-    ]
+    action_texts = [action.text() for action in alignment_menu.actions() if action.text()]
 
     assert "Multiple Sequence Alignment (MAFFT)" in action_texts
 
@@ -882,9 +835,7 @@ def test_sequence_logo_tab_hides_save_figure_button_and_uses_logomaker_title(qap
     assert tab.title == "Sequence Logo (Logomaker)"
 
 
-def test_sequence_logo_tab_loads_input_without_showing_loaded_hint(
-    qapp, monkeypatch, tmp_path
-):
+def test_sequence_logo_tab_loads_input_without_showing_loaded_hint(qapp, monkeypatch, tmp_path):
     tab = SequenceLogoTab()
     sample_text = ">seq1\nATGC\n>seq2\nATGC\n"
     sample_file = tmp_path / "sequence_logo_input.fasta"
@@ -945,17 +896,13 @@ def test_main_window_and_menu_use_sequence_logo_logomaker_label(qapp):
 
     window.open_sequence_logo_tab()
 
-    assert (
-        window.tabs.tabText(window.tabs.currentIndex()) == "Sequence Logo (Logomaker)"
-    )
+    assert window.tabs.tabText(window.tabs.currentIndex()) == "Sequence Logo (Logomaker)"
 
     menu_bar = window.menuBar()
     alignment_menu = next(
         action.menu() for action in menu_bar.actions() if action.text() == "Alignment"
     )
-    action_texts = [
-        action.text() for action in alignment_menu.actions() if action.text()
-    ]
+    action_texts = [action.text() for action in alignment_menu.actions() if action.text()]
 
     assert "Sequence Logo (Logomaker)" in action_texts
     assert "Sequence Logo" not in action_texts
@@ -987,17 +934,13 @@ def test_main_window_and_menu_use_alignment_format_converter_label(qapp):
 
     window.open_alignment_format_converter_tab()
 
-    assert (
-        window.tabs.tabText(window.tabs.currentIndex()) == "Alignment Format Converter"
-    )
+    assert window.tabs.tabText(window.tabs.currentIndex()) == "Alignment Format Converter"
 
     menu_bar = window.menuBar()
     alignment_menu = next(
         action.menu() for action in menu_bar.actions() if action.text() == "Alignment"
     )
-    action_texts = [
-        action.text() for action in alignment_menu.actions() if action.text()
-    ]
+    action_texts = [action.text() for action in alignment_menu.actions() if action.text()]
 
     assert "Alignment Format Converter" in action_texts
 
