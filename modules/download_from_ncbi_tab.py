@@ -55,9 +55,7 @@ def report_path_for_output(output_path: str) -> str:
     return f"{base}_download_report.txt"
 
 
-def fetch_batch_with_retries(
-    entrez_module, db: str, batch: list[str], retry_count: int
-):
+def fetch_batch_with_retries(entrez_module, db: str, batch: list[str], retry_count: int):
     last_error = None
     for attempt in range(retry_count + 1):
         try:
@@ -140,9 +138,7 @@ class _NcbiDownloadWorker(QObject):
         try:
             from Bio import Entrez
         except ImportError:
-            self.error.emit(
-                "Biopython (Bio.Entrez) is required to download NCBI data."
-            )
+            self.error.emit("Biopython (Bio.Entrez) is required to download NCBI data.")
             return
 
         Entrez.email = self._email
@@ -180,9 +176,7 @@ class _NcbiDownloadWorker(QObject):
             except Exception as e:
                 failed_accessions.extend(batch)
                 error_messages.append(f"Batch {batch_index}: NCBI download error: {e}")
-                self.log_message.emit(
-                    f"NCBI download error in batch {batch_index}: {e}", "ERROR"
-                )
+                self.log_message.emit(f"NCBI download error in batch {batch_index}: {e}", "ERROR")
                 continue
 
             if retry_attempts_used:
@@ -191,15 +185,9 @@ class _NcbiDownloadWorker(QObject):
                     "WARNING",
                 )
 
-            if (
-                not fasta_data.strip()
-                or "Error" in fasta_data
-                or "not found" in fasta_data
-            ):
+            if not fasta_data.strip() or "Error" in fasta_data or "not found" in fasta_data:
                 failed_accessions.extend(batch)
-                error_messages.append(
-                    f"Batch {batch_index}: empty or error response from NCBI"
-                )
+                error_messages.append(f"Batch {batch_index}: empty or error response from NCBI")
                 self.log_message.emit(
                     f"Batch {batch_index} returned no usable sequence data. "
                     "Check DB type and accessions.",
@@ -213,9 +201,7 @@ class _NcbiDownloadWorker(QObject):
             returned_headers = parse_fasta_headers(fasta_data)
             returned_keys = {header.casefold() for header in returned_headers}
             batch_missing = [
-                accession
-                for accession in batch
-                if accession.casefold() not in returned_keys
+                accession for accession in batch if accession.casefold() not in returned_keys
             ]
             if batch_missing:
                 failed_accessions.extend(batch_missing)
@@ -268,9 +254,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.db_combo = QComboBox()
         self.db_combo.addItems(["nucleotide", "protein"])
         self.db_combo.setCurrentText("nucleotide")
-        self.db_combo.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.db_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.db_combo.setToolTip(
             "nucleotide: for DNA/RNA accessions (NM_, XM_, AF...)\n"
             "protein: for amino acid accessions (NP_, XP_, AAA...)"
@@ -287,9 +271,7 @@ class DownloadFromNCBITab(BaseTabWidget):
             "NCBI uses your email to track usage and contact you if there is a problem. "
             "It will not be shared or used for spam."
         )
-        self.email_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.email_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         email_layout.addWidget(self.email_edit)
 
         conn_layout.addLayout(db_layout)
@@ -319,17 +301,14 @@ class DownloadFromNCBITab(BaseTabWidget):
         acc_group = QGroupBox("Accession List")
         acc_layout = QVBoxLayout(acc_group)
         acc_hint = QLabel(
-            "Enter NCBI accession numbers, one per line "
-            "(e.g. NM_001101.5, NP_001092.1, AF123456)"
+            "Enter NCBI accession numbers, one per line (e.g. NM_001101.5, NP_001092.1, AF123456)"
         )
         acc_hint.setStyleSheet("color: #666; font-size: 13px;")
         acc_layout.addWidget(acc_hint)
         self.acc_edit = QPlainTextEdit()
         self.acc_edit.setPlaceholderText("NM_001101.5\nNP_001092.1\nAF123456\n...")
         self.acc_edit.setMinimumHeight(150)
-        self.acc_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
+        self.acc_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.acc_edit.setStyleSheet(
             "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
         )
@@ -350,12 +329,8 @@ class DownloadFromNCBITab(BaseTabWidget):
         out_label.setFixedWidth(_label_width)
         out_layout.addWidget(out_label)
         self.output_edit = QLineEdit()
-        self.output_edit.setPlaceholderText(
-            "Choose where to save the downloaded FASTA..."
-        )
-        self.output_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.output_edit.setPlaceholderText("Choose where to save the downloaded FASTA...")
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         out_layout.addWidget(self.output_edit)
@@ -448,9 +423,7 @@ class DownloadFromNCBITab(BaseTabWidget):
 
         # 验证输入
         if not email:
-            self.log_message(
-                "Please enter an email address (required by NCBI)", "ERROR"
-            )
+            self.log_message("Please enter an email address (required by NCBI)", "ERROR")
             return
 
         if not acc_text:
@@ -464,9 +437,7 @@ class DownloadFromNCBITab(BaseTabWidget):
             self.log_message(error, "ERROR")
             return
 
-        requested_acc_list = [
-            line.strip() for line in acc_text.split("\n") if line.strip()
-        ]
+        requested_acc_list = [line.strip() for line in acc_text.split("\n") if line.strip()]
         acc_list, duplicate_accessions = normalize_accession_list(acc_text)
         if not acc_list:
             self.log_message("Accession list is empty", "ERROR")
@@ -522,9 +493,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self._worker = None
 
     def _on_download_progress(self, batch_index: int, total_batches: int):
-        self.show_status(
-            f"Downloading batch {batch_index}/{total_batches}..."
-        )
+        self.show_status(f"Downloading batch {batch_index}/{total_batches}...")
 
     def _on_download_finished(self, fasta_data: str, report: dict):
         output_path = self.output_edit.text().strip()
@@ -569,9 +538,7 @@ class DownloadFromNCBITab(BaseTabWidget):
             )
 
         seq_count = report.get("sequences_returned", 0)
-        self.log_message(
-            f"Download complete. {seq_count} sequences saved to: {output_path}"
-        )
+        self.log_message(f"Download complete. {seq_count} sequences saved to: {output_path}")
         self.set_running_state(False)
 
     def _on_download_error(self, error_msg: str):

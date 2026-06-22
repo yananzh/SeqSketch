@@ -35,9 +35,7 @@ class FilterByLengthTab(BaseTabWidget):
         input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
@@ -82,9 +80,7 @@ class FilterByLengthTab(BaseTabWidget):
         output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the filtered file...")
-        self.output_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)

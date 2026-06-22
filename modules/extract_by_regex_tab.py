@@ -20,11 +20,7 @@ import re
 
 
 def full_header_text(record) -> str:
-    return (
-        f"{record.header} {record.description}".strip()
-        if record.description
-        else record.header
-    )
+    return f"{record.header} {record.description}".strip() if record.description else record.header
 
 
 def select_match_target(record, match_scope: str) -> str:
@@ -71,9 +67,7 @@ def no_match_report_path_for_output(output_path: str) -> str:
     return f"{base}_regex_no_match_report.txt"
 
 
-def write_no_match_report(
-    report_path: str, regex_text: str, summary: dict, case_insensitive: bool
-):
+def write_no_match_report(report_path: str, regex_text: str, summary: dict, case_insensitive: bool):
     lines = [
         "Metric\tValue",
         f"Generated_At\t{datetime.now().isoformat(timespec='seconds')}",
@@ -108,9 +102,7 @@ class ExtractByRegexTab(BaseTabWidget):
         input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
@@ -124,9 +116,7 @@ class ExtractByRegexTab(BaseTabWidget):
         regex_layout.addWidget(regex_label)
         self.regex_edit = QLineEdit()
         self.regex_edit.setPlaceholderText("e.g. ^NM_, .*kinase.*, ^[A-Z]{2}_\\d{6}$")
-        self.regex_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.regex_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         regex_layout.addWidget(self.regex_edit)
         self.common_patterns_btn = QPushButton("Common Patterns ▾")
         self.common_patterns_btn.setFixedWidth(155)
@@ -181,9 +171,7 @@ class ExtractByRegexTab(BaseTabWidget):
         output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the results...")
-        self.output_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
@@ -239,9 +227,7 @@ class ExtractByRegexTab(BaseTabWidget):
     def handle_input_file_selected(self, file_path: str):
         self.input_edit.setText(file_path)
         base = os.path.splitext(os.path.basename(file_path))[0]
-        suggested = os.path.join(
-            os.path.dirname(file_path), base + "_regex_extracted.fasta"
-        )
+        suggested = os.path.join(os.path.dirname(file_path), base + "_regex_extracted.fasta")
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
@@ -409,9 +395,7 @@ class ExtractByRegexTab(BaseTabWidget):
                 self.log_message("No sequences found in FASTA file", "ERROR")
                 return
 
-            filtered, summary = filter_records_by_regex(
-                records, pattern, match_mode, match_scope
-            )
+            filtered, summary = filter_records_by_regex(records, pattern, match_mode, match_scope)
 
             lines = [
                 f"Results: {summary['match_count']} matched  ·  "
@@ -452,9 +436,7 @@ class ExtractByRegexTab(BaseTabWidget):
             action = menu.addAction(label)
             action.setData(pattern)
         chosen = menu.exec(
-            self.common_patterns_btn.mapToGlobal(
-                self.common_patterns_btn.rect().bottomLeft()
-            )
+            self.common_patterns_btn.mapToGlobal(self.common_patterns_btn.rect().bottomLeft())
         )
         if chosen and chosen.data():
             self.regex_edit.setText(chosen.data())

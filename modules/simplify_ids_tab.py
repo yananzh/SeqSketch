@@ -57,9 +57,7 @@ def simplify_identifier(
 
     if mode == SIMPLIFY_MODE_KEEP_TOKENS:
         tokens = full_header.split()
-        candidate = (
-            normalize_identifier("_".join(tokens[:field_value])) if tokens else ""
-        )
+        candidate = normalize_identifier("_".join(tokens[:field_value])) if tokens else ""
         return candidate or original_id, None
 
     if mode == SIMPLIFY_MODE_DELIMITER_FIELD:
@@ -121,9 +119,7 @@ class SimplifyIDsTab(BaseTabWidget):
         input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
@@ -136,12 +132,8 @@ class SimplifyIDsTab(BaseTabWidget):
         output_label.setFixedWidth(_label_width)
         output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
-        self.output_edit.setPlaceholderText(
-            "Choose where to save the simplified file..."
-        )
-        self.output_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.output_edit.setPlaceholderText("Choose where to save the simplified file...")
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
@@ -159,9 +151,7 @@ class SimplifyIDsTab(BaseTabWidget):
         self.mode_combo.addItem("Delimiter field", SIMPLIFY_MODE_DELIMITER_FIELD)
         self.mode_combo.addItem("Keep first N words", SIMPLIFY_MODE_KEEP_TOKENS)
         self.mode_combo.addItem("Regex capture", SIMPLIFY_MODE_REGEX_CAPTURE)
-        self.mode_combo.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.mode_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         mode_layout.addWidget(self.mode_combo)
         self.mode_hint_label = QLabel("")
         self.mode_hint_label.setStyleSheet("color: #888; font-size: 13px;")
@@ -221,9 +211,7 @@ class SimplifyIDsTab(BaseTabWidget):
         pg3l.addWidget(QLabel("Regex:"))
         self.regex_edit = QLineEdit()
         self.regex_edit.setPlaceholderText(r"e.g. ref\|([^|]+)\|")
-        self.regex_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.regex_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         pg3l.addWidget(self.regex_edit)
         self.param_stack.addWidget(pg3)
 
@@ -403,14 +391,10 @@ class SimplifyIDsTab(BaseTabWidget):
                 if suffix:
                     simplified_id = simplified_id + suffix
                 desc_note = (
-                    " [desc preserved]"
-                    if preserve_description and record.description
-                    else ""
+                    " [desc preserved]" if preserve_description and record.description else ""
                 )
                 changed_mark = " *" if simplified_id != original_id else ""
-                lines.append(
-                    f"#{idx}:  {original_id}  →  {simplified_id}{changed_mark}{desc_note}"
-                )
+                lines.append(f"#{idx}:  {original_id}  →  {simplified_id}{changed_mark}{desc_note}")
             self.preview_panel.setPlainText("\n".join(lines))
             self.log_message("Preview updated — see panel above", "INFO")
         except Exception as e:
@@ -524,15 +508,11 @@ class SimplifyIDsTab(BaseTabWidget):
 
         compiled_pattern = None
         if mode == SIMPLIFY_MODE_DELIMITER_FIELD and not delimiter:
-            self.log_message(
-                "Please enter a delimiter for delimiter-field mode", "ERROR"
-            )
+            self.log_message("Please enter a delimiter for delimiter-field mode", "ERROR")
             return
         if mode == SIMPLIFY_MODE_REGEX_CAPTURE:
             if not regex_pattern:
-                self.log_message(
-                    "Please enter a regex pattern for regex-capture mode", "ERROR"
-                )
+                self.log_message("Please enter a regex pattern for regex-capture mode", "ERROR")
                 return
             try:
                 compiled_pattern = re.compile(regex_pattern)
@@ -557,9 +537,7 @@ class SimplifyIDsTab(BaseTabWidget):
             self.log_message(f"Loaded {len(records)} sequences", "INFO")
 
             self.show_status("Simplifying sequence IDs...")
-            mapping_rows = [
-                "Original_ID\tSimplified_ID\tChanged\tDescription_Preserved\tMode"
-            ]
+            mapping_rows = ["Original_ID\tSimplified_ID\tChanged\tDescription_Preserved\tMode"]
             warning_counts = Counter()
             changed_count = 0
             unchanged_count = 0
@@ -593,9 +571,7 @@ class SimplifyIDsTab(BaseTabWidget):
                 if suffix:
                     simplified_id = simplified_id + suffix
 
-                description_changed = (
-                    bool(record.description) and not preserve_description
-                )
+                description_changed = bool(record.description) and not preserve_description
                 changed = simplified_id != original_id or description_changed
                 if changed:
                     changed_count += 1
@@ -613,9 +589,7 @@ class SimplifyIDsTab(BaseTabWidget):
 
             duplicate_counts = Counter(simplified_ids)
             duplicate_ids = {
-                sequence_id: count
-                for sequence_id, count in duplicate_counts.items()
-                if count > 1
+                sequence_id: count for sequence_id, count in duplicate_counts.items() if count > 1
             }
             if empty_count:
                 self.log_message(
@@ -693,9 +667,7 @@ class SimplifyIDsTab(BaseTabWidget):
         except Exception as e:
             import traceback
 
-            self.log_message(
-                f"Error during processing: {e}\n{traceback.format_exc()}", "ERROR"
-            )
+            self.log_message(f"Error during processing: {e}\n{traceback.format_exc()}", "ERROR")
             self.show_status("Error")
         finally:
             self.set_running_state(False)

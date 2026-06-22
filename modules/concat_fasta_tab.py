@@ -40,9 +40,7 @@ class ConcatFastaTab(BaseTabWidget):
             "Click 'Add Files' to select FASTA files to concatenate..."
         )
         self.files_edit.setMinimumHeight(100)
-        self.files_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
+        self.files_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.files_edit.setStyleSheet(
             "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
         )
@@ -89,12 +87,8 @@ class ConcatFastaTab(BaseTabWidget):
         output_label.setFixedWidth(_label_width)
         output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
-        self.output_edit.setPlaceholderText(
-            "Choose where to save the concatenated file..."
-        )
-        self.output_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.output_edit.setPlaceholderText("Choose where to save the concatenated file...")
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
@@ -204,9 +198,7 @@ class ConcatFastaTab(BaseTabWidget):
             except Exception:
                 lines.append(f"  ✗ {os.path.basename(path)}  (read error)")
 
-        summary = (
-            f"Files: {valid_paths}/{len(paths)} valid  ·  Total sequences: {total_seqs}"
-        )
+        summary = f"Files: {valid_paths}/{len(paths)} valid  ·  Total sequences: {total_seqs}"
         lines.insert(0, summary)
         lines.insert(1, "")
         self.preview_panel.setPlainText("\n".join(lines))

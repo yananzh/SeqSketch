@@ -31,9 +31,7 @@ def normalize_sequence_id(sequence_id: str, case_sensitive: bool) -> str:
     return sequence_id if case_sensitive else sequence_id.casefold()
 
 
-def prepare_query_ids(
-    id_text: str, case_sensitive: bool
-) -> tuple[list[str], list[str]]:
+def prepare_query_ids(id_text: str, case_sensitive: bool) -> tuple[list[str], list[str]]:
     raw_ids = [line.strip() for line in id_text.splitlines() if line.strip()]
     seen = set()
     ordered_unique_ids = []
@@ -50,9 +48,7 @@ def prepare_query_ids(
     return ordered_unique_ids, duplicate_query_ids
 
 
-def build_record_lookup(
-    records, case_sensitive: bool
-) -> tuple[dict[str, list], dict[str, int]]:
+def build_record_lookup(records, case_sensitive: bool) -> tuple[dict[str, list], dict[str, int]]:
     record_lookup = {}
     duplicate_header_counts = {}
 
@@ -68,18 +64,12 @@ def build_record_lookup(
     return record_lookup, duplicate_header_counts
 
 
-def match_records_by_id(
-    records, query_ids: list[str], match_mode: str, output_order: str
-):
+def match_records_by_id(records, query_ids: list[str], match_mode: str, output_order: str):
     case_sensitive = match_mode.startswith("Exact Match (case-sensitive")
     exclude_mode = match_mode.startswith("Remove Listed IDs")
-    record_lookup, duplicate_header_counts = build_record_lookup(
-        records, case_sensitive
-    )
+    record_lookup, duplicate_header_counts = build_record_lookup(records, case_sensitive)
 
-    requested_ids, duplicate_query_ids = prepare_query_ids(
-        "\n".join(query_ids), case_sensitive
-    )
+    requested_ids, duplicate_query_ids = prepare_query_ids("\n".join(query_ids), case_sensitive)
     normalized_requested = {
         normalize_sequence_id(sequence_id, case_sensitive): sequence_id
         for sequence_id in requested_ids
@@ -150,9 +140,7 @@ class ExtractByIDTab(BaseTabWidget):
         input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
@@ -166,9 +154,7 @@ class ExtractByIDTab(BaseTabWidget):
             "Enter sequence IDs, one per line\nExamples:\nseq1\nseq2\nseq3"
         )
         self.id_edit.setMinimumHeight(120)
-        self.id_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
+        self.id_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.id_edit.setStyleSheet(
             "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
         )
@@ -229,12 +215,8 @@ class ExtractByIDTab(BaseTabWidget):
         output_label.setFixedWidth(_label_width)
         output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
-        self.output_edit.setPlaceholderText(
-            "Choose where to save the extracted file..."
-        )
-        self.output_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.output_edit.setPlaceholderText("Choose where to save the extracted file...")
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
@@ -472,9 +454,7 @@ class ExtractByIDTab(BaseTabWidget):
             if summary["duplicate_header_counts"]:
                 duplicate_preview = ", ".join(
                     f"{sequence_id} (x{count})"
-                    for sequence_id, count in sorted(
-                        summary["duplicate_header_counts"].items()
-                    )[:5]
+                    for sequence_id, count in sorted(summary["duplicate_header_counts"].items())[:5]
                 )
                 self.log_message(
                     f"Duplicate FASTA headers detected; all matching records will be extracted: {duplicate_preview}",
@@ -502,9 +482,7 @@ class ExtractByIDTab(BaseTabWidget):
                     report_path = missing_report_path_for_output(output_path)
                     with open(report_path, "w", encoding="utf-8") as handle:
                         handle.write("\n".join(missing_ids))
-                    self.log_message(
-                        f"Missing ID report saved to: {report_path}", "INFO"
-                    )
+                    self.log_message(f"Missing ID report saved to: {report_path}", "INFO")
                 self.set_running_state(False)
                 return
             self.log_message(
@@ -537,9 +515,7 @@ class ExtractByIDTab(BaseTabWidget):
         except Exception as e:
             import traceback
 
-            self.log_message(
-                f"Error during extraction: {e}\n{traceback.format_exc()}", "ERROR"
-            )
+            self.log_message(f"Error during extraction: {e}\n{traceback.format_exc()}", "ERROR")
             self.show_status("Error")
         finally:
             self.set_running_state(False)

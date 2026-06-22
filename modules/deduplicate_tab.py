@@ -41,9 +41,7 @@ class DeduplicateTab(BaseTabWidget):
         input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
@@ -71,9 +69,7 @@ class DeduplicateTab(BaseTabWidget):
         # ── Preview ──
         self.preview_panel = QPlainTextEdit()
         self.preview_panel.setReadOnly(True)
-        self.preview_panel.setPlaceholderText(
-            "Click Preview to see duplicate statistics..."
-        )
+        self.preview_panel.setPlaceholderText("Click Preview to see duplicate statistics...")
         self.preview_panel.setMaximumHeight(110)
         self.preview_panel.setStyleSheet(
             "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
@@ -85,12 +81,8 @@ class DeduplicateTab(BaseTabWidget):
         output_label.setFixedWidth(_label_width)
         output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
-        self.output_edit.setPlaceholderText(
-            "Choose where to save the deduplicated file..."
-        )
-        self.output_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.output_edit.setPlaceholderText("Choose where to save the deduplicated file...")
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
@@ -203,11 +195,7 @@ class DeduplicateTab(BaseTabWidget):
                 return
 
             kept, dup_id, dup_seq = self._deduplicate(records)
-            mode_label = (
-                "by ID"
-                if self.mode_combo.currentData() == DEDUP_BY_ID
-                else "by sequence"
-            )
+            mode_label = "by ID" if self.mode_combo.currentData() == DEDUP_BY_ID else "by sequence"
             lines = [
                 f"Total: {len(records)}  →  After dedup ({mode_label}): {len(kept)}  ·  "
                 f"Removed: {len(records) - len(kept)} duplicates"
@@ -260,11 +248,7 @@ class DeduplicateTab(BaseTabWidget):
 
             kept, dup_id, dup_seq = self._deduplicate(records)
             removed = len(records) - len(kept)
-            mode_label = (
-                "by ID"
-                if self.mode_combo.currentData() == DEDUP_BY_ID
-                else "by sequence"
-            )
+            mode_label = "by ID" if self.mode_combo.currentData() == DEDUP_BY_ID else "by sequence"
 
             if removed == 0:
                 self.log_message("No duplicates found", "INFO")

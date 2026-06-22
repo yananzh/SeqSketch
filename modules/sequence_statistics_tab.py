@@ -63,9 +63,7 @@ def format_metric_value(value) -> str:
 
 def analyze_record(record) -> dict:
     sequence = record.sequence.upper()
-    invalid_chars = sorted({
-        char for char in sequence if char not in VALID_SEQUENCE_CHARS
-    })
+    invalid_chars = sorted({char for char in sequence if char not in VALID_SEQUENCE_CHARS})
     invalid_char_count = sum(1 for char in sequence if char not in VALID_SEQUENCE_CHARS)
     sequence_type = detect_sequence_type(sequence)
     if invalid_char_count:
@@ -107,9 +105,7 @@ def build_statistics_report(records) -> tuple[dict, list[dict], list[str]]:
 
     duplicate_counts = Counter(record.header for record in records)
     duplicate_id_map = {
-        sequence_id: count
-        for sequence_id, count in duplicate_counts.items()
-        if count > 1
+        sequence_id: count for sequence_id, count in duplicate_counts.items() if count > 1
     }
 
     per_sequence_stats = [analyze_record(record) for record in records]
@@ -122,15 +118,9 @@ def build_statistics_report(records) -> tuple[dict, list[dict], list[str]]:
         detected_type = "Mixed/Unknown"
 
     total_n_count = sum(item["n_count"] or 0 for item in per_sequence_stats)
-    total_ambiguous_count = sum(
-        item["ambiguous_count"] or 0 for item in per_sequence_stats
-    )
-    total_invalid_char_count = sum(
-        item["invalid_char_count"] for item in per_sequence_stats
-    )
-    invalid_record_count = sum(
-        1 for item in per_sequence_stats if item["invalid_char_count"] > 0
-    )
+    total_ambiguous_count = sum(item["ambiguous_count"] or 0 for item in per_sequence_stats)
+    total_invalid_char_count = sum(item["invalid_char_count"] for item in per_sequence_stats)
+    invalid_record_count = sum(1 for item in per_sequence_stats if item["invalid_char_count"] > 0)
     duplicate_id_count = sum(count - 1 for count in duplicate_id_map.values())
 
     n_content_rate = None
@@ -169,17 +159,14 @@ def build_statistics_report(records) -> tuple[dict, list[dict], list[str]]:
         "total_n_count": total_n_count if detected_type == "DNA/RNA" else None,
         "n_content_rate": n_content_rate,
         "type_breakdown": "; ".join(
-            f"{sequence_type}:{count}"
-            for sequence_type, count in sorted(type_counts.items())
+            f"{sequence_type}:{count}" for sequence_type, count in sorted(type_counts.items())
         ),
         "warning_count": len(warnings),
     }
     return summary, per_sequence_stats, warnings
 
 
-def write_statistics_report(
-    output_path: str, summary: dict, per_sequence_stats: list[dict]
-):
+def write_statistics_report(output_path: str, summary: dict, per_sequence_stats: list[dict]):
     summary_rows = [
         ("Detected_Sequence_Type", summary["sequence_type"]),
         ("Total_Sequences", summary["total"]),
@@ -245,9 +232,7 @@ class SequenceStatisticsWorker(FASTAWorker):
             if not processor:
                 return
 
-            summary, per_sequence_stats, warnings = build_statistics_report(
-                processor.records
-            )
+            summary, per_sequence_stats, warnings = build_statistics_report(processor.records)
             self.emit_progress("Saving statistics report...")
             write_statistics_report(self.output_path, summary, per_sequence_stats)
 
@@ -255,9 +240,7 @@ class SequenceStatisticsWorker(FASTAWorker):
                 self.progress.emit(f"Warning: {warning}")
 
             self.stats_finished.emit(summary)
-            self.emit_finished(
-                f"Statistics complete! Results saved to: {self.output_path}"
-            )
+            self.emit_finished(f"Statistics complete! Results saved to: {self.output_path}")
         except Exception as e:
             import traceback
 
@@ -283,9 +266,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
@@ -299,9 +280,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the QC stats...")
-        self.output_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
@@ -394,9 +373,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         """Handle input selection from dialog or drag-and-drop"""
         self.input_edit.setText(file_path)
         base = os.path.splitext(os.path.basename(file_path))[0]
-        suggested = os.path.join(
-            os.path.dirname(file_path), base + "_length_statistics.txt"
-        )
+        suggested = os.path.join(os.path.dirname(file_path), base + "_length_statistics.txt")
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
@@ -427,9 +404,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.stat_labels["n50"].setText(str(stats.get("n50", 0)))
         self.stat_labels["l50"].setText(str(stats.get("l50", 0)))
         self.stat_labels["duplicate_ids"].setText(str(stats.get("duplicate_ids", 0)))
-        self.stat_labels["ambiguous_bases"].setText(
-            str(stats.get("ambiguous_bases", 0))
-        )
+        self.stat_labels["ambiguous_bases"].setText(str(stats.get("ambiguous_bases", 0)))
         self.stat_labels["invalid_chars"].setText(str(stats.get("invalid_chars", 0)))
 
         n_count = stats.get("total_n_count")
@@ -624,9 +599,7 @@ or GC content.</li>
                 self.log_message("Unable to read FASTA file", "ERROR")
                 return
 
-            summary, per_sequence_stats, warnings = build_statistics_report(
-                processor.records
-            )
+            summary, per_sequence_stats, warnings = build_statistics_report(processor.records)
             self.update_statistics(summary)
 
             self.show_status("Computing statistics...")
@@ -642,9 +615,7 @@ or GC content.</li>
             self.log_message("Saving detailed QC report...", "INFO")
             write_statistics_report(output_path, summary, per_sequence_stats)
 
-            self.log_message(
-                f"Statistics complete! Results saved to: {output_path}", "INFO"
-            )
+            self.log_message(f"Statistics complete! Results saved to: {output_path}", "INFO")
             self.show_status("Complete")
 
         except Exception as e:

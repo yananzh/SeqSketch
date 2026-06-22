@@ -50,9 +50,7 @@ def write_mapping_template_file(output_path: str, rows: list[dict[str, str]]) ->
 
         delimiter = "," if ext == ".csv" else "\t"
         with open(output_path, "w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(
-                handle, fieldnames=["old_id", "new_id"], delimiter=delimiter
-            )
+            writer = csv.DictWriter(handle, fieldnames=["old_id", "new_id"], delimiter=delimiter)
             writer.writeheader()
             writer.writerows(rows)
         return
@@ -97,9 +95,7 @@ def parse_mapping_entries(rows) -> tuple[dict[str, str], dict]:
         new_id_sources[new_id].append(old_id)
 
     duplicate_new_ids = {
-        new_id: old_ids
-        for new_id, old_ids in new_id_sources.items()
-        if len(old_ids) > 1
+        new_id: old_ids for new_id, old_ids in new_id_sources.items() if len(old_ids) > 1
     }
     summary = {
         "skipped_rows": skipped_rows,
@@ -109,9 +105,7 @@ def parse_mapping_entries(rows) -> tuple[dict[str, str], dict]:
     return mapping, summary
 
 
-def load_mapping_file(
-    mapping_path: str, has_header: bool
-) -> tuple[dict[str, str], dict]:
+def load_mapping_file(mapping_path: str, has_header: bool) -> tuple[dict[str, str], dict]:
     ext = os.path.splitext(mapping_path)[1].lower()
     if ext in [".xls", ".xlsx"]:
         try:
@@ -123,9 +117,7 @@ def load_mapping_file(
 
         df = pd.read_excel(mapping_path, header=0 if has_header else None)
         if df.shape[1] < 2:
-            raise ValueError(
-                "Mapping file must have at least two columns (old ID, new ID)"
-            )
+            raise ValueError("Mapping file must have at least two columns (old ID, new ID)")
         rows = df.iloc[:, :2].fillna("").astype(str).values.tolist()
         return parse_mapping_entries(rows)
 
@@ -185,9 +177,7 @@ def plan_renames(records, mapping: dict[str, str]) -> dict:
         for final_id, source_ids in final_id_sources.items()
         if len(source_ids) > 1
     }
-    unused_mapping_ids = [
-        old_id for old_id in mapping if old_id not in matched_mapping_ids
-    ]
+    unused_mapping_ids = [old_id for old_id in mapping if old_id not in matched_mapping_ids]
 
     for row in rename_rows:
         if row["new_id"] in collisions:
@@ -215,9 +205,7 @@ def write_rename_report(output_path: str, report_rows: list[dict], metadata: dic
         "Old_ID\tNew_ID\tStatus\tReason",
     ]
     for row in report_rows:
-        lines.append(
-            f"{row['old_id']}\t{row['new_id']}\t{row['status']}\t{row['reason']}"
-        )
+        lines.append(f"{row['old_id']}\t{row['new_id']}\t{row['status']}\t{row['reason']}")
     with open(output_path, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines))
 
@@ -241,9 +229,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
-        self.input_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
         input_layout.addWidget(self.input_edit)
@@ -270,15 +256,12 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.mapping_edit.setPlaceholderText(
             "Select or drop a mapping file (Excel .xlsx/.xls, CSV, TSV, or TXT)..."
         )
-        self.mapping_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.mapping_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.mapping_btn = QPushButton("Browse")
         self.export_ids_btn = QPushButton("Export Current IDs")
         self.export_ids_btn.setEnabled(False)
         self.export_ids_btn.setToolTip(
-            "Export the IDs from the selected FASTA as a template. "
-            "Select a FASTA file above first."
+            "Export the IDs from the selected FASTA as a template. Select a FASTA file above first."
         )
         map_row.addWidget(self.mapping_edit)
         map_row.addWidget(self.export_ids_btn)
@@ -327,9 +310,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         out_layout.addWidget(out_label)
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the renamed file...")
-        self.output_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.output_btn = QPushButton("Save As")
         self.output_btn.setFixedWidth(90)
         out_layout.addWidget(self.output_edit)
@@ -403,9 +384,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         input_path = self.input_edit.text().strip()
         base_name = "current_ids_template"
         if input_path:
-            base_name = (
-                os.path.splitext(os.path.basename(input_path))[0] + "_id_mapping"
-            )
+            base_name = os.path.splitext(os.path.basename(input_path))[0] + "_id_mapping"
 
         output_path, selected_filter = QFileDialog.getSaveFileName(
             self,
@@ -451,9 +430,7 @@ class BatchRenameIDsTab(BaseTabWidget):
                 self.show_status("Error")
                 return False
 
-            write_mapping_template_file(
-                output_path, build_mapping_template_rows(processor.records)
-            )
+            write_mapping_template_file(output_path, build_mapping_template_rows(processor.records))
             self.log_message(
                 f"Exported {len(processor.records)} current FASTA IDs to: {output_path}",
                 "INFO",
@@ -518,9 +495,7 @@ class BatchRenameIDsTab(BaseTabWidget):
                 f"Unchanged: {rename_plan['unchanged_count']}"
             ]
             lines.append("")
-            showing = [
-                r for r in rename_plan["rename_rows"] if r["status"] == "renamed"
-            ][:5]
+            showing = [r for r in rename_plan["rename_rows"] if r["status"] == "renamed"][:5]
             if showing:
                 lines.append(f"─ Renamed (first {len(showing)}) ─")
                 for row in showing:
@@ -585,9 +560,7 @@ class BatchRenameIDsTab(BaseTabWidget):
                 return
 
             if mapping_summary["duplicate_old_ids"]:
-                preview = ", ".join(
-                    sorted(mapping_summary["duplicate_old_ids"].keys())[:5]
-                )
+                preview = ", ".join(sorted(mapping_summary["duplicate_old_ids"].keys())[:5])
                 self.log_message(
                     f"Duplicate source IDs found in mapping file: {preview}",
                     "ERROR",
@@ -603,9 +576,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             if mapping_summary["duplicate_new_ids"]:
                 preview = ", ".join(
                     f"{new_id} <- {', '.join(source_ids)}"
-                    for new_id, source_ids in list(
-                        mapping_summary["duplicate_new_ids"].items()
-                    )[:5]
+                    for new_id, source_ids in list(mapping_summary["duplicate_new_ids"].items())[:5]
                 )
                 self.log_message(
                     f"Multiple source IDs map to the same target ID: {preview}",
@@ -642,9 +613,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             if rename_plan["collisions"]:
                 preview = ", ".join(
                     f"{final_id} <- {', '.join(source_ids)}"
-                    for final_id, source_ids in list(rename_plan["collisions"].items())[
-                        :5
-                    ]
+                    for final_id, source_ids in list(rename_plan["collisions"].items())[:5]
                 )
                 level = "ERROR" if block_on_collisions else "WARNING"
                 self.log_message(
@@ -674,9 +643,7 @@ class BatchRenameIDsTab(BaseTabWidget):
                                 "collisions": rename_plan["collisions"],
                             },
                         )
-                        self.log_message(
-                            f"Rename report saved to: {report_path}", "INFO"
-                        )
+                        self.log_message(f"Rename report saved to: {report_path}", "INFO")
                     return
 
             if rename_plan["renamed_count"] == 0:
@@ -749,9 +716,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         except Exception as e:
             import traceback
 
-            self.log_message(
-                f"Error during renaming: {e}\n{traceback.format_exc()}", "ERROR"
-            )
+            self.log_message(f"Error during renaming: {e}\n{traceback.format_exc()}", "ERROR")
             self.show_status("Error")
         finally:
             self.set_running_state(False)
@@ -775,9 +740,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.preview_btn.setEnabled(not running)
         self.input_btn.setEnabled(not running)
         self.mapping_btn.setEnabled(not running)
-        self.export_ids_btn.setEnabled(
-            not running and bool(self.input_edit.text().strip())
-        )
+        self.export_ids_btn.setEnabled(not running and bool(self.input_edit.text().strip()))
         self.output_btn.setEnabled(not running)
         self.header_checkbox.setEnabled(not running)
         self.export_report_checkbox.setEnabled(not running)
