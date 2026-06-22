@@ -79,11 +79,7 @@ def read_text(path: Path) -> str:
 
 
 def fasta_headers(path: Path) -> list[str]:
-    return [
-        line[1:].strip()
-        for line in read_text(path).splitlines()
-        if line.startswith(">")
-    ]
+    return [line[1:].strip() for line in read_text(path).splitlines() if line.startswith(">")]
 
 
 def log_text(tab) -> str:
@@ -108,9 +104,7 @@ def test_fasta_tools_tabs_share_a_clear_labeled_log_area(qapp, tab_class):
     assert tab.log_group.property("logGroup") is True
     assert tab.log_area.isReadOnly()
     assert tab.log_area.property("logViewer") is True
-    assert tab.log_area.placeholderText() == (
-        "Run the program to see progress and results here..."
-    )
+    assert tab.log_area.placeholderText() == ("Run the program to see progress and results here...")
     assert tab.log_area.minimumHeight() >= 120
     assert tab.log_area.lineWrapMode() == tab.log_area.LineWrapMode.WidgetWidth
 
@@ -254,9 +248,8 @@ def test_sequence_statistics_logs_duplicate_and_invalid_sequence_warnings(
     assert tab.stat_labels["invalid_chars"].text() == "1"
     assert "Duplicate IDs detected: dup (x2)" in log_text(tab)
     assert "Mixed or unknown sequence alphabets detected" in log_text(tab)
-    assert (
-        "Invalid characters detected in 1 sequence(s), total invalid characters: 1."
-        in log_text(tab)
+    assert "Invalid characters detected in 1 sequence(s), total invalid characters: 1." in log_text(
+        tab
     )
 
 
@@ -351,10 +344,7 @@ def test_extract_by_id_exclude_mode_keeps_non_requested_records(
         "gene_alpha product_x",
         "chr10_sample annotation",
     ]
-    assert (
-        "Exclude mode uses FASTA order for output; query order was ignored."
-        in log_text(tab)
-    )
+    assert "Exclude mode uses FASTA order for output; query order was ignored." in log_text(tab)
     assert (
         "Match mode: Remove Listed IDs (exclude); output order: Preserve FASTA Order"
         in log_text(tab)
@@ -403,9 +393,7 @@ def test_extract_by_regex_happy_path(qapp, sample_fasta_file: Path, tmp_path: Pa
     print("[Extract by Regex] finished successfully")
 
 
-def test_extract_by_regex_case_insensitive_id_only(
-    qapp, sample_fasta_file: Path, tmp_path: Path
-):
+def test_extract_by_regex_case_insensitive_id_only(qapp, sample_fasta_file: Path, tmp_path: Path):
     output_path = tmp_path / "regex_case_insensitive.fasta"
     tab = ExtractByRegexTab()
 
@@ -422,9 +410,7 @@ def test_extract_by_regex_case_insensitive_id_only(
     assert "Case insensitive: Yes" in log_text(tab)
 
 
-def test_extract_by_regex_description_only_scope(
-    qapp, sample_fasta_file: Path, tmp_path: Path
-):
+def test_extract_by_regex_description_only_scope(qapp, sample_fasta_file: Path, tmp_path: Path):
     output_path = tmp_path / "regex_description_only.fasta"
     tab = ExtractByRegexTab()
 
@@ -439,9 +425,7 @@ def test_extract_by_regex_description_only_scope(
     assert "Scope: Description Only" in log_text(tab)
 
 
-def test_extract_by_regex_exclude_matches(
-    qapp, sample_fasta_file: Path, tmp_path: Path
-):
+def test_extract_by_regex_exclude_matches(qapp, sample_fasta_file: Path, tmp_path: Path):
     output_path = tmp_path / "regex_exclude.fasta"
     tab = ExtractByRegexTab()
 
@@ -457,9 +441,7 @@ def test_extract_by_regex_exclude_matches(
     assert "output contains 1 sequence(s)" in log_text(tab)
 
 
-def test_extract_by_regex_zero_match_exports_report(
-    qapp, sample_fasta_file: Path, tmp_path: Path
-):
+def test_extract_by_regex_zero_match_exports_report(qapp, sample_fasta_file: Path, tmp_path: Path):
     output_path = tmp_path / "regex_zero_match.fasta"
     report_path = tmp_path / "regex_zero_match_regex_no_match_report.txt"
     tab = ExtractByRegexTab()
@@ -514,9 +496,7 @@ def test_download_from_ncbi_happy_path(qapp, tmp_path: Path, monkeypatch):
 
     def fake_efetch(**kwargs):
         calls.update(kwargs)
-        return DummyHandle(
-            ">NM_001 fake sequence\nATGCATGC\n>NP_001 fake protein\nMSTNPKPQR\n"
-        )
+        return DummyHandle(">NM_001 fake sequence\nATGCATGC\n>NP_001 fake protein\nMSTNPKPQR\n")
 
     from Bio import Entrez
 
@@ -567,9 +547,7 @@ def test_download_from_ncbi_deduplicates_accessions_and_exports_report(
 
     def fake_efetch(**kwargs):
         calls.append(kwargs)
-        return DummyHandle(
-            ">NM_001 fake sequence\nATGCATGC\n>NP_001 fake protein\nMSTNPKPQR\n"
-        )
+        return DummyHandle(">NM_001 fake sequence\nATGCATGC\n>NP_001 fake protein\nMSTNPKPQR\n")
 
     from Bio import Entrez
 
@@ -586,9 +564,7 @@ def test_download_from_ncbi_deduplicates_accessions_and_exports_report(
     assert report_path.exists()
     assert len(calls) == 1
     assert calls[0]["id"] == "NM_001,NP_001"
-    assert "Duplicate accession IDs ignored after first occurrence: NM_001" in log_text(
-        tab
-    )
+    assert "Duplicate accession IDs ignored after first occurrence: NM_001" in log_text(tab)
     report_text = read_text(report_path)
     assert "Requested_Count\t3" in report_text
     assert "Unique_Requested_Count\t2" in report_text
@@ -636,9 +612,7 @@ def test_download_from_ncbi_runs_multiple_batches(qapp, tmp_path: Path, monkeypa
     assert read_text(output_path).count(">") == 3
 
 
-def test_download_from_ncbi_retries_after_network_error(
-    qapp, tmp_path: Path, monkeypatch
-):
+def test_download_from_ncbi_retries_after_network_error(qapp, tmp_path: Path, monkeypatch):
     output_path = tmp_path / "downloaded_retry.fasta"
     tab = DownloadFromNCBITab()
 
@@ -681,9 +655,7 @@ def test_download_from_ncbi_retries_after_network_error(
     assert "Batch 1 succeeded after 2 attempt(s)" in log_text(tab)
 
 
-def test_download_from_ncbi_empty_result_exports_failure_report(
-    qapp, tmp_path: Path, monkeypatch
-):
+def test_download_from_ncbi_empty_result_exports_failure_report(qapp, tmp_path: Path, monkeypatch):
     output_path = tmp_path / "download_empty.fasta"
     report_path = tmp_path / "download_empty_download_report.txt"
     tab = DownloadFromNCBITab()
@@ -750,9 +722,7 @@ def test_batch_rename_ids_happy_path(
     print("[Batch Rename IDs] finished successfully")
 
 
-def test_batch_rename_ids_reads_excel_mapping_file(
-    qapp, sample_fasta_file: Path, tmp_path: Path
-):
+def test_batch_rename_ids_reads_excel_mapping_file(qapp, sample_fasta_file: Path, tmp_path: Path):
     mapping_path = tmp_path / "mapping.xlsx"
     output_path = tmp_path / "renamed_from_excel.fasta"
     tab = BatchRenameIDsTab()
@@ -870,8 +840,7 @@ def test_batch_rename_ids_exports_report_and_logs_unused_mapping_ids(
     assert "Renamed_Count\t1" in report_text
     assert "Unused_Mapping_IDs\tmissing_id" in report_text
     assert (
-        "missing_id\trenamed_missing\tunused_mapping\tmapping ID not found in FASTA"
-        in report_text
+        "missing_id\trenamed_missing\tunused_mapping\tmapping ID not found in FASTA" in report_text
     )
     assert "Rename report saved to:" in log_text(tab)
     assert "Unused mapping IDs: missing_id" in log_text(tab)
@@ -944,9 +913,7 @@ def test_batch_rename_ids_zero_match_does_not_write_output(
     assert "Unused_Mapping_IDs\tmissing_id" in read_text(report_path)
 
 
-def test_extract_by_regex_invalid_pattern_logs_error(
-    qapp, sample_fasta_file: Path, tmp_path: Path
-):
+def test_extract_by_regex_invalid_pattern_logs_error(qapp, sample_fasta_file: Path, tmp_path: Path):
     output_path = tmp_path / "invalid_regex_output.fasta"
     tab = ExtractByRegexTab()
 

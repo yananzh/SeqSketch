@@ -268,9 +268,7 @@ class BaseTabWidget(QWidget):
 
         self.input_text = QTextEdit()
         apply_sequence_editor_style(self.input_text)
-        self.input_text.setPlaceholderText(
-            "Paste DNA/RNA sequence, or upload a file..."
-        )
+        self.input_text.setPlaceholderText("Paste DNA/RNA sequence, or upload a file...")
         self.upload_btn = QPushButton(self.tr("Upload File"))
         self.upload_btn.clicked.connect(self.open_file)
         self.input_hint = QLabel("")
@@ -460,9 +458,7 @@ class BaseTabWidget(QWidget):
         if not hasattr(self, "log_area"):
             return
 
-        prefix = {"INFO": "[Info]", "ERROR": "[Error]", "WARNING": "[Warning]"}.get(
-            level, "[Info]"
-        )
+        prefix = {"INFO": "[Info]", "ERROR": "[Error]", "WARNING": "[Warning]"}.get(level, "[Info]")
 
         self.log_area.append(f"{prefix} {message}")
 
