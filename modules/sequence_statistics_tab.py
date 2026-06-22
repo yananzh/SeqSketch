@@ -352,20 +352,16 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.stats_layout.setHorizontalSpacing(16)
         self.stats_layout.setVerticalSpacing(6)
 
-        # 控制按钮
-        control_layout = QHBoxLayout()
+        # ── Control buttons in status bar ──
         self.run_btn = QPushButton("Start")
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
-        control_layout.addStretch(1)
-        control_layout.addWidget(self.run_btn)
-        control_layout.addWidget(self.clear_btn)
-        control_layout.setSpacing(10)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
 
         # 添加到内容区域
         self.add_content_layout(input_layout)
         self.add_content_layout(output_layout)
         self.add_content_widget(self.stats_group)
-        self.add_content_layout(control_layout)
         self.content_area.addStretch()
 
     def connect_signals(self):

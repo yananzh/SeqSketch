@@ -361,23 +361,20 @@ class DownloadFromNCBITab(BaseTabWidget):
         out_layout.addWidget(self.output_edit)
         out_layout.addWidget(self.output_btn)
 
-        # ── Control buttons ──
-        control_layout = QHBoxLayout()
+        # ── Control buttons in status bar ──
         self.run_btn = QPushButton("Start")
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.stop_btn = QPushButton("Stop")
         self.stop_btn.setVisible(False)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.stop_btn)
         self.clear_btn = QPushButton("Clear")
-        control_layout.addStretch(1)
-        control_layout.addWidget(self.run_btn)
-        control_layout.addWidget(self.stop_btn)
-        control_layout.addWidget(self.clear_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
 
         # ── Assemble ──
         self.add_content_widget(conn_group)
         self.add_content_widget(opts_group)
         self.add_content_widget(acc_group)
         self.add_content_widget(out_group)
-        self.add_content_layout(control_layout)
         self.content_area.addStretch()
 
     def connect_signals(self):

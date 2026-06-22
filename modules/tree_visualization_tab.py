@@ -416,6 +416,10 @@ class SimpleTreeVisualizationTab(BaseTabWidget):
         self._draw_btn.clicked.connect(self._draw)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._draw_btn)
 
+        self._clear_btn = QPushButton(self.tr("Clear"))
+        self._clear_btn.clicked.connect(self._clear)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._clear_btn)
+
         self._export_btn = QPushButton(self.tr("Export Image"))
         self._export_btn.clicked.connect(self._export)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._export_btn)
@@ -531,8 +535,12 @@ graphics, we recommend:</p>
     # ------------------------------------------------------------------
     def _show_placeholder(self):
         self._scene.clear()
+        # Large scene rect so text appears small after fitInView
+        self._scene.setSceneRect(QRectF(-400, -300, 800, 600))
         text_item = self._scene.addSimpleText(self.tr("Load a tree file and click Draw Tree"))
         text_item.setBrush(QColor("#aaa"))
+        br = text_item.boundingRect()
+        text_item.setPos(-br.width() / 2, -br.height() / 2)
         self._graphics_view.fit_to_window()
 
     def _show_png(self, path: str):
@@ -555,6 +563,12 @@ graphics, we recommend:</p>
 
     def _on_reset_view(self):
         self._graphics_view.reset_view()
+
+    def _clear(self):
+        """Clear the canvas and reset the file input."""
+        self._show_placeholder()
+        self._file_edit.clear()
+        self._set_status(self.tr(""))
 
     # ------------------------------------------------------------------
     # Slots
@@ -667,8 +681,11 @@ graphics, we recommend:</p>
         self._draw_btn.setEnabled(False)
         self._set_status(self.tr("Rendering tree..."))
         self._scene.clear()
+        self._scene.setSceneRect(QRectF(-400, -300, 800, 600))
         text_item = self._scene.addSimpleText(self.tr("Rendering..."))
         text_item.setBrush(QColor("#aaa"))
+        br = text_item.boundingRect()
+        text_item.setPos(-br.width() / 2, -br.height() / 2)
         self._graphics_view.fit_to_window()
 
         self._render_thread = _RenderThread(

@@ -240,17 +240,14 @@ class ExtractByIDTab(BaseTabWidget):
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
 
-        # ── Control buttons ──
-        control_layout = QHBoxLayout()
-        control_layout.addStretch(1)
+        # ── Control buttons in status bar ──
         self.preview_btn = QPushButton("Preview")
         self.preview_btn.setToolTip("Preview the first 5 matched IDs without saving")
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.preview_btn)
         self.run_btn = QPushButton("Start")
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
-        control_layout.addWidget(self.preview_btn)
-        control_layout.addWidget(self.run_btn)
-        control_layout.addWidget(self.clear_btn)
-        control_layout.setSpacing(10)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
 
         # ── Assemble ──
         self.add_content_layout(input_layout)
@@ -260,7 +257,6 @@ class ExtractByIDTab(BaseTabWidget):
         self.add_content_widget(options_group)
         self.add_content_widget(self.preview_panel)
         self.add_content_layout(output_layout)
-        self.add_content_layout(control_layout)
         self.content_area.addStretch()
 
     def connect_signals(self):
