@@ -245,7 +245,7 @@ class BaseTabWidget(QWidget):
             self.log_area.setMaximumHeight(160)
             self.log_area.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
             self.log_area.setPlaceholderText(
-                self.tr("Run a FASTA tool to see progress and results here...")
+                self.tr("Run the program to see progress and results here...")
             )
 
             log_layout = QVBoxLayout(self.log_group)
