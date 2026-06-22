@@ -19,7 +19,7 @@ from modules.one_step_multigenephy_io import (
     write_run_manifest,
 )
 from modules.one_step_multigenephy_models import RunArtifacts, WorkflowRunResult
-from utils.app_paths import resource_path
+from utils.app_paths import resource_path, tool_path_from_config
 
 
 def _creation_flags() -> int:
@@ -56,18 +56,34 @@ def _read_fasta_file(path: Path) -> dict[str, str]:
 
 
 def _mafft_executable() -> str:
+    configured = tool_path_from_config("MAFFT", "bin_dir")
+    if configured:
+        for name in ("mafft.bat", "mafft-signed.ps1"):
+            candidate = os.path.join(configured, name)
+            if os.path.isfile(candidate):
+                return candidate
     for name in ("mafft.bat", "mafft-signed.ps1"):
-        candidate = resource_path("softwares", "mafft-win", name)
+        candidate = resource_path("softwares", "mafft-win_v7.526", name)
         if os.path.isfile(candidate):
             return candidate
-    return resource_path("softwares", "mafft-win", "mafft.bat")
+    return resource_path("softwares", "mafft-win_v7.526", "mafft.bat")
 
 
 def _trimal_executable() -> str:
-    return resource_path("softwares", "trimAl_Windows_x86-64", "trimal.exe")
+    configured = tool_path_from_config("TrimAl", "bin_dir")
+    if configured:
+        exe = os.path.join(configured, "trimal.exe")
+        if os.path.isfile(exe):
+            return exe
+    return resource_path("softwares", "trimAl_Windows_v1.5.1", "trimal.exe")
 
 
 def _iqtree_executable() -> str:
+    configured = tool_path_from_config("IQTree", "bin_dir")
+    if configured:
+        exe = os.path.join(configured, "iqtree3.exe")
+        if os.path.isfile(exe):
+            return exe
     return resource_path("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
 
 
@@ -89,9 +105,7 @@ def _run_command(cmd: list[str], cwd: str | None = None) -> subprocess.Completed
     )
     if result.returncode != 0:
         details = (result.stderr or result.stdout or "").strip()
-        raise RuntimeError(
-            details or f"Command failed with exit code {result.returncode}"
-        )
+        raise RuntimeError(details or f"Command failed with exit code {result.returncode}")
     return result
 
 
@@ -294,9 +308,7 @@ def _write_fasta(
     strain_order: list[str],
 ) -> None:
     ordered = _ordered_sequences(sequences, strain_order)
-    content = "".join(
-        f">{strain_name}\n{sequence}\n" for strain_name, sequence in ordered.items()
-    )
+    content = "".join(f">{strain_name}\n{sequence}\n" for strain_name, sequence in ordered.items())
     path.write_text(content, encoding="utf-8")
 
 
@@ -305,12 +317,62 @@ def _write_partitions(
     partitions: list[tuple[str, int, int]],
 ) -> None:
     lines = ["#nexus", "begin sets;"]
-    lines.extend(
-        f"  charset {gene_name} = {start}-{end};"
-        for gene_name, start, end in partitions
-    )
+    lines.extend(f"  charset {gene_name} = {start}-{end};" for gene_name, start, end in partitions)
     lines.append("end;")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _parse_best_model_nex(path: str) -> dict[str, str]:
+    """Parse final.best_model.nex to extract per-partition model names.
+
+    Returns a dict mapping gene (charset) name → model string.
+    Handles IQ-TREE 3 format:
+        HKY{3.158}+F{0.24,0.35}+G4{1.11}: GAPDH{3.158},
+        GTR+F+G4: ITS
+    """
+    import re
+
+    models: dict[str, str] = {}
+    if not os.path.isfile(path):
+        return models
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except Exception:
+        return models
+
+    # Regex to match:  ModelString : GeneName  (with optional {params} and trailing comma/semicolon)
+    # Example: HKY{3.15836}+F{0.24,...}+G4{1.1096}: GAPDH{3.15784},
+    pattern = re.compile(
+        r"([A-Za-z0-9+{}.()_,\s-]+?)\s*:\s*([A-Za-z0-9_]+)(?:\{[^}]*\})?\s*[,;]?\s*$"
+    )
+
+    # Regex to strip {param} values from model strings for clean display
+    _strip_params = re.compile(r"\{[^}]*\}")
+
+    in_block = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.lower().startswith("charpartition"):
+            in_block = True
+            # Check if a model:gene pair is on the same line as charpartition
+            if "=" in stripped:
+                after_eq = stripped.split("=", 1)[1].strip().rstrip(";")
+                match = pattern.match(after_eq)
+                if match:
+                    model_str = _strip_params.sub("", match.group(1)).strip()
+                    gene_name = match.group(2).strip()
+                    models[gene_name] = model_str
+            continue
+        if in_block:
+            if stripped in (";", "end;"):
+                break
+            match = pattern.match(stripped)
+            if match:
+                model_str = _strip_params.sub("", match.group(1)).strip()
+                gene_name = match.group(2).strip()
+                models[gene_name] = model_str
+
+    return models
 
 
 def _write_summary(
@@ -344,11 +406,14 @@ def _write_html_report(
     commands: list[str],
     gene_stats: dict[str, dict] | None = None,
     concat_info: list | None = None,
+    gene_models: dict[str, str] | None = None,
 ) -> None:
     if gene_stats is None:
         gene_stats = {}
     if concat_info is None:
         concat_info = []
+    if gene_models is None:
+        gene_models = {}
     status_color = {
         "succeeded": "#2e7d32",
         "warning": "#e65100",
@@ -357,8 +422,7 @@ def _write_html_report(
         "pending": "#9e9e9e",
     }
     steps_html = "".join(
-        "<tr><td>{step}</td>"
-        "<td style='color:{color};font-weight:bold'>{status}</td></tr>".format(
+        "<tr><td>{step}</td><td style='color:{color};font-weight:bold'>{status}</td></tr>".format(
             step=step,
             color=status_color.get(status, "#333"),
             status=status,
@@ -375,7 +439,6 @@ def _write_html_report(
         f"<td>{'✓' if gs.get('aligned') else '—'}</td>"
         f"<td>{'✓' if gs.get('trimmed') else '—'}</td>"
         f"<td>{'✓' if gs.get('included') else '—'}</td>"
-        f"<td>{', '.join(gs.get('missing_strains', [])) or '—'}</td>"
         "</tr>"
         for gene_name, gs in gene_stats.items()
     )
@@ -388,23 +451,20 @@ def _write_html_report(
             f"<td>{start}</td>"
             f"<td>{end}</td>"
             f"<td>{end - start + 1}</td>"
+            f"<td>{gene_models.get(gene_name, '—')}</td>"
             f"<td>{', '.join(gene_stats.get(gene_name, {}).get('missing_strains', [])) or '—'}</td>"
             "</tr>"
             for i, (gene_name, start, end) in enumerate(concat_info)
         )
         if concat_info
-        else "<tr><td colspan='6'>No concatenation data</td></tr>"
+        else "<tr><td colspan='7'>No concatenation data</td></tr>"
     )
-    warnings_html = (
-        "".join(f"<li>{w}</li>" for w in warnings) if warnings else "<li>None</li>"
-    )
+    warnings_html = "".join(f"<li>{w}</li>" for w in warnings) if warnings else "<li>None</li>"
     # Group commands by tool
     mafft_cmds = [c for c in commands if "mafft" in c.lower()]
     trimal_cmds = [c for c in commands if "trimal" in c.lower()]
     iqtree_cmds = [c for c in commands if "iqtree" in c.lower()]
-    other_cmds = [
-        c for c in commands if c not in mafft_cmds + trimal_cmds + iqtree_cmds
-    ]
+    other_cmds = [c for c in commands if c not in mafft_cmds + trimal_cmds + iqtree_cmds]
 
     def _tool_section(title: str, version: str, cmds: list[str]) -> str:
         if not cmds:
@@ -429,15 +489,9 @@ def _write_html_report(
         return exe_name
 
     commands_html = ""
-    commands_html += _tool_section(
-        "MAFFT", _version_hint(mafft_cmds, "mafft"), mafft_cmds
-    )
-    commands_html += _tool_section(
-        "trimAl", _version_hint(trimal_cmds, "trimal"), trimal_cmds
-    )
-    commands_html += _tool_section(
-        "IQ-TREE", _version_hint(iqtree_cmds, "iqtree"), iqtree_cmds
-    )
+    commands_html += _tool_section("MAFFT", _version_hint(mafft_cmds, "mafft"), mafft_cmds)
+    commands_html += _tool_section("trimAl", _version_hint(trimal_cmds, "trimal"), trimal_cmds)
+    commands_html += _tool_section("IQ-TREE", _version_hint(iqtree_cmds, "iqtree"), iqtree_cmds)
     if other_cmds:
         commands_html += _tool_section("Other", "", other_cmds)
 
@@ -467,13 +521,13 @@ code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 0.
 
 <h2>Gene Concatenation Order</h2>
 <table>
-<tr><th>#</th><th>Gene</th><th>Start</th><th>End</th><th>Length</th><th>Missing Strains</th></tr>
+<tr><th>#</th><th>Gene</th><th>Start</th><th>End</th><th>Length</th><th>Model</th><th>Missing Strains</th></tr>
 {concat_html}
 </table>
 
 <h2>Per-Gene Details</h2>
 <table>
-<tr><th>Gene</th><th>Accessions</th><th>Fetched</th><th>Failed</th><th>Sequences</th><th>Aligned</th><th>Trimmed</th><th>Included</th><th>Missing Strains</th></tr>
+<tr><th>Gene</th><th>Accessions</th><th>Fetched</th><th>Failed</th><th>Sequences</th><th>Aligned</th><th>Trimmed</th><th>Included</th></tr>
 {genes_html}
 </table>
 
@@ -513,6 +567,7 @@ class OneStepMultiGenePhyRunner:
         self.commands = commands if commands is not None else []
         self.log_lines: list[str] = []
         self.concat_info: list[tuple[str, int, int]] = []
+        self.gene_models: dict[str, str] = {}
 
     def run(
         self,
@@ -613,9 +668,7 @@ class OneStepMultiGenePhyRunner:
 
             try:
                 report_status = (
-                    persisted_step_status
-                    if not persistence_errors
-                    else dict(step_status)
+                    persisted_step_status if not persistence_errors else dict(step_status)
                 )
                 _write_html_report(
                     artifacts.html_report_path,
@@ -625,6 +678,7 @@ class OneStepMultiGenePhyRunner:
                     self.commands,
                     dict(gene_stats),
                     list(self.concat_info),
+                    dict(self.gene_models),
                 )
             except Exception as exc:
                 handle_persistence_error(exc)
@@ -710,9 +764,7 @@ class OneStepMultiGenePhyRunner:
                             acc_failed += 1
                             cell.status = "warning"
                             cell.message = str(exc)
-                            add_warning(
-                                f"{gene_name}: failed to fetch {cell.accession}: {exc}"
-                            )
+                            add_warning(f"{gene_name}: failed to fetch {cell.accession}: {exc}")
                             continue
 
                         acc_fetched += 1
@@ -739,9 +791,7 @@ class OneStepMultiGenePhyRunner:
 
                 if dataset.normalized_sequences:
                     normalized_path = stage_dirs["normalized"] / f"{gene_name}.fasta"
-                    _write_fasta(
-                        normalized_path, dataset.normalized_sequences, strain_order
-                    )
+                    _write_fasta(normalized_path, dataset.normalized_sequences, strain_order)
                     dataset.artifacts["normalized"] = str(normalized_path)
                     artifacts.normalized_files[dataset.gene_name] = str(normalized_path)
 
@@ -767,9 +817,7 @@ class OneStepMultiGenePhyRunner:
                 _check_abort()
                 gs = gene_stats.setdefault(dataset.gene_name, {})
                 log_line(f"  Processing gene: {dataset.gene_name}")
-                usable_sequences = _ordered_sequences(
-                    dataset.normalized_sequences, strain_order
-                )
+                usable_sequences = _ordered_sequences(dataset.normalized_sequences, strain_order)
                 if len(usable_sequences) < 2:
                     alignment_warning = True
                     dataset.status = "warning"
@@ -811,15 +859,11 @@ class OneStepMultiGenePhyRunner:
                     continue
 
                 current_step = "Align per Gene"
-                ordered_trimmed_sequences = _ordered_sequences(
-                    trimmed_sequences, strain_order
-                )
+                ordered_trimmed_sequences = _ordered_sequences(trimmed_sequences, strain_order)
                 if not ordered_trimmed_sequences:
                     trimming_warning = True
                     dataset.status = "warning"
-                    add_warning(
-                        f"{dataset.gene_name}: trimming produced no usable output"
-                    )
+                    add_warning(f"{dataset.gene_name}: trimming produced no usable output")
                     continue
 
                 gs["trimmed"] = True
@@ -830,11 +874,7 @@ class OneStepMultiGenePhyRunner:
                 dataset.status = "succeeded"
 
             set_step("Align per Gene", "warning" if alignment_warning else "succeeded")
-            trim_status = (
-                "warning"
-                if trimming_warning or trimmed_gene_count == 0
-                else "succeeded"
-            )
+            trim_status = "warning" if trimming_warning or trimmed_gene_count == 0 else "succeeded"
             set_step("Trim per Gene", trim_status)
 
             _check_abort()
@@ -852,9 +892,7 @@ class OneStepMultiGenePhyRunner:
                 if gene_name in datasets and datasets[gene_name].trimmed_sequences:
                     gs["included"] = True
                     trimmed_set = set(datasets[gene_name].trimmed_sequences)
-                    gs["missing_strains"] = [
-                        s for s in strain_order if s not in trimmed_set
-                    ]
+                    gs["missing_strains"] = [s for s in strain_order if s not in trimmed_set]
             log_line("Genes in concatenation: {n}".format(n=len(partitions)))
             if not partitions:
                 raise RuntimeError("No genes remain usable for concatenation")
@@ -881,6 +919,9 @@ class OneStepMultiGenePhyRunner:
             )
             artifacts.treefile_path = treefile_path
             artifacts.extra_paths["iqtree_dir"] = str(stage_dirs["iqtree"])
+            # Parse per-gene models from IQ-TREE output
+            best_model_path = str(stage_dirs["iqtree"] / "final.best_model.nex")
+            self.gene_models = _parse_best_model_nex(best_model_path)
             set_step("Build Tree", "succeeded")
         except Exception as exc:
             set_step(current_step, "failed")

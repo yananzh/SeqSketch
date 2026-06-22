@@ -311,13 +311,10 @@ class IqTreeTab(BaseTabWidget):
         self._prefix_edit = QLineEdit()
         self._prefix_edit.setFixedWidth(90)
         self._prefix_edit.setPlaceholderText(self.tr("Prefix"))
-        self._prefix_edit.setToolTip(
-            self.tr("Output: <prefix>.treefile, <prefix>.iqtree, etc.")
-        )
+        self._prefix_edit.setToolTip(self.tr("Output: <prefix>.treefile, <prefix>.iqtree, etc."))
 
         row1 = QHBoxLayout()
         row1.setContentsMargins(0, 0, 0, 0)
-        row1.addWidget(QLabel(self.tr("Seq type:")))
         row1.addWidget(self._seqtype_combo)
         row1.addSpacing(8)
         row1.addWidget(QLabel(self.tr("Threads:")))
@@ -329,7 +326,7 @@ class IqTreeTab(BaseTabWidget):
         row1.addWidget(QLabel(self.tr("Prefix:")))
         row1.addWidget(self._prefix_edit)
         row1.addStretch()
-        form.addRow(row1)
+        form.addRow(self.tr("Sequence type:"), row1)
 
         # Row 2: Bootstrap
         boot_row = QHBoxLayout()
@@ -337,9 +334,7 @@ class IqTreeTab(BaseTabWidget):
         self._bootstrap_spin.setRange(0, 10000)
         self._bootstrap_spin.setValue(1000)
         self._bootstrap_spin.setSpecialValueText(self.tr("0 (disabled)"))
-        self._bootstrap_spin.setToolTip(
-            self.tr("Ultrafast bootstrap replicates (0 = skip)")
-        )
+        self._bootstrap_spin.setToolTip(self.tr("Ultrafast bootstrap replicates (0 = skip)"))
         self._ufboot_check = QCheckBox(self.tr("UFBoot (ultrafast, recommended)"))
         self._ufboot_check.setChecked(True)
         self._ufboot_check.setToolTip(
@@ -361,9 +356,7 @@ class IqTreeTab(BaseTabWidget):
         self._alrt_spin.setRange(100, 10000)
         self._alrt_spin.setValue(1000)
         self._alrt_spin.setEnabled(False)
-        self._alrt_spin.setToolTip(
-            self.tr("Number of SH-aLRT replicates (default 1000)")
-        )
+        self._alrt_spin.setToolTip(self.tr("Number of SH-aLRT replicates (default 1000)"))
         self._alrt_check.toggled.connect(self._alrt_spin.setEnabled)
         alrt_row.addWidget(self._alrt_check)
         alrt_row.addWidget(self._alrt_spin)
@@ -386,10 +379,14 @@ class IqTreeTab(BaseTabWidget):
 
         self.add_content_widget(param_group)
 
-        # ── Run / Stop buttons in status bar ─────────────────────────────
+        # ── Run / Clear / Stop buttons in status bar ────────────────────
         self.run_btn = QPushButton(self.tr("Run"))
         self.run_btn.clicked.connect(self._run)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
+
+        self.clear_btn = QPushButton(self.tr("Clear"))
+        self.clear_btn.clicked.connect(self._clear)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
 
         self.stop_btn = QPushButton(self.tr("Stop"))
         self.stop_btn.setVisible(False)
@@ -424,9 +421,7 @@ class IqTreeTab(BaseTabWidget):
             self,
             self.tr("Open alignment file"),
             "",
-            self.tr(
-                "Alignment files (*.fasta *.fa *.phy *.nex *.nxs *.aln *.txt);;All Files (*)"
-            ),
+            self.tr("Alignment files (*.fasta *.fa *.phy *.nex *.nxs *.aln *.txt);;All Files (*)"),
         )
         if path:
             self._input_edit.setText(path)
@@ -452,6 +447,11 @@ class IqTreeTab(BaseTabWidget):
         self.stop_btn.setVisible(False)
         self.run_btn.setEnabled(True)
         self.show_status(self.tr("⛔ Stopped."))
+
+    def _clear(self):
+        """Clear the log area and reset status."""
+        self.log_area.clear()
+        self.show_status(self.tr(""))
 
     def _build_cmd(self) -> list[str]:
         exe = self._exe_edit.text().strip() or IQTREE_EXE
@@ -517,19 +517,17 @@ class IqTreeTab(BaseTabWidget):
         sep = "─" * 48
         self.log_area.clear()
         self.log_area.append(f"{sep}")
-        self.log_area.append(f"  IQ-TREE Run Summary")
+        self.log_area.append("  IQ-TREE Run Summary")
         self.log_area.append(f"{sep}")
         self.log_area.append(f"  Alignment    : {input_path}")
         self.log_area.append(f"  Seq type     : {self._seqtype_combo.currentText()}")
-        self.log_area.append(
-            f"  Model        : {self._model_edit.text().strip() or 'TEST'}"
-        )
+        self.log_area.append(f"  Model        : {self._model_edit.text().strip() or 'TEST'}")
         boot = self._bootstrap_spin.value()
         if boot > 0:
             flag = "UFBoot" if self._ufboot_check.isChecked() else "Standard"
             self.log_area.append(f"  Bootstrap    : {boot} ({flag})")
         else:
-            self.log_area.append(f"  Bootstrap    : disabled")
+            self.log_area.append("  Bootstrap    : disabled")
         if self._alrt_check.isChecked():
             self.log_area.append(f"  SH-aLRT      : {self._alrt_spin.value()}")
         threads = self._threads_spin.value()

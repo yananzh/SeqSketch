@@ -16,7 +16,7 @@ phytreeviz API reference (v0.3.x):
 
 import os
 
-from PyQt6.QtCore import Qt, QRectF, QThread, pyqtSignal
+from PyQt6.QtCore import QRectF, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QDragEnterEvent, QDropEvent, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -130,6 +130,7 @@ def _prepare_tree_data(tree_file: str, fmt: str, params: dict):
         return tree_file, fmt
 
     from io import StringIO
+
     from Bio import Phylo
 
     tree = Phylo.read(tree_file, fmt)
@@ -372,9 +373,7 @@ class SimpleTreeVisualizationTab(BaseTabWidget):
         self._outgroup_combo = QComboBox()
         self._outgroup_combo.setEditable(True)
         self._outgroup_combo.setEnabled(False)
-        self._outgroup_combo.lineEdit().setPlaceholderText(
-            self.tr("Select a leaf name")
-        )
+        self._outgroup_combo.lineEdit().setPlaceholderText(self.tr("Select a leaf name"))
         og_row.addWidget(self._outgroup_combo, 1)
         ol.addLayout(og_row)
 
@@ -419,11 +418,17 @@ class SimpleTreeVisualizationTab(BaseTabWidget):
 
         self._export_btn = QPushButton(self.tr("Export Image"))
         self._export_btn.clicked.connect(self._export)
-        self.status_layout.insertWidget(
-            self.status_layout.count() - 1, self._export_btn
-        )
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._export_btn)
 
-        self.show_status(self.tr("Ready — load a tree file and click Draw Tree"))
+        # ── Auto-update on parameter change ───────────────────────────
+        self._layout_combo.currentTextChanged.connect(self._on_param_changed)
+        self._orient_combo.currentTextChanged.connect(self._on_param_changed)
+        self._root_method_combo.currentTextChanged.connect(self._on_param_changed)
+        self._outgroup_combo.currentTextChanged.connect(self._on_param_changed)
+        self._show_support_check.toggled.connect(self._on_param_changed)
+        self._show_scale_check.toggled.connect(self._on_param_changed)
+
+        self.show_status(self.tr("Ready — load a tree file and adjust parameters"))
 
     def show_help(self):
         from PyQt6.QtWidgets import QDialog, QTextBrowser
@@ -526,9 +531,7 @@ graphics, we recommend:</p>
     # ------------------------------------------------------------------
     def _show_placeholder(self):
         self._scene.clear()
-        text_item = self._scene.addSimpleText(
-            self.tr("Load a tree file and click Draw Tree")
-        )
+        text_item = self._scene.addSimpleText(self.tr("Load a tree file and click Draw Tree"))
         text_item.setBrush(QColor("#aaa"))
         self._graphics_view.fit_to_window()
 
@@ -590,11 +593,15 @@ graphics, we recommend:</p>
             tree = Phylo.read(path, self._get_format())
             leaves = len(list(tree.get_terminals()))
             internals = len(list(tree.get_nonterminals()))
-            self._set_status(
-                self.tr(f"Loaded: {leaves} leaves, {internals} internal nodes")
-            )
+            self._set_status(self.tr(f"Loaded: {leaves} leaves, {internals} internal nodes"))
         except Exception:
             pass
+
+    def _on_param_changed(self):
+        """Auto-redraw when any tree parameter changes, if a tree file is loaded."""
+        tree_file = self._file_edit.text().strip()
+        if tree_file and os.path.isfile(tree_file):
+            self._draw()
 
     def _collect_params(self) -> dict:
         return {

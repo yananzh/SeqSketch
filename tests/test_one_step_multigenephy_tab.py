@@ -100,9 +100,7 @@ def test_tab_loads_gene_columns_from_excel_header(qapp, monkeypatch, tmp_path):
         assert sheet_name == "Sheet1"
         return ["Strain", "ITS", "TEF1", "RPB2"]
 
-    monkeypatch.setattr(
-        tab_module, "read_excel_sheet_names", fake_read_excel_sheet_names
-    )
+    monkeypatch.setattr(tab_module, "read_excel_sheet_names", fake_read_excel_sheet_names)
     monkeypatch.setattr(tab_module, "read_excel_columns", fake_read_excel_columns)
 
     tab = OneStepMultiGenePhyTab()
@@ -144,9 +142,7 @@ def test_tab_updates_status_log_step_summary_and_artifacts_after_mocked_run(qapp
     assert "HTML report: F:/run/06_reports/run_report.html" in log_text
 
 
-def test_start_run_parses_sheet_builds_runner_and_starts_worker(
-    qapp, monkeypatch, tmp_path
-):
+def test_start_run_parses_sheet_builds_runner_and_starts_worker(qapp, monkeypatch, tmp_path):
     excel_path = tmp_path / "input.xlsx"
     output_dir = tmp_path / "run"
     parsed = SimpleNamespace(
@@ -279,8 +275,8 @@ def test_show_help_displays_structured_workflow_guidance(qapp):
     assert "Workbook Format" in html
     assert "Quick Start" in html
     assert "Pipeline Steps" in html
-    assert "Output Directory" in html
-    assert "Important Notes" in html
+    assert "output directory" in html
     assert "Tips" in html
-    assert "ON123456.1" in html
-    assert "run_report.html" in html
+    assert "Use Cases" in html
+    assert "NCBI accession" in html
+    assert "Concatenate" in html
