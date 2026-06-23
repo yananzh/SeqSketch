@@ -130,3 +130,14 @@ def test_iqtree_example_fills_input_edit(qapp):
     btn.click()
     assert tab._input_edit.text().strip() != ""
     assert os.path.isfile(tab._input_edit.text().strip())
+
+
+def test_tree_vis_example_fills_file_edit(qapp):
+    from modules.tree_visualization_tab import SimpleTreeVisualizationTab
+
+    tab = SimpleTreeVisualizationTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Tree Visualization tab has no Example button"
+    btn.click()
+    assert tab._file_edit.text().strip() != ""
+    assert os.path.isfile(tab._file_edit.text().strip())
