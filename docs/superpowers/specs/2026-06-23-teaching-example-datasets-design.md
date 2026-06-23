@@ -71,14 +71,16 @@ Each tab gains an "Example" `QPushButton` (`self.tr("Example")`) placed next to 
 | FASTA QC (`sequence_statistics_tab`) | file | `cytb_cds_raw.fasta` | input path `QLineEdit` |
 | Translate (`translate_tab`) | sequence | `cytb_cds_aligned.fasta` (first record) | `input_text` |
 | Physicochemical Properties (`physicochemical_properties_tab`) | sequence | `cytb_protein.fasta` | `input_text` |
-| MAFFT (`mafft_alignment_tab`) | file | `cytb_protein.fasta` | file list (`QListWidget`) |
+| MAFFT (`mafft_alignment_tab`) | sequence | `cytb_protein.fasta` | `input_text` (single-file mode pastes sequences) |
 | trimAl (`trimal_tab`) | file | `cytb_protein_aligned.fasta` | file list (`QListWidget`) |
 | IQ-TREE (`iqtree_tab`) | file | `cytb_protein_aligned.fasta` | input path `QLineEdit` |
 | Tree Visualization (`tree_visualization_tab`) | file | `cytb_tree.nwk` | input path `QLineEdit` |
 
 **Translate special case:** load only the first CDS record from `cytb_cds_aligned.fasta` so the student clicks Run and immediately sees the protein — building the "CDS → protein" intuition.
 
-**MAFFT/trimAl list special case:** Example fills one file only (enough to demonstrate single-file align/trim); teaching clarity over filling the list.
+**MAFFT special case:** MAFFT's single-file mode is sequence-type (`BaseTabWidget("sequence")`), so Example fills `input_text` with the protein FASTA text — same path as the protein/translate tabs. (The batch-mode file list is not used for the teaching chain.)
+
+**trimAl list special case:** trimAl uses a `QListWidget` for input files; Example stages one writable copy and adds it via the existing `file_list._add_path()` method. Teaching clarity over filling the list.
 
 ### `BioSeqAnalyzer.spec`
 
