@@ -44,3 +44,27 @@ def test_load_example_text_missing_returns_empty():
 def test_stage_example_missing_returns_none():
     out = stage_example("phylo", "does_not_exist.fasta")
     assert out is None
+
+
+# ── Per-tab Example button tests (GUI, offscreen) ───────────────────────────
+# These use the shared qapp fixture from tests/conftest.py.
+
+
+def _find_button(tab, text):
+    from PyQt6.QtWidgets import QPushButton
+
+    for btn in tab.findChildren(QPushButton):
+        if btn.text() == text:
+            return btn
+    return None
+
+
+def test_fasta_qc_example_fills_input_edit(qapp):
+    from modules.sequence_statistics_tab import SequenceStatisticsTab
+
+    tab = SequenceStatisticsTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "FASTA QC tab has no Example button"
+    btn.click()
+    assert tab.input_edit.text().strip() != ""
+    assert os.path.isfile(tab.input_edit.text().strip())

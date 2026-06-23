@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from utils.common_components import FASTAWorker, BaseTabWidget, FileDropLineEdit
+from utils.example_data import stage_example
 import os
 
 
@@ -269,8 +270,12 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
+        input_layout.addWidget(self.example_btn)
         input_layout.setSpacing(8)
 
         # 输出文件选择
@@ -377,6 +382,21 @@ class SequenceStatisticsTab(BaseTabWidget):
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
+
+    def _load_example(self):
+        """Load the bundled cytb teaching example into the input field."""
+        path = stage_example("phylo", "cytb_cds_raw.fasta")
+        if not path:
+            from PyQt6.QtWidgets import QMessageBox
+
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self.handle_input_file_selected(path)
+        self.show_status(self.tr("已载入示例数据: cytb_cds_raw.fasta"))
 
     def clear_all(self):
         self.input_edit.clear()
