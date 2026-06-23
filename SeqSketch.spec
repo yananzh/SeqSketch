@@ -21,6 +21,8 @@ datas = [
     (os.path.join(root, 'resources'),            'resources'),
     # External tools (BLAST, IQTree, MAFFT, TrimAl, MUSCLE)
     (os.path.join(root, 'softwares'),            'softwares'),
+    # Teaching example datasets (cytb, etc.)
+    (os.path.join(root, 'examples'),             'examples'),
     # Config template (pre-populated relative paths)
     (os.path.join(root, 'config.ini'),           '.'),
 ]
