@@ -106,3 +106,16 @@ def test_mafft_example_fills_input_text(qapp):
     text = tab.input_text.toPlainText()
     assert text.startswith(">")
     assert text.count(">") == 8
+
+
+def test_trimal_example_adds_file_to_list(qapp):
+    from modules.trimal_tab import AlignmentTrimmingTab
+
+    tab = AlignmentTrimmingTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "trimAl tab has no Example button"
+    btn.click()
+    assert tab.file_list.count() >= 1
+    item = tab.file_list.item(0)
+    path = item.data(256)
+    assert path and os.path.isfile(path)

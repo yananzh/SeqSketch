@@ -27,6 +27,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from utils.app_paths import resource_path, tool_path_from_config
 from utils.common_components import BaseTabWidget, apply_log_viewer_style
+from utils.example_data import stage_example
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -481,10 +482,13 @@ class AlignmentTrimmingTab(BaseTabWidget):
         add_btn = QPushButton(self.tr("Add Files"))
         add_btn.setToolTip(self.tr("Select one or more alignment files."))
         add_btn.clicked.connect(self._add_files)
+        example_btn = QPushButton(self.tr("Example"))
+        example_btn.clicked.connect(self._load_example)
         remove_btn = QPushButton(self.tr("Remove Selected"))
         remove_btn.clicked.connect(self._remove_selected)
         clear_btn = QPushButton(self.tr("Clear All"))
         clear_btn.clicked.connect(self._clear_all)
+        list_btns.addWidget(example_btn)
         list_btns.addWidget(add_btn)
         list_btns.addWidget(remove_btn)
         list_btns.addWidget(clear_btn)
@@ -604,6 +608,21 @@ class AlignmentTrimmingTab(BaseTabWidget):
         _show_help(self, self.tr("Alignment Trimming — Help"), _HELP_HTML)
 
     # ── file management ───────────────────────────────────────────────────
+    def _load_example(self):
+        """Load the bundled aligned cytb protein example into the file list."""
+        path = stage_example("phylo", "cytb_protein_aligned.fasta")
+        if not path:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self.file_list.clear()
+        self.file_list._add_path(path)
+        self._auto_fill_outdir()
+        self.show_status(self.tr("已载入示例数据: cytb_protein_aligned.fasta"))
+
     def _add_files(self):
         files, _ = QFileDialog.getOpenFileNames(
             self,
