@@ -68,3 +68,15 @@ def test_fasta_qc_example_fills_input_edit(qapp):
     btn.click()
     assert tab.input_edit.text().strip() != ""
     assert os.path.isfile(tab.input_edit.text().strip())
+
+
+def test_translate_example_fills_input_text_first_record(qapp):
+    from modules.translate_tab import TranslateTab
+
+    tab = TranslateTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Translate tab has no Example button"
+    btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert text.count(">") == 1  # first record only

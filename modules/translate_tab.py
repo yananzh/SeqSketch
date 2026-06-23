@@ -1,6 +1,7 @@
 from utils.common_components import BaseTabWidget
+from utils.example_data import load_example_text
 import re
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton
 
 CODON_TABLE = {
     "TTT": "F",
@@ -140,7 +141,30 @@ class TranslateTab(BaseTabWidget):
         params_layout.addWidget(self.aa_mode_box)
         params_layout.addStretch()
 
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.clicked.connect(self._load_example)
+        params_layout.addWidget(self.example_btn)
+
         self.add_content_layout(params_layout)
+
+    def _load_example(self):
+        """Load the first CDS record of the cytb example for translation."""
+        text = load_example_text("phylo", "cytb_cds_aligned.fasta")
+        if not text:
+            from PyQt6.QtWidgets import QMessageBox
+
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        # keep only the first FASTA record
+        first = text.split("\n>", 1)[0]
+        if not first.startswith(">"):
+            first = ">" + first
+        self.input_text.setPlainText(first.strip() + "\n")
+        self.show_status(self.tr("已载入示例数据: cytb_cds (首条记录)"))
 
     def run(self):
         raw = self.input_text.toPlainText().strip()
