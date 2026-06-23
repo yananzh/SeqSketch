@@ -2,8 +2,7 @@
 import os
 
 from utils.app_paths import user_data_dir
-from utils.example_data import example_path, stage_example, load_example_text
-
+from utils.example_data import example_path, load_example_text, stage_example
 
 # ── Loader tests (no GUI) ───────────────────────────────────────────────────
 

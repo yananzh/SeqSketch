@@ -43,5 +43,5 @@ def load_example_text(*parts: str) -> str:
     try:
         with open(src, "r", encoding="utf-8") as f:
             return f.read()
-    except OSError:
+    except (OSError, UnicodeDecodeError, ValueError):
         return ""
