@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
 
 from utils.app_paths import resource_path, tool_path_from_config
 from utils.common_components import BaseTabWidget, apply_log_viewer_style
+from utils.example_data import stage_example
 
 
 def _resolve_iqtree_exe() -> str:
@@ -265,8 +266,12 @@ class IqTreeTab(BaseTabWidget):
         in_browse = QPushButton(self.tr("Browse"))
         in_browse.setFixedWidth(90)
         in_browse.clicked.connect(self._browse_input)
+        in_example = QPushButton(self.tr("Example"))
+        in_example.setFixedWidth(90)
+        in_example.clicked.connect(self._load_example)
         in_row.addWidget(self._input_edit, 1)
         in_row.addWidget(in_browse)
+        in_row.addWidget(in_example)
         input_form.addRow(self.tr("Alignment:"), in_row)
 
         part_row = QHBoxLayout()
@@ -415,6 +420,19 @@ class IqTreeTab(BaseTabWidget):
         )
         if path:
             self._exe_edit.setText(path)
+
+    def _load_example(self):
+        """Load the bundled aligned cytb protein example for tree building."""
+        path = stage_example("phylo", "cytb_protein_aligned.fasta")
+        if not path:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self._input_edit.setText(path)
+        self.show_status(self.tr("已载入示例数据: cytb_protein_aligned.fasta"))
 
     def _browse_input(self):
         path, _ = QFileDialog.getOpenFileName(

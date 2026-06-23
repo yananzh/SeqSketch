@@ -119,3 +119,14 @@ def test_trimal_example_adds_file_to_list(qapp):
     item = tab.file_list.item(0)
     path = item.data(256)
     assert path and os.path.isfile(path)
+
+
+def test_iqtree_example_fills_input_edit(qapp):
+    from modules.iqtree_tab import IqTreeTab
+
+    tab = IqTreeTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "IQ-TREE tab has no Example button"
+    btn.click()
+    assert tab._input_edit.text().strip() != ""
+    assert os.path.isfile(tab._input_edit.text().strip())
