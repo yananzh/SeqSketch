@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
 
 from utils.app_paths import resource_path, tool_path_from_config
 from utils.common_components import BaseTabWidget, BaseWorker
+from utils.example_data import load_example_text
 
 
 def _default_mafft_exe() -> str:
@@ -558,6 +559,13 @@ class MafftAlignmentTab(BaseTabWidget):
         pg_layout.addLayout(row3)
         pg_layout.addLayout(row4)
 
+        ex_row = QHBoxLayout()
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.clicked.connect(self._load_example)
+        ex_row.addWidget(self.example_btn)
+        ex_row.addStretch()
+        pg_layout.addLayout(ex_row)
+
         self.content_area.insertWidget(1, param_group)
 
     def _setup_output(self):
@@ -754,6 +762,19 @@ class MafftAlignmentTab(BaseTabWidget):
         )
         if path:
             self.batch_mafft_path_edit.setText(path)
+
+    def _load_example(self):
+        """Load the bundled cytb protein example for alignment."""
+        text = load_example_text("phylo", "cytb_protein.fasta")
+        if not text:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("已载入示例数据: cytb_protein.fasta"))
 
     def _browse_output_file(self):
         path, selected_filter = QFileDialog.getSaveFileName(

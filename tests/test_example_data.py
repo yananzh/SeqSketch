@@ -94,3 +94,15 @@ def test_physicochemical_example_fills_input_text(qapp):
     text = tab.input_text.toPlainText()
     assert text.startswith(">")
     assert text.count(">") == 8
+
+
+def test_mafft_example_fills_input_text(qapp):
+    from modules.mafft_alignment_tab import MafftAlignmentTab
+
+    tab = MafftAlignmentTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "MAFFT tab has no Example button"
+    btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert text.count(">") == 8
