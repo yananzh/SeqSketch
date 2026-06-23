@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import QMessageBox, QFileDialog, QPushButton
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget, apply_transparent_text_edit_background
+from utils.example_data import load_example_text
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 import csv
 import re
@@ -53,6 +54,11 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         self.export_csv_btn.clicked.connect(self.export_csv)
         _idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(_idx + 1, self.export_csv_btn)
+        # Example button — load bundled cytb protein dataset
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
+        self.status_layout.insertWidget(_idx, self.example_btn)
         # Rename run/help buttons
         self.run_btn.setText("Analyze")
         self.help_btn.setText("Help")
@@ -72,6 +78,19 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         self._setup_drag_drop()
         # Storage for results
         self.current_results = []
+
+    def _load_example(self):
+        """Load the bundled cytb protein example for property analysis."""
+        text = load_example_text("phylo", "cytb_protein.fasta")
+        if not text:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("已载入示例数据: cytb_protein.fasta"))
 
     def run(self):
         self.status_label.setText("")

@@ -80,3 +80,17 @@ def test_translate_example_fills_input_text_first_record(qapp):
     text = tab.input_text.toPlainText()
     assert text.startswith(">")
     assert text.count(">") == 1  # first record only
+
+
+def test_physicochemical_example_fills_input_text(qapp):
+    from modules.physicochemical_properties_tab import (
+        PhysicochemicalPropertiesTab,
+    )
+
+    tab = PhysicochemicalPropertiesTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Physicochemical tab has no Example button"
+    btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert text.count(">") == 8
