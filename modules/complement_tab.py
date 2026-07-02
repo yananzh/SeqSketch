@@ -32,9 +32,8 @@ class ComplementTab(BaseTabWidget):
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
         btn_row = QHBoxLayout()
-        btn_row.addWidget(self.upload_btn)
-        btn_row.addStretch()
-        btn_row.addWidget(self.example_btn)
+        btn_row.addWidget(self.upload_btn, 1)
+        btn_row.addWidget(self.example_btn, 1)
         ig_layout.insertLayout(1, btn_row)
 
     def _load_example(self):
