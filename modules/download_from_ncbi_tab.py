@@ -241,7 +241,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.connect_signals()
 
     def init_ui(self):
-        _label_width = 100
+        _label_width = 130
 
         # ── Connection ──
         conn_group = QGroupBox("Connection")
@@ -318,14 +318,18 @@ class DownloadFromNCBITab(BaseTabWidget):
         acc_action_layout = QHBoxLayout()
         self.load_acc_btn = QPushButton("Load Accessions from File")
         self.load_acc_btn.setToolTip("Import a text file with one accession per line")
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
         acc_action_layout.addStretch()
+        acc_action_layout.addWidget(self.example_btn)
         acc_action_layout.addWidget(self.load_acc_btn)
         acc_layout.addLayout(acc_action_layout)
 
         # ── Output ──
         out_group = QGroupBox("Output")
         out_layout = QHBoxLayout(out_group)
-        out_label = QLabel("Output file:")
+        out_label = QLabel("Output FASTA file:")
         out_label.setFixedWidth(_label_width)
         out_layout.addWidget(out_label)
         self.output_edit = QLineEdit()
@@ -377,6 +381,13 @@ class DownloadFromNCBITab(BaseTabWidget):
         except Exception as e:
             self.log_message(f"Failed to load accessions: {e}", "ERROR")
 
+    def _load_example(self):
+        """Fill example NCBI accessions and a placeholder email (does not download)."""
+        self.db_combo.setCurrentText("nucleotide")
+        self.email_edit.setText("your_email@example.com")
+        self.acc_edit.setPlainText("NM_001101.5\nNM_001098.5")
+        self.show_status(self.tr("已载入示例数据: NM_001101.5 等 — 记得替换真实邮箱后再下载"))
+
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
             self,
@@ -411,6 +422,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.retry_count_spin.setEnabled(not running)
         self.export_report_checkbox.setEnabled(not running)
         self.load_acc_btn.setEnabled(not running)
+        self.example_btn.setEnabled(not running)
 
     def run_download(self):
         db = self.db_combo.currentText()
@@ -552,15 +564,6 @@ class DownloadFromNCBITab(BaseTabWidget):
 
     def show_help(self):
         """Show help information"""
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
-        from PyQt6.QtCore import Qt
-
         help_text = """
 <h2>NCBI Download &mdash; Fetch Sequences by Accession</h2>
 
@@ -624,33 +627,4 @@ ensure the NCBI service is reachable.</li>
 </ul>
         """
 
-        # 创建自定义对话框
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - NCBI Download")
-        dialog.setFixedSize(820, 580)
-
-        layout = QVBoxLayout()
-
-        # 创建滚动区域
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        # 创建文本标签
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)  # 启用自动换行
-        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setMargin(20)
-
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-
-        # Add OK button
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-
-        dialog.setLayout(layout)
-        dialog.exec()
+        self.show_help_dialog("Help - NCBI Download", help_text, 820, 580)

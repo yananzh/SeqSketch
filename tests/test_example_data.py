@@ -231,3 +231,98 @@ def test_sanger_viewer_example_fills_file_edit(qapp):
     assert path != "", "file path not filled"
     assert os.path.isfile(path), f"staged file does not exist: {path}"
     assert path.lower().endswith(".ab1")
+
+
+# ── FASTA Tools tabs Example buttons ─────────────────────────────────────────
+
+
+def test_simplify_headers_example_fills_input_edit(qapp):
+    from modules.simplify_ids_tab import SimplifyIDsTab
+
+    tab = SimplifyIDsTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Simplify Headers tab has no Example button"
+    btn.click()
+    assert tab.input_edit.text().strip() != ""
+    assert os.path.isfile(tab.input_edit.text().strip())
+
+
+def test_filter_by_ids_example_fills_input_and_ids(qapp):
+    from modules.extract_by_id_tab import ExtractByIDTab
+
+    tab = ExtractByIDTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Filter by IDs tab has no Example button"
+    btn.click()
+    assert tab.input_edit.text().strip() != ""
+    assert os.path.isfile(tab.input_edit.text().strip())
+    assert tab.id_edit.toPlainText().strip() != ""
+
+
+def test_filter_by_length_example_fills_input_edit(qapp):
+    from modules.filter_by_length_tab import FilterByLengthTab
+
+    tab = FilterByLengthTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Filter by Length tab has no Example button"
+    btn.click()
+    assert tab.input_edit.text().strip() != ""
+    assert os.path.isfile(tab.input_edit.text().strip())
+
+
+def test_regex_filter_example_fills_input_edit(qapp):
+    from modules.extract_by_regex_tab import ExtractByRegexTab
+
+    tab = ExtractByRegexTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Regex Filter tab has no Example button"
+    btn.click()
+    assert tab.input_edit.text().strip() != ""
+    assert os.path.isfile(tab.input_edit.text().strip())
+
+
+def test_ncbi_download_example_fills_acc_edit(qapp):
+    from modules.download_from_ncbi_tab import DownloadFromNCBITab
+
+    tab = DownloadFromNCBITab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "NCBI Download tab has no Example button"
+    btn.click()
+    acc_text = tab.acc_edit.toPlainText().strip()
+    assert acc_text != ""
+    assert "NM_" in acc_text
+
+
+def test_rename_ids_example_fills_input_edit(qapp):
+    from modules.batch_rename_ids_tab import BatchRenameIDsTab
+
+    tab = BatchRenameIDsTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Rename IDs tab has no Example button"
+    btn.click()
+    assert tab.input_edit.text().strip() != ""
+    assert os.path.isfile(tab.input_edit.text().strip())
+
+
+def test_deduplicate_example_fills_input_edit(qapp):
+    from modules.deduplicate_tab import DeduplicateTab
+
+    tab = DeduplicateTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Deduplicate tab has no Example button"
+    btn.click()
+    assert tab.input_edit.text().strip() != ""
+    assert os.path.isfile(tab.input_edit.text().strip())
+
+
+def test_concat_fasta_example_fills_files_edit(qapp):
+    from modules.concat_fasta_tab import ConcatFastaTab
+
+    tab = ConcatFastaTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Concatenate FASTA tab has no Example button"
+    btn.click()
+    files_text = tab.files_edit.toPlainText().strip()
+    assert files_text != ""
+    path = files_text.splitlines()[0].strip()
+    assert os.path.isfile(path)

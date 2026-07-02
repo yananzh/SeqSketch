@@ -1,4 +1,4 @@
-from collections import Counter, defaultdict
+from collections import defaultdict
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
@@ -13,8 +13,6 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QGroupBox,
 )
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget, FileDropLineEdit
 import os
 
@@ -757,15 +755,6 @@ class BatchRenameIDsTab(BaseTabWidget):
 
     def show_help(self):
         """显示帮助信息"""
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
-        from PyQt6.QtCore import Qt
-
         help_text = """
 <h2>Rename IDs &mdash; Batch Rename FASTA Sequence IDs</h2>
 

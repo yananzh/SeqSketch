@@ -14,7 +14,6 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QGroupBox,
 )
-from PyQt6.QtCore import pyqtSignal
 from utils.common_components import BaseTabWidget
 import os
 
@@ -28,7 +27,7 @@ class ConcatFastaTab(BaseTabWidget):
         self.connect_signals()
 
     def init_ui(self):
-        _label_width = 120
+        _label_width = 130
 
         # ── Input files ──
         input_group = QGroupBox("Input FASTA Files")
@@ -53,9 +52,13 @@ class ConcatFastaTab(BaseTabWidget):
         self.remove_btn = QPushButton("Remove Selected")
         self.remove_btn.setToolTip("Remove the currently selected file from the list")
         self.clear_files_btn = QPushButton("Clear All")
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
         file_btn_row.addWidget(self.add_btn)
         file_btn_row.addWidget(self.remove_btn)
         file_btn_row.addWidget(self.clear_files_btn)
+        file_btn_row.addWidget(self.example_btn)
         file_btn_row.addStretch()
         input_main.addLayout(file_btn_row)
 
@@ -83,7 +86,7 @@ class ConcatFastaTab(BaseTabWidget):
 
         # ── Output ──
         output_layout = QHBoxLayout()
-        output_label = QLabel("Output file:")
+        output_label = QLabel("Output FASTA file:")
         output_label.setFixedWidth(_label_width)
         output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
@@ -160,6 +163,26 @@ class ConcatFastaTab(BaseTabWidget):
 
     def clear_files_list(self):
         self.files_edit.clear()
+
+    def _load_example(self):
+        """Load the bundled cytb teaching example into the file list."""
+        from utils.example_data import stage_example
+        from PyQt6.QtWidgets import QMessageBox
+        import os
+
+        path = stage_example("phylo", "cytb_cds_raw.fasta")
+        if not path:
+            QMessageBox.information(
+                self, self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        current = self.files_edit.toPlainText().strip()
+        lines = current.splitlines() if current else []
+        if path not in lines:
+            lines.append(path)
+        self.files_edit.setPlainText("\n".join(lines))
+        self.show_status(self.tr("已载入示例数据: cytb_cds_raw.fasta"))
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -286,17 +309,9 @@ class ConcatFastaTab(BaseTabWidget):
         self.clear_files_btn.setEnabled(not running)
         self.output_btn.setEnabled(not running)
         self.add_prefix_checkbox.setEnabled(not running)
+        self.example_btn.setEnabled(not running)
 
     def show_help(self):
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
-        from PyQt6.QtCore import Qt
-
         help_text = """
 <h2>Concatenate FASTA &mdash; Merge Multiple Files</h2>
 
@@ -326,21 +341,4 @@ Example: 'file1.fasta' containing '>NM_001101.5' becomes
 <li>Use <b>FASTA QC</b> afterwards to verify the merged result.</li>
 </ul>
         """
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Concatenate FASTA")
-        dialog.setFixedSize(720, 460)
-        layout = QVBoxLayout()
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)
-        label.setMargin(20)
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-        dialog.setLayout(layout)
-        dialog.exec()
+        self.show_help_dialog("Help - Concatenate FASTA", help_text, 720, 460)
