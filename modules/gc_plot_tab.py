@@ -87,11 +87,11 @@ class GCPlotTab(BaseTabWidget):
     def _add_plot_canvas(self):
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(False)
-        self._scroll_area.setMinimumHeight(420)
+        self._scroll_area.setMinimumHeight(300)
 
-        self.figure = Figure(figsize=(10, 6))
+        self.figure = Figure(figsize=(10, 4.2))
         self.canvas = FigureCanvas(self.figure)
-        self.canvas.setMinimumHeight(420)
+        self.canvas.setMinimumHeight(300)
         self._scroll_area.setWidget(self.canvas)
 
         self.toolbar = NavigationToolbar(self.canvas, self)
