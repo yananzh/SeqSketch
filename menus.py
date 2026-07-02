@@ -70,6 +70,9 @@ def create_menus(window):
     restriction_action = QAction(window.tr("Restriction Enzyme Analysis"), window)
     restriction_action.triggered.connect(window.open_restriction_enzyme_tab)
     dna_menu.addAction(restriction_action)
+    gc_plot_action = QAction(window.tr("GC Content / GC Skew Plot"), window)
+    gc_plot_action.triggered.connect(window.open_gc_plot_tab)
+    dna_menu.addAction(gc_plot_action)
     # 3. Protein Analysis
     protein_menu = menubar.addMenu(window.tr("Protein Analysis"))
 

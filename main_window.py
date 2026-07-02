@@ -193,6 +193,11 @@ class MainWindow(QMainWindow):
 
         self._find_or_open(RestrictionEnzymeTab, "Restriction Enzyme Analysis", reuse=False)
 
+    def open_gc_plot_tab(self):
+        from modules.gc_plot_tab import GCPlotTab
+
+        self._find_or_open(GCPlotTab, "GC Content / GC Skew Plot")
+
     # ── Protein Analysis ─────────────────────────────────────────────────
 
     def open_amino_acid_composition_tab(self):

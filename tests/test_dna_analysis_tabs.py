@@ -966,3 +966,73 @@ def test_codon_usage_summary_tables_are_taller_and_rscu_labels_are_tighter(qapp)
 
     assert aa_label_ys
     assert max(aa_label_ys) >= -0.18
+
+
+# ── GC Content / GC Skew Plot ───────────────────────────────────────────────
+
+
+def test_gc_plot_tab_creation_single_instance(qapp):
+    from main_window import MainWindow
+    from modules.gc_plot_tab import GCPlotTab
+
+    window = MainWindow()
+
+    window.open_gc_plot_tab()
+    assert window.tabs.count() == 1
+    assert window.tabs.tabText(0) == "GC Content / GC Skew Plot"
+    assert isinstance(window.tabs.widget(0), GCPlotTab)
+
+    # single-instance: second call should reuse
+    window.open_gc_plot_tab()
+    assert window.tabs.count() == 1
+
+
+def test_dna_analysis_menu_includes_gc_plot(qapp):
+    from main_window import MainWindow
+    from modules.gc_plot_tab import GCPlotTab
+
+    window = MainWindow()
+    menu_bar = window.menuBar()
+    dna_menu = next(
+        action.menu() for action in menu_bar.actions() if action.text() == "DNA Analysis"
+    )
+    gc_action = next(
+        action for action in dna_menu.actions() if action.text() == "GC Content / GC Skew Plot"
+    )
+    gc_action.trigger()
+    assert window.tabs.count() == 1
+    assert isinstance(window.tabs.widget(0), GCPlotTab)
+
+
+def test_gc_plot_tab_generates_plot(qapp):
+    from modules.gc_plot_tab import GCPlotTab
+
+    tab = GCPlotTab()
+    tab.input_text.setPlainText(
+        ">test_seq\n"
+        + ("A" * 200)
+        + ("G" * 200)
+        + ("C" * 200)
+        + ("T" * 200)
+    )
+
+    tab.window_spin.setValue(101)
+    tab.run()
+
+    assert tab.current_figure is not None
+    assert len(tab.current_figure.axes) == 2  # two subplots
+    assert "800 bp" in str(tab.status_label.text())
+
+
+def test_gc_plot_tab_clear_resets(qapp):
+    from modules.gc_plot_tab import GCPlotTab
+
+    tab = GCPlotTab()
+    tab.input_text.setPlainText(">test\n" + "ATGC" * 500)
+    tab.window_spin.setValue(101)
+    tab.run()
+    assert tab.current_figure is not None
+
+    tab.clear()
+    assert tab.current_figure is None
+    assert tab.input_text.toPlainText() == ""
