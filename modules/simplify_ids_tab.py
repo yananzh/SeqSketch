@@ -2,18 +2,15 @@ from collections import Counter
 import os
 import re
 
-from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDialog,
     QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
-    QScrollArea,
     QSizePolicy,
     QSpinBox,
     QStackedWidget,
@@ -110,11 +107,11 @@ class SimplifyIDsTab(BaseTabWidget):
         self.update_mode_controls()
 
     def init_ui(self):
-        _label_width = 120
+        _label_width = 130
 
         # ── Input file ──
         input_layout = QHBoxLayout()
-        input_label = QLabel("Input file:")
+        input_label = QLabel("Input FASTA file:")
         input_label.setFixedWidth(_label_width)
         input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
@@ -122,8 +119,12 @@ class SimplifyIDsTab(BaseTabWidget):
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
+        input_layout.addWidget(self.example_btn)
         input_layout.setSpacing(8)
 
         # ── Output file ──
@@ -286,6 +287,10 @@ class SimplifyIDsTab(BaseTabWidget):
 
     def current_mode(self) -> str:
         return str(self.mode_combo.currentData())
+
+    def _load_example(self):
+        """Load the bundled cytb teaching example into the input field."""
+        self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
 
     def update_mode_controls(self):
         mode = self.current_mode()
@@ -743,28 +748,4 @@ header format &mdash; warnings in the log will tell you how many were skipped.</
 </ul>
         """
 
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Simplify Headers")
-        dialog.setFixedSize(840, 620)
-
-        layout = QVBoxLayout()
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)
-        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setMargin(20)
-
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-
-        dialog.setLayout(layout)
-        dialog.exec()
+        self.show_help_dialog("Help - Simplify Headers", help_text, 840, 620)

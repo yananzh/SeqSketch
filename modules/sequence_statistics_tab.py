@@ -10,9 +10,8 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QSizePolicy,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 from utils.common_components import FASTAWorker, BaseTabWidget, FileDropLineEdit
-from utils.example_data import stage_example
 import os
 
 
@@ -258,7 +257,7 @@ class SequenceStatisticsTab(BaseTabWidget):
 
     def init_ui(self):
         # 固定标签宽度使两行对齐
-        _label_width = 120
+        _label_width = 130
 
         # 输入文件选择
         input_layout = QHBoxLayout()
@@ -385,18 +384,7 @@ class SequenceStatisticsTab(BaseTabWidget):
 
     def _load_example(self):
         """Load the bundled cytb teaching example into the input field."""
-        path = stage_example("phylo", "cytb_cds_raw.fasta")
-        if not path:
-            from PyQt6.QtWidgets import QMessageBox
-
-            QMessageBox.information(
-                self,
-                self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
-            )
-            return
-        self.handle_input_file_selected(path)
-        self.show_status(self.tr("已载入示例数据: cytb_cds_raw.fasta"))
+        self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
 
     def clear_all(self):
         self.input_edit.clear()
@@ -436,15 +424,6 @@ class SequenceStatisticsTab(BaseTabWidget):
 
     def show_help(self):
         """Show help information"""
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
-        from PyQt6.QtCore import Qt
-
         help_text = """
 <h2>FASTA QC &mdash; Quality Check for FASTA Files</h2>
 
@@ -539,36 +518,7 @@ or GC content.</li>
 </ul>
         """
 
-        # 创建自定义对话框
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - FASTA QC")
-        dialog.setFixedSize(820, 600)
-
-        layout = QVBoxLayout()
-
-        # 创建滚动区域
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        # 创建文本标签
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)  # 启用自动换行
-        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setMargin(20)
-
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-
-        # Add OK button
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-
-        dialog.setLayout(layout)
-        dialog.exec()
+        self.show_help_dialog("Help - FASTA QC", help_text, 820, 600)
 
     def run_statistics(self):
         input_path = self.input_edit.text().strip()

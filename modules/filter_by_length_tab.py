@@ -1,7 +1,6 @@
 """Filter FASTA sequences by sequence length."""
 
 from PyQt6.QtWidgets import (
-    QVBoxLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -12,7 +11,6 @@ from PyQt6.QtWidgets import (
     QSpinBox,
     QGroupBox,
 )
-from PyQt6.QtCore import pyqtSignal
 from utils.common_components import BaseTabWidget, FileDropLineEdit
 import os
 
@@ -26,7 +24,7 @@ class FilterByLengthTab(BaseTabWidget):
         self.connect_signals()
 
     def init_ui(self):
-        _label_width = 120
+        _label_width = 130
 
         # ── Input ──
         input_layout = QHBoxLayout()
@@ -38,8 +36,12 @@ class FilterByLengthTab(BaseTabWidget):
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
+        input_layout.addWidget(self.example_btn)
 
         # ── Length thresholds ──
         len_group = QGroupBox("Length Filters")
@@ -75,7 +77,7 @@ class FilterByLengthTab(BaseTabWidget):
 
         # ── Output ──
         output_layout = QHBoxLayout()
-        output_label = QLabel("Output file:")
+        output_label = QLabel("Output FASTA file:")
         output_label.setFixedWidth(_label_width)
         output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
@@ -151,6 +153,10 @@ class FilterByLengthTab(BaseTabWidget):
                 continue
             kept.append(rec)
         return kept
+
+    def _load_example(self):
+        """Load the bundled cytb teaching example into the input field."""
+        self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
 
     def preview_filter(self):
         input_path = self.input_edit.text().strip()
@@ -272,17 +278,9 @@ class FilterByLengthTab(BaseTabWidget):
         self.output_btn.setEnabled(not running)
         self.min_spin.setEnabled(not running)
         self.max_spin.setEnabled(not running)
+        self.example_btn.setEnabled(not running)
 
     def show_help(self):
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
-        from PyQt6.QtCore import Qt
-
         help_text = """
 <h2>Filter by Length &mdash; Keep Sequences in a Size Range</h2>
 
@@ -315,21 +313,4 @@ analyses).</li>
 of your file.</li>
 </ul>
         """
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Filter by Length")
-        dialog.setFixedSize(720, 460)
-        layout = QVBoxLayout()
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)
-        label.setMargin(20)
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-        dialog.setLayout(layout)
-        dialog.exec()
+        self.show_help_dialog("Help - Filter by Length", help_text, 720, 460)

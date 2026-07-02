@@ -52,13 +52,6 @@ hiddenimports = [
     'matplotlib.backends.backend_qtagg',
     'matplotlib.backends.backend_qt',
     'matplotlib.backends.backend_agg',
-    # scipy submodules
-    'scipy.special._ufuncs_cxx',
-    'scipy._lib.messagestream',
-    'scipy.io.matlab.mio5_utils',
-    'scipy.io.matlab.streams',
-    'scipy.sparse.csgraph._validation',
-    'scipy.spatial.transform._rotation_groups',
     # numpy extras
     'numpy.core._dtype_ctypes',
     'numpy.random.common',
@@ -101,20 +94,6 @@ hiddenimports += [
     'Bio.Graphics',
     'Bio.Entrez',
 ]
-# Collect only the scipy submodules actually needed
-hiddenimports += [
-    'scipy.spatial', 'scipy.spatial.distance', 'scipy.spatial.transform',
-    'scipy.stats', 'scipy.stats._stats_py',
-    'scipy.cluster', 'scipy.cluster.hierarchy',
-    'scipy.integrate',
-    'scipy.optimize',
-    'scipy.interpolate',
-    'scipy.sparse', 'scipy.sparse.csgraph',
-    'scipy.linalg',
-    'scipy.fft',
-    'scipy.signal',
-    'scipy.ndimage',
-]
 
 # ── Exclusions (reduce size) ──────────────────────────────────────────────────
 excludes = [
@@ -155,17 +134,6 @@ excludes = [
     'wx',
     'gi',
     # Test suites - not needed at runtime
-    'scipy.linalg.tests',
-    'scipy.stats.tests',
-    'scipy.optimize.tests',
-    'scipy.signal.tests',
-    'scipy.ndimage.tests',
-    'scipy.sparse.tests',
-    'scipy.spatial.tests',
-    'scipy.integrate.tests',
-    'scipy.interpolate.tests',
-    'scipy.io.tests',
-    'scipy.fft.tests',
     'Bio.tests',
 ]
 

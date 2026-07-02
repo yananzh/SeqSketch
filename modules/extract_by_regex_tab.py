@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QMenu,
 )
-from PyQt6.QtCore import pyqtSignal
 from utils.common_components import BaseTabWidget, FileDropLineEdit
 import os
 import re
@@ -105,8 +104,12 @@ class ExtractByRegexTab(BaseTabWidget):
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
+        input_layout.addWidget(self.example_btn)
         input_layout.setSpacing(8)
 
         # ── Regular Expression ──
@@ -232,6 +235,10 @@ class ExtractByRegexTab(BaseTabWidget):
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
 
+    def _load_example(self):
+        """Load the bundled cytb teaching example into the input field."""
+        self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
+
     def clear_all(self):
         self.input_edit.clear()
         self.output_edit.clear()
@@ -257,6 +264,7 @@ class ExtractByRegexTab(BaseTabWidget):
         self.case_insensitive_checkbox.setEnabled(not running)
         self.export_no_match_report_checkbox.setEnabled(not running)
         self.common_patterns_btn.setEnabled(not running)
+        self.example_btn.setEnabled(not running)
 
     def run_extract(self):
         input_path = self.input_edit.text().strip()
@@ -443,15 +451,6 @@ class ExtractByRegexTab(BaseTabWidget):
 
     def show_help(self):
         """Show help information"""
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
-        from PyQt6.QtCore import Qt
-
         help_text = """
 <h2>Regex Filter &mdash; Match FASTA Records with Patterns</h2>
 
@@ -515,33 +514,4 @@ keeps (or removes) the records that match. You control where the pattern looks
 </ul>
         """
 
-        # 创建自定义对话框
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Regex Filter")
-        dialog.setFixedSize(860, 620)
-
-        layout = QVBoxLayout()
-
-        # 创建滚动区域
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        # 创建文本标签
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)  # 启用自动换行
-        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setMargin(20)
-
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-
-        # Add OK button
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-
-        dialog.setLayout(layout)
-        dialog.exec()
+        self.show_help_dialog("Help - Regex Filter", help_text, 860, 620)

@@ -232,8 +232,12 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
+        input_layout.addWidget(self.example_btn)
 
         # ── ID Mapping ──
         mapping_group = QGroupBox("ID Mapping")
@@ -305,7 +309,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         # ── Output ──
         out_group = QGroupBox("Output")
         out_layout = QHBoxLayout(out_group)
-        out_label = QLabel("Output file:")
+        out_label = QLabel("Output FASTA file:")
         out_label.setFixedWidth(_label_width)
         out_layout.addWidget(out_label)
         self.output_edit = QLineEdit()
@@ -363,6 +367,10 @@ class BatchRenameIDsTab(BaseTabWidget):
             self.output_edit.setText(suggested)
         self.export_ids_btn.setEnabled(bool(file_path.strip()))
         self.show_status("Input file selected")
+
+    def _load_example(self):
+        """Load the bundled cytb teaching example into the input field."""
+        self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
 
     def select_mapping_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -745,6 +753,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.header_checkbox.setEnabled(not running)
         self.export_report_checkbox.setEnabled(not running)
         self.block_on_collisions_checkbox.setEnabled(not running)
+        self.example_btn.setEnabled(not running)
 
     def show_help(self):
         """显示帮助信息"""
@@ -808,33 +817,4 @@ descriptions are preserved.</li>
 </ul>
         """
 
-        # 创建自定义对话框
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Rename IDs")
-        dialog.setFixedSize(840, 580)
-
-        layout = QVBoxLayout()
-
-        # 创建滚动区域
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        # 创建文本标签
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)  # 启用自动换行
-        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setMargin(20)
-
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-
-        # 添加确定按钮
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-
-        dialog.setLayout(layout)
-        dialog.exec()
+        self.show_help_dialog("Help - Rename IDs", help_text, 840, 580)

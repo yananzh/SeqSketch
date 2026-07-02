@@ -47,10 +47,11 @@ main.py              -> QApplication bootstrap and optional splash screen
 main_window.py       -> MainWindow, QTabWidget management, open_*_tab methods
 menus.py             -> QAction wiring into MainWindow.open_*_tab methods
 modules/             -> Feature tabs and supporting modules
-utils/               -> Shared UI base classes, validation helpers, path utilities
+utils/               -> Shared UI base classes, validation helpers, path utilities, example-data loader
 config/settings.py   -> JSON-backed settings manager
 config.ini           -> External tool path overrides
-softwares/           -> Bundled BLAST, IQTree, TrimAl binaries
+softwares/           -> Bundled BLAST, IQTree, MAFFT, MUSCLE, TrimAl binaries
+examples/            -> Bundled read-only teaching datasets (phylo/, labs/) resolved via resource_path
 tests/               -> Pytest regression coverage
 ```
 
@@ -63,6 +64,14 @@ tests/               -> Pytest regression coverage
 - In `main_window.py`, preserve the nearby single-instance vs multi-instance behavior for each feature; do not normalize tab reuse patterns unless the task explicitly asks for it.
 - For file-mode tabs, add `self.content_area.addStretch()` after the main controls so the shared operation log stays anchored at the bottom.
 - Reuse `validate_input_path(...)` and `validate_output_path(...)` from `utils/common_components.py` for file validation instead of open-coded checks.
+- **MAFFT's single-file mode is `BaseTabWidget(..., "sequence")`** — input is pasted into `self.input_text`, not a file path. Only its batch sub-mode uses a file list. Do not wire MAFFT Example buttons as file-mode.
+
+## Example Data (Teaching)
+
+- `examples/phylo/` holds a read-only 8-species cytb dataset (CDS, protein, aligned variants, Newick tree, README) used by the "Example" buttons on the 7 core teaching-chain tabs (FASTA QC, Translate, Physicochemical, MAFFT, trimAl, IQ-TREE, Tree Visualization).
+- `utils/example_data.py` is the **only** module that knows where examples live: `example_path(*parts)` (read-only bundled source), `stage_example(*parts)` (copies to `user_data_dir()/example_work/` for file-mode tabs so outputs can write), `load_example_text(*parts)` (reads text for sequence-mode tabs). Use these instead of open-coded `resource_path("examples", ...)` calls in tabs.
+- When adding an "Example" button to a new tab, follow the existing pattern: load → empty-check with `QMessageBox.information` → fill the tab's specific input control → `self.show_status(self.tr("已载入示例数据: ..."))`. File-mode tabs stage a writable copy; sequence-mode tabs fill `input_text` directly.
+- `examples/` is bundled via `SeqSketch.spec` `datas` (`('examples', 'examples')`); any new example subfolder is picked up automatically.
 
 ## Threading Guidance
 
@@ -86,6 +95,7 @@ tests/               -> Pytest regression coverage
 - Full FASTA Tools: `py -m pytest tests/test_fasta_tools_tabs.py -q`
 - Focused DNA analysis / window wiring: `py -m pytest tests/test_dna_analysis_tabs.py -k <tab_or_behavior> -q`
 - Full DNA analysis / window wiring: `py -m pytest tests/test_dna_analysis_tabs.py -q`
+- Example data loaders / per-tab Example buttons: `py -m pytest tests/test_example_data.py -q`
 - Prefer fixture-driven tests over live network or interactive GUI checks.
 - For NCBI-related code, keep default tests mock-based; live requests should stay optional.
 - Assert both output artifacts and log/status text for file-mode tabs.

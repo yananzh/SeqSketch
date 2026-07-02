@@ -7,8 +7,9 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
-from PyQt6.QtCore import QObject, QThread, pyqtSignal
+from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
+    QDialog,
     QFileDialog,
     QFrame,
     QGroupBox,
@@ -17,6 +18,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -394,6 +396,68 @@ class BaseTabWidget(QWidget):
     def show_help(self):
         """Help method implemented by subclass"""
         pass
+
+    # ── Shared Example-data loader (file-mode tabs) ────────────────────────
+
+    def load_fasta_example(self, *example_parts: str, status_label: str | None = None) -> str | None:
+        """Stage a bundled FASTA example into this tab's file input.
+
+        Copies the bundled example to a writable ``example_work`` dir via
+        :func:`utils.example_data.stage_example`, then routes it through the
+        tab's ``handle_input_file_selected`` so the output-name suggestion and
+        status update reuse the same code path as Browse / drag-and-drop.
+
+        Returns the staged path, or None if the example could not be staged
+        (an ``QMessageBox.information`` is shown in that case).
+        """
+        from utils.example_data import stage_example
+
+        path = stage_example(*example_parts)
+        if not path:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return None
+        if hasattr(self, "handle_input_file_selected"):
+            self.handle_input_file_selected(path)
+        self.show_status(self.tr(f"已载入示例数据: {status_label or os.path.basename(path)}"))
+        return path
+
+    # ── Shared help dialog ─────────────────────────────────────────────────
+
+    def show_help_dialog(self, title: str, html: str, width: int = 820, height: int = 600):
+        """Open a scrollable RichText help dialog with an OK button.
+
+        Centralises the ``QDialog + QScrollArea + QLabel`` boilerplate that
+        every tab's ``show_help`` otherwise duplicates.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.setFixedSize(width, height)
+
+        layout = QVBoxLayout()
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        label = QLabel(html)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(True)
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+
+        scroll_area.setWidget(label)
+        layout.addWidget(scroll_area)
+
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button)
+
+        dialog.setLayout(layout)
+        dialog.exec()
 
     # ── Drag-and-drop helpers (sequence mode) ────────────────────────────
 

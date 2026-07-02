@@ -1,9 +1,6 @@
 """Deduplicate FASTA sequences — by ID or by sequence content."""
 
-from collections import Counter, OrderedDict
-
 from PyQt6.QtWidgets import (
-    QVBoxLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -15,7 +12,6 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QGroupBox,
 )
-from PyQt6.QtCore import pyqtSignal
 from utils.common_components import BaseTabWidget, FileDropLineEdit
 import os
 
@@ -32,7 +28,7 @@ class DeduplicateTab(BaseTabWidget):
         self.connect_signals()
 
     def init_ui(self):
-        _label_width = 120
+        _label_width = 130
 
         # ── Input ──
         input_layout = QHBoxLayout()
@@ -44,8 +40,12 @@ class DeduplicateTab(BaseTabWidget):
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
+        input_layout.addWidget(self.example_btn)
 
         # ── Options ──
         opts_group = QGroupBox("Deduplication Options")
@@ -77,7 +77,7 @@ class DeduplicateTab(BaseTabWidget):
 
         # ── Output ──
         output_layout = QHBoxLayout()
-        output_label = QLabel("Output file:")
+        output_label = QLabel("Output FASTA file:")
         output_label.setFixedWidth(_label_width)
         output_layout.addWidget(output_label)
         self.output_edit = QLineEdit()
@@ -122,6 +122,10 @@ class DeduplicateTab(BaseTabWidget):
         )
         if file_path:
             self.handle_input_file_selected(file_path)
+
+    def _load_example(self):
+        """Load the bundled cytb teaching example into the input field."""
+        self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
 
     def handle_input_file_selected(self, file_path: str):
         self.input_edit.setText(file_path)
@@ -288,17 +292,9 @@ class DeduplicateTab(BaseTabWidget):
         self.output_btn.setEnabled(not running)
         self.mode_combo.setEnabled(not running)
         self.case_insensitive_checkbox.setEnabled(not running)
+        self.example_btn.setEnabled(not running)
 
     def show_help(self):
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
-        from PyQt6.QtCore import Qt
-
         help_text = """
 <h2>Deduplicate &mdash; Remove Duplicate Sequences</h2>
 
@@ -321,21 +317,4 @@ capitalisation (e.g. 'GeneA' and 'genea' should be considered the same).</li>
 <li>Always <b>Preview</b> first to see how many duplicates will be removed.</li>
 </ul>
         """
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Deduplicate")
-        dialog.setFixedSize(700, 420)
-        layout = QVBoxLayout()
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)
-        label.setMargin(20)
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-        dialog.setLayout(layout)
-        dialog.exec()
+        self.show_help_dialog("Help - Deduplicate", help_text, 700, 420)

@@ -21,6 +21,10 @@ def create_menus(window):
     extract_by_id_action = QAction(window.tr("Filter by IDs"), window)
     extract_by_id_action.triggered.connect(window.open_extract_by_id_tab)
     fasta_menu.addAction(extract_by_id_action)
+    # 新增：长度筛选
+    filter_len_action = QAction(window.tr("Filter by Length"), window)
+    filter_len_action.triggered.connect(window.open_filter_by_length_tab)
+    fasta_menu.addAction(filter_len_action)
     extract_by_regex_action = QAction(window.tr("Regex Filter"), window)
     extract_by_regex_action.triggered.connect(window.open_extract_by_regex_tab)
     fasta_menu.addAction(extract_by_regex_action)
@@ -36,10 +40,6 @@ def create_menus(window):
     dedup_action = QAction(window.tr("Deduplicate"), window)
     dedup_action.triggered.connect(window.open_deduplicate_tab)
     fasta_menu.addAction(dedup_action)
-    # 新增：长度筛选
-    filter_len_action = QAction(window.tr("Filter by Length"), window)
-    filter_len_action.triggered.connect(window.open_filter_by_length_tab)
-    fasta_menu.addAction(filter_len_action)
     # 新增：合并FASTA
     concat_action = QAction(window.tr("Concatenate FASTA"), window)
     concat_action.triggered.connect(window.open_concat_fasta_tab)

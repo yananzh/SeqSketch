@@ -1,7 +1,6 @@
 from collections import Counter
 
 from PyQt6.QtWidgets import (
-    QVBoxLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -12,12 +11,8 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QCheckBox,
     QGroupBox,
-    QFrame,
 )
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtCore import Qt
 from utils.common_components import (
-    FASTAWorker,
     BaseTabWidget,
     FileDropLineEdit,
 )
@@ -131,7 +126,7 @@ class ExtractByIDTab(BaseTabWidget):
         self.connect_signals()
 
     def init_ui(self):
-        _label_width = 120
+        _label_width = 130
 
         # ── Input file ──
         input_layout = QHBoxLayout()
@@ -143,8 +138,12 @@ class ExtractByIDTab(BaseTabWidget):
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
         input_layout.addWidget(self.input_btn)
+        input_layout.addWidget(self.example_btn)
 
         # ── ID list input ──
         id_label = QLabel("Sequence IDs to extract (one per line):")
@@ -268,6 +267,14 @@ class ExtractByIDTab(BaseTabWidget):
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
+
+    def _load_example(self):
+        """Load the bundled cytb teaching example and a few sample IDs."""
+        path = self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
+        if path:
+            self.id_edit.setPlainText(
+                "Homo_sapiens_cytb\nMus_musculus_cytb\nDanio_rerio_cytb"
+            )
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -522,15 +529,6 @@ class ExtractByIDTab(BaseTabWidget):
 
     def show_help(self):
         """Show help information"""
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
-        from PyQt6.QtCore import Qt
-
         help_text = """
 <h2>Filter by IDs &mdash; Select or Remove Sequences by ID</h2>
 
@@ -574,8 +572,6 @@ a specific order (e.g. a fixed gene panel).</li>
 <li>Type them directly into the text box, <b>one per line</b></li>
 <li>Or click <b>"Load IDs from File"</b> to import a <code>.txt / .tsv / .csv</code>
 file where each line is one ID</li>
-<li>The counter below the box tells you how many IDs are recognised and if
-any duplicates were found</li>
 <li>A <b>missing-ID report</b> can be written alongside the output so you
 can see which IDs had no match in the FASTA file</li>
 </ul>
@@ -595,40 +591,9 @@ to <b>Remove Listed IDs (exclude)</b></li>
 <ul>
 <li>Use <b>Preview</b> before running on a large file to verify your IDs
 are being matched correctly</li>
-<li>The <b>ID counter</b> shows how many unique IDs are detected and
-warns about duplicates in your query</li>
 <li>If no sequences are extracted, check whether your IDs match the
 FASTA header exactly, and try <b>Case-Insensitive</b> mode</li>
 </ul>
         """
 
-        # 创建自定义对话框
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Filter by IDs")
-        dialog.setFixedSize(820, 580)
-
-        layout = QVBoxLayout()
-
-        # 创建滚动区域
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        # 创建文本标签
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)  # 启用自动换行
-        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setMargin(20)
-
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-
-        # Add OK button
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-
-        dialog.setLayout(layout)
-        dialog.exec()
+        self.show_help_dialog("Help - Filter by IDs", help_text, 820, 580)
