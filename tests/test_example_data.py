@@ -141,3 +141,93 @@ def test_tree_vis_example_fills_file_edit(qapp):
     btn.click()
     assert tab._file_edit.text().strip() != ""
     assert os.path.isfile(tab._file_edit.text().strip())
+
+
+# ── DNA Analysis tabs Example buttons ───────────────────────────────────────
+
+
+def test_rna_example_fills_input_text(qapp):
+    from modules.rna_tab import RNATab
+
+    tab = RNATab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "RNA tab has no Example button"
+    btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert "HBB" in text
+
+
+def test_complement_example_fills_input_text(qapp):
+    from modules.complement_tab import ComplementTab
+
+    tab = ComplementTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Complement tab has no Example button"
+    btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert text.count(">") == 2  # 27F + 1492R
+
+
+def test_orf_example_fills_input_text(qapp):
+    from modules.orf_tab import ORFTab
+
+    tab = ORFTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "ORF tab has no Example button"
+    btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert "lambda" in text.lower()
+
+
+def test_restriction_enzyme_example_fills_input_text(qapp):
+    from modules.restriction_enzyme_tab import RestrictionEnzymeTab
+
+    tab = RestrictionEnzymeTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Restriction Enzyme tab has no Example button"
+    btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert "pBR322" in text
+
+
+def test_gc_plot_example_fills_input_text(qapp):
+    from modules.gc_plot_tab import GCPlotTab
+
+    tab = GCPlotTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "GC Plot tab has no Example button"
+    btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert "pBR322" in text
+
+
+def test_sanger_assembly_example_fills_both_inputs(qapp):
+    from modules.sanger_tab import SangerTab
+
+    tab = SangerTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Sanger Assembly tab has no Example button"
+    btn.click()
+    fwd = tab.fwd_edit.toPlainText()
+    rev = tab.rev_edit.toPlainText()
+    assert fwd.startswith(">"), "forward read not filled"
+    assert rev.startswith(">"), "reverse read not filled"
+    assert "16S" in fwd or "ecoli" in fwd.lower()
+
+
+def test_sanger_viewer_example_fills_file_edit(qapp):
+    from modules.sanger_viewer_tab import SangerViewerTab
+
+    tab = SangerViewerTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Sanger Viewer tab has no Example button"
+    btn.click()
+    path = tab._file_edit.text().strip()
+    assert path != "", "file path not filled"
+    assert os.path.isfile(path), f"staged file does not exist: {path}"
+    assert path.lower().endswith(".ab1")

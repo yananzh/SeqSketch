@@ -1,4 +1,6 @@
 from utils.common_components import BaseTabWidget
+from utils.example_data import load_example_text
+from PyQt6.QtWidgets import QPushButton, QHBoxLayout, QMessageBox
 import re
 
 
@@ -17,6 +19,30 @@ class RNATab(BaseTabWidget):
         self.output_text.setPlaceholderText("RNA sequences will appear here...")
         self.input_text.setMinimumHeight(200)
         self.output_text.setMinimumHeight(200)
+
+        # Place Example button horizontally with upload_btn
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.clicked.connect(self._load_example)
+        ig_layout = self.input_group.layout()
+        ig_layout.removeWidget(self.upload_btn)
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.upload_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(self.example_btn)
+        ig_layout.insertLayout(1, btn_row)
+
+    def _load_example(self):
+        """Load the bundled HBB exon 1 DNA example."""
+        text = load_example_text("dna", "hbb_exon1.fasta")
+        if not text:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("已载入示例数据: hbb_exon1.fasta"))
 
     def run(self):
         seq = self.input_text.toPlainText().strip()

@@ -15,6 +15,7 @@ from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToo
 from matplotlib.figure import Figure
 
 from utils.common_components import BaseTabWidget
+from utils.example_data import load_example_text
 
 
 class _AnalysisWorker(QObject):
@@ -107,6 +108,30 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self.status_layout.insertWidget(_idx + 1, self.export_xlsx_btn)
         # Move Upload File button down slightly
         self.upload_btn.setStyleSheet("margin-top: 4px;")
+
+        # Place Example button horizontally with upload_btn
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.clicked.connect(self._load_example)
+        ig_layout = self.input_group.layout()
+        ig_layout.removeWidget(self.upload_btn)
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.upload_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(self.example_btn)
+        ig_layout.insertLayout(1, btn_row)
+
+    def _load_example(self):
+        """Load the bundled pBR322 plasmid example for restriction analysis."""
+        text = load_example_text("dna", "pBR322.fasta")
+        if not text:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("已载入示例数据: pBR322.fasta"))
 
     def _setup_enzyme_ui(self):
         """Enzyme selection controls between input and output."""

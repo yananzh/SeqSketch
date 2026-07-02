@@ -27,6 +27,7 @@ from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToo
 from matplotlib.figure import Figure
 
 from utils.common_components import apply_transparent_text_edit_background
+from utils.example_data import stage_example
 
 # Pixels per raw scan when sizing the canvas (1 scan ≈ 1 px gives good peak clarity)
 _PX_PER_SCAN = 1
@@ -117,6 +118,11 @@ class SangerViewerTab(QWidget):
             self.tr("Select an AB1 file (click Load to display the chromatogram)")
         )
         file_row.addWidget(self._btn_browse)
+        self._btn_example = QPushButton(self.tr("Example"))
+        self._btn_example.setToolTip(
+            self.tr("Load a bundled example AB1 trace file")
+        )
+        file_row.addWidget(self._btn_example)
         outer.addLayout(file_row)
 
         # --- Options row ---
@@ -213,6 +219,7 @@ class SangerViewerTab(QWidget):
 
         # --- Signal connections ---
         self._btn_browse.clicked.connect(self._browse)
+        self._btn_example.clicked.connect(self._load_example)
         self._btn_load.clicked.connect(self._load)
         self._btn_clear.clicked.connect(self._clear_all)
         self._btn_copy.clicked.connect(self._copy_range)
@@ -232,6 +239,18 @@ class SangerViewerTab(QWidget):
         )
         if path:
             self._file_edit.setText(path)
+
+    def _load_example(self) -> None:
+        """Stage the bundled example AB1 trace and fill the path field."""
+        path = stage_example("sanger", "pUC19_M13F.ab1")
+        if not path:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self._file_edit.setText(path)
 
     # ------------------------------------------------------------------
     # Drag-and-drop

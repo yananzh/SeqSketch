@@ -22,6 +22,7 @@ from utils.common_components import (
     apply_sequence_editor_style,
     apply_transparent_text_edit_background,
 )
+from utils.example_data import load_example_text
 
 _BASE_COLOR = {"A": "#007700", "T": "#BB0000", "G": "#111111", "C": "#0044AA", "N": "#888888"}
 
@@ -223,6 +224,11 @@ class SangerTab(QWidget):
         self.clear_btn.setFixedWidth(90)
         self.clear_btn.clicked.connect(self._clear_all)
         status_layout.addWidget(self.clear_btn)
+
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
+        status_layout.addWidget(self.example_btn)
 
         self.help_btn = QPushButton(self.tr("Help"))
         self.help_btn.setFixedWidth(80)
@@ -440,6 +446,21 @@ class SangerTab(QWidget):
         self._overlap_canvas.draw_idle()
 
     # ── Helpers ────────────────────────────────────────────────────────
+
+    def _load_example(self):
+        """Load the bundled E. coli 16S forward + reverse reads."""
+        fwd = load_example_text("dna", "16s_ecoli_fwd.fasta")
+        rev = load_example_text("dna", "16s_ecoli_rev.fasta")
+        if not fwd or not rev:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self.fwd_edit.setPlainText(fwd)
+        self.rev_edit.setPlainText(rev)
+        self.status_label.setText(self.tr("已载入示例数据: 16S 正反向读段"))
 
     def _clear_all(self):
         self.fwd_edit.clear()
