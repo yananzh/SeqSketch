@@ -42,6 +42,13 @@ class GCPlotTab(BaseTabWidget):
         self.output_label.hide()
         self.input_hint.hide()
 
+        # Add explicit "Save Figure" button in the status row after Plot
+        self.save_fig_btn = QPushButton(self.tr("Save Figure"))
+        self.save_fig_btn.setFixedWidth(110)
+        self.save_fig_btn.clicked.connect(self.export_result)
+        _idx = self.status_layout.indexOf(self.run_btn)
+        self.status_layout.insertWidget(_idx + 1, self.save_fig_btn)
+
         self.input_text.setPlaceholderText(
             self.tr(
                 "Paste a DNA sequence in FASTA format or drag-and-drop a file...\n\n"

@@ -141,11 +141,17 @@ class TranslateTab(BaseTabWidget):
         params_layout.addWidget(self.aa_mode_box)
         params_layout.addStretch()
 
+        self.add_content_layout(params_layout)
+
+        # Place Example button horizontally with upload_btn (unified pattern)
         self.example_btn = QPushButton(self.tr("Example"))
         self.example_btn.clicked.connect(self._load_example)
-        params_layout.addWidget(self.example_btn)
-
-        self.add_content_layout(params_layout)
+        ig_layout = self.input_group.layout()
+        ig_layout.removeWidget(self.upload_btn)
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.upload_btn, 1)
+        btn_row.addWidget(self.example_btn, 1)
+        ig_layout.insertLayout(1, btn_row)
 
     def _load_example(self):
         """Load the first CDS record of the cytb example for translation."""

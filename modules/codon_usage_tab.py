@@ -41,6 +41,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
 from PyQt6.QtGui import QColor
+from utils.example_data import load_example_text
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -827,19 +828,15 @@ class CodonUsageTab(QWidget):
                 QMessageBox.warning(self, "Error", str(e))
 
     def _insert_example(self):
-        self._input_text.setPlainText(
-            ">BRCA1_exon11_CDS\n"
-            "ATGGATTTATCTGCTCTTCGCGTTGAAGAAGTACAAAATGTCATTAATGCTATGCAGAAA\n"
-            "ATCTTAGAGTGTCCCATCTGTCTGGAGTTGATCAAGGAACCTGTCTCCACAAAGTGTGAC\n"
-            "CATCTCAAAGACCTATGTGTAAAGAAGATGGTAGAAGATTTTGGCTTGGCTGAAGAGCTG\n"
-            "TGA\n\n"
-            ">EGFR_kinase_CDS\n"
-            "ATGCGACCCTCCGGGACGGCCGGGGCAGCGCTCCTGGCGCTGCTGGCTGCGCTCTGCCCG\n"
-            "GCGAGTCGGGCTCTGGAGGAAAAGAAAGTTTGCCAAGGCACGAGTAACAAGCTCACGCAG\n"
-            "TTGGGCACTTTTGAAGATCATTTTCTCAGCCTCCAGAGGATGTTCAATAACTGTGAGGTG\n"
-            "GTCCTTGGGAATTTGGAAATTACCTATGTGCAGAGGAATTATGATCTTTCCTTCTTAAAG\n"
-            "TGA\n"
-        )
+        text = load_example_text("dna", "brca1_egfr_cds.fasta")
+        if not text:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self._input_text.setPlainText(text)
 
     def _set_status(self, msg: str):
         self._status_label.setText(msg)

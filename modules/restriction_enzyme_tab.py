@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from PyQt6.QtWidgets import (
     QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
     QCheckBox, QSpinBox, QMessageBox, QPushButton, QFileDialog,
+    QTableWidget, QTableWidgetItem, QHeaderView,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -94,6 +95,9 @@ class RestrictionEnzymeTab(BaseTabWidget):
         )
         self.input_text.setMinimumHeight(90)
         self.output_text.setMinimumHeight(80)
+        # Hide the plain-text output panel; results are shown in a QTableWidget
+        self.output_group.hide()
+        self.output_text.hide()
 
         # Hide copy & export buttons from output QGroupBox
         if hasattr(self, "copy_btn"):
@@ -173,7 +177,31 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self.add_content_layout(params)
 
     def _setup_results_area(self):
-        """Linear restriction map below the output area."""
+        """Results table + linear restriction map below the output area."""
+        # ── Results table ───────────────────────────────────────────────
+        table_grp = QGroupBox(self.tr("Results"))
+        table_grp.setFlat(True)
+        tl = QVBoxLayout(table_grp)
+        tl.setContentsMargins(0, 16, 0, 4)
+        tl.setSpacing(2)
+
+        self._results_table = QTableWidget(0, 5)
+        self._results_table.setHorizontalHeaderLabels([
+            self.tr("Enzyme"), self.tr("Recognition Site"),
+            self.tr("Cuts"), self.tr("Positions"), self.tr("Fragment Sizes"),
+        ])
+        header = self._results_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        self._results_table.setMinimumHeight(160)
+        self._results_table.setAlternatingRowColors(True)
+        tl.addWidget(self._results_table)
+        self.add_content_widget(table_grp)
+
+        # ── Linear restriction map ──────────────────────────────────────
         grp = QGroupBox(self.tr("Restriction Map"))
         grp.setFlat(True)
         gl = QVBoxLayout(grp)
@@ -269,7 +297,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
                         f"(cuts: {min_cuts}–{max_cuts})")
             )
 
-        # Populate output_text for export
+        # Populate output_text for export (kept hidden)
         out_lines = []
         for r in results:
             out_lines.append(
@@ -278,6 +306,23 @@ class RestrictionEnzymeTab(BaseTabWidget):
                 f"fragments={','.join(str(f) for f in r['fragments'])}"
             )
         self.output_text.setPlainText("\n".join(out_lines))
+
+        # Populate the results table
+        self._results_table.setSortingEnabled(False)
+        self._results_table.setRowCount(len(results))
+        for i, r in enumerate(results):
+            self._results_table.setItem(i, 0, QTableWidgetItem(r["enzyme"]))
+            self._results_table.setItem(i, 1, QTableWidgetItem(r["site"]))
+            self._results_table.setItem(i, 2, QTableWidgetItem(str(r["cuts"])))
+            self._results_table.setItem(
+                i, 3,
+                QTableWidgetItem(", ".join(str(p) for p in r["positions"])),
+            )
+            self._results_table.setItem(
+                i, 4,
+                QTableWidgetItem(", ".join(str(f) for f in r["fragments"])),
+            )
+        self._results_table.setSortingEnabled(True)
 
     def _on_error(self, msg: str):
         self.status_label.setText(self.tr(f"Error: {msg[:100]}"))
@@ -408,7 +453,8 @@ class RestrictionEnzymeTab(BaseTabWidget):
             "<li>Use <b>Common</b> mode for routine cloning &mdash; it is much faster</li>"
             "<li>Set max cuts to 3&ndash;5 to find unique or rare cutters for cloning</li>"
             "<li>For plasmid maps, uncheck <b>Linear DNA</b> to treat the sequence as circular</li>"
-            "<li>Select rows in the table and use <b>Copy to Clipboard</b> to copy specific enzymes</li>"
+            "<li>Click column headers in the results table to sort by enzyme, cut count, etc.</li>"
+            "<li>Use <b>Export Excel</b> to save the results table as a spreadsheet</li>"
             "</ul>"
         )
         from PyQt6.QtWidgets import (
