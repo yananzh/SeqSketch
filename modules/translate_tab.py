@@ -1,7 +1,7 @@
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 import re
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton, QGroupBox
 
 CODON_TABLE = {
     "TTT": "F",
@@ -110,14 +110,17 @@ class TranslateTab(BaseTabWidget):
         self.output_text.setPlaceholderText(
             "Translated protein sequence will appear here..."
         )
-        self.input_text.setMinimumHeight(180)
-        self.output_text.setMinimumHeight(180)
+        self.input_text.setMinimumHeight(150)
+        self.output_text.setMinimumHeight(150)
 
     def _setup_parameters(self):
-        """Setup parameter controls in a single horizontal row."""
-        params_layout = QHBoxLayout()
+        """Setup parameter controls in a QGroupBox."""
+        grp = QGroupBox(self.tr("Parameters"))
+        grp.setFlat(True)
+        params_layout = QHBoxLayout(grp)
+        params_layout.setContentsMargins(0, 16, 0, 4)
 
-        params_layout.addWidget(QLabel("Reading Frame:"))
+        params_layout.addWidget(QLabel(self.tr("Reading Frame:")))
         self.frame_box = QComboBox()
         self.frame_box.addItems([
             "+1 (forward, from position 1)",
@@ -131,7 +134,7 @@ class TranslateTab(BaseTabWidget):
         params_layout.addWidget(self.frame_box)
         params_layout.addSpacing(20)
 
-        params_layout.addWidget(QLabel("Amino Acid Format:"))
+        params_layout.addWidget(QLabel(self.tr("Amino Acid Format:")))
         self.aa_mode_box = QComboBox()
         self.aa_mode_box.addItems([
             "1-letter (e.g., MKTF)",
@@ -141,7 +144,7 @@ class TranslateTab(BaseTabWidget):
         params_layout.addWidget(self.aa_mode_box)
         params_layout.addStretch()
 
-        self.add_content_layout(params_layout)
+        self.add_content_widget(grp)
 
         # Place Example button horizontally with upload_btn (unified pattern)
         self.example_btn = QPushButton(self.tr("Example"))

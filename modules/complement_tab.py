@@ -1,7 +1,7 @@
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 import re
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton, QMessageBox
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton, QMessageBox, QGroupBox
 
 
 class ComplementTab(BaseTabWidget):
@@ -23,8 +23,8 @@ class ComplementTab(BaseTabWidget):
             "TTAAGGCCTTAAGG"
         )
         self._update_output_placeholder()
-        self.input_text.setMinimumHeight(200)
-        self.output_text.setMinimumHeight(200)
+        self.input_text.setMinimumHeight(150)
+        self.output_text.setMinimumHeight(150)
 
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton(self.tr("Example"))
@@ -50,15 +50,18 @@ class ComplementTab(BaseTabWidget):
         self.show_status(self.tr("已载入示例数据: 16s_primers.fasta"))
 
     def _setup_mode_controls(self):
-        mode_layout = QHBoxLayout()
-        mode_layout.addWidget(QLabel("Mode:"))
+        grp = QGroupBox(self.tr("Mode"))
+        grp.setFlat(True)
+        mode_layout = QHBoxLayout(grp)
+        mode_layout.setContentsMargins(0, 16, 0, 4)
+        mode_layout.addWidget(QLabel(self.tr("Mode:")))
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["Complement", "Reverse Complement"])
         self.mode_combo.setMinimumWidth(220)
         self.mode_combo.currentTextChanged.connect(self._update_output_placeholder)
         mode_layout.addWidget(self.mode_combo)
         mode_layout.addStretch()
-        self.add_parameter_layout(mode_layout)
+        self.add_content_widget(grp)
 
     def _update_output_placeholder(self):
         if self.mode_combo.currentText() == "Reverse Complement":

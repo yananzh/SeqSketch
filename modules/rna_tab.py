@@ -17,8 +17,8 @@ class RNATab(BaseTabWidget):
             "TTAAGGCCTTAAGG"
         )
         self.output_text.setPlaceholderText("RNA sequences will appear here...")
-        self.input_text.setMinimumHeight(200)
-        self.output_text.setMinimumHeight(200)
+        self.input_text.setMinimumHeight(150)
+        self.output_text.setMinimumHeight(150)
 
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton(self.tr("Example"))

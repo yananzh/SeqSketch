@@ -211,6 +211,16 @@ class SangerViewerTab(QWidget):
             self.tr("Clear the loaded chromatogram and reset the view")
         )
         status_row.addWidget(self._btn_clear)
+        self._btn_save_fig = QPushButton(self.tr("Save Figure"))
+        self._btn_save_fig.setFixedWidth(110)
+        self._btn_save_fig.setToolTip(self.tr("Save the chromatogram as PNG/PDF/SVG"))
+        self._btn_save_fig.setEnabled(False)
+        status_row.addWidget(self._btn_save_fig)
+        self._btn_export_fasta = QPushButton(self.tr("Export FASTA"))
+        self._btn_export_fasta.setFixedWidth(110)
+        self._btn_export_fasta.setToolTip(self.tr("Export the called sequence as a FASTA file"))
+        self._btn_export_fasta.setEnabled(False)
+        status_row.addWidget(self._btn_export_fasta)
         self._btn_help = QPushButton(self.tr("Help"))
         self._btn_help.setFixedWidth(80)
         self._btn_help.setToolTip(self.tr("Show usage help"))
@@ -222,6 +232,8 @@ class SangerViewerTab(QWidget):
         self._btn_example.clicked.connect(self._load_example)
         self._btn_load.clicked.connect(self._load)
         self._btn_clear.clicked.connect(self._clear_all)
+        self._btn_save_fig.clicked.connect(self._save_figure)
+        self._btn_export_fasta.clicked.connect(self._export_fasta)
         self._btn_copy.clicked.connect(self._copy_range)
         self._btn_help.clicked.connect(self._show_help)
         self._chk_quality.stateChanged.connect(lambda _: self._draw_chromatogram())
@@ -241,7 +253,7 @@ class SangerViewerTab(QWidget):
             self._file_edit.setText(path)
 
     def _load_example(self) -> None:
-        """Stage the bundled example AB1 trace and fill the path field."""
+        """Stage the bundled example AB1 trace, fill the path, and auto-load."""
         path = stage_example("sanger", "pUC19_M13F.ab1")
         if not path:
             QMessageBox.information(
@@ -251,6 +263,7 @@ class SangerViewerTab(QWidget):
             )
             return
         self._file_edit.setText(path)
+        self._load()  # auto-load so the user sees the chromatogram immediately
 
     # ------------------------------------------------------------------
     # Drag-and-drop
@@ -309,6 +322,8 @@ class SangerViewerTab(QWidget):
         self._spin_start.setValue(1)
         self._spin_end.setValue(n)
         self._btn_copy.setEnabled(True)
+        self._btn_save_fig.setEnabled(True)
+        self._btn_export_fasta.setEnabled(True)
 
         lines: List[str] = []
         for s in range(0, n, 60):
@@ -457,6 +472,45 @@ class SangerViewerTab(QWidget):
     # Clear helper
     # ------------------------------------------------------------------
 
+    def _save_figure(self) -> None:
+        """Save the chromatogram figure to a file."""
+        if not self._abi_data:
+            QMessageBox.warning(self, self.tr("Export Error"), self.tr("Load an AB1 file first."))
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            self.tr("Save Chromatogram"),
+            "chromatogram.png",
+            self.tr("PNG (*.png);;PDF (*.pdf);;SVG (*.svg);;All Files (*)"),
+        )
+        if path:
+            try:
+                self._fig.savefig(path, dpi=300, bbox_inches="tight")
+                self._set_status(self.tr(f"Figure saved: {path}"))
+            except Exception as e:
+                QMessageBox.warning(self, self.tr("Export Error"), str(e))
+
+    def _export_fasta(self) -> None:
+        """Export the called sequence as a FASTA file."""
+        if not self._sequence:
+            QMessageBox.warning(self, self.tr("Export Error"), self.tr("Load an AB1 file first."))
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            self.tr("Export FASTA"),
+            "sanger_sequence.fasta",
+            self.tr("FASTA Files (*.fasta *.fa);;All Files (*)"),
+        )
+        if path:
+            try:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(f">sanger_read len={len(self._sequence)}\n")
+                    for i in range(0, len(self._sequence), 60):
+                        f.write(self._sequence[i:i + 60] + "\n")
+                self._set_status(self.tr(f"FASTA saved: {path}"))
+            except Exception as e:
+                QMessageBox.warning(self, self.tr("Export Error"), str(e))
+
     def _clear_all(self) -> None:
         """Reset the viewer to its initial empty state."""
         self._abi_data = None
@@ -465,6 +519,8 @@ class SangerViewerTab(QWidget):
         self._file_edit.clear()
         self._seq_edit.clear()
         self._btn_copy.setEnabled(False)
+        self._btn_save_fig.setEnabled(False)
+        self._btn_export_fasta.setEnabled(False)
         self._spin_start.setValue(1)
         self._spin_end.setValue(1)
         self._fig.clear()

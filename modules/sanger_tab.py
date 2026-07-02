@@ -101,6 +101,14 @@ class SangerTab(QWidget):
         self._enable_drop(self.fwd_edit)
         fwd_vbox.addWidget(self.fwd_edit)
 
+        fwd_btn_row = QHBoxLayout()
+        self.fwd_browse_btn = QPushButton(self.tr("Browse"))
+        self.fwd_browse_btn.setFixedWidth(90)
+        self.fwd_browse_btn.clicked.connect(lambda: self._browse_file(self.fwd_edit))
+        fwd_btn_row.addWidget(self.fwd_browse_btn)
+        fwd_btn_row.addStretch()
+        fwd_vbox.addLayout(fwd_btn_row)
+
         rev_vbox = QVBoxLayout()
         rev_vbox.addWidget(QLabel(self.tr("Reverse Sequence (auto reverse-complemented):")))
         self.rev_edit = QTextEdit()
@@ -121,6 +129,14 @@ class SangerTab(QWidget):
         )
         self._enable_drop(self.rev_edit)
         rev_vbox.addWidget(self.rev_edit)
+
+        rev_btn_row = QHBoxLayout()
+        self.rev_browse_btn = QPushButton(self.tr("Browse"))
+        self.rev_browse_btn.setFixedWidth(90)
+        self.rev_browse_btn.clicked.connect(lambda: self._browse_file(self.rev_edit))
+        rev_btn_row.addWidget(self.rev_browse_btn)
+        rev_btn_row.addStretch()
+        rev_vbox.addLayout(rev_btn_row)
 
         seqs_hbox.addLayout(fwd_vbox)
         seqs_hbox.addLayout(rev_vbox)
@@ -446,6 +462,21 @@ class SangerTab(QWidget):
         self._overlap_canvas.draw_idle()
 
     # ── Helpers ────────────────────────────────────────────────────────
+
+    def _browse_file(self, editor: QTextEdit) -> None:
+        """Open a file dialog and load a FASTA/text file into the given editor."""
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Open Sequence File"),
+            "",
+            self.tr("FASTA/TXT (*.fasta *.fa *.txt);;All Files (*)"),
+        )
+        if path:
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    editor.setPlainText(f.read())
+            except Exception as ex:
+                QMessageBox.warning(self, self.tr("File Read Error"), str(ex))
 
     def _load_example(self):
         """Load the bundled E. coli 16S forward + reverse reads."""

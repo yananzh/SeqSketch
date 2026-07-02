@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QGroupBox,
+    QPushButton,
     QVBoxLayout,
     QTableWidget,
     QTableWidgetItem,
@@ -14,7 +15,6 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QAbstractItemView,
     QWidget,
-    QPushButton,
 )
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -138,10 +138,13 @@ class ORFTab(BaseTabWidget):
         self.show_status(self.tr("已载入示例数据: lambda_1kb.fasta"))
 
     def _setup_parameters(self):
-        """Setup parameter controls in a single horizontal row."""
-        params_layout = QHBoxLayout()
+        """Setup parameter controls in a QGroupBox."""
+        grp = QGroupBox(self.tr("Parameters"))
+        grp.setFlat(True)
+        params_layout = QHBoxLayout(grp)
+        params_layout.setContentsMargins(0, 16, 0, 4)
 
-        params_layout.addWidget(QLabel("Min ORF Length:"))
+        params_layout.addWidget(QLabel(self.tr("Min ORF Length:")))
         self.min_len_box = QSpinBox()
         self.min_len_box.setRange(30, 10000)
         self.min_len_box.setValue(100)
@@ -150,7 +153,7 @@ class ORFTab(BaseTabWidget):
         params_layout.addWidget(self.min_len_box)
         params_layout.addSpacing(16)
 
-        params_layout.addWidget(QLabel("Search Strand:"))
+        params_layout.addWidget(QLabel(self.tr("Search Strand:")))
         self.chain_box = QComboBox()
         self.chain_box.addItems([
             "Forward strand only",
@@ -162,7 +165,7 @@ class ORFTab(BaseTabWidget):
         params_layout.addWidget(self.chain_box)
         params_layout.addSpacing(16)
 
-        params_layout.addWidget(QLabel("Start Codons:"))
+        params_layout.addWidget(QLabel(self.tr("Start Codons:")))
         self.start_codon_box = QComboBox()
         self.start_codon_box.addItems([
             "ATG only (standard)",
@@ -172,7 +175,7 @@ class ORFTab(BaseTabWidget):
         params_layout.addWidget(self.start_codon_box)
         params_layout.addStretch()
 
-        self.add_content_layout(params_layout)
+        self.add_content_widget(grp)
 
     def _build_results_area(self):
         """Build the QTableWidget + Matplotlib ORF map below parameters."""

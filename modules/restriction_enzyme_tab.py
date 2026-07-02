@@ -93,7 +93,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self.output_text.setPlaceholderText(
             self.tr("Restriction enzyme results will appear here...")
         )
-        self.input_text.setMinimumHeight(90)
+        self.input_text.setMinimumHeight(100)
         self.output_text.setMinimumHeight(80)
         # Hide the plain-text output panel; results are shown in a QTableWidget
         self.output_group.hide()
@@ -137,8 +137,11 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self.show_status(self.tr("已载入示例数据: pBR322.fasta"))
 
     def _setup_enzyme_ui(self):
-        """Enzyme selection controls between input and output."""
-        params = QHBoxLayout()
+        """Enzyme selection controls in a QGroupBox."""
+        grp = QGroupBox(self.tr("Parameters"))
+        grp.setFlat(True)
+        params = QHBoxLayout(grp)
+        params.setContentsMargins(0, 16, 0, 4)
 
         params.addWidget(QLabel(self.tr("Enzyme Set:")))
         self._enzyme_set_combo = QComboBox()
@@ -174,7 +177,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         params.addWidget(self._linear_check)
         params.addStretch()
 
-        self.add_content_layout(params)
+        self.add_content_widget(grp)
 
     def _setup_results_area(self):
         """Results table + linear restriction map below the output area."""

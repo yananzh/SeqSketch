@@ -72,6 +72,14 @@ class GCPlotTab(BaseTabWidget):
         btn_row.addWidget(self.example_btn, 1)
         ig_layout.insertLayout(1, btn_row)
 
+        # Keep step default in sync with window changes
+        self.window_spin.valueChanged.connect(self._sync_step_to_window)
+
+    def _sync_step_to_window(self, val):
+        """When window changes, update step default to match (non-overlapping)."""
+        if self.step_spin.value() == self.step_spin.maximum() or self.step_spin.value() <= 1:
+            self.step_spin.setValue(val)
+
     def _load_example(self):
         """Load the bundled pBR322 plasmid example for GC plot."""
         text = load_example_text("dna", "pBR322.fasta")
@@ -110,6 +118,19 @@ class GCPlotTab(BaseTabWidget):
             )
         )
         row.addWidget(self.window_spin)
+
+        row.addWidget(QLabel(self.tr("Step:")))
+        self.step_spin = QSpinBox()
+        self.step_spin.setRange(1, 1001)
+        self.step_spin.setValue(101)
+        self.step_spin.setSuffix(self.tr(" bp"))
+        self.step_spin.setToolTip(
+            self.tr(
+                "Step size between windows. "
+                "Equal to window = non-overlapping; smaller = smoother curve."
+            )
+        )
+        row.addWidget(self.step_spin)
 
         row.addStretch()
         pg_layout.addLayout(row)
@@ -210,13 +231,19 @@ class GCPlotTab(BaseTabWidget):
             return
 
         window = self.window_spin.value()
+        step = self.step_spin.value()
         half = window // 2
         n = len(clean)
 
-        gc_content = np.full(n, np.nan, dtype=float)
-        gc_skew = np.full(n, np.nan, dtype=float)
+        # Compute at sampled positions (every `step` bp), then interpolate
+        sample_positions = list(range(0, n, step))
+        if not sample_positions or sample_positions[-1] != n - 1:
+            sample_positions.append(n - 1)
 
-        for i in range(n):
+        sample_gc = []
+        sample_skew = []
+        sample_x = []
+        for i in sample_positions:
             start = max(0, i - half)
             end = min(n, i + half + 1)
             segment = clean[start:end]
@@ -226,8 +253,22 @@ class GCPlotTab(BaseTabWidget):
             w = end - start
             if w < half + 1 or total == 0 or (g + c) == 0:
                 continue
-            gc_content[i] = ((g + c) / total) * 100
-            gc_skew[i] = (g - c) / (g + c) if (g + c) > 0 else 0.0
+            sample_x.append(i)
+            sample_gc.append(((g + c) / total) * 100)
+            sample_skew.append((g - c) / (g + c) if (g + c) > 0 else 0.0)
+
+        if len(sample_x) < 2:
+            QMessageBox.warning(
+                self,
+                self.tr("Analysis Error"),
+                self.tr("Not enough data points. Try a smaller window or step size."),
+            )
+            return
+
+        sample_x = np.array(sample_x, dtype=float)
+        all_x = np.arange(n, dtype=float)
+        gc_content = np.interp(all_x, sample_x, sample_gc)
+        gc_skew = np.interp(all_x, sample_x, sample_skew)
 
         self._draw_plot(clean, gc_content, gc_skew, window, header)
         mean_gc = np.nanmean(gc_content)
