@@ -60,8 +60,9 @@ def build_record_lookup(records, case_sensitive: bool) -> tuple[dict[str, list],
 
 
 def match_records_by_id(records, query_ids: list[str], match_mode: str, output_order: str):
-    case_sensitive = match_mode.startswith("Exact Match (case-sensitive")
+    case_sensitive = match_mode.endswith("(case-sensitive)")
     exclude_mode = match_mode.startswith("Remove Listed IDs")
+    partial_mode = match_mode.startswith("Contains")
     record_lookup, duplicate_header_counts = build_record_lookup(records, case_sensitive)
 
     requested_ids, duplicate_query_ids = prepare_query_ids("\n".join(query_ids), case_sensitive)
@@ -71,32 +72,76 @@ def match_records_by_id(records, query_ids: list[str], match_mode: str, output_o
     }
     requested_set = set(normalized_requested)
 
-    missing_ids = [
-        sequence_id
-        for sequence_id in requested_ids
-        if normalize_sequence_id(sequence_id, case_sensitive) not in record_lookup
-    ]
+    if partial_mode:
+        # Linear substring scan: a query matches a record when the query is a
+        # substring of the (normalized) header. One record may match several
+        # queries; "Preserve Query Order" iterates queries, FASTA order iterates records.
+        normalized_queries = [
+            normalize_sequence_id(sequence_id, case_sensitive) for sequence_id in requested_ids
+        ]
+        matched_query_flags = [False] * len(requested_ids)
 
-    if exclude_mode:
-        matched_records = [
-            record
-            for record in records
-            if normalize_sequence_id(record.header, case_sensitive) not in requested_set
+        def _record_matches_any_query(record) -> list[int]:
+            header = normalize_sequence_id(record.header, case_sensitive)
+            return [i for i, q in enumerate(normalized_queries) if q and q in header]
+
+        if exclude_mode:
+            matched_records = [
+                record for record in records if not _record_matches_any_query(record)
+            ]
+            effective_output_order = "Preserve FASTA Order"
+        elif output_order == "Preserve Query Order":
+            matched_records = []
+            for i, sequence_id in enumerate(requested_ids):
+                for record in records:
+                    header = normalize_sequence_id(record.header, case_sensitive)
+                    q = normalized_queries[i]
+                    if q and q in header:
+                        matched_records.append(record)
+                        matched_query_flags[i] = True
+            effective_output_order = output_order
+        else:
+            matched_records = []
+            for record in records:
+                hit_indices = _record_matches_any_query(record)
+                if hit_indices:
+                    matched_records.append(record)
+                    for i in hit_indices:
+                        matched_query_flags[i] = True
+            effective_output_order = output_order
+
+        missing_ids = [
+            sequence_id
+            for sequence_id, matched in zip(requested_ids, matched_query_flags)
+            if not matched
         ]
-        effective_output_order = "Preserve FASTA Order"
-    elif output_order == "Preserve Query Order":
-        matched_records = []
-        for sequence_id in requested_ids:
-            normalized = normalize_sequence_id(sequence_id, case_sensitive)
-            matched_records.extend(record_lookup.get(normalized, []))
-        effective_output_order = output_order
     else:
-        matched_records = [
-            record
-            for record in records
-            if normalize_sequence_id(record.header, case_sensitive) in requested_set
+        missing_ids = [
+            sequence_id
+            for sequence_id in requested_ids
+            if normalize_sequence_id(sequence_id, case_sensitive) not in record_lookup
         ]
-        effective_output_order = output_order
+
+        if exclude_mode:
+            matched_records = [
+                record
+                for record in records
+                if normalize_sequence_id(record.header, case_sensitive) not in requested_set
+            ]
+            effective_output_order = "Preserve FASTA Order"
+        elif output_order == "Preserve Query Order":
+            matched_records = []
+            for sequence_id in requested_ids:
+                normalized = normalize_sequence_id(sequence_id, case_sensitive)
+                matched_records.extend(record_lookup.get(normalized, []))
+            effective_output_order = output_order
+        else:
+            matched_records = [
+                record
+                for record in records
+                if normalize_sequence_id(record.header, case_sensitive) in requested_set
+            ]
+            effective_output_order = output_order
 
     summary = {
         "requested_count": len(requested_ids),
@@ -154,10 +199,7 @@ class ExtractByIDTab(BaseTabWidget):
         )
         self.id_edit.setMinimumHeight(120)
         self.id_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.id_edit.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
-        )
-        self.id_edit.viewport().setStyleSheet("background: transparent;")
+        self.id_edit.setProperty("listDisplay", True)
 
         # Load IDs button row
         id_action_layout = QHBoxLayout()
@@ -174,9 +216,13 @@ class ExtractByIDTab(BaseTabWidget):
         self.match_mode_combo.addItems([
             "Exact Match (case-sensitive)",
             "Exact Match (case-insensitive)",
+            "Contains (case-sensitive)",
+            "Contains (case-insensitive)",
             "Remove Listed IDs (exclude)",
         ])
         self.match_mode_combo.setToolTip(
+            'Exact Match: the ID must equal your query exactly\n'
+            'Contains: the query is a substring of the ID (e.g. "kinase" matches "NM_kinase_1")\n'
             'Case-sensitive: "GeneA" will NOT match "genea"\n'
             'Case-insensitive: "GeneA" WILL match "genea"\n'
             "Remove: omit the listed IDs and keep everything else"
@@ -204,9 +250,7 @@ class ExtractByIDTab(BaseTabWidget):
             "Click Preview to see the first few matched IDs here..."
         )
         self.preview_panel.setMaximumHeight(120)
-        self.preview_panel.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
-        )
+        self.preview_panel.setProperty("previewPanel", True)
 
         # ── Output file ──
         output_layout = QHBoxLayout()
@@ -554,6 +598,11 @@ records or removes them, depending on the match mode you choose.</p>
 <tr><td>Same but ignore capital/lowercase differences
     (e.g. <code>geneA</code> matches <code>genea</code>)</td>
     <td>&rarr; <b>Exact Match (case-insensitive)</b></td></tr>
+<tr><td>Keep sequences whose ID <i>contains</i> a keyword
+    (e.g. <code>kinase</code> matches <code>NM_kinase_1</code>)</td>
+    <td>&rarr; <b>Contains (case-insensitive)</b></td></tr>
+<tr><td>Same, but treat upper/lower case as different</td>
+    <td>&rarr; <b>Contains (case-sensitive)</b></td></tr>
 <tr><td>Remove certain sequences and keep everything else</td>
     <td>&rarr; <b>Remove Listed IDs (exclude)</b></td></tr>
 </table>

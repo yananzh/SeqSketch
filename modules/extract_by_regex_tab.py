@@ -163,9 +163,7 @@ class ExtractByRegexTab(BaseTabWidget):
             "Click Preview to see the first few matching IDs here..."
         )
         self.preview_panel.setMaximumHeight(120)
-        self.preview_panel.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
-        )
+        self.preview_panel.setProperty("previewPanel", True)
 
         # ── Output file ──
         output_layout = QHBoxLayout()

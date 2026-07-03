@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -155,7 +156,7 @@ class SimplifyIDsTab(BaseTabWidget):
         self.mode_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         mode_layout.addWidget(self.mode_combo)
         self.mode_hint_label = QLabel("")
-        self.mode_hint_label.setStyleSheet("color: #888; font-size: 13px;")
+        self.mode_hint_label.setProperty("hintLabel", True)
         mode_layout.addWidget(self.mode_hint_label)
 
         # ── Parameter panels (QStackedWidget, one per mode) ──
@@ -223,12 +224,11 @@ class SimplifyIDsTab(BaseTabWidget):
             "Click Preview to see the first few simplified IDs here..."
         )
         self.preview_panel.setMaximumHeight(130)
-        self.preview_panel.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
-        )
+        self.preview_panel.setProperty("previewPanel", True)
 
-        # ── Options row ──
-        options_layout = QHBoxLayout()
+        # ── Options group ──
+        options_group = QGroupBox(self.tr("Options"))
+        options_layout = QHBoxLayout(options_group)
         self.preserve_description_checkbox = QCheckBox("Preserve description")
         self.preserve_description_checkbox.setToolTip(
             "Keep the text after the first space in the FASTA header"
@@ -246,8 +246,9 @@ class SimplifyIDsTab(BaseTabWidget):
         options_layout.addWidget(self.auto_number_checkbox)
         options_layout.addStretch(1)
 
-        # ── Case / prefix / suffix ──
-        transform_layout = QHBoxLayout()
+        # ── Case / prefix / suffix group ──
+        transform_group = QGroupBox(self.tr("Case / Prefix / Suffix"))
+        transform_layout = QHBoxLayout(transform_group)
         transform_layout.addWidget(QLabel("Case:"))
         self.case_combo = QComboBox()
         self.case_combo.addItem("As-is", "as_is")
@@ -281,8 +282,8 @@ class SimplifyIDsTab(BaseTabWidget):
         self.add_content_layout(mode_layout)
         self.add_content_widget(self.param_stack)
         self.add_content_widget(self.preview_panel)
-        self.add_content_layout(options_layout)
-        self.add_content_layout(transform_layout)
+        self.add_content_widget(options_group)
+        self.add_content_widget(transform_group)
         self.content_area.addStretch()
 
     def current_mode(self) -> str:

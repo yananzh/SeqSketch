@@ -315,14 +315,15 @@ def test_deduplicate_example_fills_input_edit(qapp):
     assert os.path.isfile(tab.input_edit.text().strip())
 
 
-def test_concat_fasta_example_fills_files_edit(qapp):
+def test_concat_fasta_example_fills_file_list(qapp):
+    from PyQt6.QtCore import Qt
+
     from modules.concat_fasta_tab import ConcatFastaTab
 
     tab = ConcatFastaTab()
     btn = _find_button(tab, "Example")
     assert btn is not None, "Concatenate FASTA tab has no Example button"
     btn.click()
-    files_text = tab.files_edit.toPlainText().strip()
-    assert files_text != ""
-    path = files_text.splitlines()[0].strip()
+    assert tab.file_list.count() >= 1
+    path = tab.file_list.item(0).data(Qt.ItemDataRole.UserRole)
     assert os.path.isfile(path)

@@ -149,12 +149,11 @@ def test_fasta_tools_log_group_uses_tight_embedded_title_style():
 
 
 def test_fasta_tools_plain_text_editors_have_border_style(qapp):
-    """Filter by IDs and NCBI Download plain-text inputs share the border style."""
+    """Filter by IDs and NCBI Download plain-text inputs use the QSS listDisplay property."""
     extract_tab = ExtractByIDTab()
     ncbi_tab = DownloadFromNCBITab()
     for editor in (extract_tab.id_edit, ncbi_tab.acc_edit):
-        assert "border: 1px solid #94a3b8;" in editor.styleSheet()
-        assert "border-radius: 6px;" in editor.styleSheet()
+        assert editor.property("listDisplay") is True
 
 
 def test_sequence_statistics_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
@@ -981,3 +980,79 @@ def test_batch_rename_ids_invalid_mapping_file_logs_error(
     assert not output_path.exists()
     assert "No valid mappings found in the file" in log_text(tab)
     assert tab.status_label.text() == "Ready"
+
+
+# ── Filter by IDs — Contains (partial match) mode ────────────────────────────
+
+
+def test_match_records_by_id_contains_modes_pure_logic():
+    """Cover the Contains partial-match branches of match_records_by_id."""
+    from modules.extract_by_id_tab import match_records_by_id
+
+    class _Rec:
+        def __init__(self, header):
+            self.header = header
+
+    records = [
+        _Rec("NM_kinase_1"),
+        _Rec("NM_phosphatase_2"),
+        _Rec("xp_kinase_3"),
+        _Rec("chr10_sample"),
+    ]
+
+    # Contains case-insensitive — "kinase" matches two records, FASTA order
+    matched, missing, summary = match_records_by_id(
+        records, ["kinase"], "Contains (case-insensitive)", "Preserve FASTA Order"
+    )
+    assert [r.header for r in matched] == ["NM_kinase_1", "xp_kinase_3"]
+    assert missing == []
+    assert summary["matched_record_count"] == 2
+    assert summary["case_sensitive"] is False
+
+    # Contains case-sensitive — "kinase" only matches the lowercase-bearing headers,
+    # "Kinase" matches none (the K-bearing header is "xp_kinase_3" with lowercase k)
+    matched, missing, summary = match_records_by_id(
+        records, ["Kinase"], "Contains (case-sensitive)", "Preserve FASTA Order"
+    )
+    assert matched == []
+    assert missing == ["Kinase"]
+    assert summary["case_sensitive"] is True
+
+    # Contains case-sensitive, Preserve Query Order — one record per matching query
+    matched, missing, summary = match_records_by_id(
+        records, ["kinase", "phos"], "Contains (case-sensitive)", "Preserve Query Order"
+    )
+    assert [r.header for r in matched] == ["NM_kinase_1", "xp_kinase_3", "NM_phosphatase_2"]
+    assert missing == []
+
+    # Contains case-insensitive exclude — remove records containing "kinase"
+    matched, missing, summary = match_records_by_id(
+        records, ["kinase"], "Contains (case-insensitive)", "Preserve FASTA Order"
+    )
+    matched_exclude, _, summary_e = match_records_by_id(
+        records, ["KINASE"], "Remove Listed IDs (exclude)", "Preserve FASTA Order"
+    )
+    # exclude uses exact-match path (not Contains), so "KINASE" matches nothing → all kept
+    assert [r.header for r in matched_exclude] == [r.header for r in records]
+    assert summary_e["exclude_mode"] is True
+
+
+def test_extract_by_id_contains_case_insensitive_happy_path(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    """Contains (case-insensitive) keeps records whose ID contains the query substring."""
+    output_path = tmp_path / "contains_extracted.fasta"
+    tab = ExtractByIDTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    # "alpha" is a substring of "gene_alpha" and of "seq2 beta description"'s... no,
+    # only the ID part is scanned. "alpha" appears in ID "gene_alpha".
+    tab.id_edit.setPlainText("alpha")
+    tab.match_mode_combo.setCurrentText("Contains (case-insensitive)")
+    tab.run_extract()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == ["gene_alpha product_x"]
+    assert "Match mode: Contains (case-insensitive)" in log_text(tab)
+    assert "Extraction complete!" in log_text(tab)

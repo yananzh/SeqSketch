@@ -1,12 +1,13 @@
 """Concatenate multiple FASTA files into a single output file."""
 
-import re
-
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QPlainTextEdit,
     QPushButton,
     QFileDialog,
@@ -33,18 +34,11 @@ class ConcatFastaTab(BaseTabWidget):
         input_group = QGroupBox("Input FASTA Files")
         input_main = QVBoxLayout(input_group)
 
-        self.files_edit = QPlainTextEdit()
-        self.files_edit.setReadOnly(True)
-        self.files_edit.setPlaceholderText(
-            "Click 'Add Files' to select FASTA files to concatenate..."
-        )
-        self.files_edit.setMinimumHeight(100)
-        self.files_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.files_edit.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
-        )
-        self.files_edit.viewport().setStyleSheet("background: transparent;")
-        input_main.addWidget(self.files_edit)
+        self.file_list = QListWidget()
+        self.file_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.file_list.setMinimumHeight(100)
+        self.file_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        input_main.addWidget(self.file_list)
 
         file_btn_row = QHBoxLayout()
         self.add_btn = QPushButton("Add Files")
@@ -80,9 +74,7 @@ class ConcatFastaTab(BaseTabWidget):
             "Click Preview to see file counts and total sequences..."
         )
         self.preview_panel.setMaximumHeight(110)
-        self.preview_panel.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
-        )
+        self.preview_panel.setProperty("previewPanel", True)
 
         # ── Output ──
         output_layout = QHBoxLayout()
@@ -123,10 +115,20 @@ class ConcatFastaTab(BaseTabWidget):
         self.clear_btn.clicked.connect(self.clear_all)
 
     def _file_paths(self):
-        text = self.files_edit.toPlainText().strip()
-        if not text:
-            return []
-        return [line.strip() for line in text.splitlines() if line.strip()]
+        return [
+            self.file_list.item(i).data(Qt.ItemDataRole.UserRole)
+            for i in range(self.file_list.count())
+        ]
+
+    def _add_path(self, path: str):
+        """Append a file path to the list, skipping duplicates."""
+        existing = set(self._file_paths())
+        if path in existing:
+            return
+        item = QListWidgetItem(os.path.basename(path))
+        item.setData(Qt.ItemDataRole.UserRole, path)
+        item.setToolTip(path)
+        self.file_list.addItem(item)
 
     def add_files(self):
         file_paths, _ = QFileDialog.getOpenFileNames(
@@ -135,40 +137,20 @@ class ConcatFastaTab(BaseTabWidget):
             "",
             "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
         )
-        if file_paths:
-            current = self.files_edit.toPlainText().strip()
-            new_lines = []
-            seen = set(current.splitlines()) if current else set()
-            for p in file_paths:
-                if p not in seen:
-                    new_lines.append(p)
-                    seen.add(p)
-            if current:
-                all_lines = current.splitlines() + new_lines
-            else:
-                all_lines = new_lines
-            self.files_edit.setPlainText("\n".join(all_lines))
+        for p in file_paths:
+            self._add_path(p)
 
     def remove_selected(self):
-        cursor = self.files_edit.textCursor()
-        if cursor.hasSelection():
-            selected = cursor.selectedText().strip()
-            selected_lines = {s.strip() for s in selected.splitlines() if s.strip()}
-            current_lines = self.files_edit.toPlainText().splitlines()
-            # Remove lines whose trimmed text matches any selected line exactly
-            new_lines = [line for line in current_lines if line.strip() not in selected_lines]
-            # Clean up blank lines (collapsed multi-line gaps)
-            new_text = re.sub(r"\n\s*\n", "\n", "\n".join(new_lines))
-            self.files_edit.setPlainText(new_text)
+        for item in self.file_list.selectedItems():
+            self.file_list.takeItem(self.file_list.row(item))
 
     def clear_files_list(self):
-        self.files_edit.clear()
+        self.file_list.clear()
 
     def _load_example(self):
         """Load the bundled cytb teaching example into the file list."""
         from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
-        import os
 
         path = stage_example("phylo", "cytb_cds_raw.fasta")
         if not path:
@@ -177,11 +159,7 @@ class ConcatFastaTab(BaseTabWidget):
                 self.tr("示例数据加载失败，请检查安装是否完整。"),
             )
             return
-        current = self.files_edit.toPlainText().strip()
-        lines = current.splitlines() if current else []
-        if path not in lines:
-            lines.append(path)
-        self.files_edit.setPlainText("\n".join(lines))
+        self._add_path(path)
         self.show_status(self.tr("已载入示例数据: cytb_cds_raw.fasta"))
 
     def select_output_file(self):
@@ -293,7 +271,7 @@ class ConcatFastaTab(BaseTabWidget):
             self.set_running_state(False)
 
     def clear_all(self):
-        self.files_edit.clear()
+        self.file_list.clear()
         self.output_edit.clear()
         self.add_prefix_checkbox.setChecked(False)
         self.preview_panel.clear()

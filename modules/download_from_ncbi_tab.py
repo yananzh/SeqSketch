@@ -303,16 +303,13 @@ class DownloadFromNCBITab(BaseTabWidget):
         acc_hint = QLabel(
             "Enter NCBI accession numbers, one per line (e.g. NM_001101.5, NP_001092.1, AF123456)"
         )
-        acc_hint.setStyleSheet("color: #666; font-size: 13px;")
+        acc_hint.setProperty("hintLabel", True)
         acc_layout.addWidget(acc_hint)
         self.acc_edit = QPlainTextEdit()
         self.acc_edit.setPlaceholderText("NM_001101.5\nNP_001092.1\nAF123456\n...")
         self.acc_edit.setMinimumHeight(150)
         self.acc_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.acc_edit.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
-        )
-        self.acc_edit.viewport().setStyleSheet("background: transparent;")
+        self.acc_edit.setProperty("listDisplay", True)
         acc_layout.addWidget(self.acc_edit)
 
         acc_action_layout = QHBoxLayout()

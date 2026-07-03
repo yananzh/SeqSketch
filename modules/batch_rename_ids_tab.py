@@ -246,7 +246,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             "Step 1: Select FASTA  →  Step 2: Export Current IDs  →  "
             "Step 3: Edit new IDs externally  →  Step 4: Load mapping  →  Step 5: Start"
         )
-        step_hint.setStyleSheet("color: #666; font-size: 13px;")
+        step_hint.setProperty("hintLabel", True)
         mapping_main.addWidget(step_hint)
 
         # Mapping file row
@@ -300,9 +300,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             "Click Preview to see the first few rename results here..."
         )
         self.preview_panel.setMaximumHeight(120)
-        self.preview_panel.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
-        )
+        self.preview_panel.setProperty("previewPanel", True)
 
         # ── Output ──
         out_group = QGroupBox("Output")

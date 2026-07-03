@@ -154,6 +154,27 @@ QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabl
     background: #f0f0f0;
     color: #999999;
 }
+/* Preview panels (read-only QPlainTextEdit showing preview results) */
+QPlainTextEdit[previewPanel="true"],
+QPlainTextEdit[previewPanel="true"]:focus {
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: transparent;
+}
+/* List-style text editors (file-path / accession display, white background) */
+QPlainTextEdit[listDisplay="true"],
+QPlainTextEdit[listDisplay="true"]:focus {
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: #ffffff;
+}
+/* Hint / step-guide labels (small grey secondary text) */
+QLabel[hintLabel="true"] {
+    color: #888;
+    font-size: 13px;
+}
 
 /* 6. GroupBox */
 QGroupBox {

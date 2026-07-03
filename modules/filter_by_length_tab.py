@@ -71,9 +71,7 @@ class FilterByLengthTab(BaseTabWidget):
             "Click Preview to see how many sequences pass the filter..."
         )
         self.preview_panel.setMaximumHeight(110)
-        self.preview_panel.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: transparent;"
-        )
+        self.preview_panel.setProperty("previewPanel", True)
 
         # ── Output ──
         output_layout = QHBoxLayout()
