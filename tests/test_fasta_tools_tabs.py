@@ -104,7 +104,7 @@ def test_fasta_tools_tabs_share_a_clear_labeled_log_area(qapp, tab_class):
     assert tab.log_group.property("logGroup") is True
     assert tab.log_area.isReadOnly()
     assert tab.log_area.property("logViewer") is True
-    assert tab.log_area.placeholderText() == ("Run the program to see progress and results here...")
+    assert tab.log_area.placeholderText() == ("Run a FASTA tool to see progress and results here...")
     assert tab.log_area.minimumHeight() >= 120
     assert tab.log_area.lineWrapMode() == tab.log_area.LineWrapMode.WidgetWidth
 
@@ -170,8 +170,6 @@ def test_sequence_statistics_happy_path(qapp, sample_fasta_file: Path, tmp_path:
     assert "# Summary" in content
     assert "Detected_Sequence_Type\tDNA/RNA" in content
     assert "Total_Sequences\t4" in content
-    assert "N50\t8" in content
-    assert "L50\t2" in content
     assert "Sequence_ID\tLength\tSequence_Type\tGC_Content(%)" in content
     assert "seq1\t8\tDNA/RNA\t50.00\t0\t0\t0\t-\t17" in content
     assert "seq2\t8\tDNA/RNA\t0.00\t0\t0\t0\t-\t16" in content
@@ -183,8 +181,6 @@ def test_sequence_statistics_happy_path(qapp, sample_fasta_file: Path, tmp_path:
     assert tab.stat_labels["avg_len"].text() == "7.0"
     assert tab.stat_labels["min_len"].text() == "6"
     assert tab.stat_labels["max_len"].text() == "8"
-    assert tab.stat_labels["n50"].text() == "8"
-    assert tab.stat_labels["l50"].text() == "2"
     assert tab.stat_labels["duplicate_ids"].text() == "0"
     assert tab.stat_labels["ambiguous_bases"].text() == "0"
     assert tab.stat_labels["invalid_chars"].text() == "0"

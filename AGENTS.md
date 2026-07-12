@@ -68,7 +68,7 @@ tests/               -> Pytest regression coverage
 
 ## Example Data (Teaching)
 
-- `examples/phylo/` holds a read-only 8-species cytb dataset (CDS, protein, aligned variants, Newick tree, README) used by the "Example" buttons on the 7 core teaching-chain tabs (FASTA QC, Translate, Physicochemical, MAFFT, trimAl, IQ-TREE, Tree Visualization).
+- `examples/phylo/` holds a read-only 8-species cytb dataset (CDS, protein, aligned variants, Newick tree, README) used by the "Example" buttons on the 7 core teaching-chain tabs (FASTA Statistics, Translate, Physicochemical, MAFFT, trimAl, IQ-TREE, Tree Visualization).
 - `utils/example_data.py` is the **only** module that knows where examples live: `example_path(*parts)` (read-only bundled source), `stage_example(*parts)` (copies to `user_data_dir()/example_work/` for file-mode tabs so outputs can write), `load_example_text(*parts)` (reads text for sequence-mode tabs). Use these instead of open-coded `resource_path("examples", ...)` calls in tabs.
 - When adding an "Example" button to a new tab, follow the existing pattern: load → empty-check with `QMessageBox.information` → fill the tab's specific input control → `self.show_status(self.tr("已载入示例数据: ..."))`. File-mode tabs stage a writable copy; sequence-mode tabs fill `input_text` directly.
 - `examples/` is bundled via `SeqSketch.spec` `datas` (`('examples', 'examples')`); any new example subfolder is picked up automatically.

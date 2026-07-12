@@ -314,11 +314,20 @@ class ExtractByIDTab(BaseTabWidget):
 
     def _load_example(self):
         """Load the bundled cytb teaching example and a few sample IDs."""
-        path = self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
-        if path:
-            self.id_edit.setPlainText(
-                "Homo_sapiens_cytb\nMus_musculus_cytb\nDanio_rerio_cytb"
+        from utils.example_data import stage_example
+        from PyQt6.QtWidgets import QMessageBox
+
+        path = stage_example("phylo", "cytb_cds_raw.fasta")
+        if not path:
+            QMessageBox.information(
+                self, self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
             )
+            return
+        self.handle_input_file_selected(path)
+        self.id_edit.setPlainText(
+            "Homo_sapiens_cytb\nMus_musculus_cytb\nDanio_rerio_cytb"
+        )
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(

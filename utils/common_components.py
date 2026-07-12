@@ -3,7 +3,7 @@ Common worker base classes and components
 Reduce duplication and provide unified error handling and signals
 """
 
-from PyQt6.QtCore import QObject, QThread, pyqtSignal
+from PyQt6.QtCore import QObject, QThread, pyqtSignal, Qt
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -16,6 +16,8 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QFileDialog,
     QMessageBox,
+    QDialog,
+    QScrollArea,
 )
 from typing import Any, Dict, Optional
 import logging
@@ -396,6 +398,35 @@ class BaseTabWidget(QWidget):
     def show_help(self):
         """Help method implemented by subclass"""
         pass
+
+    def show_help_dialog(self, title: str, help_text: str, width: int = 720, height: int = 460):
+        """Display a scrollable rich-text help dialog with an OK button.
+
+        Centralizes the help-popup behavior so subclass ``show_help`` methods
+        only need to build ``help_text`` (HTML) and call::
+
+            self.show_help_dialog("Help - <Feature>", help_text, 820, 600)
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.setFixedSize(width, height)
+        layout = QVBoxLayout()
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        label = QLabel(help_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setWordWrap(True)
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
+        scroll_area.setWidget(label)
+        layout.addWidget(scroll_area)
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(dialog.accept)
+        layout.addWidget(ok_button)
+        dialog.setLayout(layout)
+        dialog.exec()
 
     # ── Drag-and-drop helpers (sequence mode) ────────────────────────────
 

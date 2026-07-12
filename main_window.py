@@ -90,7 +90,7 @@ class MainWindow(QMainWindow):
     def open_sequence_statistics_tab(self):
         from modules.sequence_statistics_tab import SequenceStatisticsTab
 
-        self._find_or_open(SequenceStatisticsTab, "FASTA QC")
+        self._find_or_open(SequenceStatisticsTab, "FASTA Statistics")
 
     def open_simplify_ids_tab(self):
         from modules.simplify_ids_tab import SimplifyIDsTab

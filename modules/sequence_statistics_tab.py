@@ -21,20 +21,6 @@ PROTEIN_BASES = set("ABCDEFGHIKLMNPQRSTVWXYZ*-")
 VALID_SEQUENCE_CHARS = NUCLEOTIDE_BASES | PROTEIN_BASES
 
 
-def compute_n50_l50(lengths: list[int]) -> tuple[int, int]:
-    nonzero_lengths = sorted((length for length in lengths if length > 0), reverse=True)
-    if not nonzero_lengths:
-        return 0, 0
-
-    half_total = sum(nonzero_lengths) / 2
-    cumulative = 0
-    for index, length in enumerate(nonzero_lengths, start=1):
-        cumulative += length
-        if cumulative >= half_total:
-            return length, index
-    return 0, 0
-
-
 def detect_sequence_type(sequence: str) -> str:
     letters = {char for char in sequence.upper() if char.isalpha()}
     if not letters:
@@ -101,7 +87,6 @@ def build_statistics_report(records) -> tuple[dict, list[dict], list[str]]:
     avg_len = total_length / total if total else 0.0
     min_len = min(lengths) if lengths else 0
     max_len = max(lengths) if lengths else 0
-    n50, l50 = compute_n50_l50(lengths)
 
     duplicate_counts = Counter(record.header for record in records)
     duplicate_id_map = {
@@ -150,8 +135,6 @@ def build_statistics_report(records) -> tuple[dict, list[dict], list[str]]:
         "avg_len": avg_len,
         "min_len": min_len,
         "max_len": max_len,
-        "n50": n50,
-        "l50": l50,
         "duplicate_ids": duplicate_id_count,
         "duplicate_id_map": duplicate_id_map,
         "ambiguous_bases": total_ambiguous_count,
@@ -174,8 +157,6 @@ def write_statistics_report(output_path: str, summary: dict, per_sequence_stats:
         ("Average_Length", summary["avg_len"]),
         ("Min_Length", summary["min_len"]),
         ("Max_Length", summary["max_len"]),
-        ("N50", summary["n50"]),
-        ("L50", summary["l50"]),
         ("Duplicate_ID_Count", summary["duplicate_ids"]),
         ("Total_N_Count", summary["total_n_count"]),
         ("N_Content_Rate(%)", summary["n_content_rate"]),
@@ -251,7 +232,7 @@ class SequenceStatisticsTab(BaseTabWidget):
     """Sequence length statistics Tab"""
 
     def __init__(self):
-        super().__init__("FASTA QC", "file")
+        super().__init__("FASTA Statistics", "file")
         self.init_ui()
         self.connect_signals()
 
@@ -302,8 +283,6 @@ class SequenceStatisticsTab(BaseTabWidget):
             ("Average Length", "avg_len"),
             ("Min Length", "min_len"),
             ("Max Length", "max_len"),
-            ("N50", "n50"),
-            ("L50", "l50"),
             ("Duplicate IDs", "duplicate_ids"),
             ("Ambiguous Bases", "ambiguous_bases"),
             ("Invalid Chars", "invalid_chars"),
@@ -319,8 +298,6 @@ class SequenceStatisticsTab(BaseTabWidget):
             self.stat_labels[key] = v
         # Tooltips for key metrics
         _tooltips = {
-            "n50": "The shortest sequence length at which the cumulative length reaches 50% of the total assembly size",
-            "l50": "The smallest number of sequences whose combined length reaches 50% of the total",
             "ambiguous_bases": "Count of IUPAC ambiguity codes (R/Y/M/K/S/W/B/D/H/V) — may indicate low-quality or heterozygous calls",
             "invalid_chars": "Characters outside standard nucleotide/protein alphabets",
             "n_content": "Total N bases and their percentage — high N content often signals assembly gaps",
@@ -384,7 +361,17 @@ class SequenceStatisticsTab(BaseTabWidget):
 
     def _load_example(self):
         """Load the bundled cytb teaching example into the input field."""
-        self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
+        from utils.example_data import stage_example
+        from PyQt6.QtWidgets import QMessageBox
+
+        path = stage_example("phylo", "cytb_cds_raw.fasta")
+        if not path:
+            QMessageBox.information(
+                self, self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self.handle_input_file_selected(path)
 
     def clear_all(self):
         self.input_edit.clear()
@@ -409,8 +396,6 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.stat_labels["avg_len"].setText(f"{stats.get('avg_len', 0):.1f}")
         self.stat_labels["min_len"].setText(str(stats.get("min_len", 0)))
         self.stat_labels["max_len"].setText(str(stats.get("max_len", 0)))
-        self.stat_labels["n50"].setText(str(stats.get("n50", 0)))
-        self.stat_labels["l50"].setText(str(stats.get("l50", 0)))
         self.stat_labels["duplicate_ids"].setText(str(stats.get("duplicate_ids", 0)))
         self.stat_labels["ambiguous_bases"].setText(str(stats.get("ambiguous_bases", 0)))
         self.stat_labels["invalid_chars"].setText(str(stats.get("invalid_chars", 0)))
@@ -425,7 +410,7 @@ class SequenceStatisticsTab(BaseTabWidget):
     def show_help(self):
         """Show help information"""
         help_text = """
-<h2>FASTA QC &mdash; Quality Check for FASTA Files</h2>
+<h2>FASTA Statistics &mdash; Sequence Statistics for FASTA Files</h2>
 
 <p><b>What does this tool do?</b><br>
 It scans your FASTA file and produces a quality report so you can spot problems
@@ -452,17 +437,6 @@ How many FASTA records (entries starting with <code>&gt;</code>) are in the file
 The sum, mean, shortest, and longest sequence lengths (in bases or residues).
 A large gap between min and max may indicate mixed data types or truncated
 entries.</p>
-
-<p><b>N50</b><br>
-A standard assembly continuity metric. If you sort all sequences from longest
-to shortest, N50 is the length of the sequence at which the cumulative sum first
-reaches 50% of the total assembly size. <i>Example:</i> if your total is 1,000,000 bp
-and the running sum hits 500,000 bp after adding the 5th-longest contig of 80,000 bp,
-then N50 = 80,000.</p>
-
-<p><b>L50</b><br>
-The companion to N50 &mdash; it is the smallest number of sequences whose combined
-length reaches 50% of the total. In the example above, L50 = 5.</p>
 
 <p><b>Detected Type</b><br>
 Whether the sequences appear to be DNA/RNA, protein, or a mixture. The tool
@@ -518,7 +492,7 @@ or GC content.</li>
 </ul>
         """
 
-        self.show_help_dialog("Help - FASTA QC", help_text, 820, 600)
+        self.show_help_dialog("Help - FASTA Statistics", help_text, 820, 600)
 
     def run_statistics(self):
         input_path = self.input_edit.text().strip()
@@ -574,7 +548,7 @@ or GC content.</li>
 
             self.show_status("Computing statistics...")
             self.log_message(
-                f"Detected sequence type: {summary['sequence_type']}; total sequences: {summary['total']}; N50: {summary['n50']}",
+                f"Detected sequence type: {summary['sequence_type']}; total sequences: {summary['total']}",
                 "INFO",
             )
 

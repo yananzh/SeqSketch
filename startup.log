@@ -2597,3 +2597,95 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-07-12 19:05:50.980270
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: 'SequenceStatisticsTab' object has no attribute 'load_fasta_example'
+Traceback (most recent call last):
+  File "f:\ui\modules\sequence_statistics_tab.py", line 387, in _load_example
+    self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
+    ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'SequenceStatisticsTab' object has no attribute 'load_fasta_example'
+UNHANDLED: 'SequenceStatisticsTab' object has no attribute 'load_fasta_example'
+Traceback (most recent call last):
+  File "f:\ui\modules\sequence_statistics_tab.py", line 387, in _load_example
+    self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
+    ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'SequenceStatisticsTab' object has no attribute 'load_fasta_example'
+
+============================================================
+startup : 2026-07-12 19:07:13.497405
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: 'SequenceStatisticsTab' object has no attribute 'load_fasta_example'
+Traceback (most recent call last):
+  File "f:\ui\modules\sequence_statistics_tab.py", line 387, in _load_example
+    self.load_fasta_example("phylo", "cytb_cds_raw.fasta")
+    ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'SequenceStatisticsTab' object has no attribute 'load_fasta_example'
+
+============================================================
+startup : 2026-07-12 19:17:00.249230
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: 'SequenceStatisticsTab' object has no attribute 'show_help_dialog'
+Traceback (most recent call last):
+  File "f:\ui\modules\sequence_statistics_tab.py", line 531, in show_help
+    self.show_help_dialog("Help - FASTA QC", help_text, 820, 600)
+    ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'SequenceStatisticsTab' object has no attribute 'show_help_dialog'
+UNHANDLED: 'SequenceStatisticsTab' object has no attribute 'show_help_dialog'
+Traceback (most recent call last):
+  File "f:\ui\modules\sequence_statistics_tab.py", line 531, in show_help
+    self.show_help_dialog("Help - FASTA QC", help_text, 820, 600)
+    ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'SequenceStatisticsTab' object has no attribute 'show_help_dialog'
+
+============================================================
+startup : 2026-07-12 19:32:26.835972
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: 'SequenceStatisticsTab' object has no attribute 'show_help_dialog'
+Traceback (most recent call last):
+  File "f:\ui\modules\sequence_statistics_tab.py", line 531, in show_help
+    self.show_help_dialog("Help - FASTA QC", help_text, 820, 600)
+    ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'SequenceStatisticsTab' object has no attribute 'show_help_dialog'
+
+============================================================
+startup : 2026-07-12 19:33:28.373405
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-12 19:35:05.909130
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-12 19:52:44.318152
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A

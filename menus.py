@@ -12,7 +12,7 @@ def create_menus(window):
     # 1. FASTA Tools
     fasta_menu = menubar.addMenu(window.tr("FASTA Tools"))
     # 四个功能项
-    seq_stat_action = QAction(window.tr("FASTA QC"), window)
+    seq_stat_action = QAction(window.tr("FASTA Statistics"), window)
     seq_stat_action.triggered.connect(window.open_sequence_statistics_tab)
     fasta_menu.addAction(seq_stat_action)
     simplify_ids_action = QAction(window.tr("Simplify Headers"), window)

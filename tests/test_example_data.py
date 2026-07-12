@@ -64,7 +64,7 @@ def test_fasta_qc_example_fills_input_edit(qapp):
 
     tab = SequenceStatisticsTab()
     btn = _find_button(tab, "Example")
-    assert btn is not None, "FASTA QC tab has no Example button"
+    assert btn is not None, "FASTA Statistics tab has no Example button"
     btn.click()
     assert tab.input_edit.text().strip() != ""
     assert os.path.isfile(tab.input_edit.text().strip())
