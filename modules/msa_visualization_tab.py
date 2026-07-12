@@ -119,8 +119,7 @@ class MSAVisualizationTab(BaseTabWidget):
         self.wrap_spin.setFixedWidth(90)
         self.wrap_spin.setSpecialValueText("No wrap")  # 0 → None
         self.wrap_spin.setToolTip(
-            "Number of residues per row before wrapping.\n"
-            "Set to 0 for a single continuous row."
+            "Number of residues per row before wrapping.\nSet to 0 for a single continuous row."
         )
         row1.addWidget(self.wrap_spin)
         row1.addStretch()
@@ -182,9 +181,7 @@ class MSAVisualizationTab(BaseTabWidget):
         self.dpi_spin.setRange(72, 600)
         self.dpi_spin.setValue(300)
         self.dpi_spin.setFixedWidth(90)
-        self.dpi_spin.setToolTip(
-            "Resolution used when rendering and exporting the figure."
-        )
+        self.dpi_spin.setToolTip("Resolution used when rendering and exporting the figure.")
         row3.addWidget(self.dpi_spin)
         row3.addStretch()
 
@@ -266,9 +263,7 @@ class MSAVisualizationTab(BaseTabWidget):
 
     def export_result(self):
         if self._current_figure is None:
-            QMessageBox.information(
-                self, "Nothing to Export", "Run the visualization first."
-            )
+            QMessageBox.information(self, "Nothing to Export", "Run the visualization first.")
             return
 
         _EXT_MAP = {
@@ -369,9 +364,7 @@ class MSAVisualizationTab(BaseTabWidget):
         # Validate: at least 2 sequences
         n_seq = raw.count(">")
         if n_seq < 2:
-            QMessageBox.warning(
-                self, "Input Error", "At least 2 sequences are required."
-            )
+            QMessageBox.warning(self, "Input Error", "At least 2 sequences are required.")
             return
 
         # Write to temp file (MsaViz requires a file path)

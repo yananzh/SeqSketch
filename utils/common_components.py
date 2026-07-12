@@ -223,7 +223,7 @@ class BaseTabWidget(QWidget):
         self.status_layout.addStretch()
 
         # Run/Clear buttons for sequence tabs — placed at bottom-right
-        if self.tab_type == "sequence" and hasattr(self, 'run_btn'):
+        if self.tab_type == "sequence" and hasattr(self, "run_btn"):
             self.run_btn.setFixedWidth(90)
             self.clear_btn.setFixedWidth(90)
             self.status_layout.addWidget(self.run_btn)
@@ -268,9 +268,7 @@ class BaseTabWidget(QWidget):
 
         self.input_text = QTextEdit()
         apply_sequence_editor_style(self.input_text)
-        self.input_text.setPlaceholderText(
-            "Paste DNA/RNA sequence, or upload a file..."
-        )
+        self.input_text.setPlaceholderText("Paste DNA/RNA sequence, or upload a file...")
         self.upload_btn = QPushButton(self.tr("Upload File"))
         self.upload_btn.clicked.connect(self.open_file)
         self.input_hint = QLabel("")
@@ -434,12 +432,12 @@ class BaseTabWidget(QWidget):
 
     def add_parameter_layout(self, layout):
         """Insert a parameter layout between the input and output sections."""
-        if hasattr(self, '_param_layout'):
+        if hasattr(self, "_param_layout"):
             self._param_layout.addLayout(layout)
 
     def add_content_layout(self, layout):
         """Add content layout — redirects to _param_layout in sequence mode."""
-        if hasattr(self, '_param_layout'):
+        if hasattr(self, "_param_layout"):
             self._param_layout.addLayout(layout)
         else:
             self.content_area.addLayout(layout)
@@ -462,9 +460,7 @@ class BaseTabWidget(QWidget):
         if not hasattr(self, "log_area"):
             return
 
-        prefix = {"INFO": "[Info]", "ERROR": "[Error]", "WARNING": "[Warning]"}.get(
-            level, "[Info]"
-        )
+        prefix = {"INFO": "[Info]", "ERROR": "[Error]", "WARNING": "[Warning]"}.get(level, "[Info]")
 
         self.log_area.append(f"{prefix} {message}")
 
