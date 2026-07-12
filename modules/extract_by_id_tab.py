@@ -2,6 +2,7 @@ from collections import Counter
 
 from PyQt6.QtWidgets import (
     QFrame,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -11,7 +12,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QComboBox,
     QCheckBox,
-    QGroupBox,
+    QVBoxLayout,
 )
 from utils.common_components import (
     BaseTabWidget,
@@ -192,7 +193,8 @@ class ExtractByIDTab(BaseTabWidget):
         input_layout.addWidget(self.example_btn)
 
         # ── ID list input ──
-        id_label = QLabel("Sequence IDs to extract (one per line):")
+        id_group = QGroupBox(self.tr("Sequence IDs"))
+        id_group_layout = QVBoxLayout(id_group)
 
         self.id_edit = QPlainTextEdit()
         self.id_edit.setPlaceholderText(
@@ -206,6 +208,8 @@ class ExtractByIDTab(BaseTabWidget):
         )
         self.id_edit.setFrameShape(QFrame.Shape.NoFrame)
         self.id_edit.viewport().setStyleSheet("background: transparent;")
+        id_group_layout.addWidget(self.id_edit)
+        id_group_layout.addWidget(self.id_edit)
 
         # ── Options group ──
         options_group = QGroupBox("Matching Options")
@@ -275,8 +279,7 @@ class ExtractByIDTab(BaseTabWidget):
 
         # ── Assemble ──
         self.add_content_layout(input_layout)
-        self.add_content_widget(id_label)
-        self.add_content_widget(self.id_edit)
+        self.add_content_widget(id_group)
         self.add_content_widget(options_group)
         self.add_content_widget(self.preview_panel)
         self.add_content_layout(output_layout)
