@@ -290,18 +290,8 @@ class SimplifyIDsTab(BaseTabWidget):
         return str(self.mode_combo.currentData())
 
     def _load_example(self):
-        """Load the bundled cytb teaching example into the input field."""
-        from utils.example_data import stage_example
-        from PyQt6.QtWidgets import QMessageBox
-
-        path = stage_example("phylo", "cytb_cds_raw.fasta")
-        if not path:
-            QMessageBox.information(
-                self, self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
-            )
-            return
-        self.handle_input_file_selected(path)
+        """Load the bundled UniProt-style example into the input field."""
+        self.load_fasta_example("dna", "simple_header.fasta")
 
     def update_mode_controls(self):
         mode = self.current_mode()
@@ -690,73 +680,171 @@ class SimplifyIDsTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h2>Simplify Headers &mdash; Clean Up FASTA IDs</h2>
+<h2>Simplify Headers &mdash; Clean Up FASTA Sequence IDs</h2>
 
 <p><b>What does this tool do?</b><br>
-It takes complex FASTA headers (like those from NCBI, UniProt, or assemblies)
-and extracts shorter, cleaner sequence IDs using one of four parsing rules.</p>
+FASTA files from databases like NCBI or UniProt often have long, complex
+header lines full of annotations. This tool shortens them into clean,
+predictable IDs so downstream tools (aligners, phylogenetic software,
+visualisation) don't choke on or misinterpret them.</p>
+
+<h3>Try It With the Example Data</h3>
+<p>Click the <b>Example</b> button next to the file input. It loads
+<code>simple_header.fasta</code> — real UniProt/TrEMBL headers with the
+<code>tr|acc|entry</code> format. This file is perfect for testing every
+simplification mode.</p>
 
 <h3>Which mode should I choose?</h3>
-<p><b>Look at your header and follow this guide:</b></p>
-<table border="0" cellpadding="4" cellspacing="2">
+<p>Look at your header format and pick the matching rule:</p>
+<table border="0" cellpadding="5" cellspacing="2">
 <tr><td><b>Your header looks like</b></td><td><b>&rarr; Use this mode</b></td></tr>
-<tr><td><code>&gt;NM_001101.5 Homo sapiens gene</code></td><td>&rarr; <b>First token</b></td></tr>
-<tr><td><code>&gt;gi|12345|ref|NM_001101.5| gene</code></td><td>&rarr; <b>Delimiter field</b> with <code>|</code></td></tr>
-<tr><td><code>&gt;tr|A0A0A0|A0A0A0_HUMAN ...</code></td><td>&rarr; <b>Regex capture</b> or Delimiter field</td></tr>
-<tr><td><code>&gt;contig_123 length=5000 cov=10.5</code></td><td>&rarr; <b>Keep first N tokens</b></td></tr>
+<tr><td><code>&gt;NM_001101.5 Homo sapiens gene</code><br>
+    (accession followed by a space)</td>
+    <td>&rarr; <b>First word</b></td></tr>
+<tr><td><code>&gt;tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC</code><br>
+    (UniProt, pipe-separated fields)</td>
+    <td>&rarr; <b>Delimiter field</b> with <code>|</code>, field 3</td></tr>
+<tr><td><code>&gt;contig_123 length=5000 cov=10.5</code><br>
+    (space-separated tokens, keep the first few)</td>
+    <td>&rarr; <b>Keep first N words</b></td></tr>
+<tr><td><code>&gt;lcl|seq_001 gene:kinase</code><br>
+    (structured but not purely delimiter-based)</td>
+    <td>&rarr; <b>Regex capture</b></td></tr>
 </table>
 
 <h3>Quick Start</h3>
 <ol>
-<li>Select a FASTA file</li>
-<li>Choose a simplification mode from the dropdown &mdash; a hint will appear</li>
-<li>Fill in any required parameters (delimiter, regex, or token count)</li>
-<li><b>Click Preview</b> to check the first 5 IDs before running</li>
-<li>Adjust options as needed (case, prefix/suffix, description)</li>
-<li>Click <b>Start</b> to process the entire file</li>
+<li>Click <b>Example</b> to load the bundled <code>simple_header.fasta</code>,
+or browse to your own FASTA file.</li>
+<li>Choose a simplification mode from the dropdown &mdash; a hint explaining
+the mode appears below.</li>
+<li>Fill in any required parameters (delimiter, field index, regex, or
+word count).</li>
+<li>Click <b>Preview</b> to check the first 5 IDs before processing the
+whole file.</li>
+<li>Tweak options (case, prefix/suffix, description preservation, etc.).</li>
+<li>Click <b>Start</b> to simplify every header and save the result.</li>
 </ol>
 
 <h3>Modes in Detail</h3>
-<ul>
-<li><b>First token</b> &mdash; keeps the first whitespace-separated word.
-Best when headers are <code>&gt;accession description</code>.</li>
-<li><b>Delimiter field</b> &mdash; splits by a character (e.g. <code>|</code>) and
-picks one field. Field index is 1-based (1 = first).</li>
-<li><b>Keep first N words</b> &mdash; joins the first N whitespace-separated
-words with underscores.</li>
-<li><b>Regex capture</b> &mdash; uses a regular expression. The first capture
-group <code>(...)</code> becomes the new ID. Useful for complex header formats.</li>
-</ul>
+
+<p><b>1. First word</b><br>
+Keeps only the first whitespace-separated word of the header.</p>
+<table border="0" cellpadding="2"><tr><td><b>Input</b></td>
+    <td><code>&gt;NM_001101.5 Homo sapiens protein kinase</code></td></tr>
+<tr><td><b>Output</b></td>
+    <td><code>&gt;NM_001101.5</code></td></tr></table>
+
+<p><b>2. Delimiter field</b><br>
+Splits the header by a character (e.g. <code>|</code>, <code>_</code>,
+<code>:</code>) and picks one field. The field index is 1-based (1 means
+the first field after the initial <code>&gt;</code>).</p>
+<table border="0" cellpadding="2"><tr><td><b>Input</b></td>
+    <td><code>&gt;tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC Pyruvate ...</code></td></tr>
+<tr><td><b>Delimiter</b></td><td><code>|</code></td></tr>
+<tr><td><b>Field index 2</b></td><td>&rarr; <code>A0AAI7ZCJ9</code></td></tr>
+<tr><td><b>Field index 3</b></td><td>&rarr; <code>A0AAI7ZCJ9_XANAC</code></td></tr></table>
+
+<p><b>3. Keep first N words</b><br>
+Takes the first N whitespace-separated words and joins them with
+underscores. Useful for keeping a species+accession prefix while dropping
+annotation boilerplate.</p>
+<table border="0" cellpadding="2"><tr><td><b>Input</b></td>
+    <td><code>&gt;Salmon_salar_cytb mitochondrial cytochrome b</code></td></tr>
+<tr><td><b>Keep 2 words</b></td>
+    <td>&rarr; <code>Salmon_salar_cytb_mitochondrial</code></td></tr></table>
+
+<p><b>4. Regex capture</b><br>
+Applies a regular expression to the header. The first capture group
+<code>(...)</code> becomes the new ID. If no group is present, the
+entire match becomes the ID. Non-matching headers keep their original ID
+and a warning is logged.</p>
+
+<p><b>Common regex patterns for UniProt / NCBI:</b></p>
+<table border="0" cellpadding="5" cellspacing="2">
+<tr><td><b>Pattern</b></td><td><b>What it extracts</b></td></tr>
+<tr><td><code>tr\\|([^|]+)\\|</code></td>
+    <td>UniProt TrEMBL accession — the 2nd pipe-delimited field</td></tr>
+<tr><td><code>sp\\|([^|]+)\\|</code></td>
+    <td>UniProt Swiss-Prot accession</td></tr>
+<tr><td><code>ref\\|([^|]+)\\|</code></td>
+    <td>NCBI RefSeq accession from a <code>gi|...|ref|...</code> header</td></tr>
+<tr><td><code>^([A-Z0-9]{6}_[A-Z]+)</code></td>
+    <td>UniProt entry name (e.g. <code>A0AAI7ZCJ9_XANAC</code>)</td></tr>
+<tr><td><code>GN=(\\w+)</code></td>
+    <td>Gene name from the annotation portion</td></tr>
+</table>
+<p><i>Tip: use an online regex tester (e.g. regex101.com) to build and
+verify your pattern before running.</i></p>
 
 <h3>Extra Options</h3>
-<ul>
-<li><b>Case</b> &mdash; force IDs to UPPERCASE or lowercase.</li>
-<li><b>Prefix / Suffix</b> &mdash; add text before or after every ID (e.g. a
-sample name).</li>
-<li><b>Preserve description</b> &mdash; keep the text after the first space in
-the original header (the annotation part).</li>
-<li><b>Auto-number duplicates</b> &mdash; if two sequences end up with the same
-simplified ID, append <code>_2</code>, <code>_3</code> instead of failing.</li>
-<li><b>Export ID mapping report</b> &mdash; save a TSV file showing every
-old &rarr; new ID mapping for your records.</li>
-</ul>
 
-<h3>Examples</h3>
+<p><b>Case transformation</b><br>
+Force all simplified IDs to <b>UPPERCASE</b> or <b>lowercase</b>, or
+leave them <b>As-is</b>. Downstream tools that are case-sensitive
+(e.g. some phylogenetic software) often expect a consistent case.</p>
+
+<p><b>Prefix / Suffix</b><br>
+Add fixed text before or after every simplified ID (e.g. a sample or
+species code). <i>Example:</i> prefix <code>S1_</code> on
+<code>NM_001101.5</code> produces <code>S1_NM_001101.5</code>.</p>
+
+<p><b>Preserve description</b><br>
+By default, the text after the first space (the "description" or
+"annotation" portion of the header) is dropped along with the
+simplified ID. Check this box to keep the description text attached to
+the new, shorter ID. Useful when you need the annotation for downstream
+annotation.</p>
+
+<p><b>Auto-number duplicate IDs</b><br>
+If two or more original headers simplify to the same ID (a "collision"),
+this option appends <code>_2</code>, <code>_3</code>, … instead of
+refusing to save. When unchecked, duplicate IDs stop the run with an
+error, so you can fix the problem manually.</p>
+
+<p><b>Export ID mapping report</b><br>
+Saves a TSV file alongside your output listing every old ID, its new ID,
+whether it was changed, and which mode produced it. This is essential for
+audit trails and for re-linking annotations stored under the old IDs.</p>
+
+<h3>What is a &quot;Description&quot;?</h3>
+<p>FASTA headers are split at the first whitespace character after the
+<code>&gt;</code>. Everything before the first space is the <b>ID</b>
+(what this tool simplifies); everything after is the <b>Description</b>.
+For example:</p>
+<pre>&gt;NM_001101.5 Homo sapiens protein kinase
+ |----ID----| |-------Description--------|</pre>
+<p>Unless you enable <b>Preserve description</b>, the description is
+removed from the output. Some modes only look at the ID, while others
+scan the full header (ID + description).</p>
+
+<h3>Examples Using the Bundled Data</h3>
+<p>Open the <b>Example</b> file. Try these settings on the header<br>
+<code>&gt;tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC Pyruvate dehydrogenase ...</code>:</p>
 <pre>
-Input:  &gt;gi|12345|ref|NM_001101.5| Homo sapiens gene alpha
-
-First token          &rarr;  gi|12345|ref|NM_001101.5|
-Delimiter "|" field 4 &rarr;  NM_001101.5
-Regex  ref\\|([^|]+)\\|    &rarr;  NM_001101.5
-Keep 3 words        &rarr;  gi|12345|ref|NM_001101.5|_Homo_sapiens
+First word                    &rarr;  tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC
+Delimiter "|" field 2         &rarr;  A0AAI7ZCJ9
+Delimiter "|" field 3         &rarr;  A0AAI7ZCJ9_XANAC
+Keep 2 words                  &rarr;  tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC_Pyruvate
+Regex  tr\\|([^|]+)\\|        &rarr;  A0AAI7ZCJ9
+Regex  ^([A-Z0-9]{6}_[A-Z]+)  &rarr;  A0AAI7ZCJ9_XANAC
 </pre>
 
 <h3>Tips</h3>
 <ul>
-<li>Always <b>Preview</b> before running on a large file.</li>
-<li>If no IDs change, double-check the mode and parameters match your
-header format &mdash; warnings in the log will tell you how many were skipped.</li>
+<li>Always <b>Preview</b> before running on a large file &mdash; regex
+typos and wrong field indices are easy to miss.</li>
+<li>Run <b>FASTA Statistics</b> first to check for duplicate IDs in your
+source file; duplications in the output are much harder to diagnose
+if you don't know they were already in the input.</li>
+<li>Enable <b>Export ID mapping report</b> when processing files that
+will be used in publications or shared with collaborators.</li>
+<li>If <i>no IDs changed</i>, check the operation log for warnings about
+delimiter mismatches or regex no-matches &mdash; the tool keeps the
+original ID when it can't apply the selected rule.</li>
+<li>Use the <b>Case</b> option to normalise mixed-case accessions before
+feeding them into case-sensitive pipelines.</li>
 </ul>
         """
 
-        self.show_help_dialog("Help - Simplify Headers", help_text, 840, 620)
+        self.show_help_dialog("Help - Simplify Headers", help_text, 920, 740)

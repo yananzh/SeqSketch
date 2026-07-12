@@ -428,6 +428,34 @@ class BaseTabWidget(QWidget):
         dialog.setLayout(layout)
         dialog.exec()
 
+    # ── Shared Example-data loader (file-mode tabs) ────────────────────────
+
+    def load_fasta_example(self, *example_parts: str, status_label: str | None = None) -> str | None:
+        """Stage a bundled FASTA example into this tab's file input.
+
+        Copies the bundled example to a writable ``example_work`` dir via
+        :func:`utils.example_data.stage_example`, then routes it through the
+        tab's ``handle_input_file_selected`` so the output-name suggestion and
+        status update reuse the same code path as Browse / drag-and-drop.
+
+        Returns the staged path, or None if the example could not be staged
+        (an ``QMessageBox.information`` is shown in that case).
+        """
+        from utils.example_data import stage_example
+
+        path = stage_example(*example_parts)
+        if not path:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return None
+        if hasattr(self, "handle_input_file_selected"):
+            self.handle_input_file_selected(path)
+        self.show_status(self.tr(f"已载入示例数据: {status_label or os.path.basename(path)}"))
+        return path
+
     # ── Drag-and-drop helpers (sequence mode) ────────────────────────────
 
     def _setup_sequence_drag_drop(self):

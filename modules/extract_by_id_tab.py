@@ -1,6 +1,7 @@
 from collections import Counter
 
 from PyQt6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -200,13 +201,11 @@ class ExtractByIDTab(BaseTabWidget):
         self.id_edit.setMinimumHeight(120)
         self.id_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.id_edit.setProperty("listDisplay", True)
-
-        # Load IDs button row
-        id_action_layout = QHBoxLayout()
-        self.load_ids_btn = QPushButton("Load IDs from File")
-        self.load_ids_btn.setToolTip("Import a text file with one ID per line")
-        id_action_layout.addStretch()
-        id_action_layout.addWidget(self.load_ids_btn)
+        self.id_edit.setStyleSheet(
+            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
+        )
+        self.id_edit.setFrameShape(QFrame.Shape.NoFrame)
+        self.id_edit.viewport().setStyleSheet("background: transparent;")
 
         # ── Options group ──
         options_group = QGroupBox("Matching Options")
@@ -278,7 +277,6 @@ class ExtractByIDTab(BaseTabWidget):
         self.add_content_layout(input_layout)
         self.add_content_widget(id_label)
         self.add_content_widget(self.id_edit)
-        self.add_content_layout(id_action_layout)
         self.add_content_widget(options_group)
         self.add_content_widget(self.preview_panel)
         self.add_content_layout(output_layout)
@@ -290,7 +288,6 @@ class ExtractByIDTab(BaseTabWidget):
         self.run_btn.clicked.connect(self.run_extract)
         self.preview_btn.clicked.connect(self.preview_extract)
         self.clear_btn.clicked.connect(self.clear_all)
-        self.load_ids_btn.clicked.connect(self.load_ids_from_file)
         if hasattr(self.input_edit, "file_dropped"):
             self.input_edit.file_dropped.connect(self.handle_input_file_selected)
 
@@ -338,24 +335,6 @@ class ExtractByIDTab(BaseTabWidget):
         )
         if file_path:
             self.output_edit.setText(file_path)
-
-    def load_ids_from_file(self):
-        """Load a text file with one ID per line into the ID list."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Load IDs from file",
-            "",
-            "Text Files (*.txt *.tsv *.csv);;All Files (*)",
-        )
-        if not file_path:
-            return
-        try:
-            with open(file_path, "r", encoding="utf-8") as fh:
-                content = fh.read()
-            self.id_edit.setPlainText(content)
-            self.log_message(f"Loaded IDs from: {file_path}", "INFO")
-        except Exception as e:
-            self.log_message(f"Failed to load IDs: {e}", "ERROR")
 
     def preview_extract(self):
         """Preview the first 5 matched records without saving."""
@@ -444,7 +423,6 @@ class ExtractByIDTab(BaseTabWidget):
         self.match_mode_combo.setEnabled(not running)
         self.output_order_combo.setEnabled(not running)
         self.export_missing_ids_checkbox.setEnabled(not running)
-        self.load_ids_btn.setEnabled(not running)
 
     def run_extract(self):
         input_path = self.input_edit.text().strip()
@@ -628,8 +606,6 @@ a specific order (e.g. a fixed gene panel).</li>
 <h3>How to enter IDs</h3>
 <ul>
 <li>Type them directly into the text box, <b>one per line</b></li>
-<li>Or click <b>"Load IDs from File"</b> to import a <code>.txt / .tsv / .csv</code>
-file where each line is one ID</li>
 <li>A <b>missing-ID report</b> can be written alongside the output so you
 can see which IDs had no match in the FASTA file</li>
 </ul>

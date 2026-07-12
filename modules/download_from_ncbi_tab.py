@@ -3,6 +3,7 @@ from datetime import datetime
 import time
 
 from PyQt6.QtWidgets import (
+    QFrame,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -310,6 +311,11 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.acc_edit.setMinimumHeight(150)
         self.acc_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.acc_edit.setProperty("listDisplay", True)
+        self.acc_edit.setStyleSheet(
+            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
+        )
+        self.acc_edit.setFrameShape(QFrame.Shape.NoFrame)
+        self.acc_edit.viewport().setStyleSheet("background: transparent;")
         acc_layout.addWidget(self.acc_edit)
 
         acc_action_layout = QHBoxLayout()
