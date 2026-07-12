@@ -3,26 +3,24 @@ Common worker base classes and components
 Reduce duplication and provide unified error handling and signals
 """
 
-import logging
-import os
-from typing import Any, Dict, Optional
-
-from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
+from PyQt6.QtCore import QObject, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
-    QDialog,
-    QFileDialog,
-    QFrame,
-    QGroupBox,
+    QWidget,
+    QVBoxLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
-    QMessageBox,
+    QGroupBox,
     QPushButton,
-    QScrollArea,
+    QFrame,
     QTextEdit,
-    QVBoxLayout,
-    QWidget,
+    QLineEdit,
+    QFileDialog,
+    QMessageBox,
 )
+from typing import Any, Dict, Optional
+import logging
+import os
+
 
 # ── Shared file-drop line edit ──────────────────────────────────────────────
 
@@ -225,7 +223,7 @@ class BaseTabWidget(QWidget):
         self.status_layout.addStretch()
 
         # Run/Clear buttons for sequence tabs — placed at bottom-right
-        if self.tab_type == "sequence" and hasattr(self, "run_btn"):
+        if self.tab_type == "sequence" and hasattr(self, 'run_btn'):
             self.run_btn.setFixedWidth(90)
             self.clear_btn.setFixedWidth(90)
             self.status_layout.addWidget(self.run_btn)
@@ -247,7 +245,7 @@ class BaseTabWidget(QWidget):
             self.log_area.setMaximumHeight(160)
             self.log_area.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
             self.log_area.setPlaceholderText(
-                self.tr("Run the program to see progress and results here...")
+                self.tr("Run a FASTA tool to see progress and results here...")
             )
 
             log_layout = QVBoxLayout(self.log_group)
@@ -270,7 +268,9 @@ class BaseTabWidget(QWidget):
 
         self.input_text = QTextEdit()
         apply_sequence_editor_style(self.input_text)
-        self.input_text.setPlaceholderText("Paste DNA/RNA sequence, or upload a file...")
+        self.input_text.setPlaceholderText(
+            "Paste DNA/RNA sequence, or upload a file..."
+        )
         self.upload_btn = QPushButton(self.tr("Upload File"))
         self.upload_btn.clicked.connect(self.open_file)
         self.input_hint = QLabel("")
@@ -338,6 +338,7 @@ class BaseTabWidget(QWidget):
 
     def open_file(self):
         """Open file (sequence mode)"""
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -356,6 +357,7 @@ class BaseTabWidget(QWidget):
 
     def export_result(self):
         """Export result (sequence mode)"""
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,
@@ -397,68 +399,6 @@ class BaseTabWidget(QWidget):
         """Help method implemented by subclass"""
         pass
 
-    # ── Shared Example-data loader (file-mode tabs) ────────────────────────
-
-    def load_fasta_example(self, *example_parts: str, status_label: str | None = None) -> str | None:
-        """Stage a bundled FASTA example into this tab's file input.
-
-        Copies the bundled example to a writable ``example_work`` dir via
-        :func:`utils.example_data.stage_example`, then routes it through the
-        tab's ``handle_input_file_selected`` so the output-name suggestion and
-        status update reuse the same code path as Browse / drag-and-drop.
-
-        Returns the staged path, or None if the example could not be staged
-        (an ``QMessageBox.information`` is shown in that case).
-        """
-        from utils.example_data import stage_example
-
-        path = stage_example(*example_parts)
-        if not path:
-            QMessageBox.information(
-                self,
-                self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
-            )
-            return None
-        if hasattr(self, "handle_input_file_selected"):
-            self.handle_input_file_selected(path)
-        self.show_status(self.tr(f"已载入示例数据: {status_label or os.path.basename(path)}"))
-        return path
-
-    # ── Shared help dialog ─────────────────────────────────────────────────
-
-    def show_help_dialog(self, title: str, html: str, width: int = 820, height: int = 600):
-        """Open a scrollable RichText help dialog with an OK button.
-
-        Centralises the ``QDialog + QScrollArea + QLabel`` boilerplate that
-        every tab's ``show_help`` otherwise duplicates.
-        """
-        dialog = QDialog(self)
-        dialog.setWindowTitle(title)
-        dialog.setFixedSize(width, height)
-
-        layout = QVBoxLayout()
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        label = QLabel(html)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)
-        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setMargin(20)
-
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-
-        dialog.setLayout(layout)
-        dialog.exec()
-
     # ── Drag-and-drop helpers (sequence mode) ────────────────────────────
 
     def _setup_sequence_drag_drop(self):
@@ -494,12 +434,12 @@ class BaseTabWidget(QWidget):
 
     def add_parameter_layout(self, layout):
         """Insert a parameter layout between the input and output sections."""
-        if hasattr(self, "_param_layout"):
+        if hasattr(self, '_param_layout'):
             self._param_layout.addLayout(layout)
 
     def add_content_layout(self, layout):
         """Add content layout — redirects to _param_layout in sequence mode."""
-        if hasattr(self, "_param_layout"):
+        if hasattr(self, '_param_layout'):
             self._param_layout.addLayout(layout)
         else:
             self.content_area.addLayout(layout)
@@ -522,7 +462,9 @@ class BaseTabWidget(QWidget):
         if not hasattr(self, "log_area"):
             return
 
-        prefix = {"INFO": "[Info]", "ERROR": "[Error]", "WARNING": "[Warning]"}.get(level, "[Info]")
+        prefix = {"INFO": "[Info]", "ERROR": "[Error]", "WARNING": "[Warning]"}.get(
+            level, "[Info]"
+        )
 
         self.log_area.append(f"{prefix} {message}")
 
@@ -601,39 +543,40 @@ class FASTAWorker(BaseWorker):
         self.output_path = output_path
 
     def validate_files(self) -> bool:
-        """Validate input/output file paths."""
+        """验证输入输出文件路径"""
         import os
 
         if not self.input_path or not os.path.isfile(self.input_path):
-            self.emit_error("Input file is invalid or does not exist")
+            self.emit_error("输入文件无效或不存在")
             return False
 
         if not self.output_path:
-            self.emit_error("Output file path cannot be empty")
+            self.emit_error("输出文件路径不能为空")
             return False
 
+        # 检查输出目录是否存在，不存在则创建
         output_dir = os.path.dirname(self.output_path)
         if output_dir and not os.path.exists(output_dir):
             try:
                 os.makedirs(output_dir)
             except Exception as e:
-                self.emit_error(f"Failed to create output directory: {e}")
+                self.emit_error(f"无法创建输出目录: {e}")
                 return False
 
         return True
 
     def load_fasta_processor(self):
-        """Load FASTA processor."""
+        """加载FASTA处理器"""
         try:
             from modules.fasta_processor import FASTAProcessor
 
             processor = FASTAProcessor()
             if not processor.read_file(self.input_path):
-                self.emit_error("Failed to read FASTA file")
+                self.emit_error("无法读取FASTA文件")
                 return None
             return processor
         except Exception as e:
-            self.emit_error(f"Failed to load FASTA processor: {e}")
+            self.emit_error(f"加载FASTA处理器失败: {e}")
             return None
 
 
@@ -662,48 +605,48 @@ def setup_logging():
 
 def validate_input_path(path: str, file_types: list | None = None) -> tuple[bool, str]:
     """
-    Validate an input file path.
+    验证输入文件路径
 
     Args:
-        path: file path
-        file_types: allowed file extensions, e.g. ['.fasta', '.fa', '.fas']
+        path: 文件路径
+        file_types: 允许的文件扩展名列表，如 ['.fasta', '.fa', '.fas']
 
     Returns:
-        (is_valid, error_message)
+        (是否有效, 错误消息)
     """
     import os
 
     if not path or not path.strip():
-        return False, "File path cannot be empty"
+        return False, "文件路径不能为空"
 
     if not os.path.isfile(path):
-        return False, "File does not exist or is not a valid file"
+        return False, "文件不存在或不是有效文件"
 
     if file_types:
         ext = os.path.splitext(path)[1].lower()
         if ext not in file_types:
-            return False, f"Unsupported file type, please choose: {', '.join(file_types)}"
+            return False, f"不支持的文件类型，请选择: {', '.join(file_types)}"
 
     return True, ""
 
 
 def validate_output_path(path: str) -> tuple[bool, str]:
     """
-    Validate an output file path.
+    验证输出文件路径
 
     Returns:
-        (is_valid, error_message)
+        (是否有效, 错误消息)
     """
     import os
 
     if not path or not path.strip():
-        return False, "Output path cannot be empty"
+        return False, "输出路径不能为空"
 
     output_dir = os.path.dirname(path)
     if output_dir and not os.path.exists(output_dir):
         try:
             os.makedirs(output_dir)
         except Exception as e:
-            return False, f"Failed to create output directory: {e}"
+            return False, f"无法创建输出目录: {e}"
 
     return True, ""
