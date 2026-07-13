@@ -15,6 +15,10 @@ def create_menus(window):
     seq_stat_action = QAction(window.tr("FASTA Statistics"), window)
     seq_stat_action.triggered.connect(window.open_sequence_statistics_tab)
     fasta_menu.addAction(seq_stat_action)
+    # 新增：批量重命名ID
+    batch_rename_action = QAction(window.tr("Rename IDs"), window)
+    batch_rename_action.triggered.connect(window.open_batch_rename_ids_tab)
+    fasta_menu.addAction(batch_rename_action)
     simplify_ids_action = QAction(window.tr("Simplify Headers"), window)
     simplify_ids_action.triggered.connect(window.open_simplify_ids_tab)
     fasta_menu.addAction(simplify_ids_action)
@@ -32,10 +36,6 @@ def create_menus(window):
     download_ncbi_action = QAction(window.tr("NCBI Download"), window)
     download_ncbi_action.triggered.connect(window.open_download_from_ncbi_tab)
     fasta_menu.addAction(download_ncbi_action)
-    # 新增：批量重命名ID
-    batch_rename_action = QAction(window.tr("Rename IDs"), window)
-    batch_rename_action.triggered.connect(window.open_batch_rename_ids_tab)
-    fasta_menu.addAction(batch_rename_action)
     # 新增：去重
     dedup_action = QAction(window.tr("Deduplicate"), window)
     dedup_action.triggered.connect(window.open_deduplicate_tab)

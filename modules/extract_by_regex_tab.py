@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QCheckBox,
     QGroupBox,
-    QMenu,
 )
 from utils.common_components import BaseTabWidget, FileDropLineEdit
 import os
@@ -121,10 +120,6 @@ class ExtractByRegexTab(BaseTabWidget):
         self.regex_edit.setPlaceholderText("e.g. ^NM_, .*kinase.*, ^[A-Z]{2}_\\d{6}$")
         self.regex_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         regex_layout.addWidget(self.regex_edit)
-        self.common_patterns_btn = QPushButton("Common Patterns ▾")
-        self.common_patterns_btn.setFixedWidth(155)
-        self.common_patterns_btn.clicked.connect(self._show_common_patterns)
-        regex_layout.addWidget(self.common_patterns_btn)
         regex_layout.setSpacing(8)
 
         # ── Match Options ──
@@ -234,11 +229,11 @@ class ExtractByRegexTab(BaseTabWidget):
         self.show_status("Input file selected")
 
     def _load_example(self):
-        """Load the bundled cytb teaching example into the input field."""
+        """Load the bundled UniProt example plus a matching regex."""
         from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
 
-        path = stage_example("phylo", "cytb_cds_raw.fasta")
+        path = stage_example("dna", "simple_header.fasta")
         if not path:
             QMessageBox.information(
                 self, self.tr("Example"),
@@ -246,6 +241,12 @@ class ExtractByRegexTab(BaseTabWidget):
             )
             return
         self.handle_input_file_selected(path)
+        # Suggest a regex that captures the UniProt accession from the
+        # tr|ACC|ENTRY header format, and set scope to "Sequence ID Only"
+        # since the accession lives in the ID part.
+        self.regex_edit.setText(r"tr\|[^|]+\|A0AAI7Z")
+        self.match_scope_combo.setCurrentText("Sequence ID Only")
+        self.show_status(self.tr("已载入示例数据: simple_header.fasta + 示例正则"))
 
     def clear_all(self):
         self.input_edit.clear()
@@ -271,7 +272,6 @@ class ExtractByRegexTab(BaseTabWidget):
         self.match_scope_combo.setEnabled(not running)
         self.case_insensitive_checkbox.setEnabled(not running)
         self.export_no_match_report_checkbox.setEnabled(not running)
-        self.common_patterns_btn.setEnabled(not running)
         self.example_btn.setEnabled(not running)
 
     def run_extract(self):
@@ -343,8 +343,15 @@ class ExtractByRegexTab(BaseTabWidget):
             )
 
             if not filtered_records:
+                hint = ""
+                if regex == ">":
+                    hint = (
+                        " — the '>' character is the FASTA header marker and is not "
+                        "part of the matched text. Use a pattern that matches the ID "
+                        "or description instead (e.g. 'tr', 'sp', 'kinase')."
+                    )
                 self.log_message(
-                    "No sequences remained after applying the regex filter",
+                    f"No sequences remained after applying the regex filter{hint}",
                     "ERROR",
                 )
                 if export_no_match_report:
@@ -431,32 +438,6 @@ class ExtractByRegexTab(BaseTabWidget):
         except Exception as e:
             self.log_message(f"Preview error: {e}", "ERROR")
 
-    def _show_common_patterns(self):
-        """Show a popup menu of common regex patterns for bioinformatics headers."""
-        menu = QMenu(self)
-        _patterns = [
-            ("RefSeq mRNA  —  ^NM_", r"^NM_"),
-            ("RefSeq protein  —  ^NP_", r"^NP_"),
-            ("All RefSeq  —  ^N[MP]_|^X[MP]_", r"^N[MP]_|^X[MP]_"),
-            ("Gene names  —  .*gene.*", r".*gene.*"),
-            ("Kinases  —  kinase", r"kinase"),
-            ("Hypothetical proteins  —  hypothetical", r"hypothetical"),
-            ("Chromosome IDs  —  ^chr[0-9]+", r"^chr[0-9]+"),
-            ("UniProt format  —  ^[A-Z0-9]{6}_[A-Z]+", r"^[A-Z0-9]{6}_[A-Z]+"),
-            (
-                "Search description  —  .*pattern.*  (scope: Description Only)",
-                r".*\b\w+\b.*",
-            ),
-        ]
-        for label, pattern in _patterns:
-            action = menu.addAction(label)
-            action.setData(pattern)
-        chosen = menu.exec(
-            self.common_patterns_btn.mapToGlobal(self.common_patterns_btn.rect().bottomLeft())
-        )
-        if chosen and chosen.data():
-            self.regex_edit.setText(chosen.data())
-
     def show_help(self):
         """Show help information"""
         help_text = """
@@ -470,7 +451,7 @@ keeps (or removes) the records that match. You control where the pattern looks
 <h3>Quick Start</h3>
 <ol>
 <li>Select a FASTA file</li>
-<li>Enter a regular expression (or pick one from <b>Common Patterns</b>)</li>
+<li>Enter a regular expression (or click <b>Example</b> to load a ready-to-use one)</li>
 <li>Choose match mode, scope, and case sensitivity</li>
 <li>Click <b>Preview</b> to check matches before saving</li>
 <li>Choose an output file, then click <b>Start</b></li>
@@ -479,21 +460,17 @@ keeps (or removes) the records that match. You control where the pattern looks
 <h3>Match Scope &mdash; where does the pattern look?</h3>
 <p>Given a FASTA header like:</p>
 <pre>&gt;NM_001101.5 Homo sapiens protein kinase</pre>
+<p><b>Important:</b> the leading <code>&gt;</code> character that marks a
+FASTA header is <b>not</b> part of any match scope. The tool reads the line
+after stripping the <code>&gt;</code>, so a pattern like <code>&gt;</code>
+will never match anything &mdash; use a pattern that matches the ID or
+description text instead (e.g. <code>^NM_</code>, <code>kinase</code>).</p>
 <table border="0" cellpadding="4" cellspacing="2">
 <tr><td><b>Scope</b></td><td><b>What is scanned</b></td><td><b>Example of what "^NM_" matches</b></td></tr>
-<tr><td><b>Full Header</b></td><td>entire line</td><td>&gt;NM_001101.5 Homo sapiens protein kinase</td></tr>
-<tr><td><b>Sequence ID Only</b></td><td>text before first space</td><td>NM_001101.5</td></tr>
+<tr><td><b>Full Header</b></td><td>ID + description (without <code>&gt;</code>)</td><td>NM_001101.5 Homo sapiens protein kinase</td></tr>
+<tr><td><b>Sequence ID Only</b></td><td>text before first space (without <code>&gt;</code>)</td><td>NM_001101.5</td></tr>
 <tr><td><b>Description Only</b></td><td>text after first space</td><td>Homo sapiens protein kinase</td></tr>
 </table>
-
-<h3>Common Patterns</h3>
-<p>Click the <b>Common Patterns ▾</b> button next to the regex field for one-click presets:</p>
-<ul>
-<li>RefSeq mRNAs (<code>^NM_</code>) or proteins (<code>^NP_</code>)</li>
-<li>Gene names or keywords (<code>kinase</code>, <code>hypothetical</code>)</li>
-<li>Chromosome IDs (<code>^chr[0-9]+</code>)</li>
-<li>UniProt-style accessions</li>
-</ul>
 
 <h3>Regex Quick Reference</h3>
 <table border="0" cellpadding="2" cellspacing="1">
@@ -516,6 +493,8 @@ keeps (or removes) the records that match. You control where the pattern looks
 <h3>Tips</h3>
 <ul>
 <li>Always <b>Preview</b> before running &mdash; regex is easy to get wrong.</li>
+<li>Do <b>not</b> include <code>&gt;</code> in your pattern &mdash; it is the
+FASTA header marker, not part of the searchable text.</li>
 <li>Use <b>Case insensitive</b> when headers have mixed capitalisation.</li>
 <li>Enable <b>Export no-match report</b> to keep a record of your filter settings and match counts.</li>
 <li>If your pattern produces zero output, try broadening it (remove <code>^</code> or <code>$</code> anchors first).</li>

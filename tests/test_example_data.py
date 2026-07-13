@@ -270,7 +270,7 @@ def test_filter_by_length_example_fills_input_edit(qapp):
     assert os.path.isfile(tab.input_edit.text().strip())
 
 
-def test_regex_filter_example_fills_input_edit(qapp):
+def test_regex_filter_example_fills_input_and_regex(qapp):
     from modules.extract_by_regex_tab import ExtractByRegexTab
 
     tab = ExtractByRegexTab()
@@ -279,6 +279,8 @@ def test_regex_filter_example_fills_input_edit(qapp):
     btn.click()
     assert tab.input_edit.text().strip() != ""
     assert os.path.isfile(tab.input_edit.text().strip())
+    # Example should also pre-fill a regex matching the UniProt header
+    assert tab.regex_edit.text().strip() != ""
 
 
 def test_ncbi_download_example_fills_acc_edit(qapp):

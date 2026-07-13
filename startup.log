@@ -2777,3 +2777,35 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-07-13 15:38:45.767909
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-13 22:26:00.436221
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-13 23:10:53.086400
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-13 23:25:40.861330
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
