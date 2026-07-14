@@ -301,13 +301,14 @@ class DownloadFromNCBITab(BaseTabWidget):
         # ── Accessions ──
         acc_group = QGroupBox("Accession List")
         acc_layout = QVBoxLayout(acc_group)
-        acc_hint = QLabel(
-            "Enter NCBI accession numbers, one per line (e.g. NM_001101.5, NP_001092.1, AF123456)"
-        )
-        acc_hint.setProperty("hintLabel", True)
-        acc_layout.addWidget(acc_hint)
         self.acc_edit = QPlainTextEdit()
-        self.acc_edit.setPlaceholderText("NM_001101.5\nNP_001092.1\nAF123456\n...")
+        self.acc_edit.setPlaceholderText(
+            "Enter NCBI accession numbers, one per line\n"
+            "e.g.\n"
+            "NM_001101.5\n"
+            "XM_123456.1\n"
+            "NP_001092.1"
+        )
         self.acc_edit.setMinimumHeight(150)
         self.acc_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.acc_edit.setProperty("listDisplay", True)
@@ -319,7 +320,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         acc_layout.addWidget(self.acc_edit)
 
         acc_action_layout = QHBoxLayout()
-        self.load_acc_btn = QPushButton("Load Accessions from File")
+        self.load_acc_btn = QPushButton("Load Accessions")
         self.load_acc_btn.setToolTip("Import a text file with one accession per line")
         self.example_btn = QPushButton(self.tr("Example"))
         self.example_btn.setFixedWidth(90)
@@ -388,8 +389,8 @@ class DownloadFromNCBITab(BaseTabWidget):
         """Fill example NCBI accessions and a placeholder email (does not download)."""
         self.db_combo.setCurrentText("nucleotide")
         self.email_edit.setText("your_email@example.com")
-        self.acc_edit.setPlainText("NM_001101.5\nNM_001098.5")
-        self.show_status(self.tr("已载入示例数据: NM_001101.5 等 — 记得替换真实邮箱后再下载"))
+        self.acc_edit.setPlainText("NM_001101.5\nXM_123456.1")
+        self.show_status(self.tr("Example loaded: NM_001101.5 etc. — remember to enter a real email before downloading"))
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(

@@ -326,6 +326,6 @@ def test_concat_fasta_example_fills_file_list(qapp):
     btn = _find_button(tab, "Example")
     assert btn is not None, "Concatenate FASTA tab has no Example button"
     btn.click()
-    assert tab.file_list.count() >= 1
+    assert tab.file_list.count() >= 2
     path = tab.file_list.item(0).data(Qt.ItemDataRole.UserRole)
     assert os.path.isfile(path)

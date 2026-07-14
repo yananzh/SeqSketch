@@ -55,15 +55,29 @@ class DeduplicateTab(BaseTabWidget):
         self.mode_combo.addItem("Sequence ID", DEDUP_BY_ID)
         self.mode_combo.addItem("Sequence content", DEDUP_BY_SEQ)
         self.mode_combo.setToolTip(
-            "Sequence ID: keep the first record per unique ID\n"
-            "Sequence content: keep the first record per unique sequence string"
+            "Sequence ID: keep one record per unique ID\n"
+            "Sequence content: keep one record per unique sequence string"
         )
         opts_layout.addWidget(self.mode_combo)
+        opts_layout.addWidget(QLabel("Keep strategy:"))
+        self.keep_combo = QComboBox()
+        self.keep_combo.addItems(["Keep first", "Keep longest", "Keep shortest"])
+        self.keep_combo.setToolTip(
+            "When deduplicating by ID, which record to keep among duplicates.\n"
+            "When deduplicating by sequence content, length is compared across "
+            "records with identical sequences."
+        )
+        opts_layout.addWidget(self.keep_combo)
         self.case_insensitive_checkbox = QCheckBox("Case-insensitive ID matching")
         self.case_insensitive_checkbox.setToolTip(
             "When checked, 'GeneA' and 'genea' are treated as the same ID"
         )
         opts_layout.addWidget(self.case_insensitive_checkbox)
+        self.export_removed_checkbox = QCheckBox("Export removed sequences")
+        self.export_removed_checkbox.setToolTip(
+            "Save the sequences that were removed to a separate _removed.fasta file"
+        )
+        opts_layout.addWidget(self.export_removed_checkbox)
         opts_layout.addStretch()
 
         # ── Preview ──
@@ -110,6 +124,13 @@ class DeduplicateTab(BaseTabWidget):
         self.clear_btn.clicked.connect(self.clear_all)
         if hasattr(self.input_edit, "file_dropped"):
             self.input_edit.file_dropped.connect(self.handle_input_file_selected)
+        self.mode_combo.currentIndexChanged.connect(self._update_mode_controls)
+
+    def _update_mode_controls(self):
+        """Show/hide controls that only apply to a specific dedup mode."""
+        is_id_mode = self.mode_combo.currentData() == DEDUP_BY_ID
+        self.case_insensitive_checkbox.setVisible(is_id_mode)
+        self.keep_combo.setVisible(is_id_mode)
 
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -126,7 +147,7 @@ class DeduplicateTab(BaseTabWidget):
         from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
 
-        path = stage_example("phylo", "cytb_cds_raw.fasta")
+        path = stage_example("dna", "cytb_cds_deduplicate.fasta")
         if not path:
             QMessageBox.information(
                 self, self.tr("Example"),
@@ -156,31 +177,51 @@ class DeduplicateTab(BaseTabWidget):
     def _deduplicate(self, records):
         mode = self.mode_combo.currentData()
         case_insensitive = self.case_insensitive_checkbox.isChecked()
+        strategy = self.keep_combo.currentText()
 
-        seen_ids = set()
-        seen_seqs = set()
         kept = []
+        removed = []
         dup_id_count = 0
         dup_seq_count = 0
 
-        for rec in records:
-            rec_id = rec.header.casefold() if case_insensitive else rec.header
-            seq = rec.sequence.upper()
-
-            if mode == DEDUP_BY_ID:
-                if rec_id in seen_ids:
-                    dup_id_count += 1
-                    continue
-                seen_ids.add(rec_id)
-            else:  # by sequence content
+        if mode == DEDUP_BY_ID:
+            # Group records by (normalized) ID
+            groups: dict[str, list] = {}
+            for rec in records:
+                key = rec.header.casefold() if case_insensitive else rec.header
+                groups.setdefault(key, []).append(rec)
+            for recs in groups.values():
+                if len(recs) == 1:
+                    kept.append(recs[0])
+                else:
+                    dup_id_count += len(recs) - 1
+                    if strategy == "Keep longest":
+                        chosen = max(recs, key=lambda r: r.length)
+                    elif strategy == "Keep shortest":
+                        chosen = min(recs, key=lambda r: r.length)
+                    else:  # Keep first
+                        chosen = recs[0]
+                    kept.append(chosen)
+                    for r in recs:
+                        if r is not chosen:
+                            removed.append(r)
+        else:  # by sequence content
+            seen_seqs = set()
+            for rec in records:
+                seq = rec.sequence.upper()
                 if seq in seen_seqs:
                     dup_seq_count += 1
+                    removed.append(rec)
                     continue
                 seen_seqs.add(seq)
+                kept.append(rec)
+            # Apply keep strategy for same-sequence groups if needed:
+            # by-content already picks first; if keep-longest/shortest is desired,
+            # we'd need to re-group. For now, keep-first is the only semantics for
+            # sequence-content mode since all records in a group have the same length
+            # (identical sequences).
 
-            kept.append(rec)
-
-        return kept, dup_id_count, dup_seq_count
+        return kept, removed, dup_id_count, dup_seq_count
 
     def preview_deduplicate(self):
         input_path = self.input_edit.text().strip()
@@ -206,11 +247,12 @@ class DeduplicateTab(BaseTabWidget):
                 self.log_message("No sequences found", "ERROR")
                 return
 
-            kept, dup_id, dup_seq = self._deduplicate(records)
+            kept, removed, dup_id, dup_seq = self._deduplicate(records)
             mode_label = "by ID" if self.mode_combo.currentData() == DEDUP_BY_ID else "by sequence"
+            total_removed = len(removed)
             lines = [
                 f"Total: {len(records)}  →  After dedup ({mode_label}): {len(kept)}  ·  "
-                f"Removed: {len(records) - len(kept)} duplicates"
+                f"Removed: {total_removed} duplicates"
             ]
             if dup_id:
                 lines.append(f"  (ID duplicates: {dup_id})")
@@ -221,6 +263,11 @@ class DeduplicateTab(BaseTabWidget):
                 lines.append(f"─ Kept records (first {min(5, len(kept))}) ─")
                 for rec in kept[:5]:
                     lines.append(f"  {rec.header}")
+            if removed:
+                lines.append("")
+                lines.append(f"─ Removed records (first {min(5, len(removed))}) ─")
+                for rec in removed[:5]:
+                    lines.append(f"  ✗ {rec.header}")
             self.preview_panel.setPlainText("\n".join(lines))
             self.log_message("Preview updated — see panel above", "INFO")
         except Exception as e:
@@ -258,21 +305,30 @@ class DeduplicateTab(BaseTabWidget):
                 return
             self.log_message(f"Loaded {len(records)} sequences", "INFO")
 
-            kept, dup_id, dup_seq = self._deduplicate(records)
-            removed = len(records) - len(kept)
+            kept, removed_records, dup_id, dup_seq = self._deduplicate(records)
+            total_removed = len(removed_records)
             mode_label = "by ID" if self.mode_combo.currentData() == DEDUP_BY_ID else "by sequence"
+            export_removed = self.export_removed_checkbox.isChecked()
+            strategy = self.keep_combo.currentText()
 
-            if removed == 0:
+            if total_removed == 0:
                 self.log_message("No duplicates found", "INFO")
                 return
 
             self.log_message(
-                f"Deduplicated ({mode_label}): kept {len(kept)}, removed {removed}",
+                f"Deduplicated ({mode_label}, {strategy.lower()}): kept {len(kept)}, removed {total_removed}",
                 "INFO",
             )
             if not processor.save_file(output_path, kept):
                 self.log_message("Failed to save file", "ERROR")
                 return
+            if export_removed and removed_records:
+                base, ext = os.path.splitext(output_path)
+                removed_path = f"{base}_removed{ext}"
+                if not processor.save_file(removed_path, removed_records):
+                    self.log_message("Failed to save removed sequences file", "ERROR")
+                else:
+                    self.log_message(f"Removed sequences saved to: {removed_path}", "INFO")
             self.log_message(f"Deduplication complete! Saved to: {output_path}", "INFO")
             self.show_status("Complete")
         except Exception as e:
@@ -287,7 +343,9 @@ class DeduplicateTab(BaseTabWidget):
         self.input_edit.clear()
         self.output_edit.clear()
         self.mode_combo.setCurrentIndex(0)
+        self.keep_combo.setCurrentIndex(0)
         self.case_insensitive_checkbox.setChecked(False)
+        self.export_removed_checkbox.setChecked(False)
         self.preview_panel.clear()
         self.log_area.clear()
         self.show_status("Cleared")
@@ -299,7 +357,9 @@ class DeduplicateTab(BaseTabWidget):
         self.input_btn.setEnabled(not running)
         self.output_btn.setEnabled(not running)
         self.mode_combo.setEnabled(not running)
+        self.keep_combo.setEnabled(not running)
         self.case_insensitive_checkbox.setEnabled(not running)
+        self.export_removed_checkbox.setEnabled(not running)
         self.example_btn.setEnabled(not running)
 
     def show_help(self):
@@ -308,21 +368,56 @@ class DeduplicateTab(BaseTabWidget):
 
 <p><b>What does this tool do?</b><br>
 It scans your FASTA file and removes duplicate entries. You can deduplicate
-by ID (same name) or by sequence content (identical bases/residues).</p>
+by ID (same header name) or by sequence content (identical bases/residues).</p>
+
+<h3>Quick Start</h3>
+<ol>
+<li>Select a FASTA file or click <b>Example</b>.</li>
+<li>Choose <b>Deduplicate by</b> &mdash; Sequence ID or Sequence content.</li>
+<li>Optionally pick a <b>Keep strategy</b> for ID-mode deduplication.</li>
+<li>Click <b>Preview</b> to see how many duplicates will be removed.</li>
+<li>Choose an output file, then click <b>Start</b>.</li>
+</ol>
 
 <h3>Which mode to use?</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Mode</b></td><td><b>What it does</b></td><td><b>Use when</b></td></tr>
+<tr><td><b>Sequence ID</b></td>
+    <td>Keeps one record per unique header name</td>
+    <td>Different IDs point to identical sequences that you want to keep;
+    you only want to remove accidental header duplicates.</td></tr>
+<tr><td><b>Sequence content</b></td>
+    <td>Keeps one record per unique sequence string</td>
+    <td>You want a truly non-redundant dataset where no sequence appears
+    more than once, regardless of header names.</td></tr>
+</table>
+
+<h3>Keep Strategy (ID mode only)</h3>
+<p>When multiple records share the same ID, which one should be kept?</p>
 <ul>
-<li><b>Sequence ID</b> &mdash; keeps the first record with each unique header.
-Use when different IDs point to identical sequences that you want to keep.</li>
-<li><b>Sequence content</b> &mdash; keeps the first record with each unique
-sequence string. Use when you want truly non-redundant data.</li>
+<li><b>Keep first</b> &mdash; retains the first occurrence in the file (default).</li>
+<li><b>Keep longest</b> &mdash; keeps the record with the longest sequence.
+Useful when you have partial/truncated duplicates.</li>
+<li><b>Keep shortest</b> &mdash; keeps the record with the shortest sequence.</li>
+</ul>
+
+<h3>Extra Options</h3>
+<ul>
+<li><b>Case-insensitive ID matching</b> &mdash; treat 'GeneA' and 'genea'
+as the same ID. Only visible in Sequence ID mode.</li>
+<li><b>Export removed sequences</b> &mdash; save the sequences that were
+removed to a separate <code>_removed.fasta</code> file so you can
+inspect what was filtered out.</li>
 </ul>
 
 <h3>Tips</h3>
 <ul>
-<li>Enable <b>Case-insensitive ID matching</b> if your headers have mixed
-capitalisation (e.g. 'GeneA' and 'genea' should be considered the same).</li>
 <li>Always <b>Preview</b> first to see how many duplicates will be removed.</li>
+<li>Run <b>FASTA Statistics</b> first to check for duplicate IDs in your
+source file &mdash; the duplicate-ID count there matches what this tool
+will find in ID mode.</li>
+<li>Use <b>Export removed sequences</b> when processing unfamiliar data
+so you can verify nothing important was discarded.</li>
 </ul>
         """
-        self.show_help_dialog("Help - Deduplicate", help_text, 700, 420)
+        self.show_help_dialog("Help - Deduplicate", help_text, 820, 580)

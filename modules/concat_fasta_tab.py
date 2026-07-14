@@ -57,7 +57,8 @@ class ConcatFastaTab(BaseTabWidget):
         input_main.addLayout(file_btn_row)
 
         # ── Options ──
-        opts_layout = QHBoxLayout()
+        opts_group = QGroupBox("Options")
+        opts_layout = QHBoxLayout(opts_group)
         self.add_prefix_checkbox = QCheckBox("Add source filename as ID prefix")
         self.add_prefix_checkbox.setToolTip(
             "Prepend the source filename (without extension) to each ID, "
@@ -65,6 +66,12 @@ class ConcatFastaTab(BaseTabWidget):
             "sequence came from."
         )
         opts_layout.addWidget(self.add_prefix_checkbox)
+        self.dedup_checkbox = QCheckBox("Deduplicate after concatenation")
+        self.dedup_checkbox.setToolTip(
+            "Remove duplicate sequence IDs from the merged output. "
+            "The first occurrence of each ID is kept."
+        )
+        opts_layout.addWidget(self.dedup_checkbox)
         opts_layout.addStretch()
 
         # ── Preview ──
@@ -100,7 +107,7 @@ class ConcatFastaTab(BaseTabWidget):
 
         # ── Assemble ──
         self.add_content_widget(input_group)
-        self.add_content_layout(opts_layout)
+        self.add_content_widget(opts_group)
         self.add_content_widget(self.preview_panel)
         self.add_content_layout(output_layout)
         self.content_area.addStretch()
@@ -121,11 +128,24 @@ class ConcatFastaTab(BaseTabWidget):
         ]
 
     def _add_path(self, path: str):
-        """Append a file path to the list, skipping duplicates."""
+        """Append a file path to the list, skipping duplicates.
+        Scans the file to show the sequence count in the list item."""
         existing = set(self._file_paths())
         if path in existing:
             return
-        item = QListWidgetItem(os.path.basename(path))
+        # Scan the file for sequence count
+        seq_count = 0
+        try:
+            from modules.fasta_processor import FASTAProcessor
+            processor = FASTAProcessor()
+            if processor.read_file(path):
+                seq_count = len(processor.records)
+        except Exception:
+            pass
+        label = os.path.basename(path)
+        if seq_count:
+            label = f"{label}  ({seq_count} sequences)"
+        item = QListWidgetItem(label)
         item.setData(Qt.ItemDataRole.UserRole, path)
         item.setToolTip(path)
         self.file_list.addItem(item)
@@ -148,19 +168,24 @@ class ConcatFastaTab(BaseTabWidget):
         self.file_list.clear()
 
     def _load_example(self):
-        """Load the bundled cytb teaching example into the file list."""
+        """Load two bundled example files into the file list for a meaningful concat demo."""
         from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
 
-        path = stage_example("phylo", "cytb_cds_raw.fasta")
-        if not path:
-            QMessageBox.information(
-                self, self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
-            )
-            return
-        self._add_path(path)
-        self.show_status(self.tr("已载入示例数据: cytb_cds_raw.fasta"))
+        examples = [
+            ("phylo", "cytb_cds_raw.fasta"),
+            ("dna", "hbb_exon1.fasta"),
+        ]
+        for folder, name in examples:
+            path = stage_example(folder, name)
+            if not path:
+                QMessageBox.information(
+                    self, self.tr("Example"),
+                    self.tr("Failed to load example data. Please check the installation."),
+                )
+                return
+            self._add_path(path)
+        self.show_status(self.tr("Example loaded: 2 files"))
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -253,6 +278,23 @@ class ConcatFastaTab(BaseTabWidget):
                 self.log_message("No sequences to concatenate", "ERROR")
                 return
 
+            # Optional dedup after concatenation
+            if self.dedup_checkbox.isChecked():
+                dedup_before = len(all_records)
+                seen = set()
+                deduped = []
+                for rec in all_records:
+                    if rec.header not in seen:
+                        seen.add(rec.header)
+                        deduped.append(rec)
+                removed = dedup_before - len(deduped)
+                if removed:
+                    self.log_message(
+                        f"Deduplicated: kept {len(deduped)}, removed {removed} duplicate ID(s)",
+                        "INFO",
+                    )
+                all_records = deduped
+
             if not processor.save_file(output_path, all_records):
                 self.log_message("Failed to save file", "ERROR")
                 return
@@ -274,6 +316,7 @@ class ConcatFastaTab(BaseTabWidget):
         self.file_list.clear()
         self.output_edit.clear()
         self.add_prefix_checkbox.setChecked(False)
+        self.dedup_checkbox.setChecked(False)
         self.preview_panel.clear()
         self.log_area.clear()
         self.show_status("Cleared")
@@ -287,6 +330,7 @@ class ConcatFastaTab(BaseTabWidget):
         self.clear_files_btn.setEnabled(not running)
         self.output_btn.setEnabled(not running)
         self.add_prefix_checkbox.setEnabled(not running)
+        self.dedup_checkbox.setEnabled(not running)
         self.example_btn.setEnabled(not running)
 
     def show_help(self):
@@ -295,14 +339,28 @@ class ConcatFastaTab(BaseTabWidget):
 
 <p><b>What does this tool do?</b><br>
 It combines multiple FASTA files into a single output file. Add files with
-<b>Add Files</b>, reorder them manually if needed, and click <b>Start</b>.</p>
+<b>Add Files</b>, and click <b>Start</b>. The output order matches the file
+list order.</p>
+
+<h3>Quick Start</h3>
+<ol>
+<li>Click <b>Add Files</b> to select one or more FASTA files
+(or click <b>Example</b> to add the bundled sample).</li>
+<li>Each file shows its sequence count in the list once added.</li>
+<li>Click <b>Preview</b> to verify all files are readable and see
+the total sequence count.</li>
+<li>Choose an output file, then click <b>Start</b>.</li>
+</ol>
 
 <h3>Options</h3>
 <ul>
-<li><b>Add source filename as ID prefix</b> &mdash; appends the source filename
-to each sequence ID so you can trace which file each entry came from.
-Example: 'file1.fasta' containing '>NM_001101.5' becomes
-'>file1|NM_001101.5'.</li>
+<li><b>Add source filename as ID prefix</b> &mdash; prepends the source
+filename (without extension) to each sequence ID with a <code>|</code>
+separator. Example: <code>file1.fasta</code> containing
+<code>&gt;NM_001101.5</code> becomes <code>&gt;file1|NM_001101.5</code>.</li>
+<li><b>Deduplicate after concatenation</b> &mdash; removes duplicate
+sequence IDs from the merged output, keeping the first occurrence.
+Useful when different files contain sequences with the same ID.</li>
 </ul>
 
 <h3>Use Cases</h3>
@@ -316,7 +374,10 @@ Example: 'file1.fasta' containing '>NM_001101.5' becomes
 <ul>
 <li>Files are concatenated in the order they appear in the list.</li>
 <li>Always <b>Preview</b> before running to verify each file is readable.</li>
-<li>Use <b>FASTA QC</b> afterwards to verify the merged result.</li>
+<li>Use <b>FASTA Statistics</b> afterwards to verify the merged result.</li>
+<li>If your source files share sequence IDs, enable
+<b>Deduplicate after concatenation</b> to avoid duplicate headers
+in the output.</li>
 </ul>
         """
-        self.show_help_dialog("Help - Concatenate FASTA", help_text, 720, 460)
+        self.show_help_dialog("Help - Concatenate FASTA", help_text, 820, 560)
