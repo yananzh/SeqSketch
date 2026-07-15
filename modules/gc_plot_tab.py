@@ -130,14 +130,15 @@ class GCPlotTab(BaseTabWidget):
         self.window_spin.setSuffix(self.tr(" bp"))
         self.window_spin.setToolTip(
             self.tr(
-                "Sliding window size (odd values 21–1001). Larger windows produce smoother curves."
+                "Sliding window size. Automatically adjusted based on sequence length. "
+                "Larger windows produce smoother curves."
             )
         )
         row.addWidget(self.window_spin)
 
         row.addWidget(QLabel(self.tr("Step:")))
         self.step_spin = QSpinBox()
-        self.step_spin.setRange(1, 1001)
+        self.step_spin.setRange(1, 10001)
         self.step_spin.setValue(101)
         self.step_spin.setSuffix(self.tr(" bp"))
         self.step_spin.setToolTip(
