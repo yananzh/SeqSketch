@@ -1,74 +1,41 @@
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 import re
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton, QGroupBox
+from Bio.Data import CodonTable
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QHBoxLayout,
+    QVBoxLayout,
+    QLabel,
+    QPushButton,
+    QGroupBox,
+)
 
-CODON_TABLE = {
-    "TTT": "F",
-    "TTC": "F",
-    "TTA": "L",
-    "TTG": "L",
-    "TCT": "S",
-    "TCC": "S",
-    "TCA": "S",
-    "TCG": "S",
-    "TAT": "Y",
-    "TAC": "Y",
-    "TAA": "*",
-    "TAG": "*",
-    "TGT": "C",
-    "TGC": "C",
-    "TGA": "*",
-    "TGG": "W",
-    "CTT": "L",
-    "CTC": "L",
-    "CTA": "L",
-    "CTG": "L",
-    "CCT": "P",
-    "CCC": "P",
-    "CCA": "P",
-    "CCG": "P",
-    "CAT": "H",
-    "CAC": "H",
-    "CAA": "Q",
-    "CAG": "Q",
-    "CGT": "R",
-    "CGC": "R",
-    "CGA": "R",
-    "CGG": "R",
-    "ATT": "I",
-    "ATC": "I",
-    "ATA": "I",
-    "ATG": "M",
-    "ACT": "T",
-    "ACC": "T",
-    "ACA": "T",
-    "ACG": "T",
-    "AAT": "N",
-    "AAC": "N",
-    "AAA": "K",
-    "AAG": "K",
-    "AGT": "S",
-    "AGC": "S",
-    "AGA": "R",
-    "AGG": "R",
-    "GTT": "V",
-    "GTC": "V",
-    "GTA": "V",
-    "GTG": "V",
-    "GCT": "A",
-    "GCC": "A",
-    "GCA": "A",
-    "GCG": "A",
-    "GAT": "D",
-    "GAC": "D",
-    "GAA": "E",
-    "GAG": "E",
-    "GGT": "G",
-    "GGC": "G",
-    "GGA": "G",
-    "GGG": "G",
+# NCBI genetic code table id, keyed by the human-readable label shown in the combo box.
+GENETIC_CODES = {
+    "1 - Standard (Universal)": 1,
+    "2 - Vertebrate Mitochondrial": 2,
+    "3 - Yeast Mitochondrial": 3,
+    "4 - Mold / Protozoan / Coelenterate Mitochondrial": 4,
+    "5 - Invertebrate Mitochondrial": 5,
+    "6 - Ciliate, Dasycladacean and Hexamita Nuclear": 6,
+    "9 - Echinoderm and Flatworm Mitochondrial": 9,
+    "11 - Bacterial, Archaeal and Plant Plastid": 11,
+    "12 - Alternative Yeast Nuclear": 12,
+    "13 - Ascidian Mitochondrial": 13,
+    "14 - Alternative Flatworm Mitochondrial": 14,
 }
+
+
+def _codon_table_dict(table_id: int) -> dict:
+    """Build a codon -> amino-acid dict (stop codons mapped to '*') for an NCBI genetic code id."""
+    bt = CodonTable.unambiguous_dna_by_id[table_id]
+    table = dict(bt.forward_table)
+    for stop in bt.stop_codons:
+        table[stop] = "*"
+    return table
+
+
 AA_3LETTER = {
     "A": "Ala",
     "R": "Arg",
@@ -107,9 +74,7 @@ class TranslateTab(BaseTabWidget):
             ">seq2\n"
             "ATGAAATTTGGGTGA"
         )
-        self.output_text.setPlaceholderText(
-            "Translated protein sequence will appear here..."
-        )
+        self.output_text.setPlaceholderText("Translated protein sequence will appear here...")
         self.input_text.setMinimumHeight(150)
         self.output_text.setMinimumHeight(150)
 
@@ -117,10 +82,14 @@ class TranslateTab(BaseTabWidget):
         """Setup parameter controls in a QGroupBox."""
         grp = QGroupBox(self.tr("Parameters"))
         grp.setFlat(True)
-        params_layout = QHBoxLayout(grp)
+        params_layout = QVBoxLayout(grp)
         params_layout.setContentsMargins(0, 16, 0, 4)
+        params_layout.setSpacing(8)
 
-        params_layout.addWidget(QLabel(self.tr("Reading Frame:")))
+        row1 = QHBoxLayout()
+        frame_label = QLabel(self.tr("Reading Frame:"))
+        frame_label.setMinimumWidth(130)
+        row1.addWidget(frame_label)
         self.frame_box = QComboBox()
         self.frame_box.addItems([
             "+1 (forward, from position 1)",
@@ -130,19 +99,38 @@ class TranslateTab(BaseTabWidget):
             "-2 (reverse complement, from position 2)",
             "-3 (reverse complement, from position 3)",
         ])
-        self.frame_box.setMinimumWidth(280)
-        params_layout.addWidget(self.frame_box)
-        params_layout.addSpacing(20)
+        self.frame_box.setMinimumWidth(320)
+        row1.addWidget(self.frame_box)
+        row1.addSpacing(20)
 
-        params_layout.addWidget(QLabel(self.tr("Amino Acid Format:")))
+        row1.addWidget(QLabel(self.tr("Amino Acid Format:")))
         self.aa_mode_box = QComboBox()
         self.aa_mode_box.addItems([
             "1-letter (e.g., MKTF)",
             "3-letter (e.g., Met-Lys-Thr-Phe)",
         ])
         self.aa_mode_box.setMinimumWidth(200)
-        params_layout.addWidget(self.aa_mode_box)
-        params_layout.addStretch()
+        row1.addWidget(self.aa_mode_box)
+        row1.addStretch()
+        params_layout.addLayout(row1)
+
+        row2 = QHBoxLayout()
+        genetic_code_label = QLabel(self.tr("Genetic Code:"))
+        genetic_code_label.setMinimumWidth(130)
+        row2.addWidget(genetic_code_label)
+        self.genetic_code_box = QComboBox()
+        self.genetic_code_box.addItems(list(GENETIC_CODES.keys()))
+        self.genetic_code_box.setMinimumWidth(320)
+        self.genetic_code_box.setToolTip(
+            self.tr(
+                "NCBI genetic code table used for translation. "
+                "Choose an alternative (e.g. mitochondrial) code if your "
+                "sequence doesn't use the standard code."
+            )
+        )
+        row2.addWidget(self.genetic_code_box)
+        row2.addStretch()
+        params_layout.addLayout(row2)
 
         self.add_content_widget(grp)
 
@@ -157,64 +145,58 @@ class TranslateTab(BaseTabWidget):
         ig_layout.insertLayout(1, btn_row)
 
     def _load_example(self):
-        """Load the first CDS record of the cytb example for translation."""
-        text = load_example_text("phylo", "cytb_cds_aligned.fasta")
+        """Load the bundled BRCA1/EGFR CDS example for translation."""
+        text = load_example_text("dna", "brca1_egfr_cds.fasta")
         if not text:
             from PyQt6.QtWidgets import QMessageBox
 
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check your installation."),
             )
             return
-        # keep only the first FASTA record
-        first = text.split("\n>", 1)[0]
-        if not first.startswith(">"):
-            first = ">" + first
-        self.input_text.setPlainText(first.strip() + "\n")
-        self.show_status(self.tr("已载入示例数据: cytb_cds (首条记录)"))
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("Loaded example data: brca1_egfr_cds.fasta"))
 
     def run(self):
         raw = self.input_text.toPlainText().strip()
         if not raw:
-            self.status_label.setText("Please enter a DNA or RNA sequence.")
+            self.show_status("Please enter a DNA or RNA sequence.")
             return
 
         frame = self.frame_box.currentIndex()
         aa_mode = self.aa_mode_box.currentIndex()
         frame_name = self.frame_box.currentText().split()[0]
+        genetic_code_id = GENETIC_CODES[self.genetic_code_box.currentText()]
+        codon_table = _codon_table_dict(genetic_code_id)
 
         if ">" in raw:
             records = self._parse_fasta(raw)
             if not records:
-                self.status_label.setText("No valid FASTA records found.")
+                self.show_status("No valid FASTA records found.")
                 return
             output_blocks = []
             for header, seq in records:
                 seq = seq.upper().replace("U", "T")
                 if not re.fullmatch(r"[ACGTN]+", seq):
-                    self.status_label.setText(
-                        f"Invalid characters in {header}. Only A/T/G/C/N allowed."
-                    )
+                    self.show_status(f"Invalid characters in {header}. Only A/T/G/C/N allowed.")
                     return
-                trans_seq = self._translate_frame(seq, frame, aa_mode)
+                trans_seq = self._translate_frame(seq, frame, aa_mode, codon_table)
                 output_blocks.append(f"{header} | Frame: {frame_name}\n{trans_seq}")
             self.output_text.setPlainText("\n\n".join(output_blocks))
-            self.status_label.setText(
-                f"Translation complete — {len(records)} sequence(s)"
-            )
+            self.show_status(f"Translation complete — {len(records)} sequence(s)")
         else:
             seq = raw.replace("\n", "").replace(" ", "").upper().replace("U", "T")
             if not seq:
-                self.status_label.setText("No valid sequence found.")
+                self.show_status("No valid sequence found.")
                 return
             if not re.fullmatch(r"[ACGTN]+", seq):
-                self.status_label.setText("Invalid characters. Only A/T/G/C/N allowed.")
+                self.show_status("Invalid characters. Only A/T/G/C/N allowed.")
                 return
-            trans_seq = self._translate_frame(seq, frame, aa_mode)
+            trans_seq = self._translate_frame(seq, frame, aa_mode, codon_table)
             self.output_text.setPlainText(trans_seq)
-            self.status_label.setText("Translation complete")
+            self.show_status("Translation complete")
 
     def _parse_fasta(self, text):
         records = []
@@ -233,20 +215,20 @@ class TranslateTab(BaseTabWidget):
             records.append((header, "".join(seq_lines)))
         return records
 
-    def _translate_frame(self, seq, frame, aa_mode):
+    def _translate_frame(self, seq, frame, aa_mode, codon_table):
         if frame < 3:
-            return self.translate(seq[frame:], aa_mode)
+            return self.translate(seq[frame:], aa_mode, codon_table)
         else:
             revcomp = self.reverse_complement(seq)
-            return self.translate(revcomp[frame - 3 :], aa_mode)
+            return self.translate(revcomp[frame - 3 :], aa_mode, codon_table)
 
-    def translate(self, seq, aa_mode):
+    def translate(self, seq, aa_mode, codon_table):
         aa_seq = []
         for i in range(0, len(seq) - 2, 3):
             codon = seq[i : i + 3]
             if len(codon) < 3:
                 break
-            aa = CODON_TABLE.get(codon, "X")
+            aa = codon_table.get(codon, "X")
             if aa_mode == 0:
                 aa_seq.append(aa)
             else:
@@ -303,7 +285,7 @@ Met-Lys-Phe-Gly-Stop
 
 <h3>Genetic Code Notes</h3>
 <ul>
-<li>Uses the <b>standard (universal) genetic code</b></li>
+<li>Defaults to the <b>standard (universal) genetic code</b>; choose an alternative from the <b>Genetic Code</b> dropdown (e.g. Vertebrate Mitochondrial, Bacterial/Plant Plastid) for sequences that use a different code</li>
 <li>RNA input (U) is automatically treated as DNA (T)</li>
 <li>Stop codons: <code>*</code> (1-letter) or <code>Stop</code> (3-letter)</li>
 <li>Incomplete codons at the 3' end are silently ignored</li>

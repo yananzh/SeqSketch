@@ -19,7 +19,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(self.tr("SeqSketch"))
-        self.resize(1100, 700)
+        self.resize(920, 700)
         self.setAcceptDrops(True)
         icon_path = resource_path("window_logo.png")
         if os.path.exists(icon_path):
@@ -177,7 +177,7 @@ class MainWindow(QMainWindow):
     def open_sanger_viewer_tab(self):
         from modules.sanger_viewer_tab import SangerViewerTab
 
-        self._find_or_open(SangerViewerTab, "Sanger Seq Viewer", reuse=False)
+        self._find_or_open(SangerViewerTab, "Sanger Chromatogram Viewer", reuse=False)
 
     def open_codon_usage_tab(self):
         from modules.codon_usage_tab import CodonUsageTab

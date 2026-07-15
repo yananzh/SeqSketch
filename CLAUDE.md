@@ -40,7 +40,7 @@ tests/             → Pytest regression with QT_QPA_PLATFORM=offscreen
 
 ## Adding or Modifying a Tab
 
-1. Create module under `modules/` using `snake_case_tab.py`, class `PascalCaseTab`
+1. Create module under `modules/` using `snake_case_tab.py`, class `PascalCaseTab` (multi-step orchestration tabs, e.g. `one_step_multigenephy_*`, may split into sibling `_io.py` / `_models.py` / `_workflow.py` / `_tab.py` modules)
 2. File-processing tabs inherit `BaseTabWidget(..., "file")`; sequence tabs inherit `BaseTabWidget(..., "sequence")`
 3. Wire an `open_*_tab()` method in `main_window.py` (preserve nearby single-instance vs multi-instance reuse patterns)
 4. Wire a `QAction` in `menus.py`

@@ -291,9 +291,7 @@ def _compute_rscu(codon_counts: Dict[str, int], table_id: int) -> Dict[str, floa
 
 def _gc_positions(seq: str) -> Tuple[float, float, float, float, float]:
     seq = seq.upper().replace(" ", "").replace("\n", "")
-    codons = [
-        seq[i : i + 3] for i in range(0, len(seq) - 2, 3) if len(seq[i : i + 3]) == 3
-    ]
+    codons = [seq[i : i + 3] for i in range(0, len(seq) - 2, 3) if len(seq[i : i + 3]) == 3]
     if not codons:
         return 0.0, 0.0, 0.0, 0.0, 0.0
 
@@ -425,9 +423,7 @@ class _Worker(QObject):
     error = pyqtSignal(str)
     progress = pyqtSignal(int, int)
 
-    def __init__(
-        self, text: str, table_id: int, cai_ref: str, frame_offset: int = 0, parent=None
-    ):
+    def __init__(self, text: str, table_id: int, cai_ref: str, frame_offset: int = 0, parent=None):
         super().__init__(parent)
         self._text = text
         self._table_id = table_id
@@ -466,9 +462,7 @@ class _Worker(QObject):
                 cai = _compute_cai(counts, self._cai_ref)
 
                 bt = _build_codon_table(self._table_id)
-                all_codons = sorted(
-                    list(bt.forward_table.keys()) + list(bt.stop_codons)
-                )
+                all_codons = sorted(list(bt.forward_table.keys()) + list(bt.stop_codons))
                 total_codons = sum(counts.values())
 
                 rows = []
@@ -669,9 +663,7 @@ class CodonUsageTab(QWidget):
         sv.addWidget(QLabel("Key Statistics:"))
         self._stats_table = QTableWidget(0, 2)
         self._stats_table.setHorizontalHeaderLabels(["Metric", "Value"])
-        self._stats_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
+        self._stats_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._stats_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._stats_table.setMinimumHeight(280)
         self._stats_table.setMaximumHeight(320)
@@ -687,9 +679,7 @@ class CodonUsageTab(QWidget):
             "Freq(/1000)",
             "RSCU",
         ])
-        self._top10_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
+        self._top10_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._top10_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._top10_table.setMinimumHeight(260)
         self._top10_table.setMaximumHeight(300)
@@ -722,9 +712,7 @@ class CodonUsageTab(QWidget):
             "RSCU",
             "RSCU Bar",
         ])
-        self._codon_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
+        self._codon_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._codon_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._codon_table.setAlternatingRowColors(True)
         self._codon_table.setSortingEnabled(True)
@@ -765,9 +753,7 @@ class CodonUsageTab(QWidget):
             "GC%",
             "GC3%",
         ])
-        self._cmp_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
+        self._cmp_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._cmp_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._cmp_table.setSortingEnabled(True)
         self._cmp_table.setMaximumHeight(220)
@@ -833,7 +819,7 @@ class CodonUsageTab(QWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check your installation."),
             )
             return
         self._input_text.setPlainText(text)
@@ -846,9 +832,7 @@ class CodonUsageTab(QWidget):
     def _run_analysis(self):
         text = self._input_text.toPlainText().strip()
         if not text:
-            QMessageBox.information(
-                self, "Input Required", "Please input or load sequences first."
-            )
+            QMessageBox.information(self, "Input Required", "Please input or load sequences first.")
             return
 
         clean = "".join(c for c in text.upper() if c.isalpha())
@@ -1174,9 +1158,7 @@ class CodonUsageTab(QWidget):
             gc12s = [rs["gc12"] for rs in self._results]
             gc3s = [rs["gc3"] for rs in self._results]
             ax2.scatter(gc3s, gc12s, color="#1976d2", s=50, alpha=0.75, zorder=3)
-            ax2.scatter(
-                r["gc3"], r["gc12"], color="#ef5350", s=90, zorder=4, label="Current"
-            )
+            ax2.scatter(r["gc3"], r["gc12"], color="#ef5350", s=90, zorder=4, label="Current")
             if len(gc3s) >= 3:
                 m, b = np.polyfit(gc3s, gc12s, 1)
                 xs = np.linspace(min(gc3s), max(gc3s), 100)
@@ -1191,9 +1173,7 @@ class CodonUsageTab(QWidget):
         else:
             ax2.scatter([r["gc3"]], [r["gc12"]], color="#1976d2", s=80)
 
-        ax2.plot(
-            [0, 100], [0, 100], ":", color="#bbb", linewidth=1.0, label="GC12 = GC3"
-        )
+        ax2.plot([0, 100], [0, 100], ":", color="#bbb", linewidth=1.0, label="GC12 = GC3")
         ax2.set_xlabel("GC3 (%)")
         ax2.set_ylabel("GC12 (%)")
         ax2.set_title("Neutrality Plot (GC12 vs GC3)")
@@ -1332,13 +1312,11 @@ class CodonUsageTab(QWidget):
     def _show_help(self):
         help_text = self.tr(
             "<h2>Codon Usage Analysis &mdash; Codon Bias and Adaptation</h2>"
-
             "<p><b>What does this tool do?</b><br>"
             "It analyses the codon usage pattern of protein-coding sequences (CDS). "
             "It computes RSCU, ENC, CAI, and GC-position metrics, and visualises them "
             "with interactive charts. Supports 11 genetic codes and three built-in "
             "CAI reference tables.</p>"
-
             "<h3>Quick Start</h3>"
             "<ol>"
             "<li>Paste one or more CDS sequences in FASTA format, or click <b>Load File</b></li>"
@@ -1346,7 +1324,6 @@ class CodonUsageTab(QWidget):
             "<li>Click <b>Analyze</b></li>"
             "<li>Browse results across the five tabs: Summary, Codon Table, RSCU Chart, GC / Neutrality, and Comparison</li>"
             "</ol>"
-
             "<h3>Key Metrics</h3>"
             "<table border='0' cellpadding='4' cellspacing='2'>"
             "<tr><td><b>Metric</b></td><td><b>Meaning</b></td></tr>"
@@ -1355,14 +1332,12 @@ class CodonUsageTab(QWidget):
             "<tr><td>CAI</td><td>Codon Adaptation Index (0&ndash;1) &mdash; higher = better adaptation to the reference organism</td></tr>"
             "<tr><td>GC3</td><td>GC content at the third codon position &mdash; key indicator of mutational bias</td></tr>"
             "</table>"
-
             "<h3>Charts</h3>"
             "<ul>"
             "<li><b>RSCU Chart</b> &mdash; bar chart of codon preference per amino acid</li>"
             "<li><b>GC / Neutrality</b> &mdash; GC1/GC2/GC3 bars + GC12 vs GC3 neutrality regression plot</li>"
             "<li><b>Comparison</b> &mdash; per-sequence summary table + Nc plot (ENC vs GC3) for multi-sequence input</li>"
             "</ul>"
-
             "<h3>Tips</h3>"
             "<ul>"
             "<li>Use the <b>Example</b> button to load BRCA1 and EGFR CDS for a quick trial</li>"
@@ -1372,7 +1347,12 @@ class CodonUsageTab(QWidget):
             "</ul>"
         )
         from PyQt6.QtWidgets import (
-            QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea,
+            QDialog,
+            QVBoxLayout,
+            QHBoxLayout,
+            QLabel,
+            QPushButton,
+            QScrollArea,
         )
         from PyQt6.QtCore import Qt as QtCore
 

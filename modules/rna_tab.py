@@ -37,16 +37,16 @@ class RNATab(BaseTabWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check your installation."),
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("已载入示例数据: hbb_exon1.fasta"))
+        self.show_status(self.tr("Loaded example data: hbb_exon1.fasta"))
 
     def run(self):
         seq = self.input_text.toPlainText().strip()
         if not seq:
-            self.status_label.setText("Please enter a DNA sequence or FASTA.")
+            self.show_status("Please enter a DNA sequence or FASTA.")
             return
 
         # Check if input is FASTA format
@@ -55,19 +55,17 @@ class RNATab(BaseTabWidget):
             result = self._convert_fasta(seq)
             if result:
                 self.output_text.setPlainText(result)
-                self.status_label.setText("Converted FASTA to RNA")
+                self.show_status("Converted FASTA to RNA")
             else:
-                self.status_label.setText("Invalid FASTA format or sequences")
+                self.show_status("Invalid FASTA format or sequences")
         else:
             # Single raw sequence
             if not self.is_valid_dna(seq):
-                self.status_label.setText(
-                    "Invalid characters. Allowed IUPAC codes: A/T/G/C/N, etc."
-                )
+                self.show_status("Invalid characters. Allowed IUPAC codes: A/T/G/C/N, etc.")
                 return
             rna = seq.upper().replace("T", "U").replace("t", "u")
             self.output_text.setPlainText(rna)
-            self.status_label.setText("Converted to RNA")
+            self.show_status("Converted to RNA")
 
     def _convert_fasta(self, fasta_text):
         """Convert FASTA format DNA to RNA"""
@@ -107,7 +105,7 @@ class RNATab(BaseTabWidget):
         return "\n".join(output_lines) if output_lines else None
 
     def is_valid_dna(self, seq):
-        # 允许IUPAC核苷酸代码 (incl. U — already-RNA input is accepted unchanged)
+        # Allow IUPAC nucleotide codes (incl. U — already-RNA input is accepted unchanged)
         return re.fullmatch(r"[ACGTUNacgtunRYMKSWBDHVrykmswbdhv\s]+", seq) is not None
 
     def show_help(self):

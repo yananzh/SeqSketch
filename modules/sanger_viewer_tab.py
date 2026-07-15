@@ -1,4 +1,4 @@
-"""Sanger Seq Viewer Tab — AB1 chromatogram display with sequence range copy."""
+"""Sanger Chromatogram Viewer Tab — AB1 chromatogram display with sequence range copy."""
 
 from __future__ import annotations
 
@@ -72,9 +72,7 @@ class _LoadWorker(QObject):
 
             abi_data = {"channels": channels, "peak_locs": peak_locs}
             sequence = str(record.seq).upper()
-            quality: List[int] = list(
-                record.letter_annotations.get("phred_quality", [])
-            )
+            quality: List[int] = list(record.letter_annotations.get("phred_quality", []))
             self.finished.emit(abi_data, sequence, quality)
         except Exception as exc:
             self.error.emit(str(exc))
@@ -109,19 +107,15 @@ class SangerViewerTab(QWidget):
         self._file_edit.setToolTip(
             self.tr(
                 "Path to the AB1 Sanger sequencing file.\n"
-                "Use Browse to select a file, then click Load to display the chromatogram."
+                "Select or drop a file and it loads automatically."
             )
         )
         file_row.addWidget(self._file_edit, 1)
         self._btn_browse = QPushButton(self.tr("Browse"))
-        self._btn_browse.setToolTip(
-            self.tr("Select an AB1 file (click Load to display the chromatogram)")
-        )
+        self._btn_browse.setToolTip(self.tr("Select an AB1 file (loads automatically)"))
         file_row.addWidget(self._btn_browse)
         self._btn_example = QPushButton(self.tr("Example"))
-        self._btn_example.setToolTip(
-            self.tr("Load a bundled example AB1 trace file")
-        )
+        self._btn_example.setToolTip(self.tr("Load a bundled example AB1 trace file"))
         file_row.addWidget(self._btn_example)
         outer.addLayout(file_row)
 
@@ -148,12 +142,8 @@ class SangerViewerTab(QWidget):
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidget(self._canvas)
         self._scroll_area.setWidgetResizable(False)
-        self._scroll_area.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-        self._scroll_area.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
+        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self._scroll_area.setMinimumHeight(200)
         outer.addWidget(self._toolbar)
         outer.addWidget(self._scroll_area, 1)
@@ -184,43 +174,29 @@ class SangerViewerTab(QWidget):
         self._spin_end.setToolTip(self.tr("Last base position to copy (1-based)"))
         range_row.addWidget(self._spin_end)
         self._btn_copy = QPushButton(self.tr("Copy to Clipboard"))
-        self._btn_copy.setToolTip(
-            self.tr("Copy the selected base range to the clipboard")
-        )
+        self._btn_copy.setToolTip(self.tr("Copy the selected base range to the clipboard"))
         self._btn_copy.setEnabled(False)
         range_row.addWidget(self._btn_copy)
+        self._btn_export_fasta = QPushButton(self.tr("Save to File"))
+        self._btn_export_fasta.setToolTip(
+            self.tr("Save the selected Copy Range (Start–End) as a FASTA file")
+        )
+        self._btn_export_fasta.setEnabled(False)
+        range_row.addWidget(self._btn_export_fasta)
         range_row.addStretch()
         seq_vbox.addLayout(range_row)
         outer.addWidget(seq_group)
 
-        # --- Status bar + Load / Clear / Help ---
+        # --- Status bar + Clear / Help ---
         status_row = QHBoxLayout()
         self._status_label = QLabel(self.tr("Load an AB1 file to begin."))
         self._status_label.setStyleSheet("color:#555;font-size:12px;")
         status_row.addWidget(self._status_label)
         status_row.addStretch()
-        self._btn_load = QPushButton(self.tr("Load"))
-        self._btn_load.setFixedWidth(90)
-        self._btn_load.setToolTip(
-            self.tr("Load the selected AB1 file and display the chromatogram")
-        )
-        status_row.addWidget(self._btn_load)
         self._btn_clear = QPushButton(self.tr("Clear"))
         self._btn_clear.setFixedWidth(90)
-        self._btn_clear.setToolTip(
-            self.tr("Clear the loaded chromatogram and reset the view")
-        )
+        self._btn_clear.setToolTip(self.tr("Clear the loaded chromatogram and reset the view"))
         status_row.addWidget(self._btn_clear)
-        self._btn_save_fig = QPushButton(self.tr("Save Figure"))
-        self._btn_save_fig.setFixedWidth(110)
-        self._btn_save_fig.setToolTip(self.tr("Save the chromatogram as PNG/PDF/SVG"))
-        self._btn_save_fig.setEnabled(False)
-        status_row.addWidget(self._btn_save_fig)
-        self._btn_export_fasta = QPushButton(self.tr("Export FASTA"))
-        self._btn_export_fasta.setFixedWidth(110)
-        self._btn_export_fasta.setToolTip(self.tr("Export the called sequence as a FASTA file"))
-        self._btn_export_fasta.setEnabled(False)
-        status_row.addWidget(self._btn_export_fasta)
         self._btn_help = QPushButton(self.tr("Help"))
         self._btn_help.setFixedWidth(80)
         self._btn_help.setToolTip(self.tr("Show usage help"))
@@ -230,9 +206,7 @@ class SangerViewerTab(QWidget):
         # --- Signal connections ---
         self._btn_browse.clicked.connect(self._browse)
         self._btn_example.clicked.connect(self._load_example)
-        self._btn_load.clicked.connect(self._load)
         self._btn_clear.clicked.connect(self._clear_all)
-        self._btn_save_fig.clicked.connect(self._save_figure)
         self._btn_export_fasta.clicked.connect(self._export_fasta)
         self._btn_copy.clicked.connect(self._copy_range)
         self._btn_help.clicked.connect(self._show_help)
@@ -251,6 +225,7 @@ class SangerViewerTab(QWidget):
         )
         if path:
             self._file_edit.setText(path)
+            self._load()  # auto-load so the user sees the chromatogram immediately
 
     def _load_example(self) -> None:
         """Stage the bundled example AB1 trace, fill the path, and auto-load."""
@@ -259,7 +234,7 @@ class SangerViewerTab(QWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check your installation."),
             )
             return
         self._file_edit.setText(path)
@@ -283,6 +258,7 @@ class SangerViewerTab(QWidget):
             return
         path = urls[0].toLocalFile()
         self._file_edit.setText(path)
+        self._load()  # auto-load so the user sees the chromatogram immediately
 
     def _load(self) -> None:
         path = self._file_edit.text().strip()
@@ -322,7 +298,6 @@ class SangerViewerTab(QWidget):
         self._spin_start.setValue(1)
         self._spin_end.setValue(n)
         self._btn_copy.setEnabled(True)
-        self._btn_save_fig.setEnabled(True)
         self._btn_export_fasta.setEnabled(True)
 
         lines: List[str] = []
@@ -332,9 +307,7 @@ class SangerViewerTab(QWidget):
         self._seq_edit.setPlainText("\n".join(lines))
 
         self._draw_chromatogram()
-        self._set_status(
-            self.tr(f"Loaded \u2014 {n} bases  |  use the toolbar to zoom / pan")
-        )
+        self._set_status(self.tr(f"Loaded \u2014 {n} bases  |  use the toolbar to zoom / pan"))
 
     def _on_error(self, msg: str) -> None:
         QMessageBox.critical(self, self.tr("Load Error"), msg)
@@ -393,9 +366,7 @@ class SangerViewerTab(QWidget):
             if not ys:
                 continue
             xs = range(len(ys))
-            ax_trace.plot(
-                xs, ys, color=_TRACE_COLOR[base], linewidth=0.7, label=base, alpha=0.9
-            )
+            ax_trace.plot(xs, ys, color=_TRACE_COLOR[base], linewidth=0.7, label=base, alpha=0.9)
             y_max = max(y_max, max(ys))
 
         # --- Base letter annotations at peak scan positions ---
@@ -442,8 +413,7 @@ class SangerViewerTab(QWidget):
                     bar_lefts.append(xs_q[i] - lh)
                     bar_widths.append(lh + rh)
                 q_colors = [
-                    "#2ca02c" if v >= 30 else "#ff7f0e" if v >= 20 else "#d62728"
-                    for v in q_vals
+                    "#2ca02c" if v >= 30 else "#ff7f0e" if v >= 20 else "#d62728" for v in q_vals
                 ]
                 ax_qual.bar(
                     bar_lefts,
@@ -469,44 +439,36 @@ class SangerViewerTab(QWidget):
         self._canvas.draw()
 
     # ------------------------------------------------------------------
-    # Clear helper
+    # Export / clear helpers
     # ------------------------------------------------------------------
 
-    def _save_figure(self) -> None:
-        """Save the chromatogram figure to a file."""
-        if not self._abi_data:
-            QMessageBox.warning(self, self.tr("Export Error"), self.tr("Load an AB1 file first."))
-            return
-        path, _ = QFileDialog.getSaveFileName(
-            self,
-            self.tr("Save Chromatogram"),
-            "chromatogram.png",
-            self.tr("PNG (*.png);;PDF (*.pdf);;SVG (*.svg);;All Files (*)"),
-        )
-        if path:
-            try:
-                self._fig.savefig(path, dpi=300, bbox_inches="tight")
-                self._set_status(self.tr(f"Figure saved: {path}"))
-            except Exception as e:
-                QMessageBox.warning(self, self.tr("Export Error"), str(e))
-
     def _export_fasta(self) -> None:
-        """Export the called sequence as a FASTA file."""
+        """Export the sequence within the selected Copy Range as a FASTA file."""
         if not self._sequence:
             QMessageBox.warning(self, self.tr("Export Error"), self.tr("Load an AB1 file first."))
             return
+        start = self._spin_start.value()
+        end = self._spin_end.value()
+        if start > end:
+            QMessageBox.warning(
+                self, self.tr("Invalid Range"), self.tr("Start must be \u2264 End.")
+            )
+            return
+        selected = self._sequence[start - 1 : end]
+        if not selected:
+            return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            self.tr("Export FASTA"),
+            self.tr("Save to File"),
             "sanger_sequence.fasta",
             self.tr("FASTA Files (*.fasta *.fa);;All Files (*)"),
         )
         if path:
             try:
                 with open(path, "w", encoding="utf-8") as f:
-                    f.write(f">sanger_read len={len(self._sequence)}\n")
-                    for i in range(0, len(self._sequence), 60):
-                        f.write(self._sequence[i:i + 60] + "\n")
+                    f.write(f">sanger_read range={start}-{end} len={len(selected)}\n")
+                    for i in range(0, len(selected), 60):
+                        f.write(selected[i : i + 60] + "\n")
                 self._set_status(self.tr(f"FASTA saved: {path}"))
             except Exception as e:
                 QMessageBox.warning(self, self.tr("Export Error"), str(e))
@@ -519,7 +481,6 @@ class SangerViewerTab(QWidget):
         self._file_edit.clear()
         self._seq_edit.clear()
         self._btn_copy.setEnabled(False)
-        self._btn_save_fig.setEnabled(False)
         self._btn_export_fasta.setEnabled(False)
         self._spin_start.setValue(1)
         self._spin_end.setValue(1)
@@ -542,7 +503,7 @@ class SangerViewerTab(QWidget):
         from PyQt6.QtCore import Qt
 
         help_text = (
-            "<h2>Sanger Seq Viewer &mdash; AB1 Chromatogram Browser</h2>"
+            "<h2>Sanger Chromatogram Viewer &mdash; AB1 Chromatogram Browser</h2>"
             "<p><b>What does this tool do?</b><br>"
             "It displays Sanger sequencing AB1 trace files as an interactive"
             " chromatogram. You can inspect the raw fluorescence traces, review"
@@ -584,12 +545,12 @@ class SangerViewerTab(QWidget):
             "<li>Use the Matplotlib <b>zoom-to-rectangle</b> tool to inspect a region of interest in detail</li>"
             "<li>If base calls mismatch the peaks, the sequencing may have mixed templates or poor quality</li>"
             "<li>Supported format: AB1 (Applied Biosystems). SCF and ZTR are not currently supported.</li>"
-            "<li>Click <b>Load</b> to reload the current file; <b>Clear</b> to reset the viewer</li>"
+            "<li>Browse or drag-and-drop a different file to reload; <b>Clear</b> resets the viewer</li>"
             "</ul>"
         )
 
         dialog = QDialog(self)
-        dialog.setWindowTitle(self.tr("Help - Sanger Seq Viewer"))
+        dialog.setWindowTitle(self.tr("Help - Sanger Chromatogram Viewer"))
         dialog.setFixedSize(800, 620)
 
         layout = QVBoxLayout()
@@ -629,10 +590,7 @@ class SangerViewerTab(QWidget):
             return
         QApplication.clipboard().setText(selected)
         self._set_status(
-            self.tr(
-                f"Copied {len(selected)} bases "
-                f"(positions {start}\u2013{end}) to clipboard."
-            )
+            self.tr(f"Copied {len(selected)} bases (positions {start}\u2013{end}) to clipboard.")
         )
 
     def _set_status(self, msg: str) -> None:

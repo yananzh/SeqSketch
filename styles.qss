@@ -18,7 +18,7 @@ QMenuBar, QToolBar {
     font-size: 15px;
 }
 QMenuBar::item {
-    padding: 4px 14px;
+    padding: 4px 8px;
 }
 QMenuBar::item:selected {
     background: #d0eaff;

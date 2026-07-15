@@ -43,11 +43,11 @@ class ComplementTab(BaseTabWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check your installation."),
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("已载入示例数据: 16s_primers.fasta"))
+        self.show_status(self.tr("Loaded example data: 16s_primers.fasta"))
 
     def _setup_mode_controls(self):
         grp = QGroupBox(self.tr("Mode"))
@@ -65,13 +65,9 @@ class ComplementTab(BaseTabWidget):
 
     def _update_output_placeholder(self):
         if self.mode_combo.currentText() == "Reverse Complement":
-            self.output_text.setPlaceholderText(
-                "Reverse complement sequences will appear here..."
-            )
+            self.output_text.setPlaceholderText("Reverse complement sequences will appear here...")
         else:
-            self.output_text.setPlaceholderText(
-                "Complement sequences will appear here..."
-            )
+            self.output_text.setPlaceholderText("Complement sequences will appear here...")
 
     def set_mode(self, mode: str):
         index = self.mode_combo.findText(mode)
@@ -102,9 +98,7 @@ class ComplementTab(BaseTabWidget):
                 self.show_status("Invalid FASTA format or sequences")
         else:
             if not self.is_valid_dna(seq):
-                self.show_status(
-                    "Invalid characters. Allowed IUPAC codes: A/T/G/C/N, etc."
-                )
+                self.show_status("Invalid characters. Allowed IUPAC codes: A/T/G/C/N, etc.")
                 return
             transformed = self._transform_sequence(seq)
             self.output_text.setPlainText(transformed)

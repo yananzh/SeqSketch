@@ -6,9 +6,19 @@ import re
 from typing import Dict, List, Optional
 
 from PyQt6.QtWidgets import (
-    QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-    QCheckBox, QSpinBox, QMessageBox, QPushButton, QFileDialog,
-    QTableWidget, QTableWidgetItem, QHeaderView,
+    QGroupBox,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QComboBox,
+    QCheckBox,
+    QSpinBox,
+    QMessageBox,
+    QPushButton,
+    QFileDialog,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -33,6 +43,7 @@ class _AnalysisWorker(QObject):
         try:
             from Bio.Restriction import RestrictionBatch, CommOnly, AllEnzymes
             from Bio.Seq import Seq
+
             all_enz = {e.__name__: e for e in AllEnzymes}
             batch_enzymes = []
             name_to_obj: Dict[str, object] = {}
@@ -56,7 +67,11 @@ class _AnalysisWorker(QObject):
                 positions = sorted(ana.get(enz_obj, []))
                 site = str(enz_obj.site) if enz_obj.site else ""
                 if positions:
-                    cuts = [0] + positions + [seq_len] if self._linear else positions + [positions[0] + seq_len]
+                    cuts = (
+                        [0] + positions + [seq_len]
+                        if self._linear
+                        else positions + [positions[0] + seq_len]
+                    )
                     fragments = [cuts[i + 1] - cuts[i] for i in range(len(cuts) - 1)]
                 else:
                     fragments = [seq_len] if self._linear else [seq_len]
@@ -130,11 +145,11 @@ class RestrictionEnzymeTab(BaseTabWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check your installation."),
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("已载入示例数据: pBR322.fasta"))
+        self.show_status(self.tr("Loaded example data: pBR322.fasta"))
 
     def _setup_enzyme_ui(self):
         """Enzyme selection controls in a QGroupBox."""
@@ -157,7 +172,9 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self._min_cuts_spin = QSpinBox()
         self._min_cuts_spin.setRange(0, 99)
         self._min_cuts_spin.setValue(1)
-        self._min_cuts_spin.setToolTip(self.tr("Only show enzymes that cut at least this many times"))
+        self._min_cuts_spin.setToolTip(
+            self.tr("Only show enzymes that cut at least this many times")
+        )
         params.addWidget(self._min_cuts_spin)
         params.addSpacing(8)
 
@@ -165,15 +182,15 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self._max_cuts_spin = QSpinBox()
         self._max_cuts_spin.setRange(0, 999)
         self._max_cuts_spin.setValue(50)
-        self._max_cuts_spin.setToolTip(self.tr("Only show enzymes that cut at most this many times"))
+        self._max_cuts_spin.setToolTip(
+            self.tr("Only show enzymes that cut at most this many times")
+        )
         params.addWidget(self._max_cuts_spin)
         params.addSpacing(8)
 
         self._linear_check = QCheckBox(self.tr("Linear DNA"))
         self._linear_check.setChecked(True)
-        self._linear_check.setToolTip(
-            self.tr("Uncheck for circular DNA (plasmid)")
-        )
+        self._linear_check.setToolTip(self.tr("Uncheck for circular DNA (plasmid)"))
         params.addWidget(self._linear_check)
         params.addStretch()
 
@@ -190,8 +207,11 @@ class RestrictionEnzymeTab(BaseTabWidget):
 
         self._results_table = QTableWidget(0, 5)
         self._results_table.setHorizontalHeaderLabels([
-            self.tr("Enzyme"), self.tr("Recognition Site"),
-            self.tr("Cuts"), self.tr("Positions"), self.tr("Fragment Sizes"),
+            self.tr("Enzyme"),
+            self.tr("Recognition Site"),
+            self.tr("Cuts"),
+            self.tr("Positions"),
+            self.tr("Fragment Sizes"),
         ])
         header = self._results_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
@@ -225,7 +245,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
     def run(self):
         raw = self.input_text.toPlainText().strip()
         if not raw:
-            self.status_label.setText(self.tr("Please enter a DNA sequence."))
+            self.show_status(self.tr("Please enter a DNA sequence."))
             return
 
         # Parse FASTA
@@ -243,30 +263,29 @@ class RestrictionEnzymeTab(BaseTabWidget):
 
         seq = seq.replace("\n", "").replace(" ", "").upper().replace("U", "T")
         if not seq:
-            self.status_label.setText(self.tr("No valid sequence found."))
+            self.show_status(self.tr("No valid sequence found."))
             return
         if not re.fullmatch(r"[ACGTN]+", seq):
-            self.status_label.setText(
-                self.tr("Invalid characters. Only A/T/G/C/N allowed.")
-            )
+            self.show_status(self.tr("Invalid characters. Only A/T/G/C/N allowed."))
             return
 
         # Build enzyme list
         use_common = self._enzyme_set_combo.currentIndex() == 0
         try:
             from Bio.Restriction import CommOnly, AllEnzymes
+
             enzyme_names = (
-                [e.__name__ for e in CommOnly] if use_common
-                else [e.__name__ for e in AllEnzymes]
+                [e.__name__ for e in CommOnly] if use_common else [e.__name__ for e in AllEnzymes]
             )
         except ImportError:
             QMessageBox.critical(
-                self, self.tr("Missing Dependency"),
+                self,
+                self.tr("Missing Dependency"),
                 self.tr("BioPython is required for restriction enzyme analysis."),
             )
             return
 
-        self.status_label.setText(self.tr("Analysing..."))
+        self.show_status(self.tr("Analysing..."))
 
         self._thread = QThread(self)
         self._worker = _AnalysisWorker(seq, enzyme_names, self._linear_check.isChecked())
@@ -291,13 +310,13 @@ class RestrictionEnzymeTab(BaseTabWidget):
 
         n_total = sum(1 for r in results for _ in r["positions"])
         if min_cuts == 0 and max_cuts == 0:
-            self.status_label.setText(
-                self.tr(f"Found {len(results)} enzymes with no cut sites")
-            )
+            self.show_status(self.tr(f"Found {len(results)} enzymes with no cut sites"))
         else:
-            self.status_label.setText(
-                self.tr(f"Found {len(results)} enzymes, {n_total} cut sites  "
-                        f"(cuts: {min_cuts}–{max_cuts})")
+            self.show_status(
+                self.tr(
+                    f"Found {len(results)} enzymes, {n_total} cut sites  "
+                    f"(cuts: {min_cuts}–{max_cuts})"
+                )
             )
 
         # Populate output_text for export (kept hidden)
@@ -318,19 +337,23 @@ class RestrictionEnzymeTab(BaseTabWidget):
             self._results_table.setItem(i, 1, QTableWidgetItem(r["site"]))
             self._results_table.setItem(i, 2, QTableWidgetItem(str(r["cuts"])))
             self._results_table.setItem(
-                i, 3,
+                i,
+                3,
                 QTableWidgetItem(", ".join(str(p) for p in r["positions"])),
             )
             self._results_table.setItem(
-                i, 4,
+                i,
+                4,
                 QTableWidgetItem(", ".join(str(f) for f in r["fragments"])),
             )
         self._results_table.setSortingEnabled(True)
 
     def _on_error(self, msg: str):
-        self.status_label.setText(self.tr(f"Error: {msg[:100]}"))
+        self.show_status(self.tr(f"Error: {msg[:100]}"))
         QMessageBox.critical(
-            self, self.tr("Analysis Error"), msg,
+            self,
+            self.tr("Analysis Error"),
+            msg,
         )
 
     # ── Linear map ─────────────────────────────────────────────────────
@@ -358,8 +381,9 @@ class RestrictionEnzymeTab(BaseTabWidget):
         for pos, enzymes in cut_map.items():
             count = len(enzymes)
             alpha = 0.35 + 0.65 * (count / max_enzymes)
-            ax.plot([pos, pos], [-0.35, 0.35], color="#d32f2f",
-                    linewidth=1.5, alpha=alpha, zorder=1)
+            ax.plot(
+                [pos, pos], [-0.35, 0.35], color="#d32f2f", linewidth=1.5, alpha=alpha, zorder=1
+            )
 
         # Tick labels
         step = max(1, seq_len // 10)
@@ -387,7 +411,8 @@ class RestrictionEnzymeTab(BaseTabWidget):
             QMessageBox.information(self, self.tr("No Data"), self.tr("Run analysis first."))
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, self.tr("Export Restriction Analysis"),
+            self,
+            self.tr("Export Restriction Analysis"),
             "restriction_enzymes.xlsx",
             self.tr("Excel Files (*.xlsx);;CSV Files (*.csv);;Text Files (*.txt)"),
         )
@@ -397,13 +422,23 @@ class RestrictionEnzymeTab(BaseTabWidget):
             if path.endswith(".xlsx"):
                 # openpyxl for Excel
                 import openpyxl
+
                 wb = openpyxl.Workbook()
                 ws = wb.active
                 ws.title = "Restriction Enzymes"
-                ws.append(["Enzyme", "Recognition Site", "Cuts", "Positions", "Fragments", "Fragment Sizes (bp)"])
+                ws.append([
+                    "Enzyme",
+                    "Recognition Site",
+                    "Cuts",
+                    "Positions",
+                    "Fragments",
+                    "Fragment Sizes (bp)",
+                ])
                 for r in self._results:
                     ws.append([
-                        r["enzyme"], r["site"], r["cuts"],
+                        r["enzyme"],
+                        r["site"],
+                        r["cuts"],
                         ", ".join(str(p) for p in r["positions"]),
                         len(r["fragments"]),
                         ", ".join(str(f) for f in r["fragments"]),
@@ -411,14 +446,16 @@ class RestrictionEnzymeTab(BaseTabWidget):
                 wb.save(path)
             else:
                 with open(path, "w", encoding="utf-8") as fh:
-                    fh.write("\n".join(
-                        f"{r['enzyme']}\t{r['site']}\t{r['cuts']}\t"
-                        f"{','.join(str(p) for p in r['positions'])}\t"
-                        f"{len(r['fragments'])}\t"
-                        f"{','.join(str(f) for f in r['fragments'])}"
-                        for r in self._results
-                    ))
-            self.status_label.setText(self.tr(f"Exported {len(self._results)} enzymes to {path}"))
+                    fh.write(
+                        "\n".join(
+                            f"{r['enzyme']}\t{r['site']}\t{r['cuts']}\t"
+                            f"{','.join(str(p) for p in r['positions'])}\t"
+                            f"{len(r['fragments'])}\t"
+                            f"{','.join(str(f) for f in r['fragments'])}"
+                            for r in self._results
+                        )
+                    )
+            self.show_status(self.tr(f"Exported {len(self._results)} enzymes to {path}"))
         except Exception as e:
             QMessageBox.critical(self, self.tr("Export Error"), str(e))
 
@@ -427,12 +464,10 @@ class RestrictionEnzymeTab(BaseTabWidget):
     def show_help(self):
         help_text = self.tr(
             "<h2>Restriction Enzyme Analysis &mdash; Find Cut Sites</h2>"
-
             "<p><b>What does this tool do?</b><br>"
             "It searches a DNA sequence for restriction enzyme recognition sites "
             "and reports cut positions and predicted fragment sizes. Supports both "
             "linear and circular DNA, with a visual restriction map.</p>"
-
             "<h3>Quick Start</h3>"
             "<ol>"
             "<li>Paste your DNA sequence or drag-and-drop a FASTA file</li>"
@@ -441,7 +476,6 @@ class RestrictionEnzymeTab(BaseTabWidget):
             "<li>Toggle <b>Linear</b> vs circular DNA</li>"
             "<li>Click <b>Run</b></li>"
             "</ol>"
-
             "<h3>Results Table</h3>"
             "<ul>"
             "<li><b>Enzyme</b> &mdash; standard REBASE name</li>"
@@ -450,7 +484,6 @@ class RestrictionEnzymeTab(BaseTabWidget):
             "<li><b>Positions</b> &mdash; 1-based cut positions</li>"
             "<li><b>Fragment Sizes</b> &mdash; predicted band sizes after digestion (bp)</li>"
             "</ul>"
-
             "<h3>Tips</h3>"
             "<ul>"
             "<li>Use <b>Common</b> mode for routine cloning &mdash; it is much faster</li>"
@@ -461,7 +494,12 @@ class RestrictionEnzymeTab(BaseTabWidget):
             "</ul>"
         )
         from PyQt6.QtWidgets import (
-            QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea,
+            QDialog,
+            QVBoxLayout,
+            QHBoxLayout,
+            QLabel,
+            QPushButton,
+            QScrollArea,
         )
         from PyQt6.QtCore import Qt as QtCore
 

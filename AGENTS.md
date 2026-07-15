@@ -37,6 +37,7 @@ Notes:
 
 - Keep this file short. Put tab-editing specifics in [.github/instructions/pyqt-tabs.instructions.md](.github/instructions/pyqt-tabs.instructions.md).
 - Put bundled-resource, per-user runtime file, and external-tool launcher specifics in [.github/instructions/runtime-paths.instructions.md](.github/instructions/runtime-paths.instructions.md).
+- Past feature design docs (rationale, alternatives considered) live under [docs/superpowers/specs/](docs/superpowers/specs/) and [docs/superpowers/plans/](docs/superpowers/plans/); check there before re-deciding an already-settled design question.
 
 ## Architecture
 
@@ -61,6 +62,7 @@ tests/               -> Pytest regression coverage
 - Sequence-processing tabs should inherit `BaseTabWidget(..., "sequence")`.
 - New tab files follow `snake_case_tab.py`; tab classes follow `PascalCaseTab`; worker classes follow `PascalCaseWorker`.
 - New tabs must be wired in three places: the tab module under `modules/`, an `open_*_tab()` method in `main_window.py`, and a matching `QAction` in `menus.py`.
+- For multi-step orchestration tabs (a tab that drives several existing tools end-to-end, e.g. `modules/one_step_multigenephy_tab.py`), it's fine to split the feature into sibling `_io.py` / `_models.py` / `_workflow.py` / `_tab.py` modules instead of one file. See [docs/superpowers/specs/2026-05-31-one-step-multigenephy-design.md](docs/superpowers/specs/2026-05-31-one-step-multigenephy-design.md) for the design rationale.
 - In `main_window.py`, preserve the nearby single-instance vs multi-instance behavior for each feature; do not normalize tab reuse patterns unless the task explicitly asks for it.
 - For file-mode tabs, add `self.content_area.addStretch()` after the main controls so the shared operation log stays anchored at the bottom.
 - Reuse `validate_input_path(...)` and `validate_output_path(...)` from `utils/common_components.py` for file validation instead of open-coded checks.

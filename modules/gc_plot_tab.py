@@ -87,11 +87,11 @@ class GCPlotTab(BaseTabWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check your installation."),
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("已载入示例数据: pBR322.fasta"))
+        self.show_status(self.tr("Loaded example data: pBR322.fasta"))
 
     # ── Layout ──────────────────────────────────────────────────────────────
 
@@ -113,8 +113,7 @@ class GCPlotTab(BaseTabWidget):
         self.window_spin.setSuffix(self.tr(" bp"))
         self.window_spin.setToolTip(
             self.tr(
-                "Sliding window size (odd values 21–1001). "
-                "Larger windows produce smoother curves."
+                "Sliding window size (odd values 21–1001). Larger windows produce smoother curves."
             )
         )
         row.addWidget(self.window_spin)
@@ -274,8 +273,7 @@ class GCPlotTab(BaseTabWidget):
         mean_gc = np.nanmean(gc_content)
         self.status_label.setText(
             self.tr(
-                f"Plotted GC content / GC skew (window={window}) — "
-                f"{n} bp, mean GC = {mean_gc:.1f}%"
+                f"Plotted GC content / GC skew (window={window}) — {n} bp, mean GC = {mean_gc:.1f}%"
             )
         )
 
@@ -311,13 +309,21 @@ class GCPlotTab(BaseTabWidget):
         ax2.plot(x, gc_skew, color="#388e3c", linewidth=1.0)
         ax2.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
         ax2.fill_between(
-            x, 0, gc_skew,
-            where=(gc_skew > 0), color="#388e3c", alpha=0.15,
+            x,
+            0,
+            gc_skew,
+            where=(gc_skew > 0),
+            color="#388e3c",
+            alpha=0.15,
             label=self.tr("G excess"),
         )
         ax2.fill_between(
-            x, 0, gc_skew,
-            where=(gc_skew < 0), color="#d32f2f", alpha=0.15,
+            x,
+            0,
+            gc_skew,
+            where=(gc_skew < 0),
+            color="#d32f2f",
+            alpha=0.15,
             label=self.tr("C excess"),
         )
         ax2.set_xlabel(self.tr("Position (bp)"), fontsize=12)
@@ -349,9 +355,7 @@ class GCPlotTab(BaseTabWidget):
 
     def export_result(self):
         if self.current_figure is None:
-            QMessageBox.warning(
-                self, self.tr("Export Error"), self.tr("Generate a plot first.")
-            )
+            QMessageBox.warning(self, self.tr("Export Error"), self.tr("Generate a plot first."))
             return
         from PyQt6.QtWidgets import QFileDialog
 
@@ -451,9 +455,7 @@ to see large-scale skew patterns.</li>
                         content = f.read()
                     self.input_text.setPlainText(content)
                 except Exception as ex:
-                    QMessageBox.warning(
-                        self, self.tr("File Read Error"), str(ex)
-                    )
+                    QMessageBox.warning(self, self.tr("File Read Error"), str(ex))
 
         self.input_text.dragEnterEvent = drag_enter
         self.input_text.dropEvent = drop

@@ -1,4 +1,5 @@
 """Tests for the example-data loader and per-tab Example buttons."""
+
 import os
 
 from utils.app_paths import user_data_dir
@@ -70,7 +71,7 @@ def test_fasta_qc_example_fills_input_edit(qapp):
     assert os.path.isfile(tab.input_edit.text().strip())
 
 
-def test_translate_example_fills_input_text_first_record(qapp):
+def test_translate_example_fills_input_text(qapp):
     from modules.translate_tab import TranslateTab
 
     tab = TranslateTab()
@@ -79,7 +80,7 @@ def test_translate_example_fills_input_text_first_record(qapp):
     btn.click()
     text = tab.input_text.toPlainText()
     assert text.startswith(">")
-    assert text.count(">") == 1  # first record only
+    assert text.count(">") == 2  # BRCA1 + EGFR CDS records
 
 
 def test_physicochemical_example_fills_input_text(qapp):

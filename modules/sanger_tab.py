@@ -29,6 +29,7 @@ _BASE_COLOR = {"A": "#007700", "T": "#BB0000", "G": "#111111", "C": "#0044AA", "
 
 # ── Shared drag-drop helpers (SangerTab has two independent editors) ──
 
+
 def _can_accept_drop(mime_data) -> bool:
     if not mime_data or not mime_data.hasUrls():
         return False
@@ -51,6 +52,7 @@ def _load_dropped_file(mime_data) -> str | None:
 # ─────────────────────────────────────────────────────────────────────────────
 # SangerTab
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class SangerTab(QWidget):
     """Assemble forward and reverse Sanger reads with overlap visualisation."""
@@ -125,7 +127,9 @@ class SangerTab(QWidget):
         )
         self.rev_edit.setMinimumHeight(90)
         self.rev_edit.setToolTip(
-            self.tr("Reverse Sanger read (as-read; will be auto reverse-complemented).  Paste raw sequence or drop a FASTA file.")
+            self.tr(
+                "Reverse Sanger read (as-read; will be auto reverse-complemented).  Paste raw sequence or drop a FASTA file."
+            )
         )
         self._enable_drop(self.rev_edit)
         rev_vbox.addWidget(self.rev_edit)
@@ -154,7 +158,9 @@ class SangerTab(QWidget):
         self.min_overlap_spin = QSpinBox()
         self.min_overlap_spin.setRange(5, 5000)
         self.min_overlap_spin.setValue(20)
-        self.min_overlap_spin.setToolTip(self.tr("Minimum overlap length to consider during assembly"))
+        self.min_overlap_spin.setToolTip(
+            self.tr("Minimum overlap length to consider during assembly")
+        )
         self.min_overlap_spin.setMinimumWidth(80)
         params_hbox.addWidget(self.min_overlap_spin)
 
@@ -166,7 +172,9 @@ class SangerTab(QWidget):
         self.min_identity_spin.setSingleStep(1)
         self.min_identity_spin.setValue(90)
         self.min_identity_spin.setSuffix("%")
-        self.min_identity_spin.setToolTip(self.tr("Minimum identity in the overlap region (50-100%)"))
+        self.min_identity_spin.setToolTip(
+            self.tr("Minimum identity in the overlap region (50-100%)")
+        )
         self.min_identity_spin.setMinimumWidth(80)
         params_hbox.addWidget(self.min_identity_spin)
         params_hbox.addStretch()
@@ -205,9 +213,7 @@ class SangerTab(QWidget):
         _style = self.assembly_result.styleSheet()
         _style = _style.replace("border: 1px solid #94a3b8;", "border: none;")
         self.assembly_result.setStyleSheet(_style)
-        self.assembly_result.setPlaceholderText(
-            self.tr("Assembled sequence will appear here...")
-        )
+        self.assembly_result.setPlaceholderText(self.tr("Assembled sequence will appear here..."))
         self.assembly_result.setMinimumHeight(100)
         self.assembly_result.setToolTip(self.tr("FASTA-formatted assembled contig"))
         go.addWidget(self.assembly_result)
@@ -283,8 +289,12 @@ class SangerTab(QWidget):
         fwd = self.fwd_edit.toPlainText().strip().upper().replace("U", "T")
         rev = self.rev_edit.toPlainText().strip().upper().replace("U", "T")
         if not fwd or not rev:
-            self.status_label.setText(self.tr("Error: Please paste both forward and reverse sequences"))
-            QMessageBox.warning(self, self.tr("Input Error"), self.tr("Paste both forward and reverse sequences"))
+            self.status_label.setText(
+                self.tr("Error: Please paste both forward and reverse sequences")
+            )
+            QMessageBox.warning(
+                self, self.tr("Input Error"), self.tr("Paste both forward and reverse sequences")
+            )
             return
 
         self.status_label.setText(self.tr("Running assembly..."))
@@ -350,18 +360,18 @@ class SangerTab(QWidget):
 
         fwd_len = len(fwd)
         rev_len = len(rev_rc)
-        fwd_non_ov = fwd_len - overlap   # forward unique 5' portion
-        rev_non_ov = rev_len - overlap   # reverse RC unique 3' portion
-        total_w = fwd_len + rev_non_ov   # forward full width + reverse tail
+        fwd_non_ov = fwd_len - overlap  # forward unique 5' portion
+        rev_non_ov = rev_len - overlap  # reverse RC unique 3' portion
+        total_w = fwd_len + rev_non_ov  # forward full width + reverse tail
         margin = total_w * 0.03
 
         # ── Colours ───────────────────────────────────────────────────
-        C_FWD_UNIQUE = "#5c9ce6"   # forward unique region
-        C_REV_UNIQUE = "#7eb8f4"   # reverse unique region
-        C_OVERLAP_BG = "#c8e6c9"   # overlap background tint
-        C_MATCH      = "#43a047"   # match segment
-        C_MISMATCH   = "#e53935"   # mismatch segment
-        C_TEXT       = "#333333"
+        C_FWD_UNIQUE = "#5c9ce6"  # forward unique region
+        C_REV_UNIQUE = "#7eb8f4"  # reverse unique region
+        C_OVERLAP_BG = "#c8e6c9"  # overlap background tint
+        C_MATCH = "#43a047"  # match segment
+        C_MISMATCH = "#e53935"  # mismatch segment
+        C_TEXT = "#333333"
 
         ax = self._overlap_fig.add_subplot(111)
         ax.set_facecolor("#fcfcfc")
@@ -377,34 +387,71 @@ class SangerTab(QWidget):
         # ── Forward bar (upstream, top) ─────────────────────────────
         if fwd_non_ov > 0:
             ax.broken_barh(
-                [(0, fwd_non_ov)], (y_fwd - bar_h / 2, bar_h),
-                facecolors=C_FWD_UNIQUE, edgecolors="none", alpha=0.85,
+                [(0, fwd_non_ov)],
+                (y_fwd - bar_h / 2, bar_h),
+                facecolors=C_FWD_UNIQUE,
+                edgecolors="none",
+                alpha=0.85,
             )
         ax.broken_barh(
-            [(fwd_non_ov, overlap)], (y_fwd - bar_h / 2, bar_h),
-            facecolors=C_OVERLAP_BG, edgecolors="none", alpha=0.7,
+            [(fwd_non_ov, overlap)],
+            (y_fwd - bar_h / 2, bar_h),
+            facecolors=C_OVERLAP_BG,
+            edgecolors="none",
+            alpha=0.7,
         )
-        ax.text(0, y_fwd, "5'", ha="right", va="center",
-                fontsize=7, color="#555", fontweight="bold")
-        ax.text(fwd_len, y_fwd, "3'", ha="left", va="center",
-                fontsize=7, color="#555", fontweight="bold")
+        ax.text(
+            0, y_fwd, "5'", ha="right", va="center", fontsize=7, color="#555", fontweight="bold"
+        )
+        ax.text(
+            fwd_len,
+            y_fwd,
+            "3'",
+            ha="left",
+            va="center",
+            fontsize=7,
+            color="#555",
+            fontweight="bold",
+        )
 
         # ── Reverse RC bar (downstream, bottom) ────────────────────
         # Shifted right so the overlap aligns with Forward's overlap.
         rev_start = fwd_non_ov
         ax.broken_barh(
-            [(rev_start, overlap)], (y_rev - bar_h / 2, bar_h),
-            facecolors=C_OVERLAP_BG, edgecolors="none", alpha=0.7,
+            [(rev_start, overlap)],
+            (y_rev - bar_h / 2, bar_h),
+            facecolors=C_OVERLAP_BG,
+            edgecolors="none",
+            alpha=0.7,
         )
         if rev_non_ov > 0:
             ax.broken_barh(
-                [(rev_start + overlap, rev_non_ov)], (y_rev - bar_h / 2, bar_h),
-                facecolors=C_REV_UNIQUE, edgecolors="none", alpha=0.85,
+                [(rev_start + overlap, rev_non_ov)],
+                (y_rev - bar_h / 2, bar_h),
+                facecolors=C_REV_UNIQUE,
+                edgecolors="none",
+                alpha=0.85,
             )
-        ax.text(rev_start, y_rev, "5'", ha="right", va="center",
-                fontsize=7, color="#555", fontweight="bold")
-        ax.text(total_w, y_rev, "3'", ha="left", va="center",
-                fontsize=7, color="#555", fontweight="bold")
+        ax.text(
+            rev_start,
+            y_rev,
+            "5'",
+            ha="right",
+            va="center",
+            fontsize=7,
+            color="#555",
+            fontweight="bold",
+        )
+        ax.text(
+            total_w,
+            y_rev,
+            "3'",
+            ha="left",
+            va="center",
+            fontsize=7,
+            color="#555",
+            fontweight="bold",
+        )
 
         # ── Match / mismatch quality strip ──────────────────────────
         y_strip = 1.5
@@ -432,11 +479,14 @@ class SangerTab(QWidget):
             ax.broken_barh(
                 [(fwd_non_ov + start, chunk_total)],
                 (y_strip - strip_h / 2, strip_h),
-                facecolors=colour, edgecolors="none", alpha=0.9,
+                facecolors=colour,
+                edgecolors="none",
+                alpha=0.9,
             )
 
         # ── Legend ────────────────────────────────────────────────────
         from matplotlib.patches import Patch
+
         legend_elements = [
             Patch(facecolor=C_FWD_UNIQUE, alpha=0.85, label="Unique region"),
             Patch(facecolor=C_OVERLAP_BG, alpha=0.7, label="Overlap region"),
@@ -444,9 +494,16 @@ class SangerTab(QWidget):
             Patch(facecolor=C_MISMATCH, label="Mismatch"),
         ]
         ax.legend(
-            handles=legend_elements, loc="upper right", fontsize=7,
-            ncol=4, framealpha=0.6, handlelength=1.2, handleheight=1.2,
-            borderpad=0.4, labelspacing=0.3, columnspacing=0.8,
+            handles=legend_elements,
+            loc="upper right",
+            fontsize=7,
+            ncol=4,
+            framealpha=0.6,
+            handlelength=1.2,
+            handleheight=1.2,
+            borderpad=0.4,
+            labelspacing=0.3,
+            columnspacing=0.8,
         )
 
         # ── Layout ────────────────────────────────────────────────────
@@ -486,12 +543,12 @@ class SangerTab(QWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check your installation."),
             )
             return
         self.fwd_edit.setPlainText(fwd)
         self.rev_edit.setPlainText(rev)
-        self.status_label.setText(self.tr("已载入示例数据: 16S 正反向读段"))
+        self.status_label.setText(self.tr("Loaded example data: 16S forward/reverse reads"))
 
     def _clear_all(self):
         self.fwd_edit.clear()
@@ -549,7 +606,9 @@ class SangerTab(QWidget):
             with open(file_path, "w") as f:
                 f.write(seq)
             self.status_label.setText(self.tr(f"Saved to: {file_path}"))
-            QMessageBox.information(self, self.tr("Save Successful"), self.tr(f"Saved to: {file_path}"))
+            QMessageBox.information(
+                self, self.tr("Save Successful"), self.tr(f"Saved to: {file_path}")
+            )
 
     def copy_assembled_to_clipboard(self):
         seq = self.assembly_result.toPlainText().strip()
@@ -558,6 +617,7 @@ class SangerTab(QWidget):
             QMessageBox.warning(self, self.tr("No Assembly Result"), self.tr("Run assembly first"))
             return
         from PyQt6.QtWidgets import QApplication
+
         QApplication.clipboard().setText(seq)
         self.status_label.setText(self.tr("Copied to clipboard"))
 
@@ -566,13 +626,11 @@ class SangerTab(QWidget):
     def show_help(self):
         help_text = self.tr(
             "<h2>Sanger Sequence Assembly &mdash; Pairwise Read Merging</h2>"
-
             "<p><b>What does this tool do?</b><br>"
             "It assembles forward and reverse Sanger sequencing reads into a single "
             "consensus contig by detecting the overlapping region between them. "
             "The reverse read is automatically reverse-complemented before alignment, "
             "and the overlap quality is visualised in real time.</p>"
-
             "<h3>Quick Start</h3>"
             "<ol>"
             "<li>Paste or drag-and-drop your forward and reverse sequences</li>"
@@ -580,7 +638,6 @@ class SangerTab(QWidget):
             "<li>Click <b>Run Assembly</b></li>"
             "<li>Inspect the overlap alignment chart and copy or save the result</li>"
             "</ol>"
-
             "<h3>Parameter Guide</h3>"
             "<table border='0' cellpadding='4' cellspacing='2'>"
             "<tr><td><b>Parameter</b></td><td><b>Recommendation</b></td></tr>"
@@ -589,21 +646,18 @@ class SangerTab(QWidget):
             "<tr><td>Min identity</td><td>90% for typical Sanger data; "
             "lower to 80% for lower-quality or cross-species reads</td></tr>"
             "</table>"
-
             "<h3>Understanding the Overlap Chart</h3>"
             "<ul>"
             "<li>The <b>top blue bar</b> is the forward read; the <b>bottom bar</b> is the reverse-complemented reverse read</li>"
             "<li>The <b>green overlap strip</b> shows where the two reads align &mdash; green = matching bases, red = mismatches</li>"
             "<li>If no overlap is detected, the reads are concatenated end-to-end as a fallback</li>"
             "</ul>"
-
             "<h3>Input Formats</h3>"
             "<ul>"
             "<li><b>Raw sequence</b> &mdash; plain text (e.g. <code>ATGCGATCG...</code>)</li>"
             "<li><b>FASTA</b> &mdash; drag-and-drop a .fasta file onto either input box</li>"
             "<li>Non-ACGT characters and whitespace are automatically stripped; U is treated as T</li>"
             "</ul>"
-
             "<h3>Tips</h3>"
             "<ul>"
             "<li>Always visually check the overlap alignment chart &mdash; a long green bar with few red spots means a reliable assembly</li>"
@@ -613,7 +667,12 @@ class SangerTab(QWidget):
             "</ul>"
         )
         from PyQt6.QtWidgets import (
-            QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea,
+            QDialog,
+            QVBoxLayout,
+            QHBoxLayout,
+            QLabel,
+            QPushButton,
+            QScrollArea,
         )
         from PyQt6.QtCore import Qt as QtCore
 

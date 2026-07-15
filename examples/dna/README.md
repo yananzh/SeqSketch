@@ -16,7 +16,7 @@ Real DNA sequences for the DNA Analysis menu's Example buttons.
 ## Sanger trace file
 
 `../sanger/pUC19_M13F.ab1` — A real Sanger sequencing trace file (ABIF format,
-1165 bases, ~300 KB). Used by the Sanger Seq Viewer tab. Source: public
+1165 bases, ~300 KB). Used by the Sanger Chromatogram Viewer tab. Source: public
 Biopython test dataset.
 
 ## Notes

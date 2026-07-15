@@ -58,7 +58,7 @@ def create_menus(window):
     orf_action = QAction(window.tr("ORF Finder"), window)
     orf_action.triggered.connect(window.open_orf_tab)
     dna_menu.addAction(orf_action)
-    sanger_viewer_action = QAction(window.tr("Sanger Seq Viewer"), window)
+    sanger_viewer_action = QAction(window.tr("Sanger Chromatogram Viewer"), window)
     sanger_viewer_action.triggered.connect(window.open_sanger_viewer_tab)
     dna_menu.addAction(sanger_viewer_action)
     sanger_action = QAction(window.tr("Sanger Sequence Assembly"), window)

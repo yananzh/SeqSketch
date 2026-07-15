@@ -1,6 +1,7 @@
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 import re
+from Bio.Data import CodonTable
 from PyQt6.QtWidgets import (
     QSpinBox,
     QComboBox,
@@ -9,6 +10,7 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QPushButton,
     QVBoxLayout,
+    QGridLayout,
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
@@ -21,72 +23,29 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
-CODON_TABLE = {
-    "TTT": "F",
-    "TTC": "F",
-    "TTA": "L",
-    "TTG": "L",
-    "TCT": "S",
-    "TCC": "S",
-    "TCA": "S",
-    "TCG": "S",
-    "TAT": "Y",
-    "TAC": "Y",
-    "TAA": "*",
-    "TAG": "*",
-    "TGT": "C",
-    "TGC": "C",
-    "TGA": "*",
-    "TGG": "W",
-    "CTT": "L",
-    "CTC": "L",
-    "CTA": "L",
-    "CTG": "L",
-    "CCT": "P",
-    "CCC": "P",
-    "CCA": "P",
-    "CCG": "P",
-    "CAT": "H",
-    "CAC": "H",
-    "CAA": "Q",
-    "CAG": "Q",
-    "CGT": "R",
-    "CGC": "R",
-    "CGA": "R",
-    "CGG": "R",
-    "ATT": "I",
-    "ATC": "I",
-    "ATA": "I",
-    "ATG": "M",
-    "ACT": "T",
-    "ACC": "T",
-    "ACA": "T",
-    "ACG": "T",
-    "AAT": "N",
-    "AAC": "N",
-    "AAA": "K",
-    "AAG": "K",
-    "AGT": "S",
-    "AGC": "S",
-    "AGA": "R",
-    "AGG": "R",
-    "GTT": "V",
-    "GTC": "V",
-    "GTA": "V",
-    "GTG": "V",
-    "GCT": "A",
-    "GCC": "A",
-    "GCA": "A",
-    "GCG": "A",
-    "GAT": "D",
-    "GAC": "D",
-    "GAA": "E",
-    "GAG": "E",
-    "GGT": "G",
-    "GGC": "G",
-    "GGA": "G",
-    "GGG": "G",
+# NCBI genetic code table id, keyed by the human-readable label shown in the combo box.
+GENETIC_CODES = {
+    "1 - Standard (Universal)": 1,
+    "2 - Vertebrate Mitochondrial": 2,
+    "3 - Yeast Mitochondrial": 3,
+    "4 - Mold / Protozoan / Coelenterate Mitochondrial": 4,
+    "5 - Invertebrate Mitochondrial": 5,
+    "6 - Ciliate, Dasycladacean and Hexamita Nuclear": 6,
+    "9 - Echinoderm and Flatworm Mitochondrial": 9,
+    "11 - Bacterial, Archaeal and Plant Plastid": 11,
+    "12 - Alternative Yeast Nuclear": 12,
+    "13 - Ascidian Mitochondrial": 13,
+    "14 - Alternative Flatworm Mitochondrial": 14,
 }
+
+
+def _codon_table_dict(table_id: int) -> dict:
+    """Build a codon -> amino-acid dict (stop codons mapped to '*') for an NCBI genetic code id."""
+    bt = CodonTable.unambiguous_dna_by_id[table_id]
+    table = dict(bt.forward_table)
+    for stop in bt.stop_codons:
+        table[stop] = "*"
+    return table
 
 
 class ORFTab(BaseTabWidget):
@@ -131,29 +90,30 @@ class ORFTab(BaseTabWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check your installation."),
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("已载入示例数据: lambda_1kb.fasta"))
+        self.show_status(self.tr("Loaded example data: lambda_1kb.fasta"))
 
     def _setup_parameters(self):
         """Setup parameter controls in a QGroupBox."""
         grp = QGroupBox(self.tr("Parameters"))
         grp.setFlat(True)
-        params_layout = QHBoxLayout(grp)
-        params_layout.setContentsMargins(0, 16, 0, 4)
+        grid = QGridLayout(grp)
+        grid.setContentsMargins(0, 16, 0, 4)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(8)
 
-        params_layout.addWidget(QLabel(self.tr("Min ORF Length:")))
+        grid.addWidget(QLabel(self.tr("Min ORF Length:")), 0, 0)
         self.min_len_box = QSpinBox()
         self.min_len_box.setRange(30, 10000)
-        self.min_len_box.setValue(100)
+        self.min_len_box.setValue(75)
         self.min_len_box.setSuffix(" nt")
         self.min_len_box.setMinimumWidth(100)
-        params_layout.addWidget(self.min_len_box)
-        params_layout.addSpacing(16)
+        grid.addWidget(self.min_len_box, 0, 1, Qt.AlignmentFlag.AlignLeft)
 
-        params_layout.addWidget(QLabel(self.tr("Search Strand:")))
+        grid.addWidget(QLabel(self.tr("Search Strand:")), 0, 2)
         self.chain_box = QComboBox()
         self.chain_box.addItems([
             "Forward strand only",
@@ -161,19 +121,32 @@ class ORFTab(BaseTabWidget):
             "Both strands",
         ])
         self.chain_box.setCurrentIndex(2)
-        self.chain_box.setMinimumWidth(160)
-        params_layout.addWidget(self.chain_box)
-        params_layout.addSpacing(16)
+        self.chain_box.setMinimumWidth(200)
+        grid.addWidget(self.chain_box, 0, 3, Qt.AlignmentFlag.AlignLeft)
 
-        params_layout.addWidget(QLabel(self.tr("Start Codons:")))
+        grid.addWidget(QLabel(self.tr("Start Codons:")), 1, 0)
         self.start_codon_box = QComboBox()
         self.start_codon_box.addItems([
             "ATG only (standard)",
             "ATG, GTG, TTG (alternative)",
         ])
-        self.start_codon_box.setMinimumWidth(200)
-        params_layout.addWidget(self.start_codon_box)
-        params_layout.addStretch()
+        self.start_codon_box.setMinimumWidth(240)
+        grid.addWidget(self.start_codon_box, 1, 1, Qt.AlignmentFlag.AlignLeft)
+
+        grid.addWidget(QLabel(self.tr("Genetic Code:")), 1, 2)
+        self.genetic_code_box = QComboBox()
+        self.genetic_code_box.addItems(list(GENETIC_CODES.keys()))
+        self.genetic_code_box.setMinimumWidth(280)
+        self.genetic_code_box.setToolTip(
+            self.tr(
+                "NCBI genetic code table used to detect stop codons and "
+                "translate ORFs. Choose an alternative (e.g. mitochondrial) "
+                "code if your sequence doesn't use the standard code."
+            )
+        )
+        grid.addWidget(self.genetic_code_box, 1, 3, Qt.AlignmentFlag.AlignLeft)
+
+        grid.setColumnStretch(4, 1)
 
         self.add_content_widget(grp)
 
@@ -203,9 +176,7 @@ class ORFTab(BaseTabWidget):
             QHeaderView.ResizeMode.Stretch,
         )
         self._orf_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self._orf_table.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows
-        )
+        self._orf_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._orf_table.setAlternatingRowColors(True)
         self._orf_table.setMinimumWidth(420)
         splitter.addWidget(self._orf_table)
@@ -236,7 +207,7 @@ class ORFTab(BaseTabWidget):
     def run(self):
         raw = self.input_text.toPlainText().strip()
         if not raw:
-            self.status_label.setText("Please enter a DNA sequence.")
+            self.show_status("Please enter a DNA sequence.")
             return
 
         # Parse FASTA records (support single raw sequence and multi-FASTA)
@@ -264,6 +235,9 @@ class ORFTab(BaseTabWidget):
         min_len = self.min_len_box.value()
         chain_mode = self.chain_box.currentIndex()
         use_alt_start = self.start_codon_box.currentIndex() == 1
+        genetic_code_id = GENETIC_CODES[self.genetic_code_box.currentText()]
+        codon_table = _codon_table_dict(genetic_code_id)
+        stop_codons = tuple(codon for codon, aa in codon_table.items() if aa == "*")
 
         all_results: list[dict] = []
         for record_idx, (rec_header, seq) in enumerate(records):
@@ -271,9 +245,8 @@ class ORFTab(BaseTabWidget):
             if not seq:
                 continue
             if not re.fullmatch(r"[ACGTN]+", seq):
-                self.status_label.setText(
-                    f"Invalid characters in record \"{rec_header}\". "
-                    "Only A/T/G/C/N allowed."
+                self.show_status(
+                    f'Invalid characters in record "{rec_header}". Only A/T/G/C/N allowed.'
                 )
                 return
 
@@ -281,11 +254,18 @@ class ORFTab(BaseTabWidget):
             prefix = f" [{rec_header}]" if len(records) > 1 else ""
             results = []
             if chain_mode in (0, 2):
-                results += self.find_orfs(seq, "+", use_alt_start)
+                results += self.find_orfs(
+                    seq, "+", use_alt_start, codon_table=codon_table, stop_codons=stop_codons
+                )
             if chain_mode in (1, 2):
                 revcomp = self.reverse_complement(seq)
                 results += self.find_orfs(
-                    revcomp, "-", use_alt_start, original_len=len(seq)
+                    revcomp,
+                    "-",
+                    use_alt_start,
+                    original_len=len(seq),
+                    codon_table=codon_table,
+                    stop_codons=stop_codons,
                 )
             for o in results:
                 o["header_tag"] = prefix
@@ -313,12 +293,24 @@ class ORFTab(BaseTabWidget):
                 f"Sequence: {o['seq']}\nTranslation: {o['aa']}\n"
             )
         self.output_text.setPlainText("\n".join(out_lines))
-        self.status_label.setText(f"Found {len(all_results)} ORFs  (sorted by length)")
+        self.show_status(f"Found {len(all_results)} ORFs  (sorted by length)")
 
-    def find_orfs(self, seq, strand, use_alt_start=False, original_len=None):
+    def find_orfs(
+        self,
+        seq,
+        strand,
+        use_alt_start=False,
+        original_len=None,
+        codon_table=None,
+        stop_codons=None,
+    ):
         """Find ORFs.  *seq* is already reverse-complemented for the '-' strand."""
         orfs = []
         start_codons = ["ATG", "GTG", "TTG"] if use_alt_start else ["ATG"]
+        if codon_table is None:
+            codon_table = _codon_table_dict(1)
+        if stop_codons is None:
+            stop_codons = tuple(c for c, aa in codon_table.items() if aa == "*")
         n = len(seq)
         for frame in range(3):
             i = frame
@@ -327,9 +319,9 @@ class ORFTab(BaseTabWidget):
                 if codon in start_codons:
                     for j in range(i + 3, n - 2, 3):
                         stop = seq[j : j + 3]
-                        if stop in ("TAA", "TAG", "TGA"):
+                        if stop in stop_codons:
                             orf_seq = seq[i : j + 3]
-                            aa = self.translate(orf_seq)
+                            aa = self.translate(orf_seq, codon_table)
                             if strand == "+":
                                 s, e = i + 1, j + 3  # 1‑based, forward
                             else:
@@ -353,11 +345,11 @@ class ORFTab(BaseTabWidget):
         return orfs
 
     @staticmethod
-    def translate(seq):
+    def translate(seq, codon_table):
         aa_seq = []
         for i in range(0, len(seq) - 2, 3):
             codon = seq[i : i + 3]
-            aa = CODON_TABLE.get(codon, "X")
+            aa = codon_table.get(codon, "X")
             aa_seq.append(aa)
         return "".join(aa_seq)
 
@@ -476,9 +468,7 @@ class ORFTab(BaseTabWidget):
             "FASTA Files (*.fasta);;Text Files (*.txt)",
         )
         if path:
-            sorted_results = sorted(
-                self._results, key=lambda o: o["length"], reverse=True
-            )
+            sorted_results = sorted(self._results, key=lambda o: o["length"], reverse=True)
             with open(path, "w", encoding="utf-8") as fh:
                 for idx, o in enumerate(sorted_results, 1):
                     fh.write(
@@ -486,7 +476,7 @@ class ORFTab(BaseTabWidget):
                         f"Pos:{o['start']}-{o['end']} | "
                         f"Len:{o['length']}nt\n{o['seq']}\n"
                     )
-            self.status_label.setText(f"Exported {len(sorted_results)} ORFs to {path}")
+            self.show_status(f"Exported {len(sorted_results)} ORFs to {path}")
 
     def copy_result(self):
         """Copy selected ORF sequences to clipboard."""
@@ -500,11 +490,11 @@ class ORFTab(BaseTabWidget):
             if not self._results:
                 return
             QApplication.clipboard().setText("\n".join(o["aa"] for o in self._results))
-            self.status_label.setText("Copied all ORFs to clipboard")
+            self.show_status("Copied all ORFs to clipboard")
             return
         selected = [self._results[r] for r in sorted(rows)]
         QApplication.clipboard().setText("\n".join(o["aa"] for o in selected))
-        self.status_label.setText(f"Copied {len(selected)} ORF(s) to clipboard")
+        self.show_status(f"Copied {len(selected)} ORF(s) to clipboard")
 
     # ── Help ───────────────────────────────────────────────────────────
 
@@ -533,6 +523,7 @@ identification.</p>
 <tr><td>Min ORF Length</td><td>Filters out short ORFs. For bacterial genomes 100 nt is typical; for eukaryotes try 300 nt.</td></tr>
 <tr><td>Search Strand</td><td><b>Both strands</b> = all 6 reading frames (best for discovery). <b>Forward only</b> = 3 frames on the + strand.</td></tr>
 <tr><td>Start Codons</td><td><b>ATG only</b> for eukaryotes. <b>ATG/GTG/TTG</b> for bacteria where alternative starts are common.</td></tr>
+<tr><td>Genetic Code</td><td>NCBI genetic code table used to detect stop codons and translate ORFs. Defaults to <b>Standard</b>; choose a mitochondrial or alternative code if your sequence uses a different one.</td></tr>
 </table>
 
 <h3>Understanding the Output</h3>
