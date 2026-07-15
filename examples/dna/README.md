@@ -9,8 +9,7 @@ Real DNA sequences for the DNA Analysis menu's Example buttons.
 | `hbb_exon1.fasta` | Human beta-globin (HBB) exon 1, 142 bp | NCBI NM_000518.5 | Convert to RNA |
 | `16s_primers.fasta` | Universal 16S rRNA primers 27F (20 nt) + 1492R (19 nt) | Standard textbook sequences | Complement / Reverse Complement |
 | `lambda_1kb.fasta` | Lambda phage early gene region, 1200 bp | NCBI J02459 (first 1200 bp) | ORF Finder |
-| `16s_ecoli_fwd.fasta` | E. coli 16S rRNA forward read, 700 bp | NCBI NR_103074 (pos 200–900) | Sanger Sequence Assembly |
-| `16s_ecoli_rev.fasta` | E. coli 16S rRNA reverse read, 700 bp | NCBI NR_103074 (pos 600–1300) | Sanger Sequence Assembly |
+| `sanger_assembly_example.fasta` | E. coli 16S rRNA forward read (700 bp) + reverse read (700 bp, as-read) | NCBI NR_103074 (pos 200–900 fwd, 600–1300 rev) | Sanger Sequence Assembly |
 | `pBR322.fasta` | pBR322 plasmid complete sequence, 4361 bp | NCBI J01749 | Restriction Enzyme Analysis, GC Content / GC Skew Plot |
 
 ## Sanger trace file

@@ -216,9 +216,9 @@ def test_sanger_assembly_example_fills_both_inputs(qapp):
     btn.click()
     fwd = tab.fwd_edit.toPlainText()
     rev = tab.rev_edit.toPlainText()
-    assert fwd.startswith(">"), "forward read not filled"
-    assert rev.startswith(">"), "reverse read not filled"
-    assert "16S" in fwd or "ecoli" in fwd.lower()
+    assert fwd.startswith(">sanger_read_f"), "forward read not filled"
+    assert rev.startswith(">sanger_read_r"), "reverse read not filled"
+    assert fwd != rev
 
 
 def test_sanger_viewer_example_fills_file_edit(qapp):

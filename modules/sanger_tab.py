@@ -103,14 +103,6 @@ class SangerTab(QWidget):
         self._enable_drop(self.fwd_edit)
         fwd_vbox.addWidget(self.fwd_edit)
 
-        fwd_btn_row = QHBoxLayout()
-        self.fwd_browse_btn = QPushButton(self.tr("Browse"))
-        self.fwd_browse_btn.setFixedWidth(90)
-        self.fwd_browse_btn.clicked.connect(lambda: self._browse_file(self.fwd_edit))
-        fwd_btn_row.addWidget(self.fwd_browse_btn)
-        fwd_btn_row.addStretch()
-        fwd_vbox.addLayout(fwd_btn_row)
-
         rev_vbox = QVBoxLayout()
         rev_vbox.addWidget(QLabel(self.tr("Reverse Sequence (auto reverse-complemented):")))
         self.rev_edit = QTextEdit()
@@ -133,14 +125,6 @@ class SangerTab(QWidget):
         )
         self._enable_drop(self.rev_edit)
         rev_vbox.addWidget(self.rev_edit)
-
-        rev_btn_row = QHBoxLayout()
-        self.rev_browse_btn = QPushButton(self.tr("Browse"))
-        self.rev_browse_btn.setFixedWidth(90)
-        self.rev_browse_btn.clicked.connect(lambda: self._browse_file(self.rev_edit))
-        rev_btn_row.addWidget(self.rev_browse_btn)
-        rev_btn_row.addStretch()
-        rev_vbox.addLayout(rev_btn_row)
 
         seqs_hbox.addLayout(fwd_vbox)
         seqs_hbox.addLayout(rev_vbox)
@@ -237,7 +221,7 @@ class SangerTab(QWidget):
         status_layout.addWidget(self.status_label)
         status_layout.addStretch()
 
-        self.run_btn = QPushButton(self.tr("Run Assembly"))
+        self.run_btn = QPushButton(self.tr("Run"))
         self.run_btn.setFixedWidth(120)
         self.run_btn.clicked.connect(self.run_assembly)
         status_layout.addWidget(self.run_btn)
@@ -286,8 +270,8 @@ class SangerTab(QWidget):
     # ── Assembly logic ─────────────────────────────────────────────────
 
     def run_assembly(self):
-        fwd = self.fwd_edit.toPlainText().strip().upper().replace("U", "T")
-        rev = self.rev_edit.toPlainText().strip().upper().replace("U", "T")
+        fwd = self._sequence_from_input(self.fwd_edit.toPlainText())
+        rev = self._sequence_from_input(self.rev_edit.toPlainText())
         if not fwd or not rev:
             self.status_label.setText(
                 self.tr("Error: Please paste both forward and reverse sequences")
@@ -343,6 +327,16 @@ class SangerTab(QWidget):
 
         self.assembly_result.setPlainText(fasta_out)
         self._draw_overlap_alignment()
+
+    @staticmethod
+    def _sequence_from_input(text: str) -> str:
+        """Return the nucleotide sequence from raw text or a single FASTA record."""
+        sequence_lines = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip() and not line.lstrip().startswith(">")
+        ]
+        return "".join(sequence_lines).upper().replace("U", "T")
 
     # ── Overlap visualisation ──────────────────────────────────────────
 
@@ -520,35 +514,32 @@ class SangerTab(QWidget):
 
     # ── Helpers ────────────────────────────────────────────────────────
 
-    def _browse_file(self, editor: QTextEdit) -> None:
-        """Open a file dialog and load a FASTA/text file into the given editor."""
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            self.tr("Open Sequence File"),
-            "",
-            self.tr("FASTA/TXT (*.fasta *.fa *.txt);;All Files (*)"),
-        )
-        if path:
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    editor.setPlainText(f.read())
-            except Exception as ex:
-                QMessageBox.warning(self, self.tr("File Read Error"), str(ex))
-
     def _load_example(self):
-        """Load the bundled E. coli 16S forward + reverse reads."""
-        fwd = load_example_text("dna", "16s_ecoli_fwd.fasta")
-        rev = load_example_text("dna", "16s_ecoli_rev.fasta")
-        if not fwd or not rev:
+        """Load the bundled Sanger assembly example (forward + reverse-as-read records)."""
+        text = load_example_text("dna", "sanger_assembly_example.fasta")
+        if not text:
             QMessageBox.information(
                 self,
                 self.tr("Example"),
                 self.tr("Failed to load example data. Please check your installation."),
             )
             return
+        records = text.strip().split("\n>")
+        if len(records) < 2:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("Failed to load example data. Please check your installation."),
+            )
+            return
+        fwd = records[0].strip()
+        rev = records[1].strip()
+        if not fwd.startswith(">"):
+            fwd = ">" + fwd
+        rev = ">" + rev
         self.fwd_edit.setPlainText(fwd)
         self.rev_edit.setPlainText(rev)
-        self.status_label.setText(self.tr("Loaded example data: 16S forward/reverse reads"))
+        self.status_label.setText(self.tr("Loaded example data: sanger_assembly_example.fasta"))
 
     def _clear_all(self):
         self.fwd_edit.clear()
@@ -635,7 +626,7 @@ class SangerTab(QWidget):
             "<ol>"
             "<li>Paste or drag-and-drop your forward and reverse sequences</li>"
             "<li>Set <b>Min overlap</b> (bp) and <b>Min identity</b> (%)</li>"
-            "<li>Click <b>Run Assembly</b></li>"
+            "<li>Click <b>Run</b></li>"
             "<li>Inspect the overlap alignment chart and copy or save the result</li>"
             "</ol>"
             "<h3>Parameter Guide</h3>"

@@ -4,7 +4,7 @@ from types import SimpleNamespace
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PyQt6.QtWidgets import QFrame, QLabel, QPushButton
+from PyQt6.QtWidgets import QFrame, QLabel, QMessageBox, QPushButton
 
 from main_window import MainWindow
 from modules.alignment_format_converter_tab import AlignmentFormatConverterTab
@@ -397,6 +397,21 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
         assert editor.frameShape() == QFrame.Shape.NoFrame
         assert "border-radius" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
+
+
+def test_sanger_assembly_outputs_merged_fasta_contig_without_input_headers(
+    qapp, monkeypatch
+):
+    tab = SangerTab()
+    tab.fwd_edit.setPlainText(">forward_read\nAAAGGGCCC")
+    tab.rev_edit.setPlainText(">reverse_read\nAAAGGGCCC")
+    tab.min_overlap_spin.setValue(6)
+    monkeypatch.setattr(QMessageBox, "information", lambda *args: None)
+    monkeypatch.setattr(QMessageBox, "warning", lambda *args: None)
+
+    tab.run_assembly()
+
+    assert tab.assembly_result.toPlainText() == ">assembled_contig\nAAAGGGCCCTTT"
 
 
 def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
