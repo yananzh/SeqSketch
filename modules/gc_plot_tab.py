@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QPushButton,
     QWidget,
+    QCheckBox,
 )
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget
@@ -22,6 +23,8 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import numpy as np
+import math
+import matplotlib.ticker as ticker
 
 
 class GCPlotTab(BaseTabWidget):
@@ -41,13 +44,6 @@ class GCPlotTab(BaseTabWidget):
         self.output_text.hide()
         self.output_label.hide()
         self.input_hint.hide()
-
-        # Add explicit "Save Figure" button in the status row after Plot
-        self.save_fig_btn = QPushButton(self.tr("Save Figure"))
-        self.save_fig_btn.setFixedWidth(110)
-        self.save_fig_btn.clicked.connect(self.export_result)
-        _idx = self.status_layout.indexOf(self.run_btn)
-        self.status_layout.insertWidget(_idx + 1, self.save_fig_btn)
 
         self.input_text.setPlaceholderText(
             self.tr(
@@ -81,8 +77,8 @@ class GCPlotTab(BaseTabWidget):
             self.step_spin.setValue(val)
 
     def _load_example(self):
-        """Load the bundled pBR322 plasmid example for GC plot."""
-        text = load_example_text("dna", "pBR322.fasta")
+        """Load the bundled E. coli K-12 genome example for GC skew analysis."""
+        text = load_example_text("dna", "Escherichia coli_K-12.fasta")
         if not text:
             QMessageBox.information(
                 self,
@@ -91,7 +87,28 @@ class GCPlotTab(BaseTabWidget):
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("Loaded example data: pBR322.fasta"))
+        self._auto_adjust_window()
+        self.show_status(self.tr("Loaded example data: Escherichia coli_K-12.fasta"))
+
+    def _auto_adjust_window(self):
+        """Set window size automatically based on the current input sequence length."""
+        text = self.input_text.toPlainText().strip()
+        if not text:
+            return
+        records = self._parse_fasta(text)
+        if not records:
+            return
+        _, seq = records[0]
+        clean = "".join(c for c in seq.upper() if c.isalpha())
+        n = len(clean)
+        if n < 1:
+            return
+        # Scale window as ~0.5 × sqrt(n), clamped to [21, 5001], rounded to nearest odd
+        w = max(21, min(5001, int(math.sqrt(n) * 0.5)))
+        if w % 2 == 0:
+            w += 1
+        self.window_spin.setValue(w)
+        self.step_spin.setValue(w)
 
     # ── Layout ──────────────────────────────────────────────────────────────
 
@@ -100,14 +117,14 @@ class GCPlotTab(BaseTabWidget):
         param_group.setFlat(True)
         pg_layout = QVBoxLayout(param_group)
         pg_layout.setContentsMargins(12, 12, 0, 12)
-        pg_layout.setSpacing(0)
+        pg_layout.setSpacing(6)
 
         row = QHBoxLayout()
         row.setSpacing(16)
 
         row.addWidget(QLabel(self.tr("Window:")))
         self.window_spin = QSpinBox()
-        self.window_spin.setRange(21, 1001)
+        self.window_spin.setRange(21, 10001)
         self.window_spin.setSingleStep(2)
         self.window_spin.setValue(101)
         self.window_spin.setSuffix(self.tr(" bp"))
@@ -133,6 +150,20 @@ class GCPlotTab(BaseTabWidget):
 
         row.addStretch()
         pg_layout.addLayout(row)
+
+        self._cumulative_cb = QCheckBox(
+            self.tr("Cumulative GC Skew (Σ (G−C)/(G+C) — shows oriC/terC boundaries)")
+        )
+        self._cumulative_cb.setToolTip(
+            self.tr(
+                "When checked, GC skew values are accumulated (running sum) across the "
+                "sequence. The global minimum indicates the replication origin (oriC); "
+                "the global maximum indicates the terminus (terC). Uncheck to show "
+                "per-window (local) GC skew instead."
+            )
+        )
+        pg_layout.addWidget(self._cumulative_cb)
+
         self.content_area.insertWidget(1, param_group)
 
     def _add_plot_canvas(self):
@@ -148,9 +179,7 @@ class GCPlotTab(BaseTabWidget):
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.toolbar.hide()
 
-        plot_label = QLabel(self.tr("GC Content / GC Skew Profile:"))
         plot_layout = QVBoxLayout()
-        plot_layout.addWidget(plot_label)
         plot_layout.addWidget(self.toolbar)
         plot_layout.addWidget(self._scroll_area)
         self.content_area.insertLayout(self.content_area.count() - 1, plot_layout)
@@ -269,7 +298,10 @@ class GCPlotTab(BaseTabWidget):
         gc_content = np.interp(all_x, sample_x, sample_gc)
         gc_skew = np.interp(all_x, sample_x, sample_skew)
 
-        self._draw_plot(clean, gc_content, gc_skew, window, header)
+        cumulative = self._cumulative_cb.isChecked()
+        gc_skew_display = np.cumsum(gc_skew) if cumulative else gc_skew
+
+        self._draw_plot(clean, gc_content, gc_skew_display, window, header, cumulative)
         mean_gc = np.nanmean(gc_content)
         self.status_label.setText(
             self.tr(
@@ -277,10 +309,11 @@ class GCPlotTab(BaseTabWidget):
             )
         )
 
-    def _draw_plot(self, seq, gc_content, gc_skew, window, header):
+    def _draw_plot(self, seq, gc_content, gc_skew, window, header, cumulative=False):
         self.figure.clear()
         x = np.arange(1, len(seq) + 1)
 
+        # --- GC Content (top panel) ---
         ax1 = self.figure.add_subplot(211)
         ax1.set_facecolor("#f9f9f9")
 
@@ -303,38 +336,95 @@ class GCPlotTab(BaseTabWidget):
         ax1.set_ylim(0, 100)
         ax1.legend(loc="upper right", fontsize=9)
 
+        # --- GC Skew (bottom panel) ---
         ax2 = self.figure.add_subplot(212, sharex=ax1)
         ax2.set_facecolor("#f9f9f9")
 
-        ax2.plot(x, gc_skew, color="#388e3c", linewidth=1.0)
-        ax2.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
-        ax2.fill_between(
-            x,
-            0,
-            gc_skew,
-            where=(gc_skew > 0),
-            color="#388e3c",
-            alpha=0.15,
-            label=self.tr("G excess"),
-        )
-        ax2.fill_between(
-            x,
-            0,
-            gc_skew,
-            where=(gc_skew < 0),
-            color="#d32f2f",
-            alpha=0.15,
-            label=self.tr("C excess"),
-        )
+        if cumulative:
+            # Cumulative GC skew — oriC detection mode
+            ax2.plot(x, gc_skew, color="#7b1fa2", linewidth=1.2)
+            ax2.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
+            ax2.fill_between(
+                x,
+                0,
+                gc_skew,
+                where=(gc_skew > 0),
+                color="#7b1fa2",
+                alpha=0.12,
+                label=self.tr("G excess (leading)"),
+            )
+            ax2.fill_between(
+                x,
+                0,
+                gc_skew,
+                where=(gc_skew < 0),
+                color="#e65100",
+                alpha=0.12,
+                label=self.tr("C excess (lagging)"),
+            )
+            ax2.set_ylabel(self.tr("Cumulative GC Skew"), fontsize=12)
+            ax2.set_title(
+                self.tr(f"Cumulative GC Skew = Σ (G−C)/(G+C) — {header}"),
+                fontsize=13,
+                fontweight="bold",
+            )
+            # Mark global min (putative oriC) and max (putative terC)
+            idx_min = np.argmin(gc_skew)
+            idx_max = np.argmax(gc_skew)
+            ax2.scatter(
+                x[idx_min], gc_skew[idx_min],
+                color="#d32f2f", s=60, zorder=5,
+                label=self.tr(f"oriC ≈ {int(x[idx_min])} bp"),
+            )
+            ax2.scatter(
+                x[idx_max], gc_skew[idx_max],
+                color="#2e7d32", s=60, zorder=5,
+                label=self.tr(f"terC ≈ {int(x[idx_max])} bp"),
+            )
+        else:
+            # Local (per-window) GC skew
+            ax2.plot(x, gc_skew, color="#388e3c", linewidth=1.0)
+            ax2.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
+            ax2.fill_between(
+                x,
+                0,
+                gc_skew,
+                where=(gc_skew > 0),
+                color="#388e3c",
+                alpha=0.15,
+                label=self.tr("G excess"),
+            )
+            ax2.fill_between(
+                x,
+                0,
+                gc_skew,
+                where=(gc_skew < 0),
+                color="#d32f2f",
+                alpha=0.15,
+                label=self.tr("C excess"),
+            )
+            ax2.set_ylabel(self.tr("GC Skew"), fontsize=12)
+            ax2.set_title(
+                self.tr(f"GC Skew = (G−C)/(G+C) — {header}"),
+                fontsize=13,
+                fontweight="bold",
+            )
+            ax2.set_ylim(-1, 1)
+
         ax2.set_xlabel(self.tr("Position (bp)"), fontsize=12)
-        ax2.set_ylabel(self.tr("GC Skew"), fontsize=12)
-        ax2.set_title(
-            self.tr(f"GC Skew = (G−C)/(G+C) — {header}"),
-            fontsize=13,
-            fontweight="bold",
-        )
-        ax2.set_ylim(-1, 1)
         ax2.legend(loc="upper right", fontsize=9)
+
+        # Clean x-axis: use plain bp or kb formatting, no scientific offset
+        n = len(seq)
+        if n >= 10000:
+            ax2.xaxis.set_major_formatter(
+                ticker.FuncFormatter(lambda v, _: f"{v/1000:.0f} kb" if v >= 1000 else f"{int(v)}")
+            )
+            ax2.set_xlabel(self.tr("Position (kb)"), fontsize=12)
+        else:
+            ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
+            ax2.set_xlabel(self.tr("Position (bp)"), fontsize=12)
+        ax1.tick_params(labelbottom=False)  # top panel shares x-axis, hide its labels
 
         self.figure.tight_layout()
         self.current_figure = self.figure
@@ -388,34 +478,89 @@ class GCPlotTab(BaseTabWidget):
 
 <p><b>What does this tool do?</b><br>
 It computes GC content and GC skew across a DNA sequence using a
-sliding window, then plots both profiles. GC skew = (G−C)/(G+C)
-is widely used in bacterial genomics to locate the origin of
-replication (<em>oriC</em>) and the terminus — the skew flips
-sign across these boundaries.</p>
+sliding window, then plots both profiles. GC content reveals base
+composition variation; GC skew reveals strand asymmetry caused by
+differential mutation rates during replication — a classic method
+for locating the origin (<em>oriC</em>) and terminus of replication
+in bacterial genomes (Lobry 1996, Grigoriev 1998).</p>
 
-<h3>Interpretation</h3>
+<h3>Quick Start</h3>
+<ol>
+<li>Paste a DNA sequence or click <b>Example</b> to load the E.&nbsp;coli K-12 genome</li>
+<li>Adjust <b>Window</b> size for the desired smoothing level</li>
+<li>Check <b>Cumulative GC Skew</b> if you want to locate oriC/terC</li>
+<li>Click <b>Plot</b> — use the toolbar to zoom, pan, or export</li>
+</ol>
+
+<h3>Metrics Explained</h3>
+<table border='0' cellpadding='4' cellspacing='2'>
+<tr><td><b>Metric</b></td><td><b>Formula</b></td><td><b>Range</b></td><td><b>Interpretation</b></td></tr>
+<tr><td>GC Content</td><td>(G+C)/(A+T+G+C)</td><td>0–100%</td><td>Overall GC richness; coding regions tend to be GC-rich; intergenic regions often AT-rich</td></tr>
+<tr><td>Local GC Skew</td><td>(G−C)/(G+C)</td><td>−1 to +1</td><td>Positive = G excess (leading strand); negative = C excess (lagging strand). Strand-specific mutation and selection biases create the skew</td></tr>
+<tr><td>Cumulative GC Skew</td><td>&Sigma; (G−C)/(G+C)</td><td>varies</td><td>Running sum across the genome. The V-shaped curve crosses from negative to positive near oriC. Global minimum &asymp; oriC; global maximum &asymp; terC</td></tr>
+</table>
+
+<h3>Sliding Window — How It Works</h3>
+<p>A window of <b>W</b> bp slides across the sequence in steps of <b>S</b> bp.
+At each position, GC content and GC skew are computed for the bases within
+the window centred at that position. Values between sampled positions are
+linearly interpolated for a smooth curve.</p>
 <ul>
-<li><b>GC Content</b> — percentage of G+C bases in each window.
-Mean values vary by species (20–70%). Coding regions are often
-GC-rich.</li>
-<li><b>GC Skew</b> — (G−C)/(G+C). Positive skew means G excess
-(leading strand); negative skew means C excess (lagging strand).
-In circular bacterial genomes the skew typically flips at the
-replication origin and terminus.</li>
+<li>Larger windows (500–1000 bp) smooth out local noise for genome-scale patterns</li>
+<li>Smaller windows (20–100 bp) reveal gene-level GC variation</li>
+<li>Step = Window gives non-overlapping windows (faster); Step &lt; Window gives
+overlapping windows (smoother curves)</li>
+</ul>
+
+<h3>Cumulative GC Skew and oriC Detection</h3>
+<p>In most bacteria, the leading strand accumulates G over C (positive skew)
+while the lagging strand accumulates C over G (negative skew). Because
+replication is bidirectional from a single origin, the strand asymmetry
+reverses at oriC and terC. When GC skew is cumulatively summed across the
+genome, this produces a characteristic V-shaped curve:</p>
+<ul>
+<li><b>Global minimum</b> (lowest cumulative value) &rarr; putative <em>oriC</em></li>
+<li><b>Global maximum</b> (highest cumulative value) &rarr; putative <em>terC</em></li>
+<li>The difference between the two extrema reflects the strength of strand bias</li>
+</ul>
+<p>This method works best on complete or near-complete bacterial chromosomes.
+Plasmid and partial sequences may not show a clear pattern.</p>
+
+<h3>Parameter Selection Guide</h3>
+<table border='0' cellpadding='4' cellspacing='2'>
+<tr><td><b>Sequence type</b></td><td><b>Recommended Window</b></td><td><b>Recommended Step</b></td></tr>
+<tr><td>Complete bacterial genome (~1–10 Mb)</td><td>1001–5001 bp</td><td>= Window</td></tr>
+<tr><td>Bacterial chromosome segment (~10–500 kb)</td><td>501–1001 bp</td><td>= Window</td></tr>
+<tr><td>Plasmid or phage (~1–200 kb)</td><td>51–501 bp</td><td>= Window</td></tr>
+<tr><td>Gene or short segment (&lt;5 kb)</td><td>21–101 bp</td><td>≤ Window/2</td></tr>
+</table>
+
+<h3>Examples &amp; Use Cases</h3>
+<ul>
+<li><b>oriC prediction</b> — load a complete bacterial genome, check Cumulative GC Skew,
+set Window=1001, and click Plot. The red/green markers show predicted oriC/terC</li>
+<li><b>Genome quality check</b> — a noisy or flat cumulative skew curve suggests
+assembly errors, mis-assigned contig orientation, or incomplete genome</li>
+<li><b>Plasmid analysis</b> — local GC skew can reveal the leading/lagging strand
+boundaries even in small replicons</li>
+<li><b>Horizontal gene transfer detection</b> — regions with GC content deviating
+sharply from the genome mean often indicate recently acquired DNA</li>
 </ul>
 
 <h3>Tips</h3>
 <ul>
-<li>For bacterial genomes (~1–10 Mb), start with <b>window=1001 bp</b>
-to see large-scale skew patterns.</li>
-<li>For plasmid or short sequences (&lt;5 kb), use <b>window=51–101 bp</b>.</li>
-<li>The plot is interactive — use the toolbar to zoom, pan, or save.</li>
-<li>Paste a single sequence or drag-and-drop a FASTA file.</li>
+<li>Use the <b>Example</b> button to load the E.&nbsp;coli K-12 genome (~4.6 Mb) —
+a well-characterised chromosome where oriC (~3.92 Mb) is reliably detected</li>
+<li>The <b>Matplotlib toolbar</b> above the plot provides zoom, pan, home, and save
+(PNG/PDF/SVG) — no separate Save button needed</li>
+<li>For multi-contig assemblies, run the tool on each contig separately</li>
+<li>Paste FASTA or raw sequence; the first record is used if multiple are present</li>
+<li>N bases are ignored in GC calculations within each window</li>
 </ul>
 """)
         dialog = QDialog(self)
         dialog.setWindowTitle(self.tr("Help - GC Content / GC Skew Plot"))
-        dialog.setFixedSize(700, 460)
+        dialog.setFixedSize(820, 680)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -454,6 +599,7 @@ to see large-scale skew patterns.</li>
                     with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
                     self.input_text.setPlainText(content)
+                    self._auto_adjust_window()
                 except Exception as ex:
                     QMessageBox.warning(self, self.tr("File Read Error"), str(ex))
 

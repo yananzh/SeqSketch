@@ -204,7 +204,7 @@ def test_gc_plot_example_fills_input_text(qapp):
     btn.click()
     text = tab.input_text.toPlainText()
     assert text.startswith(">")
-    assert "pBR322" in text
+    assert "NC_000913" in text or "complete genome" in text
 
 
 def test_sanger_assembly_example_fills_both_inputs(qapp):

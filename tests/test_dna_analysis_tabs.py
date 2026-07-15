@@ -399,9 +399,7 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
 
-def test_sanger_assembly_outputs_merged_fasta_contig_without_input_headers(
-    qapp, monkeypatch
-):
+def test_sanger_assembly_outputs_merged_fasta_contig_without_input_headers(qapp, monkeypatch):
     tab = SangerTab()
     tab.fwd_edit.setPlainText(">forward_read\nAAAGGGCCC")
     tab.rev_edit.setPlainText(">reverse_read\nAAAGGGCCC")
@@ -1024,11 +1022,7 @@ def test_gc_plot_tab_generates_plot(qapp):
 
     tab = GCPlotTab()
     tab.input_text.setPlainText(
-        ">test_seq\n"
-        + ("A" * 200)
-        + ("G" * 200)
-        + ("C" * 200)
-        + ("T" * 200)
+        ">test_seq\n" + ("A" * 200) + ("G" * 200) + ("C" * 200) + ("T" * 200)
     )
 
     tab.window_spin.setValue(101)

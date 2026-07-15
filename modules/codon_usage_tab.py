@@ -38,6 +38,7 @@ from PyQt6.QtWidgets import (
     QButtonGroup,
     QDialog,
     QDialogButtonBox,
+    QSizePolicy,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
 from PyQt6.QtGui import QColor
@@ -520,17 +521,30 @@ class CodonUsageTab(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        root = QHBoxLayout(self)
+        root = QVBoxLayout(self)
         root.setContentsMargins(8, 8, 8, 8)
         root.setSpacing(8)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
-        root.addWidget(splitter)
+        root.addWidget(splitter, 1)
 
         splitter.addWidget(self._build_left_panel())
         splitter.addWidget(self._build_right_panel())
         splitter.setSizes([360, 840])
+
+        self._status_label = QLabel("Ready")
+        self._status_label.setStyleSheet("color:#555;font-size:15px;")
+
+        self._btn_help = QPushButton("Help")
+        self._btn_help.setFixedWidth(80)
+        self._btn_help.clicked.connect(self._show_help)
+
+        status_row = QHBoxLayout()
+        status_row.addWidget(self._status_label)
+        status_row.addStretch()
+        status_row.addWidget(self._btn_help)
+        root.addLayout(status_row)
 
     def _build_left_panel(self) -> QWidget:
         w = QWidget()
@@ -547,6 +561,9 @@ class CodonUsageTab(QWidget):
             ">gene1\nATGAAAGGGTTTCCCAAATAG\n\n>gene2\nATGGCATTTCGATGA"
         )
         self._input_text.setMinimumHeight(200)
+        self._input_text.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         self._input_text.setAcceptDrops(True)
         self._input_text.dragEnterEvent = self._drag_enter
         self._input_text.dropEvent = self._drop_event
@@ -624,10 +641,6 @@ class CodonUsageTab(QWidget):
         ge.addWidget(self._btn_copy)
         lay.addWidget(grp_exp)
 
-        self._btn_help = QPushButton("Help")
-        lay.addWidget(self._btn_help)
-        lay.addStretch()
-
         self._btn_load.clicked.connect(self._load_file)
         self._btn_example.clicked.connect(self._insert_example)
         self._btn_clear.clicked.connect(self._input_text.clear)
@@ -635,7 +648,6 @@ class CodonUsageTab(QWidget):
         self._btn_cancel.clicked.connect(self._cancel_analysis)
         self._btn_export_csv.clicked.connect(self._export_csv)
         self._btn_copy.clicked.connect(self._copy_table)
-        self._btn_help.clicked.connect(self._show_help)
         return w
 
     def _build_right_panel(self) -> QWidget:
@@ -712,7 +724,17 @@ class CodonUsageTab(QWidget):
             "RSCU",
             "RSCU Bar",
         ])
-        self._codon_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self._codon_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self._codon_table.setColumnWidth(0, 60)
+        self._codon_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self._codon_table.setColumnWidth(1, 80)
+        self._codon_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self._codon_table.setColumnWidth(2, 60)
+        self._codon_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self._codon_table.setColumnWidth(3, 80)
+        self._codon_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        self._codon_table.setColumnWidth(4, 60)
+        self._codon_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
         self._codon_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._codon_table.setAlternatingRowColors(True)
         self._codon_table.setSortingEnabled(True)
@@ -767,10 +789,6 @@ class CodonUsageTab(QWidget):
         mv.addWidget(self._nc_canvas)
         self._result_tabs.addTab(cmp_container, "Comparison")
 
-        self._status_label = QLabel("Ready")
-        self._status_label.setStyleSheet("color:#555;font-size:13px;")
-        lay.addWidget(self._status_label)
-
         self._seq_combo.currentIndexChanged.connect(self._on_seq_changed)
         self._aa_filter.textChanged.connect(self._apply_aa_filter)
         self._chk_show_stop.stateChanged.connect(
@@ -814,7 +832,7 @@ class CodonUsageTab(QWidget):
                 QMessageBox.warning(self, "Error", str(e))
 
     def _insert_example(self):
-        text = load_example_text("dna", "brca1_egfr_cds.fasta")
+        text = load_example_text("dna", "codon_example.fasta")
         if not text:
             QMessageBox.information(
                 self,
@@ -1311,39 +1329,67 @@ class CodonUsageTab(QWidget):
 
     def _show_help(self):
         help_text = self.tr(
-            "<h2>Codon Usage Analysis &mdash; Codon Bias and Adaptation</h2>"
+            "<h2>Codon Usage Analysis &mdash; Comprehensive Codon Bias Toolkit</h2>"
             "<p><b>What does this tool do?</b><br>"
-            "It analyses the codon usage pattern of protein-coding sequences (CDS). "
-            "It computes RSCU, ENC, CAI, and GC-position metrics, and visualises them "
-            "with interactive charts. Supports 11 genetic codes and three built-in "
-            "CAI reference tables.</p>"
+            "It performs a complete codon usage analysis of protein-coding sequences (CDS). "
+            "The tool computes key metrics including <b>RSCU</b> (Relative Synonymous Codon Usage), "
+            "<b>ENC</b> (Effective Number of Codons), <b>CAI</b> (Codon Adaptation Index), "
+            "and GC-content at each codon position. Results are presented across five "
+            "interactive tabs with sortable tables, color-coded RSCU bars, and publication-ready "
+            "Matplotlib charts.</p>"
             "<h3>Quick Start</h3>"
             "<ol>"
-            "<li>Paste one or more CDS sequences in FASTA format, or click <b>Load File</b></li>"
-            "<li>Select the appropriate <b>Genetic Code</b> and optional <b>CAI Reference</b></li>"
-            "<li>Click <b>Analyze</b></li>"
-            "<li>Browse results across the five tabs: Summary, Codon Table, RSCU Chart, GC / Neutrality, and Comparison</li>"
+            "<li>Paste one or more CDS sequences in FASTA format into the input editor, or click <b>Load File</b></li>"
+            "<li>Select the appropriate <b>Genetic Code</b> for your organism (default: Standard)</li>"
+            "<li>Optionally choose a <b>CAI Reference Organism</b> to compute the Codon Adaptation Index</li>"
+            "<li>Select a <b>Reading Frame</b> (default +1 works for most CDS inputs)</li>"
+            "<li>Click <b>Analyze</b> and browse the five result tabs</li>"
             "</ol>"
-            "<h3>Key Metrics</h3>"
+            "<h3>Key Metrics Explained</h3>"
             "<table border='0' cellpadding='4' cellspacing='2'>"
-            "<tr><td><b>Metric</b></td><td><b>Meaning</b></td></tr>"
-            "<tr><td>RSCU</td><td>Relative Synonymous Codon Usage &mdash; values &gt; 1 indicate over-represented codons</td></tr>"
-            "<tr><td>ENC</td><td>Effective Number of Codons (20&ndash;61) &mdash; lower values = stronger codon bias</td></tr>"
-            "<tr><td>CAI</td><td>Codon Adaptation Index (0&ndash;1) &mdash; higher = better adaptation to the reference organism</td></tr>"
-            "<tr><td>GC3</td><td>GC content at the third codon position &mdash; key indicator of mutational bias</td></tr>"
+            "<tr><td><b>Metric</b></td><td><b>Meaning</b></td><td><b>Interpretation</b></td></tr>"
+            "<tr><td>RSCU</td><td>Relative Synonymous Codon Usage</td><td>Values &gt; 1 = over-represented, &lt; 1 = under-represented; ideal = 1.0 (no bias)</td></tr>"
+            "<tr><td>ENC</td><td>Effective Number of Codons</td><td>Ranges 20 (extreme bias) to 61 (no bias); values ≤ 35 indicate strong codon bias</td></tr>"
+            "<tr><td>CAI</td><td>Codon Adaptation Index</td><td>Ranges 0–1; higher values mean better translation-adaptation to the reference organism</td></tr>"
+            "<tr><td>GC / GC3</td><td>Overall GC% and GC% at 3rd codon position</td><td>GC3 is a sensitive indicator of mutational bias; low GC3 often correlates with translational selection</td></tr>"
             "</table>"
-            "<h3>Charts</h3>"
+            "<h3>Result Tabs</h3>"
             "<ul>"
-            "<li><b>RSCU Chart</b> &mdash; bar chart of codon preference per amino acid</li>"
-            "<li><b>GC / Neutrality</b> &mdash; GC1/GC2/GC3 bars + GC12 vs GC3 neutrality regression plot</li>"
-            "<li><b>Comparison</b> &mdash; per-sequence summary table + Nc plot (ENC vs GC3) for multi-sequence input</li>"
+            "<li><b>Summary</b> — key statistics for the current sequence, plus a top-10 most-used codons table</li>"
+            "<li><b>Codon Table</b> — full 64-codon table with counts, frequency per 1000, RSCU, and a visual RSCU bar (green = enriched, red = depleted). Filter by amino acid or toggle stop codons</li>"
+            "<li><b>RSCU Chart</b> — grouped bar chart of RSCU values per amino acid, with one bar per synonymous codon</li>"
+            "<li><b>GC / Neutrality</b> — stacked GC1/GC2/GC3 bars for each sequence, plus a GC12 vs GC3 neutrality plot (slope ≈ 1 = neutral evolution; slope &lt; 1 = selective constraint)</li>"
+            "<li><b>Comparison</b> — per-sequence table (ENC, CAI, GC%, GC3%) and the Nc plot (ENC vs GC3) to detect mutational vs selective pressure</li>"
             "</ul>"
+            "<h3>Genetic Codes</h3>"
+            "<p>The tool supports 11 NCBI genetic code tables. The most frequently used alternatives are:</p>"
+            "<ul>"
+            "<li><b>1 - Standard (Universal)</b> — most nuclear genomes</li>"
+            "<li><b>2 - Vertebrate Mitochondrial</b> — uses AGA/AGG (not stop) and AUA = Met</li>"
+            "<li><b>5 - Invertebrate Mitochondrial</b> — common for arthropod mtDNA</li>"
+            "<li><b>11 - Bacterial, Archaeal and Plant Plastid</b> — identical to Standard for most codons</li>"
+            "</ul>"
+            "<h3>CAI Reference Tables</h3>"
+            "<p>The Codon Adaptation Index compares your sequence's codon usage to that of highly-expressed genes "
+            "in a reference organism. Built-in references: <b>Human</b> and <b>E. coli K-12</b> (based on ribosomal "
+            "protein genes). CAI values &gt; 0.8 suggest good adaptation to the reference.</p>"
+            "<h3>Reading Frames</h3>"
+            "<p>The tool translates your sequence in one of three forward reading frames. Use <b>Frame +1</b> for "
+            "canonical CDS input; try frames +2 and +3 if the sequence may be misaligned or contains alternative start sites.</p>"
             "<h3>Tips</h3>"
             "<ul>"
-            "<li>Use the <b>Example</b> button to load BRCA1 and EGFR CDS for a quick trial</li>"
-            "<li>The <b>Codon Table</b> tab supports filtering by amino acid and showing/hiding stop codons</li>"
-            "<li>Multi-sequence input enables the <b>Comparison</b> tab with per-sequence ENC/CAI/GC summaries</li>"
-            "<li>Export CSV copies all visible metrics; <b>Copy Table</b> copies the currently displayed tab</li>"
+            "<li>Click <b>Example</b> to load a real bacterial spoT CDS for a quick trial</li>"
+            "<li>The <b>Codon Table</b> supports sorting — click any column header to reorder rows</li>"
+            "<li>Use the amino acid filter (e.g. &quot;L&quot; for leucine) to focus on specific codon families</li>"
+            "<li>Multi-sequence input enables the <b>Comparison</b> tab with per-sequence summaries and the Nc plot</li>"
+            "<li>Export data as CSV or use <b>Copy Table</b> to transfer the current view to your clipboard</li>"
+            "<li>For whole-genome codon usage analysis, concatenate CDS sequences from the same genome into a single FASTA file</li>"
+            "</ul>"
+            "<h3>Related Tools in SeqSketch</h3>"
+            "<ul>"
+            "<li><b>Translate</b> — translate DNA to protein (also supports alternative genetic codes)</li>"
+            "<li><b>ORF Finder</b> — locate open reading frames in genomic DNA</li>"
+            "<li><b>GC Content / GC Skew Plot</b> — whole-sequence GC analysis with sliding windows</li>"
             "</ul>"
         )
         from PyQt6.QtWidgets import (
@@ -1358,7 +1404,7 @@ class CodonUsageTab(QWidget):
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Codon Usage Analysis"))
-        dlg.setFixedSize(820, 620)
+        dlg.setFixedSize(900, 680)
         layout = QVBoxLayout()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)

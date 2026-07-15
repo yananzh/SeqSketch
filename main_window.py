@@ -185,7 +185,7 @@ class MainWindow(QMainWindow):
         self._find_or_open(
             CodonUsageTab,
             "Codon Usage Analysis",
-            factory=lambda: CodonUsageTab(status_callback=self.status.showMessage),
+            factory=lambda: CodonUsageTab(),
         )
 
     def open_restriction_enzyme_tab(self):

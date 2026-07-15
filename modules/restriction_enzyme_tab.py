@@ -156,7 +156,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         grp = QGroupBox(self.tr("Parameters"))
         grp.setFlat(True)
         params = QHBoxLayout(grp)
-        params.setContentsMargins(0, 16, 0, 4)
+        params.setContentsMargins(8, 16, 0, 4)
 
         params.addWidget(QLabel(self.tr("Enzyme Set:")))
         self._enzyme_set_combo = QComboBox()
