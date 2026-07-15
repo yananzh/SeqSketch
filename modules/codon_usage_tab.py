@@ -561,9 +561,7 @@ class CodonUsageTab(QWidget):
             ">gene1\nATGAAAGGGTTTCCCAAATAG\n\n>gene2\nATGGCATTTCGATGA"
         )
         self._input_text.setMinimumHeight(200)
-        self._input_text.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
+        self._input_text.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._input_text.setAcceptDrops(True)
         self._input_text.dragEnterEvent = self._drag_enter
         self._input_text.dropEvent = self._drop_event

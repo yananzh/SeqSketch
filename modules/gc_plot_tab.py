@@ -372,13 +372,19 @@ class GCPlotTab(BaseTabWidget):
             idx_min = np.argmin(gc_skew)
             idx_max = np.argmax(gc_skew)
             ax2.scatter(
-                x[idx_min], gc_skew[idx_min],
-                color="#d32f2f", s=60, zorder=5,
+                x[idx_min],
+                gc_skew[idx_min],
+                color="#d32f2f",
+                s=60,
+                zorder=5,
                 label=self.tr(f"oriC ≈ {int(x[idx_min])} bp"),
             )
             ax2.scatter(
-                x[idx_max], gc_skew[idx_max],
-                color="#2e7d32", s=60, zorder=5,
+                x[idx_max],
+                gc_skew[idx_max],
+                color="#2e7d32",
+                s=60,
+                zorder=5,
                 label=self.tr(f"terC ≈ {int(x[idx_max])} bp"),
             )
         else:
@@ -418,7 +424,9 @@ class GCPlotTab(BaseTabWidget):
         n = len(seq)
         if n >= 10000:
             ax2.xaxis.set_major_formatter(
-                ticker.FuncFormatter(lambda v, _: f"{v/1000:.0f} kb" if v >= 1000 else f"{int(v)}")
+                ticker.FuncFormatter(
+                    lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
+                )
             )
             ax2.set_xlabel(self.tr("Position (kb)"), fontsize=12)
         else:
