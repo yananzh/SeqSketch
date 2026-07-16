@@ -12,9 +12,12 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QTextEdit,
     QPushButton,
+    QFileDialog,
 )
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget, apply_sequence_editor_style
+from utils.example_data import load_example_text
+import csv
 import re
 
 # ── Protease definitions ─────────────────────────────────────────────────────
@@ -140,6 +143,36 @@ class ProteaseCleavageTab(BaseTabWidget):
         self._setup_parameters()
         self._setup_drag_drop()
         self.current_results = []
+
+        # Add Export CSV button to status row after Digest
+        self.export_csv_btn = QPushButton(self.tr("Export CSV"))
+        self.export_csv_btn.setFixedWidth(110)
+        self.export_csv_btn.clicked.connect(self.export_csv)
+        _idx = self.status_layout.indexOf(self.run_btn)
+        self.status_layout.insertWidget(_idx + 1, self.export_csv_btn)
+
+        # Place Example button horizontally with upload_btn
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.clicked.connect(self._load_example)
+        ig_layout = self.input_group.layout()
+        ig_layout.removeWidget(self.upload_btn)
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.upload_btn, 1)
+        btn_row.addWidget(self.example_btn, 1)
+        ig_layout.insertLayout(1, btn_row)
+
+    def _load_example(self):
+        """Load the bundled protein example."""
+        text = load_example_text("protein", "protein_example.fasta")
+        if not text:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("Failed to load example data. Please check your installation."),
+            )
+            return
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("Loaded example data: protein_example.fasta"))
 
     # ── Parameters ───────────────────────────────────────────────────────────
 
@@ -284,6 +317,39 @@ class ProteaseCleavageTab(BaseTabWidget):
         self.output_text.clear()
         self.current_results = []
         self.status_label.setText("Cleared")
+
+    def export_csv(self):
+        """Export digestion fragments to a CSV file."""
+        if not self.current_results:
+            QMessageBox.warning(
+                self, self.tr("Export Error"),
+                self.tr("Run a digestion first to generate fragments."),
+            )
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            self.tr("Export CSV"),
+            "protease_fragments.csv",
+            self.tr("CSV Files (*.csv);;All Files (*)"),
+        )
+        if not path:
+            return
+        try:
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["#", "Start", "End", "Length", "MW (Da)", "Sequence"])
+                for frag in self.current_results:
+                    writer.writerow([
+                        self.current_results.index(frag) + 1,
+                        frag["start"],
+                        frag["end"],
+                        frag["length"],
+                        f"{frag['mw']:.2f}",
+                        frag["sequence"],
+                    ])
+            self.status_label.setText(self.tr(f"Exported {len(self.current_results)} fragments to {path}"))
+        except Exception as e:
+            QMessageBox.warning(self, self.tr("Export Error"), str(e))
 
     def show_help(self):
         from PyQt6.QtWidgets import (

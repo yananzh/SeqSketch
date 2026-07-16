@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget
+from utils.example_data import load_example_text
 import matplotlib
 
 matplotlib.use("Qt5Agg")
@@ -145,6 +146,29 @@ class HydrophobicityPlotTab(BaseTabWidget):
         self._add_plot_canvas()
         self._setup_drag_drop()
         self.current_figure = None
+
+        # Place Example button horizontally with upload_btn
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.clicked.connect(self._load_example)
+        ig_layout = self.input_group.layout()
+        ig_layout.removeWidget(self.upload_btn)
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.upload_btn, 1)
+        btn_row.addWidget(self.example_btn, 1)
+        ig_layout.insertLayout(1, btn_row)
+
+    def _load_example(self):
+        """Load the bundled protein example."""
+        text = load_example_text("protein", "protein_example.fasta")
+        if not text:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("Failed to load example data. Please check your installation."),
+            )
+            return
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("Loaded example data: protein_example.fasta"))
 
     # ── Layout ──────────────────────────────────────────────────────────────
 

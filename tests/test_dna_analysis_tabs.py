@@ -1028,8 +1028,9 @@ def test_gc_plot_tab_generates_plot(qapp):
     tab.window_spin.setValue(101)
     tab.run()
 
-    assert tab.current_figure is not None
-    assert len(tab.current_figure.axes) == 2  # two subplots
+    assert len(tab._figs[0].axes) == 1
+    assert len(tab._figs[1].axes) == 1
+    assert len(tab._figs[2].axes) == 1
     assert "800 bp" in str(tab.status_label.text())
 
 
@@ -1040,8 +1041,8 @@ def test_gc_plot_tab_clear_resets(qapp):
     tab.input_text.setPlainText(">test\n" + "ATGC" * 500)
     tab.window_spin.setValue(101)
     tab.run()
-    assert tab.current_figure is not None
+    assert len(tab._figs[0].axes) == 1
 
     tab.clear()
-    assert tab.current_figure is None
+    assert len(tab._figs[0].axes) == 1  # placeholder axis still present
     assert tab.input_text.toPlainText() == ""

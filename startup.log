@@ -3169,3 +3169,154 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-07-16 11:04:54.620428
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-16 11:46:42.485330
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-16 12:00:09.904874
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-16 12:03:31.733520
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-16 12:05:56.334935
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-16 12:10:09.421717
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-16 12:12:45.472860
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-16 12:29:58.514546
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'QHBoxLayout' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 206, in open_amino_acid_composition_tab
+    self._find_or_open(AminoAcidCompositionTab, "Amino Acid Composition")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 78, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\amino_acid_composition_tab.py", line 72, in __init__
+    btn_row = QHBoxLayout()
+              ^^^^^^^^^^^
+NameError: name 'QHBoxLayout' is not defined
+
+============================================================
+startup : 2026-07-16 12:31:10.839582
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'QHBoxLayout' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 206, in open_amino_acid_composition_tab
+    self._find_or_open(AminoAcidCompositionTab, "Amino Acid Composition")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 78, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\amino_acid_composition_tab.py", line 72, in __init__
+    btn_row = QHBoxLayout()
+              ^^^^^^^^^^^
+NameError: name 'QHBoxLayout' is not defined
+
+============================================================
+startup : 2026-07-16 12:32:13.899988
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-16 12:35:49.420243
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'QHBoxLayout' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 211, in open_physicochemical_properties_tab
+    self._find_or_open(PhysicochemicalPropertiesTab, "Physicochemical Properties")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 78, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\physicochemical_properties_tab.py", line 80, in __init__
+    btn_row = QHBoxLayout()
+              ^^^^^^^^^^^
+NameError: name 'QHBoxLayout' is not defined
+UNHANDLED: name 'QHBoxLayout' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 211, in open_physicochemical_properties_tab
+    self._find_or_open(PhysicochemicalPropertiesTab, "Physicochemical Properties")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 78, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\physicochemical_properties_tab.py", line 80, in __init__
+    btn_row = QHBoxLayout()
+              ^^^^^^^^^^^
+NameError: name 'QHBoxLayout' is not defined
+UNHANDLED: name 'QHBoxLayout' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 211, in open_physicochemical_properties_tab
+    self._find_or_open(PhysicochemicalPropertiesTab, "Physicochemical Properties")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 78, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\physicochemical_properties_tab.py", line 80, in __init__
+    btn_row = QHBoxLayout()
+              ^^^^^^^^^^^
+NameError: name 'QHBoxLayout' is not defined
+
+============================================================
+startup : 2026-07-16 12:43:51.065422
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A

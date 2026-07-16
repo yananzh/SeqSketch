@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QWidget,
     QCheckBox,
+    QStackedWidget,
 )
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget
@@ -20,7 +21,6 @@ import matplotlib
 
 matplotlib.use("Qt5Agg")
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import numpy as np
 import math
@@ -53,10 +53,16 @@ class GCPlotTab(BaseTabWidget):
         )
         self.input_text.setMaximumHeight(100)
 
+        # Add Save Figure button in the status row after Plot
+        self._save_fig_btn = QPushButton(self.tr("Save Figure"))
+        self._save_fig_btn.setFixedWidth(110)
+        self._save_fig_btn.clicked.connect(self.export_result)
+        _idx = self.status_layout.indexOf(self.run_btn)
+        self.status_layout.insertWidget(_idx + 1, self._save_fig_btn)
+
         self._setup_parameters()
         self._add_plot_canvas()
         self._setup_drag_drop()
-        self.current_figure = None
 
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton(self.tr("Example"))
@@ -163,47 +169,86 @@ class GCPlotTab(BaseTabWidget):
                 "per-window (local) GC skew instead."
             )
         )
+        self._cumulative_cb.setVisible(False)
         pg_layout.addWidget(self._cumulative_cb)
 
         self.content_area.insertWidget(1, param_group)
 
     def _add_plot_canvas(self):
-        self._scroll_area = QScrollArea()
-        self._scroll_area.setWidgetResizable(False)
-        self._scroll_area.setMinimumHeight(300)
+        # --- View-switching buttons ---
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(4)
 
-        self.figure = Figure(figsize=(10, 4.2))
-        self.canvas = FigureCanvas(self.figure)
-        self.canvas.setMinimumHeight(300)
-        self._scroll_area.setWidget(self.canvas)
+        self._btn_gc = QPushButton(self.tr("GC Content"))
+        self._btn_gc.setCheckable(True)
+        self._btn_gc.setChecked(True)
+        self._btn_gc.clicked.connect(lambda: self._switch_view(0))
 
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.toolbar.hide()
+        self._btn_skew = QPushButton(self.tr("GC Skew"))
+        self._btn_skew.setCheckable(True)
+        self._btn_skew.clicked.connect(lambda: self._switch_view(1))
 
-        plot_layout = QVBoxLayout()
-        plot_layout.addWidget(self.toolbar)
-        plot_layout.addWidget(self._scroll_area)
-        self.content_area.insertLayout(self.content_area.count() - 1, plot_layout)
+        self._btn_cumul = QPushButton(self.tr("Cumulative GC Skew"))
+        self._btn_cumul.setCheckable(True)
+        self._btn_cumul.clicked.connect(lambda: self._switch_view(2))
+
+        for btn in (self._btn_gc, self._btn_skew, self._btn_cumul):
+            btn.setStyleSheet(
+                "QPushButton { padding: 4px 12px; border: 1px solid #bbb; border-radius: 3px; background: #eee; }"
+                "QPushButton:checked { background: #1976d2; color: white; border-color: #1976d2; }"
+            )
+        btn_layout.addWidget(self._btn_gc)
+        btn_layout.addWidget(self._btn_skew)
+        btn_layout.addWidget(self._btn_cumul)
+        btn_layout.addStretch()
+
+        # --- QStackedWidget with three pages ---
+        self._stack = QStackedWidget()
+        self._stack.setMinimumHeight(300)
+
+        self._figs: list[Figure] = []
+        self._canvases: list[FigureCanvas] = []
+        for _ in range(3):
+            fig = Figure(figsize=(10, 3.2))
+            canvas = FigureCanvas(fig)
+            canvas.setMinimumHeight(280)
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(False)
+            scroll.setWidget(canvas)
+            self._stack.addWidget(scroll)
+            self._figs.append(fig)
+            self._canvases.append(canvas)
+
+        self.content_area.insertLayout(self.content_area.count() - 1, btn_layout)
+        self.content_area.insertWidget(self.content_area.count() - 1, self._stack)
         self._draw_placeholder_plot()
 
+    def _switch_view(self, idx: int):
+        """Switch the stacked widget to the selected plot view."""
+        self._stack.setCurrentIndex(idx)
+        for i, btn in enumerate((self._btn_gc, self._btn_skew, self._btn_cumul)):
+            btn.setChecked(i == idx)
+
     def _draw_placeholder_plot(self):
-        self.figure.clear()
-        ax = self.figure.add_subplot(111)
-        ax.text(
-            0.5,
-            0.5,
-            self.tr("GC content / GC skew plot will appear here after clicking 'Plot'"),
-            ha="center",
-            va="center",
-            fontsize=12,
-            color="#999",
-            transform=ax.transAxes,
-        )
-        ax.set_xticks([])
-        ax.set_yticks([])
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-        self.canvas.draw()
+        labels = [
+            self.tr("GC Content"),
+            self.tr("GC Skew"),
+            self.tr("Cumulative GC Skew"),
+        ]
+        for fig, canvas, label in zip(self._figs, self._canvases, labels):
+            fig.clear()
+            ax = fig.add_subplot(111)
+            ax.text(
+                0.5, 0.5,
+                self.tr(f"{label} plot will appear here after clicking 'Plot'"),
+                ha="center", va="center", fontsize=12, color="#999",
+                transform=ax.transAxes,
+            )
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            canvas.draw()
 
     # ── Core logic ──────────────────────────────────────────────────────────
 
@@ -298,11 +343,11 @@ class GCPlotTab(BaseTabWidget):
         all_x = np.arange(n, dtype=float)
         gc_content = np.interp(all_x, sample_x, sample_gc)
         gc_skew = np.interp(all_x, sample_x, sample_skew)
+        cumul_skew = np.cumsum(gc_skew)
 
-        cumulative = self._cumulative_cb.isChecked()
-        gc_skew_display = np.cumsum(gc_skew) if cumulative else gc_skew
-
-        self._draw_plot(clean, gc_content, gc_skew_display, window, header, cumulative)
+        self._draw_gc_content(clean, gc_content, window, header)
+        self._draw_gc_skew(clean, gc_skew, window, header)
+        self._draw_cumul_skew(clean, cumul_skew, window, header)
         mean_gc = np.nanmean(gc_content)
         self.status_label.setText(
             self.tr(
@@ -310,150 +355,147 @@ class GCPlotTab(BaseTabWidget):
             )
         )
 
-    def _draw_plot(self, seq, gc_content, gc_skew, window, header, cumulative=False):
-        self.figure.clear()
+        if not self._logo_generated:
+            self._logo_generated = True
+
+    def _draw_gc_content(self, seq, gc_content, window, header):
+        """Draw GC Content on page 0."""
+        fig = self._figs[0]
+        fig.clear()
         x = np.arange(1, len(seq) + 1)
+        ax = fig.add_subplot(111)
+        ax.set_facecolor("#f9f9f9")
 
-        # --- GC Content (top panel) ---
-        ax1 = self.figure.add_subplot(211)
-        ax1.set_facecolor("#f9f9f9")
-
-        ax1.plot(x, gc_content, color="#1976d2", linewidth=1.0)
+        ax.plot(x, gc_content, color="#1976d2", linewidth=1.0)
         mean_gc = np.nanmean(gc_content)
-        ax1.axhline(
+        ax.axhline(
             y=mean_gc,
             color="#d32f2f",
             linestyle="--",
             linewidth=1.0,
             label=self.tr(f"Mean GC = {mean_gc:.1f}%"),
         )
-        ax1.set_ylabel(self.tr("GC Content (%)"), fontsize=12)
-        ax1.set_title(
+        ax.set_ylabel(self.tr("GC Content (%)"), fontsize=12)
+        ax.set_title(
             self.tr(f"GC Content — {header} (window={window})"),
             fontsize=13,
             fontweight="bold",
         )
-        ax1.set_xlim(1, len(seq))
-        ax1.set_ylim(0, 100)
-        ax1.legend(loc="upper right", fontsize=9)
+        ax.set_xlim(1, len(seq))
+        ax.set_ylim(0, 100)
+        ax.legend(loc="upper right", fontsize=9)
 
-        # --- GC Skew (bottom panel) ---
-        ax2 = self.figure.add_subplot(212, sharex=ax1)
-        ax2.set_facecolor("#f9f9f9")
-
-        if cumulative:
-            # Cumulative GC skew — oriC detection mode
-            ax2.plot(x, gc_skew, color="#7b1fa2", linewidth=1.2)
-            ax2.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
-            ax2.fill_between(
-                x,
-                0,
-                gc_skew,
-                where=(gc_skew > 0),
-                color="#7b1fa2",
-                alpha=0.12,
-                label=self.tr("G excess (leading)"),
-            )
-            ax2.fill_between(
-                x,
-                0,
-                gc_skew,
-                where=(gc_skew < 0),
-                color="#e65100",
-                alpha=0.12,
-                label=self.tr("C excess (lagging)"),
-            )
-            ax2.set_ylabel(self.tr("Cumulative GC Skew"), fontsize=12)
-            ax2.set_title(
-                self.tr(f"Cumulative GC Skew = Σ (G−C)/(G+C) — {header}"),
-                fontsize=13,
-                fontweight="bold",
-            )
-            # Mark global min (putative oriC) and max (putative terC)
-            idx_min = np.argmin(gc_skew)
-            idx_max = np.argmax(gc_skew)
-            ax2.scatter(
-                x[idx_min],
-                gc_skew[idx_min],
-                color="#d32f2f",
-                s=60,
-                zorder=5,
-                label=self.tr(f"oriC ≈ {int(x[idx_min])} bp"),
-            )
-            ax2.scatter(
-                x[idx_max],
-                gc_skew[idx_max],
-                color="#2e7d32",
-                s=60,
-                zorder=5,
-                label=self.tr(f"terC ≈ {int(x[idx_max])} bp"),
-            )
-        else:
-            # Local (per-window) GC skew
-            ax2.plot(x, gc_skew, color="#388e3c", linewidth=1.0)
-            ax2.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
-            ax2.fill_between(
-                x,
-                0,
-                gc_skew,
-                where=(gc_skew > 0),
-                color="#388e3c",
-                alpha=0.15,
-                label=self.tr("G excess"),
-            )
-            ax2.fill_between(
-                x,
-                0,
-                gc_skew,
-                where=(gc_skew < 0),
-                color="#d32f2f",
-                alpha=0.15,
-                label=self.tr("C excess"),
-            )
-            ax2.set_ylabel(self.tr("GC Skew"), fontsize=12)
-            ax2.set_title(
-                self.tr(f"GC Skew = (G−C)/(G+C) — {header}"),
-                fontsize=13,
-                fontweight="bold",
-            )
-            ax2.set_ylim(-1, 1)
-
-        ax2.set_xlabel(self.tr("Position (bp)"), fontsize=12)
-        ax2.legend(loc="upper right", fontsize=9)
-
-        # Clean x-axis: use plain bp or kb formatting, no scientific offset
         n = len(seq)
         if n >= 10000:
-            ax2.xaxis.set_major_formatter(
-                ticker.FuncFormatter(
-                    lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
-                )
+            ax.xaxis.set_major_formatter(
+                ticker.FuncFormatter(lambda v, _: f"{v/1000:.0f} kb" if v >= 1000 else f"{int(v)}")
             )
-            ax2.set_xlabel(self.tr("Position (kb)"), fontsize=12)
+            ax.set_xlabel(self.tr("Position (kb)"), fontsize=12)
         else:
-            ax2.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
-            ax2.set_xlabel(self.tr("Position (bp)"), fontsize=12)
-        ax1.tick_params(labelbottom=False)  # top panel shares x-axis, hide its labels
+            ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
+            ax.set_xlabel(self.tr("Position (bp)"), fontsize=12)
 
-        self.figure.tight_layout()
-        self.current_figure = self.figure
+        fig.tight_layout()
+        self._canvases[0].draw()
 
-        if not self._logo_generated:
-            self.toolbar.show()
-            self._logo_generated = True
+    def _draw_gc_skew(self, seq, gc_skew, window, header):
+        """Draw local GC Skew on page 1."""
+        fig = self._figs[1]
+        fig.clear()
+        x = np.arange(1, len(seq) + 1)
+        ax = fig.add_subplot(111)
+        ax.set_facecolor("#f9f9f9")
 
-        self.canvas.draw()
+        ax.plot(x, gc_skew, color="#388e3c", linewidth=1.0)
+        ax.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
+        ax.fill_between(
+            x, 0, gc_skew,
+            where=(gc_skew > 0), color="#388e3c", alpha=0.15,
+            label=self.tr("G excess"),
+        )
+        ax.fill_between(
+            x, 0, gc_skew,
+            where=(gc_skew < 0), color="#d32f2f", alpha=0.15,
+            label=self.tr("C excess"),
+        )
+        ax.set_ylabel(self.tr("GC Skew"), fontsize=12)
+        ax.set_title(
+            self.tr(f"GC Skew = (G−C)/(G+C) — {header}"),
+            fontsize=13, fontweight="bold",
+        )
+        ax.set_ylim(-1, 1)
+
+        n = len(seq)
+        if n >= 10000:
+            ax.xaxis.set_major_formatter(
+                ticker.FuncFormatter(lambda v, _: f"{v/1000:.0f} kb" if v >= 1000 else f"{int(v)}")
+            )
+            ax.set_xlabel(self.tr("Position (kb)"), fontsize=12)
+        else:
+            ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
+            ax.set_xlabel(self.tr("Position (bp)"), fontsize=12)
+        ax.legend(loc="upper right", fontsize=9)
+
+        fig.tight_layout()
+        self._canvases[1].draw()
+
+    def _draw_cumul_skew(self, seq, cumul_skew, window, header):
+        """Draw Cumulative GC Skew on page 2."""
+        fig = self._figs[2]
+        fig.clear()
+        x = np.arange(1, len(seq) + 1)
+        ax = fig.add_subplot(111)
+        ax.set_facecolor("#f9f9f9")
+
+        ax.plot(x, cumul_skew, color="#7b1fa2", linewidth=1.2)
+        ax.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
+        ax.fill_between(
+            x, 0, cumul_skew,
+            where=(cumul_skew > 0), color="#7b1fa2", alpha=0.12,
+            label=self.tr("G excess (leading)"),
+        )
+        ax.fill_between(
+            x, 0, cumul_skew,
+            where=(cumul_skew < 0), color="#e65100", alpha=0.12,
+            label=self.tr("C excess (lagging)"),
+        )
+        ax.set_ylabel(self.tr("Cumulative GC Skew"), fontsize=12)
+        ax.set_title(
+            self.tr(f"Cumulative GC Skew = Σ (G−C)/(G+C) — {header}"),
+            fontsize=13, fontweight="bold",
+        )
+        idx_min = np.argmin(cumul_skew)
+        idx_max = np.argmax(cumul_skew)
+        ax.scatter(x[idx_min], cumul_skew[idx_min], color="#d32f2f", s=60, zorder=5,
+                   label=self.tr(f"oriC ≈ {int(x[idx_min])} bp"))
+        ax.scatter(x[idx_max], cumul_skew[idx_max], color="#2e7d32", s=60, zorder=5,
+                   label=self.tr(f"terC ≈ {int(x[idx_max])} bp"))
+
+        n = len(seq)
+        if n >= 10000:
+            ax.xaxis.set_major_formatter(
+                ticker.FuncFormatter(lambda v, _: f"{v/1000:.0f} kb" if v >= 1000 else f"{int(v)}")
+            )
+            ax.set_xlabel(self.tr("Position (kb)"), fontsize=12)
+        else:
+            ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
+            ax.set_xlabel(self.tr("Position (bp)"), fontsize=12)
+        ax.legend(loc="upper right", fontsize=9)
+
+        fig.tight_layout()
+        self._canvases[2].draw()
 
     def clear(self):
         self.input_text.clear()
         self._draw_placeholder_plot()
-        self.toolbar.hide()
         self._logo_generated = False
-        self.current_figure = None
         self.status_label.setText(self.tr("Cleared"))
 
     def export_result(self):
-        if self.current_figure is None:
+        """Save the currently displayed figure to a file."""
+        idx = self._stack.currentIndex()
+        fig = self._figs[idx]
+        if fig is None:
             QMessageBox.warning(self, self.tr("Export Error"), self.tr("Generate a plot first."))
             return
         from PyQt6.QtWidgets import QFileDialog
@@ -466,7 +508,7 @@ class GCPlotTab(BaseTabWidget):
         )
         if file_path:
             try:
-                self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight")
+                fig.savefig(file_path, dpi=300, bbox_inches="tight")
                 self.status_label.setText(self.tr(f"Figure saved: {file_path}"))
             except Exception as e:
                 QMessageBox.warning(
@@ -497,8 +539,7 @@ in bacterial genomes (Lobry 1996, Grigoriev 1998).</p>
 <ol>
 <li>Paste a DNA sequence or click <b>Example</b> to load the E.&nbsp;coli K-12 genome</li>
 <li>Adjust <b>Window</b> size for the desired smoothing level</li>
-<li>Check <b>Cumulative GC Skew</b> if you want to locate oriC/terC</li>
-<li>Click <b>Plot</b> — use the toolbar to zoom, pan, or export</li>
+<li>Click <b>Plot</b> — use the three buttons (GC Content / GC Skew / Cumulative GC Skew) above the plot to switch views</li>
 </ol>
 
 <h3>Metrics Explained</h3>

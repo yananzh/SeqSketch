@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMessageBox, QFileDialog, QPushButton
+from PyQt6.QtWidgets import QMessageBox, QFileDialog, QPushButton, QHBoxLayout
 from PyQt6.QtCore import Qt
 from utils.common_components import BaseTabWidget, apply_transparent_text_edit_background
 from utils.example_data import load_example_text
@@ -54,11 +54,6 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         self.export_csv_btn.clicked.connect(self.export_csv)
         _idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(_idx + 1, self.export_csv_btn)
-        # Example button — load bundled cytb protein dataset
-        self.example_btn = QPushButton(self.tr("Example"))
-        self.example_btn.setFixedWidth(90)
-        self.example_btn.clicked.connect(self._load_example)
-        self.status_layout.insertWidget(_idx, self.example_btn)
         # Rename run/help buttons
         self.run_btn.setText("Analyze")
         self.help_btn.setText("Help")
@@ -76,21 +71,32 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         self.output_text.setStyleSheet(_s)
         # Enable drag & drop
         self._setup_drag_drop()
+
+        # Place Example button horizontally with upload_btn
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.clicked.connect(self._load_example)
+        ig_layout = self.input_group.layout()
+        ig_layout.removeWidget(self.upload_btn)
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.upload_btn, 1)
+        btn_row.addWidget(self.example_btn, 1)
+        ig_layout.insertLayout(1, btn_row)
+
         # Storage for results
         self.current_results = []
 
     def _load_example(self):
-        """Load the bundled cytb protein example for property analysis."""
-        text = load_example_text("phylo", "cytb_protein.fasta")
+        """Load the bundled protein example for property analysis."""
+        text = load_example_text("protein", "protein_example.fasta")
         if not text:
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check your installation."),
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("已载入示例数据: cytb_protein.fasta"))
+        self.show_status(self.tr("Loaded example data: protein_example.fasta"))
 
     def run(self):
         self.status_label.setText("")
