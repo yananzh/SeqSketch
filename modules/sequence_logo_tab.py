@@ -175,9 +175,7 @@ class SequenceLogoTab(BaseTabWidget):
             int(self.figure.get_figheight() * dpi),
         )
 
-        self.content_area.insertWidget(
-            max(0, self.content_area.count() - 1), self._scroll_area
-        )
+        self.content_area.insertWidget(max(0, self.content_area.count() - 1), self._scroll_area)
 
         self._draw_placeholder_plot()
 
