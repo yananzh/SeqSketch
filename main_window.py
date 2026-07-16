@@ -20,6 +20,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(self.tr("SeqSketch"))
         self.resize(920, 700)
+        self._init_width = 920
         self.setAcceptDrops(True)
         icon_path = resource_path("window_logo.png")
         if os.path.exists(icon_path):
@@ -78,6 +79,9 @@ class MainWindow(QMainWindow):
         tab = (factory or tab_class)()
         self.tabs.addTab(tab, self.tr(title))
         self.tabs.setCurrentWidget(tab)
+        # Prevent wider tabs from expanding the main window
+        if hasattr(self, "_init_width"):
+            self.resize(self._init_width, self.height())
         return tab
 
     def close_tab(self, index):

@@ -498,7 +498,7 @@ class MafftAlignmentTab(BaseTabWidget):
         pg_layout.setContentsMargins(12, 16, 0, 4)
         pg_layout.setVerticalSpacing(6)
         pg_layout.setHorizontalSpacing(10)
-        pg_layout.setColumnMinimumWidth(0, 130)
+        pg_layout.setColumnMinimumWidth(0, 110)
         pg_layout.setColumnStretch(1, 1)
 
         # Row 0: alignment strategy  |  sequence order  |  threads
@@ -509,7 +509,7 @@ class MafftAlignmentTab(BaseTabWidget):
             "FFT-NS-2 (Fast)",
             "L-INS-i (Accurate)",
         ])
-        self.strategy_combo.setMinimumWidth(190)
+        self.strategy_combo.setMinimumWidth(160)
 
         order_label = QLabel("Sequence Order:")
         self.order_combo = QComboBox()
@@ -517,7 +517,7 @@ class MafftAlignmentTab(BaseTabWidget):
             "Input sequence order",
             "MAFFT output order",
         ])
-        self.order_combo.setMinimumWidth(180)
+        self.order_combo.setMinimumWidth(150)
 
         threads_label = QLabel("Threads:")
         self.threads_spin = QSpinBox()
@@ -618,7 +618,7 @@ class MafftAlignmentTab(BaseTabWidget):
         bpg_layout.setContentsMargins(12, 16, 0, 4)
         bpg_layout.setVerticalSpacing(6)
         bpg_layout.setHorizontalSpacing(10)
-        bpg_layout.setColumnMinimumWidth(0, 130)
+        bpg_layout.setColumnMinimumWidth(0, 110)
         bpg_layout.setColumnStretch(1, 1)
 
         # Row 0: Output Directory
@@ -670,7 +670,7 @@ class MafftAlignmentTab(BaseTabWidget):
             "FFT-NS-2 (Fast)",
             "L-INS-i (Accurate)",
         ])
-        self.batch_strategy_combo.setMinimumWidth(190)
+        self.batch_strategy_combo.setMinimumWidth(160)
 
         threads_label = QLabel("Threads:")
         self.batch_threads_spin = QSpinBox()
@@ -714,6 +714,7 @@ class MafftAlignmentTab(BaseTabWidget):
         bl.addStretch()
 
         outer_tabs.addTab(batch_page, "Batch Multi-file")
+        outer_tabs.setMaximumWidth(880)
         self.content_area.addWidget(outer_tabs)
 
     def _setup_drag_drop(self):

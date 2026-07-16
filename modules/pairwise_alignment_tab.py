@@ -55,6 +55,10 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self._setup_output()
         self._setup_drag_drop()
 
+        # Show/hide parameters based on auto-detected sequence type
+        self.input_text.textChanged.connect(self._update_param_visibility)
+        self.seq2_text.textChanged.connect(self._update_param_visibility)
+
     # ------------------------------------------------------------------ layout
 
     def _rebuild_input_area(self):
@@ -133,25 +137,16 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.content_area.setSpacing(4)
 
     def _setup_parameters(self):
-        """Two-row QGridLayout: 3 params per row."""
+        """QGridLayout: always-visible params left, auto-hidden params right."""
         param_group = QGroupBox("Alignment Parameters")
         param_group.setFlat(True)
-        pg_layout = QGridLayout(param_group)
+        self._param_grid = QGridLayout(param_group)
+        pg_layout = self._param_grid
         pg_layout.setContentsMargins(12, 4, 0, 4)
         pg_layout.setVerticalSpacing(6)
         pg_layout.setHorizontalSpacing(10)
-        pg_layout.setColumnMinimumWidth(0, 130)
-        pg_layout.setColumnStretch(1, 1)
 
-        # Row 0: Substitution Matrix | Alignment Mode | Match Score
-        matrix_label = QLabel("Substitution Matrix:")
-        self.matrix_combo = QComboBox()
-        self.matrix_combo.addItems(["BLOSUM62", "PAM250"])
-        self.matrix_combo.setToolTip(
-            "BLOSUM62: standard for moderately diverged proteins (recommended)\n"
-            "PAM250: suitable for very distantly related (ancient) proteins"
-        )
-
+        # ── Always visible (cols 0-5) ─────────────────────────────────
         mode_label = QLabel("Alignment Mode:")
         self.mode_combo = QComboBox()
         self.mode_combo.addItems([
@@ -163,10 +158,36 @@ class PairwiseAlignmentTab(BaseTabWidget):
             "Local: find best-scoring sub-region match (best for domain searches)"
         )
 
-        pg_layout.addWidget(matrix_label, 0, 0)
-        pg_layout.addWidget(self.matrix_combo, 0, 1)
-        pg_layout.addWidget(mode_label, 0, 2)
-        pg_layout.addWidget(self.mode_combo, 0, 3)
+        gap_open_label = QLabel("Gap Open:")
+        self.gap_open_spin = QDoubleSpinBox()
+        self.gap_open_spin.setRange(0.0, 50.0)
+        self.gap_open_spin.setDecimals(1)
+        self.gap_open_spin.setSingleStep(0.5)
+        self.gap_open_spin.setValue(10.0)
+        self.gap_open_spin.setToolTip("Penalty for opening a new gap")
+
+        self.gap_extend_label = QLabel("Gap Extend:")
+        self.gap_extend_spin = QDoubleSpinBox()
+        self.gap_extend_spin.setRange(0.0, 20.0)
+        self.gap_extend_spin.setDecimals(1)
+        self.gap_extend_spin.setSingleStep(0.1)
+        self.gap_extend_spin.setValue(0.5)
+        self.gap_extend_spin.setToolTip("Penalty per residue in an existing gap extension")
+
+        pg_layout.addWidget(mode_label, 0, 0)
+        pg_layout.addWidget(self.mode_combo, 0, 1)
+        pg_layout.addWidget(gap_open_label, 0, 2)
+        pg_layout.addWidget(self.gap_open_spin, 0, 3)
+
+        # ── Auto-hidden (cols 4+, right side) ─────────────────────────
+        self.matrix_label = QLabel("Scoring Method:")
+        self.matrix_combo = QComboBox()
+        self.matrix_combo.addItems(["BLOSUM62 (standard)", "PAM250 (distant)"])
+        self.matrix_combo.setToolTip(
+            "How amino acid similarity is scored (protein only).\n"
+            "BLOSUM62: best for moderately diverged proteins\n"
+            "PAM250: best for very distantly related proteins"
+        )
 
         self.match_label = QLabel("Match Score:")
         self.match_spin = QDoubleSpinBox()
@@ -176,11 +197,6 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.match_spin.setValue(2.0)
         self.match_spin.setToolTip("Score added for each identical character pair (DNA only)")
 
-        pg_layout.addWidget(self.match_label, 0, 4)
-        pg_layout.addWidget(self.match_spin, 0, 5)
-        pg_layout.setColumnStretch(6, 1)
-
-        # Row 1: Mismatch Penalty | Gap Open | Gap Extend
         self.mismatch_label = QLabel("Mismatch Penalty:")
         self.mismatch_spin = QDoubleSpinBox()
         self.mismatch_spin.setRange(0.0, 20.0)
@@ -189,30 +205,86 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.mismatch_spin.setValue(1.0)
         self.mismatch_spin.setToolTip("Penalty deducted for each mismatched pair (DNA only)")
 
-        gap_open_label = QLabel("Gap Open:")
-        self.gap_open_spin = QDoubleSpinBox()
-        self.gap_open_spin.setRange(0.0, 50.0)
-        self.gap_open_spin.setDecimals(1)
-        self.gap_open_spin.setSingleStep(0.5)
-        self.gap_open_spin.setValue(10.0)
-        self.gap_open_spin.setToolTip("Penalty for opening a new gap")
+        # Initial layout: 3 + 3
+        # Row 0: Alignment Mode | Gap Open | Gap Extend
+        # Row 1: Scoring Method | Match Score | Mismatch Penalty
+        pg_layout.addWidget(self.gap_extend_label, 0, 4)
+        pg_layout.addWidget(self.gap_extend_spin, 0, 5)
 
-        gap_extend_label = QLabel("Gap Extend:")
-        self.gap_extend_spin = QDoubleSpinBox()
-        self.gap_extend_spin.setRange(0.0, 20.0)
-        self.gap_extend_spin.setDecimals(1)
-        self.gap_extend_spin.setSingleStep(0.1)
-        self.gap_extend_spin.setValue(0.5)
-        self.gap_extend_spin.setToolTip("Penalty per residue in an existing gap extension")
-
-        pg_layout.addWidget(self.mismatch_label, 1, 0)
-        pg_layout.addWidget(self.mismatch_spin, 1, 1)
-        pg_layout.addWidget(gap_open_label, 1, 2)
-        pg_layout.addWidget(self.gap_open_spin, 1, 3)
-        pg_layout.addWidget(gap_extend_label, 1, 4)
-        pg_layout.addWidget(self.gap_extend_spin, 1, 5)
+        pg_layout.addWidget(self.matrix_label, 1, 0)
+        pg_layout.addWidget(self.matrix_combo, 1, 1)
+        pg_layout.addWidget(self.match_label, 1, 2)
+        pg_layout.addWidget(self.match_spin, 1, 3)
+        pg_layout.addWidget(self.mismatch_label, 1, 4)
+        pg_layout.addWidget(self.mismatch_spin, 1, 5)
+        pg_layout.setColumnStretch(6, 1)
 
         self.content_area.insertWidget(1, param_group)
+
+    def _update_param_visibility(self):
+        """Reposition params: 2×2 for protein, 3+2 for DNA, all for empty."""
+        seq1_text = self.input_text.toPlainText().strip()
+        seq2_text = self.seq2_text.toPlainText().strip() if hasattr(self, "seq2_text") else ""
+        pg = self._param_grid
+
+        if not seq1_text and not seq2_text:
+            # Empty — 3+3 layout: all params visible
+            for w in (
+                self.matrix_label,
+                self.matrix_combo,
+                self.match_label,
+                self.match_spin,
+                self.mismatch_label,
+                self.mismatch_spin,
+            ):
+                w.setVisible(True)
+            # Row 0: Alignment Mode | Gap Open | Gap Extend
+            pg.addWidget(self.gap_extend_label, 0, 4)
+            pg.addWidget(self.gap_extend_spin, 0, 5)
+            # Row 1: Scoring Method | Match Score | Mismatch Penalty
+            pg.addWidget(self.matrix_label, 1, 0)
+            pg.addWidget(self.matrix_combo, 1, 1)
+            pg.addWidget(self.match_label, 1, 2)
+            pg.addWidget(self.match_spin, 1, 3)
+            pg.addWidget(self.mismatch_label, 1, 4)
+            pg.addWidget(self.mismatch_spin, 1, 5)
+            return
+
+        try:
+            seq_type = self._detect_sequence_type(seq1_text, seq2_text)
+        except Exception:
+            return
+
+        if seq_type == "Protein":
+            # 2×2 layout
+            self.matrix_label.setVisible(True)
+            self.matrix_combo.setVisible(True)
+            self.match_label.setVisible(False)
+            self.match_spin.setVisible(False)
+            self.mismatch_label.setVisible(False)
+            self.mismatch_spin.setVisible(False)
+            # Row 0: Alignment Mode | Gap Open
+            # Row 1: Gap Extend    | Scoring Method
+            pg.addWidget(self.gap_extend_label, 1, 0)
+            pg.addWidget(self.gap_extend_spin, 1, 1)
+            pg.addWidget(self.matrix_label, 1, 2)
+            pg.addWidget(self.matrix_combo, 1, 3)
+        else:
+            # DNA: Row 0 (3): Alignment Mode | Gap Open | Gap Extend
+            #      Row 1 (2): Match Score     | Mismatch Penalty
+            self.matrix_label.setVisible(False)
+            self.matrix_combo.setVisible(False)
+            self.match_label.setVisible(True)
+            self.match_spin.setVisible(True)
+            self.mismatch_label.setVisible(True)
+            self.mismatch_spin.setVisible(True)
+            # Move Gap Extend up to Row 0
+            pg.addWidget(self.gap_extend_label, 0, 4)
+            pg.addWidget(self.gap_extend_spin, 0, 5)
+            pg.addWidget(self.match_label, 1, 0)
+            pg.addWidget(self.match_spin, 1, 1)
+            pg.addWidget(self.mismatch_label, 1, 2)
+            pg.addWidget(self.mismatch_spin, 1, 3)
 
     def _setup_output(self):
         # Output format row (inserted before output_label)
@@ -364,6 +436,8 @@ class PairwiseAlignmentTab(BaseTabWidget):
         mode_text = self.mode_combo.currentText()
         mode = "global" if mode_text.startswith("Global") else "local"
         matrix_choice = self.matrix_combo.currentText()
+        # Strip display suffix e.g. "BLOSUM62 (standard)" → "BLOSUM62"
+        matrix_name = matrix_choice.split(" (")[0] if " (" in matrix_choice else matrix_choice
         use_matrix = seq_type == "Protein"
 
         try:
@@ -371,7 +445,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
             aligner.mode = mode
 
             if use_matrix:
-                aligner.substitution_matrix = substitution_matrices.load(matrix_choice)
+                aligner.substitution_matrix = substitution_matrices.load(matrix_name)
             else:
                 aligner.match_score = self.match_spin.value()
                 aligner.mismatch_score = -abs(self.mismatch_spin.value())
@@ -388,9 +462,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
             score = aligner.score(seq1, seq2)
 
             aln1, aln2 = self._get_aligned_seqs(best)
-            aln_len, n_ident, n_sim, n_gaps = self._calc_stats(
-                aln1, aln2, use_matrix, matrix_choice
-            )
+            aln_len, n_ident, n_sim, n_gaps = self._calc_stats(aln1, aln2, use_matrix, matrix_name)
 
             pct = lambda n: f"{n / aln_len * 100:.1f}" if aln_len else "0.0"
             label1 = header1 or (seq1[:30] + "..." if len(seq1) > 30 else seq1)
@@ -402,7 +474,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
                 output = self._format_fasta_aligned(aln1, aln2, header1, header2)
             elif fmt == "CLUSTAL":
                 output = self._format_clustal_aligned(
-                    aln1, aln2, header1, header2, use_matrix, matrix_choice
+                    aln1, aln2, header1, header2, use_matrix, matrix_name
                 )
             else:  # Full Report
                 sep = "=" * 60
@@ -433,14 +505,14 @@ class PairwiseAlignmentTab(BaseTabWidget):
                     sep,
                     "",
                     self._format_emboss_aligned(
-                        aln1, aln2, header1, header2, use_matrix, matrix_choice
+                        aln1, aln2, header1, header2, use_matrix, matrix_name
                     ),
                 ]
                 output = "\n".join(lines)
 
             self.output_text.setPlainText(output)
             self.status_label.setText(
-                f"Done — Score: {score:.1f} | Identity: {pct(n_ident)}% | Similarity: {pct(n_sim)}%"
+                f"Done — Score: {score:.0f} | Ident: {pct(n_ident)}% | Sim: {pct(n_sim)}%"
             )
         except Exception as e:
             QMessageBox.critical(self, "Alignment Error", str(e))
@@ -619,8 +691,16 @@ class PairwiseAlignmentTab(BaseTabWidget):
         return seq
 
     def _detect_sequence_type(self, seq1, seq2):
+        # Strip FASTA headers and non-sequence chars for detection
+        def _extract_sequence(text: str) -> str:
+            lines = [ln for ln in text.splitlines() if not ln.strip().startswith(">")]
+            return "".join(ln.strip() for ln in lines).upper()
+
+        combined = _extract_sequence(seq1) + _extract_sequence(seq2)
+        if not combined:
+            return "DNA"  # default when no input
         dna_chars = set("ACGTUNRYKMSWBDHV")
-        if set(seq1 + seq2).issubset(dna_chars):
+        if set(combined).issubset(dna_chars):
             return "DNA"
         return "Protein"
 

@@ -460,7 +460,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         pg_layout.setContentsMargins(12, 16, 0, 4)
         pg_layout.setVerticalSpacing(6)
         pg_layout.setHorizontalSpacing(10)
-        pg_layout.setColumnMinimumWidth(0, 130)
+        pg_layout.setColumnMinimumWidth(0, 110)
         pg_layout.setColumnStretch(1, 1)
 
         # Keep seq_type_combo alive (used by _detect_type) but hidden
@@ -476,7 +476,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             "Accurate (–align)",
             "Fast / Large datasets (–super5)",
         ])
-        self.method_combo.setMinimumWidth(200)
+        self.method_combo.setMinimumWidth(170)
         self.method_combo.setToolTip(
             "Accurate (–align): progressive alignment — best for ≤ a few hundred sequences\n"
             "Fast / Super5 (–super5): heuristic — suitable for thousands of sequences"
@@ -488,7 +488,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             "Input sequence order",
             "MUSCLE output order",
         ])
-        self.order_combo.setMinimumWidth(180)
+        self.order_combo.setMinimumWidth(150)
 
         threads_label = QLabel("Threads:")
         self.threads_spin = QSpinBox()
@@ -603,7 +603,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         bpg_layout.setContentsMargins(12, 16, 0, 4)
         bpg_layout.setVerticalSpacing(6)
         bpg_layout.setHorizontalSpacing(10)
-        bpg_layout.setColumnMinimumWidth(0, 130)
+        bpg_layout.setColumnMinimumWidth(0, 110)
         bpg_layout.setColumnStretch(1, 1)
 
         # Row 0: Output Directory
@@ -657,7 +657,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             "Accurate (\u2013align)",
             "Fast / Large datasets (\u2013super5)",
         ])
-        self.batch_method_combo.setMinimumWidth(200)
+        self.batch_method_combo.setMinimumWidth(170)
 
         threads_label = QLabel("Threads:")
         self.batch_threads_spin = QSpinBox()
@@ -703,7 +703,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         outer_tabs.addTab(batch_page, "Batch Multi-file")
 
-        # content_area is now empty; the tab widget becomes its sole child
+        # Prevent inner tabs from inflating the outer tab width
+        outer_tabs.setMaximumWidth(880)
         self.content_area.addWidget(outer_tabs)
 
     # --------------------------------------------------------------- drag-drop
