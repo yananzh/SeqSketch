@@ -380,23 +380,19 @@ Click <b>Save As</b> to choose a different location.</p>
             QDialog,
             QTextBrowser,
             QVBoxLayout,
-            QHBoxLayout,
             QPushButton,
         )
 
         dlg = QDialog(self)
         dlg.setWindowTitle("Help – Alignment Format Converter")
         dlg.setMinimumWidth(660)
-        dlg.setMinimumHeight(440)
-        layout = QVBoxLayout()
+        dlg.setMinimumHeight(480)
+        layout = QVBoxLayout(dlg)
         browser = QTextBrowser()
         browser.setHtml(html)
+        browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
-        btn_row = QHBoxLayout()
-        close_btn = QPushButton("Close")
-        close_btn.clicked.connect(dlg.accept)
-        btn_row.addStretch()
-        btn_row.addWidget(close_btn)
-        layout.addLayout(btn_row)
-        dlg.setLayout(layout)
+        btn = QPushButton(self.tr("Close"))
+        btn.clicked.connect(dlg.accept)
+        layout.addWidget(btn)
         dlg.exec()

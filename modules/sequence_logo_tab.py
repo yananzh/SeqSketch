@@ -450,81 +450,73 @@ class SequenceLogoTab(BaseTabWidget):
         self.status_label.setText("Cleared")
 
     def show_help(self):
-        """Show help dialog — follows the FASTA-tools QLabel+QScrollArea pattern."""
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
-        from PyQt6.QtCore import Qt
+        """Show help dialog."""
+        from PyQt6.QtWidgets import QDialog, QTextBrowser, QVBoxLayout, QPushButton
 
         help_text = """
-<h2>Sequence Logo &mdash; Visualize Sequence Conservation</h2>
+<h2>Sequence Logo — Visualize Sequence Conservation</h2>
 
 <p><b>What does this tool do?</b><br>
 It generates a sequence logo from a set of aligned DNA or protein sequences.
 Each position in the alignment is represented as a stack of letters whose
 height reflects how often that letter appears.</p>
 
+<h3>Quick Start</h3>
+<ol>
+<li>Paste or load aligned sequences in <b>FASTA format</b>.</li>
+<li>Choose the sequence type (DNA or Protein). Auto-detect works well for most inputs.</li>
+<li>Select a display mode (Probability or Information).</li>
+<li>Click <b>Run</b> to generate the logo.</li>
+<li>Use <b>Save Figure</b> to export as PNG, PDF, or SVG.</li>
+</ol>
+
 <h3>Input Requirements</h3>
 <ul>
-<li>Paste or upload aligned sequences in <b>FASTA format</b>.</li>
 <li>All sequences must have the <b>same length</b> (pre-aligned).</li>
 <li>Gap characters (<code>-</code>) are ignored when building the logo.</li>
+<li>Use the <b>MSA</b> tools (Muscle5 or MAFFT) to align unaligned sequences first.</li>
 </ul>
 
 <h3>Sequence Type</h3>
 <ul>
-<li><b>DNA</b> &mdash; shows A, T, G, C with the classic nucleotide colour scheme
-(A&nbsp;green, T&nbsp;red, G&nbsp;orange, C&nbsp;blue).</li>
-<li><b>Protein</b> &mdash; shows the 20 standard amino acids with a
+<li><b>DNA</b> — shows A, T, G, C with the classic nucleotide colour scheme
+(A green, T red, G orange, C blue).</li>
+<li><b>Protein</b> — shows the 20 standard amino acids with a
 chemistry-based colour scheme (hydrophobic, polar, charged, etc.).</li>
-<li><b>Auto Detect</b> &mdash; guesses the type from the letters present.
-Change it manually if the guess is wrong.</li>
+<li><b>Auto Detect</b> — guesses the type from the letters present.</li>
 </ul>
 
 <h3>Display Modes</h3>
 <ul>
-<li><b>Probability</b> &mdash; each letter's height is its observed frequency
-at that position (range&nbsp;0&ndash;1). Useful for seeing the raw
-composition.</li>
-<li><b>Information</b> &mdash; height is scaled by conservation in
-<b>bits</b>. A fully conserved column reaches ~2&nbsp;bits for DNA or
-~4.32&nbsp;bits for proteins. Best for highlighting conserved regions.</li>
+<li><b>Probability</b> — each letter's height is its observed frequency
+at that position (range 0–1). Useful for seeing raw composition.</li>
+<li><b>Information</b> — height is scaled by conservation in
+<b>bits</b>. A fully conserved column reaches ~2 bits for DNA or
+~4.32 bits for proteins. Best for highlighting conserved regions.</li>
 </ul>
 
 <h3>Tips</h3>
 <ul>
-<li>For long sequences the canvas widens automatically and a horizontal
-scrollbar appears &mdash; scroll to inspect every position.</li>
-<li>Use the Matplotlib toolbar above the logo to <b>zoom</b>, <b>pan</b>,
-or <b>save</b> the figure directly.</li>
-<li>Export a high-resolution copy (300&nbsp;DPI) via <b>Export Result</b>
-in PNG, PDF, or SVG format.</li>
-<li>If you are new to sequence logos, start with a small alignment
-(5&ndash;10 sequences, 20&ndash;50 positions) to get a feel for the output.</li>
+<li>For long sequences the canvas widens automatically; use the horizontal
+scrollbar to inspect every position.</li>
+<li>Export high-resolution figures (300 DPI) via <b>Save Figure</b>.</li>
+<li>Start with a small alignment (5–10 sequences, 20–50 positions) to get
+a feel for the output before tackling larger datasets.</li>
 </ul>
         """
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - Sequence Logo")
-        dialog.setFixedSize(700, 480)
-        layout = QVBoxLayout()
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)
-        label.setMargin(20)
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-        dialog.setLayout(layout)
-        dialog.exec()
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Help – Sequence Logo")
+        dlg.setMinimumWidth(660)
+        dlg.setMinimumHeight(480)
+        layout = QVBoxLayout(dlg)
+        browser = QTextBrowser()
+        browser.setHtml(help_text)
+        browser.setOpenExternalLinks(True)
+        layout.addWidget(browser)
+        btn = QPushButton(self.tr("Close"))
+        btn.clicked.connect(dlg.accept)
+        layout.addWidget(btn)
+        dlg.exec()
 
     def _setup_drag_drop(self):
         """Setup drag and drop for file loading"""

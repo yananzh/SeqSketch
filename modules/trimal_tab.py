@@ -180,15 +180,16 @@ def _parse_column_change(log: str, out_path: str = "", before_cols: int = 0) -> 
 def _show_help(parent: QWidget, title: str, html: str) -> None:
     dlg = QDialog(parent)
     dlg.setWindowTitle(title)
-    dlg.resize(640, 540)
+    dlg.setMinimumWidth(660)
+    dlg.setMinimumHeight(480)
     lay = QVBoxLayout(dlg)
     browser = QTextBrowser()
     browser.setOpenExternalLinks(True)
     browser.setHtml(html)
     lay.addWidget(browser)
-    bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-    bb.rejected.connect(dlg.accept)
-    lay.addWidget(bb)
+    btn = QPushButton(parent.tr("Close"))
+    btn.clicked.connect(dlg.accept)
+    lay.addWidget(btn)
     dlg.exec()
 
 

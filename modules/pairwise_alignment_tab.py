@@ -708,76 +708,85 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h3>Pairwise Sequence Alignment</h3>
-<p>Align two DNA or protein sequences locally using Biopython's
-<code>PairwiseAligner</code> — equivalent to EMBOSS Needle (global) and Water (local).</p>
+<h2>Pairwise Sequence Alignment</h2>
+<p><b>What does this tool do?</b><br>
+Align two DNA or protein sequences using Biopython's <code>PairwiseAligner</code>.
+Supports both global (end-to-end) and local (best-matching region) alignment,
+equivalent to the classic EMBOSS Needle and Water algorithms.</p>
 
-<h4>Input</h4>
+<h3>Quick Start</h3>
+<ol>
+<li>Paste your two sequences (FASTA or plain text) into the two input boxes.</li>
+<li>The sequence type and scoring method are auto-detected — adjust if needed.</li>
+<li>Choose <b>Global</b> or <b>Local</b> alignment mode.</li>
+<li>Click <b>Run Alignment</b> and view the result.</li>
+<li>Use <b>Export Result</b> to save the output.</li>
+</ol>
+
+<h3>Sequence Type</h3>
 <ul>
-  <li>Paste sequences in FASTA format or as raw text into each input box.</li>
-  <li>Click <b>Upload File</b> or drag-and-drop a FASTA / plain-text file onto either box.</li>
-  <li>Only the <b>first</b> sequence in each file/input is used.</li>
+<li><b>Auto Detect</b> — inferred from the characters present in both sequences.</li>
+<li><b>DNA</b> — nucleotide sequences; RNA U is automatically converted to T.</li>
+<li><b>Protein</b> — amino acid sequences (standard 20-letter alphabet).</li>
 </ul>
 
-<h4>Sequence Type</h4>
+<h3>Alignment Mode</h3>
 <ul>
-  <li><b>Auto Detect</b> — inferred from the characters present in both sequences.</li>
-  <li><b>DNA</b> — nucleotide sequences; RNA U is automatically converted to T.</li>
-  <li><b>Protein</b> — amino acid sequences (standard 20-letter alphabet).</li>
+<li><b>Global (Needleman–Wunsch)</b> — aligns entire sequences end-to-end.
+    Best when sequences are of similar length and origin.</li>
+<li><b>Local (Smith–Waterman)</b> — finds the highest-scoring sub-sequence match.
+    Best for locating conserved motifs or domains.</li>
 </ul>
 
-<h4>Alignment Mode</h4>
+<h3>Scoring Method</h3>
 <ul>
-  <li><b>Global (Needleman–Wunsch)</b> — aligns entire sequences end-to-end.
-      Best when sequences are of similar length and origin.</li>
-  <li><b>Local (Smith–Waterman)</b> — finds the highest-scoring sub-sequence match.
-      Best for locating conserved motifs or domains.</li>
+<li><b>BLOSUM62 (standard)</b> — recommended default for protein alignments.</li>
+<li><b>PAM250 (distant)</b> — suitable for very distantly related proteins.</li>
+<li>DNA alignments use a simple match/mismatch scoring model automatically.</li>
 </ul>
 
-<h4>Substitution Matrix</h4>
+<h3>Gap Penalties (affine gap model)</h3>
 <ul>
-  <li><b>BLOSUM62</b> — recommended default for protein alignments.</li>
-  <li><b>PAM250</b> — suitable for very distantly related proteins.</li>
+<li><b>Gap Open</b> — cost for starting a new gap (larger = fewer, longer gaps).</li>
+<li><b>Gap Extend</b> — cost per additional residue in a gap extension.</li>
 </ul>
 
-<h4>Gap Penalties (affine gap model)</h4>
+<h3>Output Format</h3>
 <ul>
-  <li><b>Gap Open</b> — cost for starting a new gap (larger = fewer, longer gaps).</li>
-  <li><b>Gap Extend</b> — cost per additional residue in a gap extension.</li>
+<li><b>Full Report</b> — statistics header (length, identity, similarity, gaps, score)
+    followed by EMBOSS-style formatted alignment.<br>
+    Notation: <code>|</code> exact match, <code>.</code> similar, <code> </code> mismatch/gap.</li>
+<li><b>FASTA (aligned)</b> — both aligned sequences exported with gap characters (<code>-</code>)
+    in standard FASTA format, suitable for downstream tools.</li>
+<li><b>CLUSTAL</b> — block alignment in CLUSTAL-W format with a conservation line
+    (<code>*</code> identical, <code>:</code> similar, <code>.</code> weakly similar).</li>
 </ul>
 
-<h4>Output Format</h4>
+<h3>Interpretation</h3>
 <ul>
-  <li><b>Full Report</b> — statistics header (length, identity, similarity, gaps, score)
-      followed by EMBOSS-style formatted alignment.<br/>
-      Notation: <code>|</code> exact match, <code>.</code> similar, <code>&nbsp;</code> mismatch/gap.</li>
-  <li><b>FASTA (aligned)</b> — both aligned sequences exported with gap characters (<code>-</code>)
-      in standard FASTA format, suitable for downstream tools.</li>
-  <li><b>CLUSTAL</b> — block alignment in CLUSTAL-W format with a conservation line
-      (<code>*</code> identical, <code>:</code> similar, <code>.</code> weakly similar).</li>
+<li><b>Ident</b> — fraction of aligned positions with identical residues.</li>
+<li><b>Sim</b> — fraction of aligned positions that are identical <em>or</em> have
+    a positive substitution-matrix score (for protein). Equals identity for DNA.</li>
 </ul>
 
-<h4>Identity and Similarity</h4>
+<h3>Tips</h3>
 <ul>
-    <li><b>Identity</b> — fraction of aligned positions with identical residues.</li>
-  <li><b>Similarity</b> — fraction of aligned positions that are identical <em>or</em> have
-      a positive substitution-matrix score (for protein). Equals identity for DNA.</li>
+<li>For similar-length sequences, start with <b>Global</b> mode and BLOSUM62.</li>
+<li>For finding a conserved domain in a long sequence, switch to <b>Local</b> mode.</li>
+<li>Protein sequences benefit from the substitution matrix; DNA alignments work best
+    with custom gap penalties tuned to your data.</li>
 </ul>
-<p>Use <b>Export Result</b> to save the alignment to a text file.</p>
         """
         dlg = QDialog(self)
         dlg.setWindowTitle("Help – Pairwise Sequence Alignment")
-        dlg.setMinimumWidth(640)
-        dlg.setMinimumHeight(520)
-        layout = QVBoxLayout()
+        dlg.setMinimumWidth(660)
+        dlg.setMinimumHeight(480)
+        layout = QVBoxLayout(dlg)
         browser = QTextBrowser()
         browser.setHtml(help_text)
+        browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
-        btn_row = QHBoxLayout()
-        close_btn = QPushButton("Close")
-        close_btn.clicked.connect(dlg.accept)
-        btn_row.addStretch()
-        btn_row.addWidget(close_btn)
-        layout.addLayout(btn_row)
-        dlg.setLayout(layout)
+        btn = QPushButton(self.tr("Close"))
+        btn.clicked.connect(dlg.accept)
+        layout.addWidget(btn)
         dlg.exec()

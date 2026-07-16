@@ -1103,7 +1103,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
     def show_help(self):
         html = """
-<h2>Multiple Sequence Alignment &mdash; MAFFT</h2>
+<h2>Multiple Sequence Alignment — MAFFT</h2>
 
 <p><b>What does this tool do?</b><br>
 Aligns ≥ 2 DNA or protein sequences using the bundled MAFFT engine.
@@ -1112,50 +1112,56 @@ iterative refinement.</p>
 
 <h3>Quick Start</h3>
 <ol>
-<li>Paste ≥ 2 FASTA sequences or drag-and-drop a file</li>
-<li>Choose an <b>Alignment Strategy</b> (Auto works well for most cases)</li>
-<li>Click <b>Align</b> &mdash; the result is written to the output path automatically</li>
+<li>Paste ≥ 2 FASTA sequences or drag-and-drop a file.</li>
+<li>Choose an <b>Alignment Strategy</b> (Auto works well for most cases).</li>
+<li>Click <b>Align</b> — the result is written to the output path automatically.</li>
 </ol>
 
 <h3>Single-file vs Batch Multi-file</h3>
 <ul>
-<li><b>Single-file</b> &mdash; align one multi-FASTA input and save to a chosen output file</li>
-<li><b>Batch Multi-file</b> &mdash; process multiple FASTA files in a folder,
-    with auto-naming via <code>{stem}</code>, <code>{method}</code>, <code>{ext}</code> placeholders</li>
+<li><b>Single-file</b> — align one multi-FASTA input and save to a chosen output file.</li>
+<li><b>Batch Multi-file</b> — process multiple FASTA files in a folder,
+    with auto-naming via <code>{stem}</code>, <code>{method}</code>, <code>{ext}</code> placeholders.</li>
 </ul>
 
 <h3>Alignment Strategies</h3>
 <table border="0" cellpadding="4" cellspacing="2">
-<tr><td><b>Auto</b></td><td>&rarr; balanced default, suitable for most datasets</td></tr>
-<tr><td><b>FFT-NS-2</b></td><td>&rarr; fast progressive method, ideal for large datasets</td></tr>
-<tr><td><b>L-INS-i</b></td><td>&rarr; most accurate, iterative refinement; best for divergent sequences</td></tr>
+<tr><td><b>Auto</b></td><td>→ balanced default, suitable for most datasets</td></tr>
+<tr><td><b>FFT-NS-2</b></td><td>→ fast progressive method, ideal for large datasets</td></tr>
+<tr><td><b>L-INS-i</b></td><td>→ most accurate, iterative refinement; best for divergent sequences</td></tr>
 </table>
 
 <h3>Sequence Order</h3>
 <ul>
-<li><b>Input sequence order</b> &mdash; restore aligned sequences to match the original input order</li>
-<li><b>MAFFT output order</b> &mdash; keep the order returned by MAFFT</li>
+<li><b>Input sequence order</b> — restore aligned sequences to match the original input order.</li>
+<li><b>MAFFT output order</b> — keep the order returned by MAFFT.</li>
 </ul>
 
 <h3>Output</h3>
 <ul>
-<li>Output is written as aligned FASTA directly to the chosen path</li>
-<li>Batch mode supports FASTA, CLUSTAL, and Summary output formats</li>
+<li>Output is written as aligned FASTA directly to the chosen path.</li>
+<li>Batch mode supports FASTA, CLUSTAL, and Summary output formats.</li>
+</ul>
+
+<h3>Tips</h3>
+<ul>
+<li>For most datasets, <b>Auto</b> mode selects an appropriate strategy automatically.</li>
+<li>Use <b>L-INS-i</b> for high-quality alignments of divergent sequences (slower but more accurate).</li>
+<li>Use <b>FFT-NS-2</b> for large datasets where speed matters.</li>
+<li>After alignment, use <b>trimAl</b> to remove poorly aligned columns, then
+    <b>IQ-TREE</b> for phylogeny or <b>MSA Visualization</b> to inspect the result.</li>
 </ul>
 """
         dlg = QDialog(self)
         dlg.setWindowTitle("Help – Multiple Sequence Alignment (MAFFT)")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(480)
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(dlg)
         browser = QTextBrowser()
         browser.setHtml(html)
+        browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
-        btn_row = QHBoxLayout()
-        close_btn = QPushButton("Close")
-        close_btn.clicked.connect(dlg.accept)
-        btn_row.addStretch()
-        btn_row.addWidget(close_btn)
-        layout.addLayout(btn_row)
-        dlg.setLayout(layout)
+        btn = QPushButton(self.tr("Close"))
+        btn.clicked.connect(dlg.accept)
+        layout.addWidget(btn)
         dlg.exec()

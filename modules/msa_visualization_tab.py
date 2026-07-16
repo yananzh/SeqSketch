@@ -467,7 +467,7 @@ class MSAVisualizationTab(BaseTabWidget):
 
     def show_help(self):
         html = """
-<h2>MSA Visualization &mdash; pyMSAviz</h2>
+<h2>MSA Visualization — pyMSAviz</h2>
 
 <p><b>What does this tool do?</b><br>
 Renders a colored multiple sequence alignment figure using pyMSAviz,
@@ -476,55 +476,52 @@ MSA figures.</p>
 
 <h3>Quick Start</h3>
 <ol>
-<li>Paste a <b>pre-aligned</b> FASTA file (all sequences must be the same length)</li>
-<li>Choose a <b>Color Scheme</b> and adjust display options</li>
-<li>Click <b>Visualize</b> &mdash; the rendered figure appears in the scrollable area below</li>
-<li>Use the <b>toolbar</b> above the figure to pan, zoom, and export as PNG / SVG / PDF / TIFF</li>
+<li>Paste a <b>pre-aligned</b> FASTA file (all sequences must be the same length).</li>
+<li>Choose a <b>Color Scheme</b> and adjust display options.</li>
+<li>Click <b>Visualize</b> — the rendered figure appears in the scrollable area below.</li>
+<li>Use <b>Save Figure</b> to export as PNG, SVG, or PDF.</li>
 </ol>
 
 <h3>Color Schemes</h3>
 <table border="0" cellpadding="4" cellspacing="2">
-<tr><td><b>Clustal</b></td><td>&rarr; classic Clustal-X colors (protein default)</td></tr>
-<tr><td><b>Nucleotide</b></td><td>&rarr; recommended for DNA alignments</td></tr>
-<tr><td><b>Purine/Pyrimidine</b></td><td>&rarr; alternative DNA scheme</td></tr>
-<tr><td><b>Taylor, Zappo, Flower, &hellip;</b></td><td>&rarr; alternative protein schemes</td></tr>
-<tr><td><b>Identity</b></td><td>&rarr; colors by residue conservation level</td></tr>
-<tr><td><b>None</b></td><td>&rarr; plain gray residues</td></tr>
+<tr><td><b>Clustal</b></td><td>→ classic Clustal-X colors (protein default)</td></tr>
+<tr><td><b>Nucleotide</b></td><td>→ recommended for DNA alignments</td></tr>
+<tr><td><b>Purine/Pyrimidine</b></td><td>→ alternative DNA scheme</td></tr>
+<tr><td><b>Taylor, Zappo, Flower, …</b></td><td>→ alternative protein schemes</td></tr>
+<tr><td><b>Identity</b></td><td>→ colors by residue conservation level</td></tr>
+<tr><td><b>None</b></td><td>→ plain gray residues</td></tr>
 </table>
 
 <h3>Display Options</h3>
 <ul>
-<li><b>Sequence Characters</b> &mdash; show/hide residue letters inside each cell</li>
-<li><b>Grid</b> &mdash; draw cell borders</li>
-<li><b>Position Count</b> &mdash; show column numbers along the x-axis</li>
-<li><b>Consensus</b> &mdash; consensus bar below the alignment</li>
-<li><b>Sort by Similarity</b> &mdash; reorder by similarity to the first sequence</li>
-<li><b>Highlight Conserved Columns</b> &mdash; light blue background on columns
-    meeting the identity threshold</li>
+<li><b>Sequence Characters</b> — show/hide residue letters inside each cell.</li>
+<li><b>Grid</b> — draw cell borders.</li>
+<li><b>Position Count</b> — show column numbers along the x-axis.</li>
+<li><b>Consensus</b> — consensus bar below the alignment.</li>
+<li><b>Sort by Similarity</b> — reorder by similarity to the first sequence.</li>
+<li><b>Highlight Conserved Columns</b> — light blue background on columns
+    meeting the identity threshold.</li>
 </ul>
 
 <h3>Tips</h3>
 <ul>
 <li>Use the <b>Multiple Sequence Alignment (Muscle5 / MAFFT)</b> tabs to
-    generate an alignment first, then paste the output here</li>
-<li>Set <b>Wrap Length</b> to 0 for a single continuous row</li>
-<li>Higher <b>DPI</b> = sharper figures but slower rendering (300 is a good default)</li>
-<li>Use the toolbar to save as PNG, SVG, PDF, or TIFF</li>
+    generate an alignment first, then paste the output here.</li>
+<li>Set <b>Wrap Length</b> to 0 for a single continuous row.</li>
+<li>Higher <b>DPI</b> = sharper figures but slower rendering (300 is a good default).</li>
+<li>Use <b>Save Figure</b> to export high-resolution copies in PNG, SVG, or PDF.</li>
 </ul>
 """
         dlg = QDialog(self)
         dlg.setWindowTitle("Help – MSA Visualization (pyMSAviz)")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(480)
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(dlg)
         browser = QTextBrowser()
         browser.setHtml(html)
+        browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
-        btn_row = QHBoxLayout()
-        close_btn = QPushButton("Close")
-        close_btn.clicked.connect(dlg.accept)
-        btn_row.addStretch()
-        btn_row.addWidget(close_btn)
-        layout.addLayout(btn_row)
-        dlg.setLayout(layout)
+        btn = QPushButton(self.tr("Close"))
+        btn.clicked.connect(dlg.accept)
+        layout.addWidget(btn)
         dlg.exec()

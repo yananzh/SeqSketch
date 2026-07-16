@@ -333,68 +333,54 @@ class DotPlotTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h3>DotPlot (Local)</h3>
-<p><b>Description:</b></p>
-<p>DotPlot visualizes sequence similarity as a 2D map. Matching regions appear as diagonal patterns.</p>
+<h2>DotPlot (Local)</h2>
+<p><b>What does this tool do?</b><br>
+DotPlot visualizes sequence similarity as a 2D map. Matching regions appear as diagonal patterns, making it easy to spot repeats, inversions, and conserved domains.</p>
 
-<p><b>Quick Start:</b></p>
+<h3>Quick Start</h3>
 <ol>
 <li>Paste one sequence (self-comparison) or two sequences (pairwise) in FASTA format.</li>
-<li>Choose word size (k-mer). Start with <b>k=1</b> or <b>k=2</b>.</li>
+<li>Choose word size (k-mer). Start with <b>k=1</b> for sensitive, <b>k=2</b> for cleaner plots.</li>
 <li>Click <b>Generate DotPlot</b>.</li>
-<li>Use the toolbar to zoom, pan, or export the image if needed.</li>
+<li>Use <b>Save Figure</b> to export the plot as PNG, PDF, or SVG.</li>
 </ol>
 
-<p><b>Parameters:</b></p>
+<h3>Comparison Modes</h3>
 <ul>
-<li><b>Comparison Mode:</b> Auto / force self / force pairwise.</li>
-<li><b>Word Size:</b> Exact k-mer match length. Larger values reduce noise.</li>
+<li><b>Auto</b> — 2 FASTA records produce pairwise; 1 record produces self-comparison.</li>
+<li><b>Force self-comparison</b> — use only the first sequence against itself.</li>
+<li><b>Force pairwise</b> — use the first two sequences.</li>
 </ul>
 
-<p><b>How to interpret:</b></p>
+<h3>Word Size (k-mer)</h3>
+<p>A hit is recorded wherever two sequences share an exact k-mer match. Lower values give more dots (higher sensitivity); higher values give fewer dots (less noise).</p>
+
+<h3>How to Interpret</h3>
 <ul>
-<li>Main diagonal: overall similarity in the same direction.</li>
-<li>Parallel diagonals: repeated regions.</li>
-<li>Anti-diagonal-like patterns: possible inversions/reverse similarity.</li>
+<li>Main diagonal — overall similarity in the same orientation.</li>
+<li>Parallel diagonals — repeated regions.</li>
+<li>Anti-diagonal patterns — possible inversions or reverse similarity.</li>
 </ul>
 
-<p><b>Tips for beginners:</b></p>
+<h3>Tips</h3>
 <ul>
-<li>If plot is too dense, increase word size from 1 to 2/3.</li>
+<li>If plot is too dense, increase word size from 1 to 2 or 3.</li>
 <li>If plot is too sparse, decrease word size.</li>
 <li>For long sequences, compare subsequences first for faster rendering.</li>
 </ul>
         """
-        from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
-            QLabel,
-            QPushButton,
-            QScrollArea,
-        )
+        from PyQt6.QtWidgets import QDialog, QTextBrowser, QVBoxLayout, QPushButton
 
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Help - DotPlot")
-        dialog.setFixedSize(850, 600)
-        layout = QVBoxLayout()
-
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setWordWrap(True)
-        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setMargin(20)
-
-        scroll_area.setWidget(label)
-        layout.addWidget(scroll_area)
-
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(dialog.accept)
-        layout.addWidget(ok_button)
-
-        dialog.setLayout(layout)
-        dialog.exec()
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Help – DotPlot")
+        dlg.setMinimumWidth(660)
+        dlg.setMinimumHeight(480)
+        layout = QVBoxLayout(dlg)
+        browser = QTextBrowser()
+        browser.setHtml(help_text)
+        browser.setOpenExternalLinks(True)
+        layout.addWidget(browser)
+        btn = QPushButton(self.tr("Close"))
+        btn.clicked.connect(dlg.accept)
+        layout.addWidget(btn)
+        dlg.exec()
