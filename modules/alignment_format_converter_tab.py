@@ -5,11 +5,14 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QFileDialog,
     QComboBox,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QSizePolicy,
+    QVBoxLayout,
 )
 
 from utils.common_components import (
@@ -17,6 +20,7 @@ from utils.common_components import (
     validate_input_path,
     validate_output_path,
 )
+from utils.example_data import load_example_text, stage_example
 
 
 FORMAT_LABELS = {
@@ -63,11 +67,28 @@ def convert_alignment_file(
     if not alignments:
         raise ValueError("No alignment records were found in the input file.")
 
+    # NEXUS output needs molecule_type annotation on each record
+    if output_format == "nexus":
+        mol_type = _detect_molecule_type(alignments[0])
+        for aln in alignments:
+            for record in aln:
+                record.annotations["molecule_type"] = mol_type
+
     with open(output_path, "w", encoding="utf-8") as handle:
         written = AlignIO.write(alignments, handle, output_format)
 
     first_alignment = alignments[0]
     return written, len(first_alignment), first_alignment.get_alignment_length()
+
+
+def _detect_molecule_type(alignment) -> str:
+    """Detect DNA or protein from the first sequence in an alignment."""
+    dna_chars = set("ACGTUNRYKMSWBDHV")
+    for record in alignment:
+        seq = str(record.seq).upper().replace("-", "")
+        if seq and set(seq).issubset(dna_chars):
+            return "DNA"
+    return "protein"
 
 
 class AlignmentFormatConverterTab(BaseTabWidget):
@@ -114,73 +135,105 @@ class AlignmentFormatConverterTab(BaseTabWidget):
                 except Exception:
                     return False
 
-        input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("Input alignment:"))
+        # ── Input QGroupBox ───────────────────────────────────────────
+        input_group = QGroupBox("Input")
+        input_group.setFlat(True)
+        ig_layout = QVBoxLayout(input_group)
+        ig_layout.setContentsMargins(12, 16, 12, 4)
+        ig_layout.setSpacing(6)
+
+        input_row = QHBoxLayout()
+        input_label = QLabel("Input alignment:")
+        input_label.setFixedWidth(120)
+        input_row.addWidget(input_label)
         self.input_edit = FileDropLineEdit()
         self.input_edit.setPlaceholderText(
             "Select or drop an aligned FASTA / CLUSTAL / PHYLIP / NEXUS file..."
         )
         self.input_edit.setMinimumWidth(320)
-        self.input_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
-        input_layout.addWidget(self.input_edit)
-        input_layout.addWidget(self.input_btn)
-        input_layout.setSpacing(8)
+        input_row.addWidget(self.input_edit)
+        input_row.addWidget(self.input_btn)
 
-        format_layout = QHBoxLayout()
-        format_layout.addWidget(QLabel("Input format:"))
+        fmt_row = QHBoxLayout()
+        input_fmt_label = QLabel("Input format:")
+        input_fmt_label.setFixedWidth(120)
+        fmt_row.addWidget(input_fmt_label)
         self.input_format_combo = QComboBox()
         self.input_format_combo.addItems(list(FORMAT_LABELS))
-        format_layout.addWidget(self.input_format_combo)
-        format_layout.addSpacing(16)
-        format_layout.addWidget(QLabel("Output format:"))
+        fmt_row.addWidget(self.input_format_combo)
+        fmt_row.addStretch()
+
+        ig_layout.addLayout(input_row)
+        ig_layout.addLayout(fmt_row)
+        self.add_content_widget(input_group)
+
+        # ── Output QGroupBox ──────────────────────────────────────────
+        output_group = QGroupBox("Output")
+        output_group.setFlat(True)
+        og_layout = QVBoxLayout(output_group)
+        og_layout.setContentsMargins(12, 16, 12, 4)
+        og_layout.setSpacing(6)
+
+        output_row = QHBoxLayout()
+        output_label = QLabel("Output file:")
+        output_label.setFixedWidth(120)
+        output_row.addWidget(output_label)
+        self.output_edit = QLineEdit()
+        self.output_edit.setPlaceholderText("Choose where to save the converted alignment...")
+        self.output_edit.setMinimumWidth(320)
+        self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.output_btn = QPushButton("Save As")
+        self.output_btn.setFixedWidth(90)
+        output_row.addWidget(self.output_edit)
+        output_row.addWidget(self.output_btn)
+
+        out_fmt_row = QHBoxLayout()
+        output_fmt_label = QLabel("Output format:")
+        output_fmt_label.setFixedWidth(120)
+        out_fmt_row.addWidget(output_fmt_label)
         self.output_format_combo = QComboBox()
         self.output_format_combo.addItems(list(FORMAT_LABELS))
         self.output_format_combo.setCurrentText("CLUSTAL")
-        format_layout.addWidget(self.output_format_combo)
-        format_layout.addStretch(1)
+        out_fmt_row.addWidget(self.output_format_combo)
+        out_fmt_row.addStretch()
 
-        output_layout = QHBoxLayout()
-        output_layout.addWidget(QLabel("Output file:"))
-        self.output_edit = QLineEdit()
-        self.output_edit.setPlaceholderText(
-            "Choose where to save the converted alignment..."
-        )
-        self.output_edit.setMinimumWidth(320)
-        self.output_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        self.output_btn = QPushButton("Save As")
-        self.output_btn.setFixedWidth(90)
-        output_layout.addWidget(self.output_edit)
-        output_layout.addWidget(self.output_btn)
-        output_layout.setSpacing(8)
+        og_layout.addLayout(output_row)
+        og_layout.addLayout(out_fmt_row)
+        self.add_content_widget(output_group)
 
-        control_layout = QHBoxLayout()
-        control_layout.addStretch(1)
+        # ── Buttons: Convert / Example / Clear in status_layout next to Help ──
         self.run_btn = QPushButton("Convert")
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setToolTip(self.tr("Load example alignment file"))
+        self.example_btn.clicked.connect(self._load_example)
         self.clear_btn = QPushButton("Clear")
-        control_layout.addWidget(self.run_btn)
-        control_layout.addWidget(self.clear_btn)
-        control_layout.setSpacing(10)
+        self.run_btn.setFixedWidth(90)
+        self.example_btn.setFixedWidth(90)
+        self.clear_btn.setFixedWidth(90)
+        # Insert before the Help button (last widget in status_layout)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.example_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
 
-        self.add_content_layout(input_layout)
-        self.add_content_layout(format_layout)
-        self.add_content_layout(output_layout)
-        self.add_content_layout(control_layout)
         self.content_area.addStretch()
+
+    def _load_example(self):
+        staged = stage_example("protein", "aligned_pro_example.fasta")
+        if not staged:
+            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            return
+        self.input_edit.setText(staged)
+        self.show_status(self.tr("Example loaded"))
 
     def connect_signals(self):
         self.input_btn.clicked.connect(self.select_input_file)
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_conversion)
         self.clear_btn.clicked.connect(self.clear_all)
-        self.output_format_combo.currentTextChanged.connect(
-            self._update_output_extension
-        )
+        self.output_format_combo.currentTextChanged.connect(self._update_output_extension)
         if hasattr(self.input_edit, "file_dropped"):
             self.input_edit.file_dropped.connect(self.handle_input_file_selected)
 

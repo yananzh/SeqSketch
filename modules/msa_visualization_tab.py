@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 from utils.common_components import BaseTabWidget
+from utils.example_data import load_example_text
 
 # All pyMSAviz color schemes
 _COLOR_SCHEMES = [
@@ -61,8 +62,9 @@ class MSAVisualizationTab(BaseTabWidget):
         # Rewire base widgets
         self.run_btn.setText("Visualize")
         self.export_btn.setText("Save Figure")
+        self.export_btn.setFixedWidth(110)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.export_btn)
         self.output_group.hide()
-        self.export_btn.hide()
         self.copy_btn.hide()
         self.output_text.hide()
         self.output_label.hide()
@@ -78,9 +80,20 @@ class MSAVisualizationTab(BaseTabWidget):
             ">seq3\nATGCATGCATGT"
         )
         self.input_text.setMaximumHeight(250)
-        self.upload_btn.setText("Upload FASTA File")
-        self.input_hint.setStyleSheet("color: #888;")
+        self.upload_btn.setText("Upload File")
         self.input_hint.hide()
+
+        # Place Example button next to Upload File — both fill the row
+        ig = self.input_group.layout()
+        ig.removeWidget(self.upload_btn)
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        btn_row.addWidget(self.upload_btn, 1)
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setToolTip(self.tr("Load example MSA alignment"))
+        self.example_btn.clicked.connect(self._load_example)
+        btn_row.addWidget(self.example_btn, 1)
+        ig.insertLayout(1, btn_row)
 
         self._setup_parameters()
         self._add_canvas()
@@ -115,7 +128,7 @@ class MSAVisualizationTab(BaseTabWidget):
         row1.addWidget(QLabel("Wrap Length:"))
         self.wrap_spin = QSpinBox()
         self.wrap_spin.setRange(0, 9999)
-        self.wrap_spin.setValue(80)
+        self.wrap_spin.setValue(60)
         self.wrap_spin.setFixedWidth(90)
         self.wrap_spin.setSpecialValueText("No wrap")  # 0 → None
         self.wrap_spin.setToolTip(
@@ -168,11 +181,11 @@ class MSAVisualizationTab(BaseTabWidget):
         row3.addWidget(QLabel("Font Size:"))
         self.font_spin = QSpinBox()
         self.font_spin.setRange(4, 24)
-        self.font_spin.setValue(6)
+        self.font_spin.setValue(10)
         self.font_spin.setFixedWidth(70)
         self.font_spin.setToolTip(
             "Base font size for sequence characters and labels.\n"
-            "Default 8 gives a compact alignment view."
+            "Default 10 gives a compact alignment view."
         )
         row3.addWidget(self.font_spin)
         row3.addSpacing(20)
@@ -206,12 +219,7 @@ class MSAVisualizationTab(BaseTabWidget):
 
         self._canvas_container.setWidget(self._canvas_inner)
 
-        # Toolbar placeholder — populated after first render
-        self._toolbar_placeholder = QHBoxLayout()
-        self._canvas_vbox.addLayout(self._toolbar_placeholder)
-
         self.canvas = None
-        self.nav_bar = None
 
         insert_at = max(0, self.content_area.count() - 1)
         self.content_area.insertWidget(insert_at, self._canvas_container)
@@ -308,6 +316,14 @@ class MSAVisualizationTab(BaseTabWidget):
         except Exception as e:
             QMessageBox.warning(self, "Export Error", str(e))
 
+    def _load_example(self):
+        text = load_example_text("protein", "aligned_pro_example.fasta")
+        if not text:
+            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            return
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("Example loaded"))
+
     def clear(self):
         self.input_text.clear()
         self._clear_loaded_hint()
@@ -342,12 +358,6 @@ class MSAVisualizationTab(BaseTabWidget):
             self._canvas_vbox.removeWidget(self.canvas)
             self.canvas.setParent(None)
             self.canvas = None
-        if self.nav_bar is not None:
-            while self._toolbar_placeholder.count():
-                item = self._toolbar_placeholder.takeAt(0)
-                if item.widget():
-                    item.widget().setParent(None)
-            self.nav_bar = None
         self._current_figure = None
         # Reset inner container so scroll area shows nothing
         self._canvas_inner.setFixedSize(0, 0)
@@ -425,14 +435,9 @@ class MSAVisualizationTab(BaseTabWidget):
             h_px = int(fig.get_figheight() * fig.dpi)
             self.canvas.setFixedSize(w_px, h_px)
 
-            self.nav_bar = NavigationToolbar(self.canvas, self._canvas_inner)
-
-            # Resize the inner container to match canvas + toolbar
-            toolbar_h = self.nav_bar.sizeHint().height()
-            self._canvas_inner.setFixedSize(w_px, h_px + toolbar_h + 4)
-
-            self._toolbar_placeholder.addWidget(self.nav_bar)
             self._canvas_vbox.addWidget(self.canvas)
+            # Size inner widget to match canvas so full image is scrollable
+            self._canvas_inner.setFixedSize(w_px, h_px + 24)
 
             aln_len = mv.alignment_length
             # Count gap characters across all sequences for the stats bar

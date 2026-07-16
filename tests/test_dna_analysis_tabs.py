@@ -662,10 +662,10 @@ def test_msa_batch_worker_can_restore_input_sequence_order():
     assert list(ordered.keys()) == ["seqB", "seqA"]
 
 
-def test_msa_visualization_tab_hides_save_figure_button(qapp):
+def test_msa_visualization_tab_shows_save_figure_button(qapp):
     tab = MSAVisualizationTab()
 
-    assert tab.export_btn.isHidden()
+    assert not tab.export_btn.isHidden()
 
 
 def test_mafft_worker_emits_aligned_fasta_with_auto_strategy(monkeypatch, tmp_path):
@@ -841,10 +841,10 @@ def test_main_window_and_menu_use_mafft_label(qapp):
     assert "Multiple Sequence Alignment (MAFFT)" in action_texts
 
 
-def test_sequence_logo_tab_hides_save_figure_button_and_uses_logomaker_title(qapp):
+def test_sequence_logo_tab_shows_save_figure_button_and_uses_logomaker_title(qapp):
     tab = SequenceLogoTab()
 
-    assert tab.export_btn.isHidden()
+    assert not tab.export_btn.isHidden()
     assert tab.title == "Sequence Logo (Logomaker)"
 
 

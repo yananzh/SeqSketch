@@ -8,14 +8,15 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QScrollArea,
     QPushButton,
+    QWidget,
 )
 
 from utils.common_components import BaseTabWidget
+from utils.example_data import load_example_text
 import matplotlib
 
 matplotlib.use("Qt5Agg")
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import pandas as pd
 import logomaker
@@ -26,15 +27,14 @@ class SequenceLogoTab(BaseTabWidget):
 
     def __init__(self, parent=None):
         super().__init__("Sequence Logo (Logomaker)", "sequence")
-        self._logo_generated = False
 
         # Customize base widgets
-        self.run_btn.setText("Generate Logo")
-        self.run_btn.setFixedWidth(140)
+        self.run_btn.setText("Run")
+        self.export_btn.setText("Save Figure")
+        self.export_btn.setFixedWidth(110)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.export_btn)
         if hasattr(self, "copy_btn"):
             self.copy_btn.hide()
-        if hasattr(self, "export_btn"):
-            self.export_btn.hide()
 
         # Update placeholder text
         self.input_text.setPlaceholderText(
@@ -55,6 +55,18 @@ class SequenceLogoTab(BaseTabWidget):
         self.input_hint.hide()
         self.input_text.setMaximumHeight(160)
 
+        # Place Example button next to Upload File — both fill the row
+        ig = self.input_group.layout()
+        ig.removeWidget(self.upload_btn)
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        btn_row.addWidget(self.upload_btn, 1)
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setToolTip(self.tr("Load example sequences for Sequence Logo"))
+        self.example_btn.clicked.connect(self._load_example)
+        btn_row.addWidget(self.example_btn, 1)
+        ig.insertLayout(1, btn_row)
+
         # ── Parameter group ───────────────────────────────────────────
         self._setup_parameters()
 
@@ -74,6 +86,14 @@ class SequenceLogoTab(BaseTabWidget):
     def open_file(self):
         super().open_file()
         self._clear_loaded_hint()
+
+    def _load_example(self):
+        text = load_example_text("dna", "seqlog_dna_example.fasta")
+        if not text:
+            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            return
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("Example loaded"))
 
     # ── Layout helpers ──────────────────────────────────────────────────────
 
@@ -129,29 +149,35 @@ class SequenceLogoTab(BaseTabWidget):
 
     def _add_plot_canvas(self):
         """Add a horizontally scrollable matplotlib canvas for long sequences."""
-        # Scroll area — setWidgetResizable(False) keeps native figure size,
-        # preventing squashing for wide logos (same pattern as MSA tab).
-        # Canvas is set as the *direct* child so its sizeHint drives scrollbars.
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(False)
         self._scroll_area.setMinimumHeight(240)
+        self._scroll_max_w = None
+
+        # Inner wrapper widget isolates canvas sizing from scroll-area layout
+        self._canvas_inner = QWidget()
+        self._canvas_vbox = QVBoxLayout(self._canvas_inner)
+        self._canvas_vbox.setContentsMargins(0, 0, 0, 0)
+        self._canvas_vbox.setSpacing(0)
+        self._scroll_area.setWidget(self._canvas_inner)
 
         self.figure = Figure(figsize=(10, 3))
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setMinimumHeight(200)
 
-        self._scroll_area.setWidget(self.canvas)
+        self._canvas_vbox.addWidget(self.canvas)
 
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.toolbar.hide()  # hidden until first logo is generated
+        # Set initial inner widget size to match figure so the placeholder
+        # is visible from the start.
+        dpi = self.figure.dpi
+        self._canvas_inner.setFixedSize(
+            int(self.figure.get_figwidth() * dpi),
+            int(self.figure.get_figheight() * dpi),
+        )
 
-        plot_label = QLabel("Sequence Logo:")
-        plot_layout = QVBoxLayout()
-        plot_layout.addWidget(plot_label)
-        plot_layout.addWidget(self.toolbar)
-        plot_layout.addWidget(self._scroll_area)
-
-        self.content_area.insertLayout(self.content_area.count() - 1, plot_layout)
+        self.content_area.insertWidget(
+            max(0, self.content_area.count() - 1), self._scroll_area
+        )
 
         self._draw_placeholder_plot()
 
@@ -181,9 +207,7 @@ class SequenceLogoTab(BaseTabWidget):
         text = self.input_text.toPlainText().strip()
 
         if not text:
-            QMessageBox.warning(
-                self, "Input Error", "Please input or load FASTA sequences."
-            )
+            QMessageBox.warning(self, "Input Error", "Please input or load FASTA sequences.")
             return
 
         try:
@@ -193,9 +217,7 @@ class SequenceLogoTab(BaseTabWidget):
             return
 
         if not records:
-            QMessageBox.warning(
-                self, "Input Error", "No valid FASTA sequences detected."
-            )
+            QMessageBox.warning(self, "Input Error", "No valid FASTA sequences detected.")
             return
 
         # Extract sequences
@@ -232,8 +254,7 @@ class SequenceLogoTab(BaseTabWidget):
             self.generate_logo(matrix, seq_type, len(records), mode)
 
             self.status_label.setText(
-                f"Generated sequence logo for {len(records)} sequences "
-                f"({seq_type}, {mode} mode, length: {lengths[0]} positions)"
+                f"Done — {len(records)} seqs, {seq_type}, {mode}, {lengths[0]} pos"
             )
         except Exception as e:
             import traceback
@@ -357,35 +378,43 @@ class SequenceLogoTab(BaseTabWidget):
         y_label = "Bits" if mode == "Information" else "Probability"
         ax.set_ylabel(y_label, fontsize=12)
         ax.set_xlabel("Position", fontsize=12)
-        ax.set_title(
-            f"{seq_type} Sequence Logo - {mode} (n={num_seqs})",
-            fontsize=14,
-            fontweight="bold",
-        )
 
         # Set x-axis to show positions starting from 1
         ax.set_xlim((0.5, len(matrix) + 0.5))
 
+        # Keep only left and bottom borders
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
         # Dynamically widen figure for long sequences so each position is legible
         num_pos = len(matrix)
         if num_pos > 30:
-            fig_width = max(10, num_pos * 0.35)
+            fig_width = min(15, max(10, num_pos * 0.35))
             self.figure.set_size_inches(fig_width, 3)
-            # Canvas is the scroll area's direct child with setWidgetResizable(False).
-            # adjustSize() resizes it to match the new figure dimensions, which
-            # triggers the QScrollArea to show the horizontal scrollbar.
-            self.canvas.adjustSize()
+        else:
+            self.figure.set_size_inches(10, 3)
 
         # Adjust layout
         self.figure.tight_layout()
 
+        # Lock the scroll area at its current width so the canvas (which may
+        # be wider) never inflates the tab or the main window.
+        if self._scroll_max_w is None and self._scroll_area.width() > 10:
+            self._scroll_max_w = self._scroll_area.width()
+
+        # Size canvas to match the figure at native resolution.
+        dpi = self.figure.dpi
+        w = int(self.figure.get_figwidth() * dpi)
+        h = int(self.figure.get_figheight() * dpi)
+        self.canvas.setFixedSize(w, h)
+        self._canvas_inner.setFixedSize(w, h)
+
+        if self._scroll_max_w:
+            self._scroll_area.setMaximumWidth(self._scroll_max_w)
+            self._scroll_area.setMinimumWidth(0)
+
         # Store current figure for export
         self.current_figure = self.figure
-
-        # Show toolbar after first successful generation
-        if not self._logo_generated:
-            self.toolbar.show()
-            self._logo_generated = True
 
         # Refresh canvas
         self.canvas.draw()
@@ -412,17 +441,13 @@ class SequenceLogoTab(BaseTabWidget):
                 self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight")
                 self.status_label.setText(f"Figure saved: {file_path}")
             except Exception as e:
-                QMessageBox.warning(
-                    self, "Export Error", f"Failed to save figure:\n{str(e)}"
-                )
+                QMessageBox.warning(self, "Export Error", f"Failed to save figure:\n{str(e)}")
 
     def clear(self):
         """Clear input, output and figure, restoring the placeholder."""
         self.input_text.clear()
         self._clear_loaded_hint()
         self._draw_placeholder_plot()
-        self.toolbar.hide()
-        self._logo_generated = False
         self.current_figure = None
         self.status_label.setText("Cleared")
 
