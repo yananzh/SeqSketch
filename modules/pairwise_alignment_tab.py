@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import (
     QMessageBox,
     QFileDialog,
+    QGridLayout,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -17,9 +18,31 @@ from PyQt6.QtGui import QFont
 from utils.common_components import (
     BaseTabWidget,
 )
+from utils.example_data import load_example_text
 from Bio import Align
 from Bio.Align import substitution_matrices
 import re
+
+
+def _parse_fasta_text(text: str):
+    """Parse FASTA text into a list of (header, sequence) tuples."""
+    records = []
+    current_header = None
+    current_seq = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith(">"):
+            if current_header is not None:
+                records.append((current_header, "".join(current_seq)))
+            current_header = line[1:]
+            current_seq = []
+        elif current_header is not None:
+            current_seq.append(line)
+    if current_header is not None:
+        records.append((current_header, "".join(current_seq)))
+    return records
 
 
 class PairwiseAlignmentTab(BaseTabWidget):
@@ -39,13 +62,9 @@ class PairwiseAlignmentTab(BaseTabWidget):
         # --- Seq1 (reuse BaseTabWidget widgets) ---
         self.input_label.setText("Sequence 1:")
         self.input_text.setPlaceholderText(
-            "Paste sequence 1 in FASTA format or raw sequence, or drag-and-drop a file...\n\n"
-            "DNA example:\n>seq1\nATGCGATCGATCGTAA\n\n"
-            "Protein example:\n>prot1\nMKTFFVAGLMAGIS"
+            "Paste sequence 1 (FASTA or raw) or drag-and-drop a file..."
         )
-        self.input_text.setMinimumHeight(160)
-        # Suppress the native QFrame border so only the CSS border
-        # declared below is visible (avoid double-border rendering).
+        self.input_text.setMinimumHeight(120)
         self.input_text.setLineWidth(0)
         self.input_text.setMidLineWidth(0)
         self.input_text.setFrameShape(QFrame.Shape.NoFrame)
@@ -58,8 +77,8 @@ class PairwiseAlignmentTab(BaseTabWidget):
             "selection-color: #1a1a1a;"
         )
         self.input_text.viewport().setStyleSheet("background: transparent;")
-        self.upload_btn.setText("Upload File")
-        self.input_hint.setStyleSheet("color: #888;")
+        self.upload_btn.hide()
+        self.upload_btn.deleteLater()
 
         # Discard the now-unused QGroupBox wrapper so it does not
         # linger as an orphaned child widget.
@@ -70,8 +89,6 @@ class PairwiseAlignmentTab(BaseTabWidget):
         seq1_layout = QVBoxLayout()
         seq1_layout.addWidget(self.input_label)
         seq1_layout.addWidget(self.input_text)
-        seq1_layout.addWidget(self.upload_btn)
-        seq1_layout.addWidget(self.input_hint)
 
         # --- Seq2 (new widgets, same style) ---
         self.seq2_label = QLabel("Sequence 2:")
@@ -92,27 +109,19 @@ class PairwiseAlignmentTab(BaseTabWidget):
         )
         self.seq2_text.viewport().setStyleSheet("background: transparent;")
         self.seq2_text.setPlaceholderText(
-            "Paste sequence 2 in FASTA format or raw sequence, or drag-and-drop a file...\n\n"
-            "DNA example:\n>seq2\nATGCGTTCGATCGTAG\n\n"
-            "Protein example:\n>prot2\nMKTFFVAGLMSGIS"
+            "Paste sequence 2 (FASTA or raw) or drag-and-drop a file..."
         )
-        self.seq2_text.setMinimumHeight(160)
-        self.seq2_upload_btn = QPushButton("Upload File")
-        self.seq2_upload_btn.clicked.connect(self._open_seq2_file)
-        self.seq2_hint = QLabel("")
-        self.seq2_hint.setStyleSheet("color: #888;")
+        self.seq2_text.setMinimumHeight(120)
 
         seq2_layout = QVBoxLayout()
         seq2_layout.addWidget(self.seq2_label)
         seq2_layout.addWidget(self.seq2_text)
-        seq2_layout.addWidget(self.seq2_upload_btn)
-        seq2_layout.addWidget(self.seq2_hint)
 
-        # Side-by-side
+        # Side-by-side — equal stretch so both halves fill available width
         inputs_layout = QHBoxLayout()
         inputs_layout.setSpacing(16)
-        inputs_layout.addLayout(seq1_layout)
-        inputs_layout.addLayout(seq2_layout)
+        inputs_layout.addLayout(seq1_layout, 1)
+        inputs_layout.addLayout(seq2_layout, 1)
 
         # Replace the default input block (index 0) with the two-input block
         old = self.content_area.itemAt(0)
@@ -124,24 +133,23 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.content_area.setSpacing(4)
 
     def _setup_parameters(self):
-        """Horizontal rows inside a flat QGroupBox: type+mode, matrix, scores."""
+        """Two-row QGridLayout: 3 params per row."""
         param_group = QGroupBox("Alignment Parameters")
         param_group.setFlat(True)
-        pg_layout = QVBoxLayout(param_group)
+        pg_layout = QGridLayout(param_group)
         pg_layout.setContentsMargins(12, 4, 0, 4)
-        pg_layout.setSpacing(6)
+        pg_layout.setVerticalSpacing(6)
+        pg_layout.setHorizontalSpacing(10)
+        pg_layout.setColumnMinimumWidth(0, 130)
+        pg_layout.setColumnStretch(1, 1)
 
-        # Row 1: sequence type + alignment mode
-        row1 = QHBoxLayout()
-        row1.setSpacing(20)
-
-        type_label = QLabel("Sequence Type:")
-        self.seq_type_combo = QComboBox()
-        self.seq_type_combo.addItems(["Auto Detect", "DNA", "Protein"])
-        self.seq_type_combo.setToolTip(
-            "Auto Detect: infer from characters in both sequences\n"
-            "DNA: nucleotides (A/T/G/C + IUPAC ambiguity codes)\n"
-            "Protein: amino acid sequences (standard 20 residues)"
+        # Row 0: Substitution Matrix | Alignment Mode | Match Score
+        matrix_label = QLabel("Substitution Matrix:")
+        self.matrix_combo = QComboBox()
+        self.matrix_combo.addItems(["BLOSUM62", "PAM250"])
+        self.matrix_combo.setToolTip(
+            "BLOSUM62: standard for moderately diverged proteins (recommended)\n"
+            "PAM250: suitable for very distantly related (ancient) proteins"
         )
 
         mode_label = QLabel("Alignment Mode:")
@@ -150,37 +158,15 @@ class PairwiseAlignmentTab(BaseTabWidget):
             "Global (Needleman–Wunsch)",
             "Local (Smith–Waterman)",
         ])
-        self.mode_combo.setMinimumWidth(230)
         self.mode_combo.setToolTip(
             "Global: align full sequences end-to-end (best when similar length)\n"
             "Local: find best-scoring sub-region match (best for domain searches)"
         )
 
-        row1.addWidget(type_label)
-        row1.addWidget(self.seq_type_combo)
-        row1.addSpacing(20)
-        row1.addWidget(mode_label)
-        row1.addWidget(self.mode_combo)
-        row1.addSpacing(20)
-
-        matrix_label = QLabel("Substitution Matrix:")
-        self.matrix_combo = QComboBox()
-        self.matrix_combo.addItems(["BLOSUM62", "PAM250", "Simple (match/mismatch)"])
-        self.matrix_combo.setMinimumWidth(220)
-        self.matrix_combo.setToolTip(
-            "Simple: explicit match/mismatch scores — good for DNA or quick checks\n"
-            "BLOSUM62: standard for moderately diverged proteins (recommended)\n"
-            "PAM250: suitable for very distantly related (ancient) proteins"
-        )
-        self.matrix_combo.currentIndexChanged.connect(self._on_matrix_changed)
-
-        row1.addWidget(matrix_label)
-        row1.addWidget(self.matrix_combo)
-        row1.addStretch()
-
-        # Row 3: score parameters
-        row3 = QHBoxLayout()
-        row3.setSpacing(12)
+        pg_layout.addWidget(matrix_label, 0, 0)
+        pg_layout.addWidget(self.matrix_combo, 0, 1)
+        pg_layout.addWidget(mode_label, 0, 2)
+        pg_layout.addWidget(self.mode_combo, 0, 3)
 
         self.match_label = QLabel("Match Score:")
         self.match_spin = QDoubleSpinBox()
@@ -188,17 +174,22 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.match_spin.setDecimals(1)
         self.match_spin.setSingleStep(0.5)
         self.match_spin.setValue(2.0)
-        self.match_spin.setToolTip("Score added for each identical character pair")
+        self.match_spin.setToolTip("Score added for each identical character pair (DNA only)")
 
+        pg_layout.addWidget(self.match_label, 0, 4)
+        pg_layout.addWidget(self.match_spin, 0, 5)
+        pg_layout.setColumnStretch(6, 1)
+
+        # Row 1: Mismatch Penalty | Gap Open | Gap Extend
         self.mismatch_label = QLabel("Mismatch Penalty:")
         self.mismatch_spin = QDoubleSpinBox()
         self.mismatch_spin.setRange(0.0, 20.0)
         self.mismatch_spin.setDecimals(1)
         self.mismatch_spin.setSingleStep(0.5)
         self.mismatch_spin.setValue(1.0)
-        self.mismatch_spin.setToolTip("Penalty deducted for each mismatched pair")
+        self.mismatch_spin.setToolTip("Penalty deducted for each mismatched pair (DNA only)")
 
-        gap_open_label = QLabel("Gap Open Penalty:")
+        gap_open_label = QLabel("Gap Open:")
         self.gap_open_spin = QDoubleSpinBox()
         self.gap_open_spin.setRange(0.0, 50.0)
         self.gap_open_spin.setDecimals(1)
@@ -206,28 +197,20 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.gap_open_spin.setValue(10.0)
         self.gap_open_spin.setToolTip("Penalty for opening a new gap")
 
-        gap_extend_label = QLabel("Gap Extend Penalty:")
+        gap_extend_label = QLabel("Gap Extend:")
         self.gap_extend_spin = QDoubleSpinBox()
         self.gap_extend_spin.setRange(0.0, 20.0)
         self.gap_extend_spin.setDecimals(1)
         self.gap_extend_spin.setSingleStep(0.1)
         self.gap_extend_spin.setValue(0.5)
-        self.gap_extend_spin.setToolTip(
-            "Penalty per residue in an existing gap extension"
-        )
+        self.gap_extend_spin.setToolTip("Penalty per residue in an existing gap extension")
 
-        row3.addWidget(self.match_label)
-        row3.addWidget(self.match_spin)
-        row3.addWidget(self.mismatch_label)
-        row3.addWidget(self.mismatch_spin)
-        row3.addWidget(gap_open_label)
-        row3.addWidget(self.gap_open_spin)
-        row3.addWidget(gap_extend_label)
-        row3.addWidget(self.gap_extend_spin)
-        row3.addStretch()
-
-        pg_layout.addLayout(row1)
-        pg_layout.addLayout(row3)
+        pg_layout.addWidget(self.mismatch_label, 1, 0)
+        pg_layout.addWidget(self.mismatch_spin, 1, 1)
+        pg_layout.addWidget(gap_open_label, 1, 2)
+        pg_layout.addWidget(self.gap_open_spin, 1, 3)
+        pg_layout.addWidget(gap_extend_label, 1, 4)
+        pg_layout.addWidget(self.gap_extend_spin, 1, 5)
 
         self.content_area.insertWidget(1, param_group)
 
@@ -238,7 +221,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         fmt_label = QLabel("Output Format:")
         self.fmt_combo = QComboBox()
         self.fmt_combo.addItems(["Full Report", "FASTA (aligned)", "CLUSTAL"])
-        self.fmt_combo.setMinimumWidth(180)
+        self.fmt_combo.setMinimumWidth(150)
         self.fmt_combo.setToolTip(
             "Full Report: statistics header + EMBOSS-style formatted alignment\n"
             "FASTA (aligned): both aligned sequences with gap characters in FASTA format\n"
@@ -263,20 +246,26 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.output_text.setMinimumHeight(220)
         self.run_btn.setText("Align")
 
+        # --- Example button ----------------------------------------------
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setToolTip(self.tr("Load example sequences for pairwise alignment"))
+        self.example_btn.clicked.connect(self._load_example)
+
         # --- Button bar: drop Copy, move Export next to Align ---------
         self.copy_btn.hide()
         self.copy_btn.deleteLater()
         self.export_btn.setFixedWidth(110)
         # Insert before the Help button (last widget in status_layout)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.export_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.example_btn)
 
     # ------------------------------------------------------------ drag & drop
 
     def _setup_drag_drop(self):
-        self._install_drag_drop(self.input_text, self.input_hint)
-        self._install_drag_drop(self.seq2_text, self.seq2_hint)
+        self._install_drag_drop(self.input_text, "Sequence 1")
+        self._install_drag_drop(self.seq2_text, "Sequence 2")
 
-    def _install_drag_drop(self, widget, hint_label):
+    def _install_drag_drop(self, widget, label):
         widget.setAcceptDrops(True)
 
         def drag_enter(e):
@@ -293,7 +282,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
                     with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
                     widget.setPlainText(content)
-                    hint_label.setText(f"Loaded file: {file_path}")
+                    self.show_status(self.tr(f"{label}: loaded {file_path}"))
                     e.acceptProposedAction()
                 except Exception as ex:
                     QMessageBox.warning(self, "File Read Error", str(ex))
@@ -301,6 +290,20 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
         widget.dragEnterEvent = drag_enter
         widget.dropEvent = drop
+
+    # ------------------------------------------------------------- example
+
+    def _load_example(self):
+        text = load_example_text("protein", "pairwise_pro.fasta")
+        if not text:
+            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            return
+        # Parse two FASTA records from the example text
+        records = _parse_fasta_text(text)
+        if len(records) >= 2:
+            self.input_text.setPlainText(f">{records[0][0]}\n{records[0][1]}")
+            self.seq2_text.setPlainText(f">{records[1][0]}\n{records[1][1]}")
+        self.show_status(self.tr("Example loaded"))
 
     # ------------------------------------------------------------- file open
 
@@ -317,44 +320,16 @@ class PairwiseAlignmentTab(BaseTabWidget):
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 self.input_text.setPlainText(content)
-                self.input_hint.setText(f"Loaded file: {file_path}")
-            except Exception as e:
-                QMessageBox.warning(self, "File Read Error", str(e))
-
-    def _open_seq2_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select sequence file",
-            "",
-            "FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)",
-        )
-        if file_path:
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                self.seq2_text.setPlainText(content)
-                self.seq2_hint.setText(f"Loaded file: {file_path}")
+                self.show_status(self.tr(f"Loaded file: {file_path}"))
             except Exception as e:
                 QMessageBox.warning(self, "File Read Error", str(e))
 
     # --------------------------------------------------------------- slots
 
-    def _on_matrix_changed(self, index):
-        is_simple = index == 0
-        for w in (
-            self.match_label,
-            self.match_spin,
-            self.mismatch_label,
-            self.mismatch_spin,
-        ):
-            w.setVisible(is_simple)
-
     def clear(self):
         self.input_text.clear()
         self.seq2_text.clear()
         self.output_text.clear()
-        self.input_hint.setText("")
-        self.seq2_hint.setText("")
         self.status_label.setText("Ready")
 
     # ------------------------------------------------------------ core logic
@@ -389,9 +364,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         mode_text = self.mode_combo.currentText()
         mode = "global" if mode_text.startswith("Global") else "local"
         matrix_choice = self.matrix_combo.currentText()
-        use_matrix = (
-            seq_type == "Protein" and matrix_choice != "Simple (match/mismatch)"
-        )
+        use_matrix = seq_type == "Protein"
 
         try:
             aligner = Align.PairwiseAligner()
@@ -467,8 +440,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
             self.output_text.setPlainText(output)
             self.status_label.setText(
-                f"Alignment complete — {seq_type} | {mode_text} | "
-                f"Score: {score:.3f} | Identity: {pct(n_ident)}% | Similarity: {pct(n_sim)}%"
+                f"Done — Score: {score:.1f} | Identity: {pct(n_ident)}% | Similarity: {pct(n_sim)}%"
             )
         except Exception as e:
             QMessageBox.critical(self, "Alignment Error", str(e))
@@ -517,9 +489,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
                     pass
         return aln_len, identities, similarities, gaps
 
-    def _format_emboss_aligned(
-        self, aln1, aln2, header1, header2, use_matrix, matrix_choice
-    ):
+    def _format_emboss_aligned(self, aln1, aln2, header1, header2, use_matrix, matrix_choice):
         """EMBOSS Needle-style block alignment; conservation line is indented only, no position counter."""
         lbl1 = (header1 or "seq1")[:24]
         lbl2 = (header2 or "seq2")[:24]
@@ -581,9 +551,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         lines += [aln2[i : i + width] for i in range(0, len(aln2), width)]
         return "\n".join(lines)
 
-    def _format_clustal_aligned(
-        self, aln1, aln2, header1, header2, use_matrix, matrix_choice
-    ):
+    def _format_clustal_aligned(self, aln1, aln2, header1, header2, use_matrix, matrix_choice):
         """Return CLUSTAL-style block alignment."""
         lbl1 = (header1 or "seq1")[:16]
         lbl2 = (header2 or "seq2")[:16]
@@ -651,11 +619,6 @@ class PairwiseAlignmentTab(BaseTabWidget):
         return seq
 
     def _detect_sequence_type(self, seq1, seq2):
-        choice = self.seq_type_combo.currentText()
-        if choice == "DNA":
-            return "DNA"
-        if choice == "Protein":
-            return "Protein"
         dna_chars = set("ACGTUNRYKMSWBDHV")
         if set(seq1 + seq2).issubset(dna_chars):
             return "DNA"
@@ -693,7 +656,6 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
 <h4>Substitution Matrix</h4>
 <ul>
-  <li><b>Simple</b> — uniform +match / −mismatch scores; good for DNA.</li>
   <li><b>BLOSUM62</b> — recommended default for protein alignments.</li>
   <li><b>PAM250</b> — suitable for very distantly related proteins.</li>
 </ul>
@@ -719,7 +681,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
 <ul>
     <li><b>Identity</b> — fraction of aligned positions with identical residues.</li>
   <li><b>Similarity</b> — fraction of aligned positions that are identical <em>or</em> have
-      a positive substitution-matrix score (for protein). Equals identity for DNA / Simple matrix.</li>
+      a positive substitution-matrix score (for protein). Equals identity for DNA.</li>
 </ul>
 <p>Use <b>Export Result</b> to save the alignment to a text file.</p>
         """

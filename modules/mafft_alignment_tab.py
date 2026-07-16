@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QDialog,
     QFileDialog,
     QFrame,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -30,7 +31,7 @@ from PyQt6.QtWidgets import (
 
 from utils.app_paths import resource_path, tool_path_from_config
 from utils.common_components import BaseTabWidget, BaseWorker
-from utils.example_data import load_example_text
+from utils.example_data import load_example_text, stage_example
 
 
 def _default_mafft_exe() -> str:
@@ -244,9 +245,7 @@ class _MafftWorker(BaseWorker):
 
             if result.returncode != 0:
                 details = (result.stderr or result.stdout or "").strip()
-                self.emit_error(
-                    f"MAFFT exited with code {result.returncode}:\n{details}"
-                )
+                self.emit_error(f"MAFFT exited with code {result.returncode}:\n{details}")
                 return
 
             aligned_text = (result.stdout or "").strip()
@@ -355,9 +354,7 @@ class _MafftBatchWorker(QThread):
                 break
             tmp_in = None
             try:
-                self.progress.emit(
-                    f"[{idx}/{total}] Reading: {os.path.basename(in_path)}"
-                )
+                self.progress.emit(f"[{idx}/{total}] Reading: {os.path.basename(in_path)}")
                 with open(in_path, "r", encoding="utf-8", errors="replace") as f:
                     raw = f.read().strip()
                 seqs = _parse_fasta_to_dict(raw)
@@ -399,9 +396,7 @@ class _MafftBatchWorker(QThread):
                     break
                 if self._proc.returncode != 0:
                     details = (self._proc.stderr or self._proc.stdout or "").strip()
-                    raise RuntimeError(
-                        f"MAFFT exited with code {self._proc.returncode}: {details}"
-                    )
+                    raise RuntimeError(f"MAFFT exited with code {self._proc.returncode}: {details}")
 
                 aligned_fasta = (stdout_data or "").strip()
                 out_seqs = _parse_fasta_to_dict(aligned_fasta)
@@ -421,9 +416,7 @@ class _MafftBatchWorker(QThread):
 
                 stem = os.path.splitext(os.path.basename(in_path))[0]
                 out_name = self._render_name(stem, ext)
-                out_path = self._ensure_unique_path(
-                    os.path.join(self.output_dir, out_name)
-                )
+                out_path = self._ensure_unique_path(os.path.join(self.output_dir, out_name))
                 with open(out_path, "w", encoding="utf-8") as fw:
                     fw.write(out_text)
 
@@ -431,9 +424,7 @@ class _MafftBatchWorker(QThread):
                 ok += 1
             except Exception as exc:
                 fail_msgs.append(f"{os.path.basename(in_path)} -> {exc}")
-                self.progress.emit(
-                    f"[{idx}/{total}] Failed: {os.path.basename(in_path)}"
-                )
+                self.progress.emit(f"[{idx}/{total}] Failed: {os.path.basename(in_path)}")
             finally:
                 self._proc = None
                 if tmp_in and os.path.exists(tmp_in):
@@ -480,91 +471,92 @@ class MafftAlignmentTab(BaseTabWidget):
     def _rebuild_input_area(self):
         self.input_label.setText("Input Sequences (FASTA):")
         self.input_text.setPlaceholderText(
-            "Paste ≥ 2 sequences in FASTA format, or drag-and-drop a file…\n\n"
-            "DNA example:\n"
-            ">seq1\nATGCGATCGATCGTAA\n"
-            ">seq2\nATGCGTTCGATCGCAA\n"
-            ">seq3\nATGCGATCGAACGTAA\n\n"
-            "Protein example:\n"
-            ">prot1\nMKTFFVAGLMAGIS\n"
-            ">prot2\nMKTFFVAGLMSGIS"
+            "Paste ≥ 2 sequences in FASTA format, or drag-and-drop a file…"
         )
-        self.input_text.setMinimumHeight(200)
+        self.input_text.setMinimumHeight(150)
         self.input_text.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
         self.output_text.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self.upload_btn.setText("Upload FASTA File")
-        self.input_hint.setStyleSheet("color: #888;")
+        self.upload_btn.setText("Upload File")
         self.input_hint.hide()
+
+        # Place Example button next to Upload File — both fill the row
+        ig = self.input_group.layout()
+        ig.removeWidget(self.upload_btn)
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        btn_row.addWidget(self.upload_btn, 1)
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setToolTip(self.tr("Load example sequences for MSA"))
+        self.example_btn.clicked.connect(self._load_example)
+        btn_row.addWidget(self.example_btn, 1)
+        ig.insertLayout(1, btn_row)
 
     def _setup_parameters(self):
         param_group = QGroupBox("Alignment Parameters")
         param_group.setFlat(True)
-        pg_layout = QVBoxLayout(param_group)
+        pg_layout = QGridLayout(param_group)
         pg_layout.setContentsMargins(12, 16, 0, 4)
-        pg_layout.setSpacing(6)
+        pg_layout.setVerticalSpacing(6)
+        pg_layout.setHorizontalSpacing(10)
+        pg_layout.setColumnMinimumWidth(0, 130)
+        pg_layout.setColumnStretch(1, 1)
 
-        row1 = QHBoxLayout()
-        row1.setSpacing(20)
-        row1.addWidget(QLabel("Alignment Strategy:"))
+        # Row 0: alignment strategy  |  sequence order  |  threads
+        strategy_label = QLabel("Alignment Strategy:")
         self.strategy_combo = QComboBox()
         self.strategy_combo.addItems([
             "Auto",
             "FFT-NS-2 (Fast)",
             "L-INS-i (Accurate)",
         ])
-        self.strategy_combo.setMinimumWidth(220)
-        row1.addWidget(self.strategy_combo)
-        row1.addSpacing(20)
-        row1.addWidget(QLabel("Sequence Order:"))
+        self.strategy_combo.setMinimumWidth(190)
+
+        order_label = QLabel("Sequence Order:")
         self.order_combo = QComboBox()
         self.order_combo.addItems([
             "Input sequence order",
             "MAFFT output order",
         ])
-        self.order_combo.setMinimumWidth(220)
-        row1.addWidget(self.order_combo)
-        row1.addSpacing(20)
-        row1.addWidget(QLabel("Threads:"))
+        self.order_combo.setMinimumWidth(180)
+
+        threads_label = QLabel("Threads:")
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, min(64, os.cpu_count() or 4))
         self.threads_spin.setValue(1)
         self.threads_spin.setFixedWidth(70)
-        row1.addWidget(self.threads_spin)
-        row1.addStretch()
 
-        row3 = QHBoxLayout()
-        row3.setSpacing(10)
-        row3.addWidget(QLabel("Output File:"))
+        pg_layout.addWidget(strategy_label, 0, 0)
+        pg_layout.addWidget(self.strategy_combo, 0, 1)
+        pg_layout.addWidget(order_label, 0, 2)
+        pg_layout.addWidget(self.order_combo, 0, 3)
+        pg_layout.addWidget(threads_label, 0, 4)
+        pg_layout.addWidget(self.threads_spin, 0, 5)
+        pg_layout.setColumnStretch(6, 1)
+
+        # Row 1: output file path
+        output_label = QLabel("Output File:")
         self.output_file_edit = QLineEdit()
         self.output_file_edit.setPlaceholderText("Choose aligned FASTA output path")
         self.output_file_btn = QPushButton("Browse")
         self.output_file_btn.setFixedWidth(80)
         self.output_file_btn.clicked.connect(self._browse_output_file)
-        row3.addWidget(self.output_file_edit)
-        row3.addWidget(self.output_file_btn)
 
-        row4 = QHBoxLayout()
-        row4.setSpacing(10)
-        row4.addWidget(QLabel("MAFFT Path:"))
+        pg_layout.addWidget(output_label, 1, 0)
+        pg_layout.addWidget(self.output_file_edit, 1, 1, 1, 5)
+        pg_layout.addWidget(self.output_file_btn, 1, 6)
+
+        # Row 2: MAFFT executable path
+        exe_label = QLabel("MAFFT Path:")
         self.mafft_path_edit = QLineEdit()
         self.mafft_path_edit.setPlaceholderText("Choose MAFFT launcher path")
         self.mafft_path_edit.setText(_default_mafft_exe())
         self.mafft_browse_btn = QPushButton("Browse")
         self.mafft_browse_btn.setFixedWidth(80)
         self.mafft_browse_btn.clicked.connect(self._browse_mafft_exe)
-        row4.addWidget(self.mafft_path_edit)
-        row4.addWidget(self.mafft_browse_btn)
 
-        pg_layout.addLayout(row1)
-        pg_layout.addLayout(row3)
-        pg_layout.addLayout(row4)
-
-        ex_row = QHBoxLayout()
-        self.example_btn = QPushButton(self.tr("Example"))
-        self.example_btn.clicked.connect(self._load_example)
-        ex_row.addWidget(self.example_btn)
-        ex_row.addStretch()
-        pg_layout.addLayout(ex_row)
+        pg_layout.addWidget(exe_label, 2, 0)
+        pg_layout.addWidget(self.mafft_path_edit, 2, 1, 1, 5)
+        pg_layout.addWidget(self.mafft_browse_btn, 2, 6)
 
         self.content_area.insertWidget(1, param_group)
 
@@ -607,90 +599,102 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_files_edit.setReadOnly(True)
         self.batch_files_btn = QPushButton("Browse")
         self.batch_files_btn.clicked.connect(self._select_batch_files)
+        self.batch_example_btn = QPushButton("Example")
+        self.batch_example_btn.setToolTip(self.tr("Load example FASTA files for batch MSA"))
+        self.batch_example_btn.clicked.connect(self._load_batch_example)
         row_files.addWidget(self.batch_files_edit)
         row_files.addWidget(self.batch_files_btn)
+        row_files.addWidget(self.batch_example_btn)
         bl.addLayout(row_files)
 
         self.batch_files_list = QListWidget()
         self.batch_files_list.setMinimumHeight(80)
         bl.addWidget(self.batch_files_list)
 
-        row_out = QHBoxLayout()
-        row_out.addWidget(QLabel("Output Directory:"))
+        # --- Batch Parameters QGroupBox (includes output dir + naming) ---
+        batch_param_group = QGroupBox("Batch Parameters")
+        batch_param_group.setFlat(True)
+        bpg_layout = QGridLayout(batch_param_group)
+        bpg_layout.setContentsMargins(12, 16, 0, 4)
+        bpg_layout.setVerticalSpacing(6)
+        bpg_layout.setHorizontalSpacing(10)
+        bpg_layout.setColumnMinimumWidth(0, 130)
+        bpg_layout.setColumnStretch(1, 1)
+
+        # Row 0: Output Directory
+        out_dir_label = QLabel("Output Directory:")
         self.batch_out_dir_edit = QLineEdit()
         self.batch_out_dir_edit.setPlaceholderText("Choose output folder")
         self.batch_out_dir_btn = QPushButton("Browse")
+        self.batch_out_dir_btn.setFixedWidth(80)
         self.batch_out_dir_btn.clicked.connect(self._select_batch_output_dir)
-        row_out.addWidget(self.batch_out_dir_edit)
-        row_out.addWidget(self.batch_out_dir_btn)
-        bl.addLayout(row_out)
 
-        row_name = QHBoxLayout()
-        row_name.addWidget(QLabel("Auto Naming Pattern:"))
+        bpg_layout.addWidget(out_dir_label, 0, 0)
+        bpg_layout.addWidget(self.batch_out_dir_edit, 0, 1, 1, 5)
+        bpg_layout.addWidget(self.batch_out_dir_btn, 0, 6)
+
+        # Row 1: Auto Naming Pattern
+        name_label = QLabel("Auto Naming Pattern:")
         self.batch_name_pattern = QLineEdit("{stem}_mafft_{method}.{ext}")
-        row_name.addWidget(self.batch_name_pattern)
-        bl.addLayout(row_name)
 
-        # --- Batch parameters QGroupBox ---
-        batch_param_group = QGroupBox("Batch Parameters")
-        batch_param_group.setFlat(True)
-        bpg_layout = QVBoxLayout(batch_param_group)
-        bpg_layout.setContentsMargins(12, 16, 0, 4)
-        bpg_layout.setSpacing(6)
+        bpg_layout.addWidget(name_label, 1, 0)
+        bpg_layout.addWidget(self.batch_name_pattern, 1, 1, 1, 5)
 
-        # Output format + sequence order + overwrite
-        row_mode = QHBoxLayout()
-        row_mode.addWidget(QLabel("Output Format:"))
+        # Row 2: Output Format + Sequence Order + Overwrite
+        fmt_label = QLabel("Output Format:")
         self.batch_fmt_combo = QComboBox()
         self.batch_fmt_combo.addItems(["FASTA (aligned)", "CLUSTAL", "Summary"])
-        row_mode.addWidget(self.batch_fmt_combo)
-        row_mode.addSpacing(20)
-        row_mode.addWidget(QLabel("Sequence Order:"))
+
+        order_label = QLabel("Sequence Order:")
         self.batch_order_combo = QComboBox()
         self.batch_order_combo.addItems([
             "Input sequence order",
             "MAFFT output order",
         ])
-        self.batch_order_combo.setMinimumWidth(200)
-        row_mode.addWidget(self.batch_order_combo)
-        self.batch_overwrite = QCheckBox("Overwrite existing")
-        row_mode.addWidget(self.batch_overwrite)
-        row_mode.addStretch()
-        bpg_layout.addLayout(row_mode)
+        self.batch_order_combo.setMinimumWidth(170)
 
-        # Alignment strategy + threads
-        row_params = QHBoxLayout()
-        row_params.addWidget(QLabel("Alignment Strategy:"))
+        self.batch_overwrite = QCheckBox("Overwrite existing")
+
+        bpg_layout.addWidget(fmt_label, 2, 0)
+        bpg_layout.addWidget(self.batch_fmt_combo, 2, 1)
+        bpg_layout.addWidget(order_label, 2, 2)
+        bpg_layout.addWidget(self.batch_order_combo, 2, 3)
+        bpg_layout.addWidget(self.batch_overwrite, 2, 4)
+        bpg_layout.setColumnStretch(6, 1)
+
+        # Row 3: Alignment Strategy + Threads
+        strategy_label = QLabel("Alignment Strategy:")
         self.batch_strategy_combo = QComboBox()
         self.batch_strategy_combo.addItems([
             "Auto",
             "FFT-NS-2 (Fast)",
             "L-INS-i (Accurate)",
         ])
-        self.batch_strategy_combo.setMinimumWidth(220)
-        row_params.addWidget(self.batch_strategy_combo)
-        row_params.addSpacing(20)
-        row_params.addWidget(QLabel("Threads:"))
+        self.batch_strategy_combo.setMinimumWidth(190)
+
+        threads_label = QLabel("Threads:")
         self.batch_threads_spin = QSpinBox()
         self.batch_threads_spin.setRange(1, min(64, os.cpu_count() or 4))
         self.batch_threads_spin.setValue(1)
         self.batch_threads_spin.setFixedWidth(70)
-        row_params.addWidget(self.batch_threads_spin)
-        row_params.addStretch()
-        bpg_layout.addLayout(row_params)
 
-        # MAFFT path
-        row_exe = QHBoxLayout()
-        row_exe.addWidget(QLabel("MAFFT Path:"))
+        bpg_layout.addWidget(strategy_label, 3, 0)
+        bpg_layout.addWidget(self.batch_strategy_combo, 3, 1)
+        bpg_layout.addWidget(threads_label, 3, 2)
+        bpg_layout.addWidget(self.batch_threads_spin, 3, 3)
+
+        # Row 4: MAFFT Path
+        exe_label = QLabel("MAFFT Path:")
         self.batch_mafft_path_edit = QLineEdit()
         self.batch_mafft_path_edit.setPlaceholderText("Choose MAFFT launcher path")
         self.batch_mafft_path_edit.setText(_default_mafft_exe())
         self.batch_mafft_browse_btn = QPushButton("Browse")
         self.batch_mafft_browse_btn.setFixedWidth(80)
         self.batch_mafft_browse_btn.clicked.connect(self._browse_batch_mafft_exe)
-        row_exe.addWidget(self.batch_mafft_path_edit)
-        row_exe.addWidget(self.batch_mafft_browse_btn)
-        bpg_layout.addLayout(row_exe)
+
+        bpg_layout.addWidget(exe_label, 4, 0)
+        bpg_layout.addWidget(self.batch_mafft_path_edit, 4, 1, 1, 5)
+        bpg_layout.addWidget(self.batch_mafft_browse_btn, 4, 6)
 
         bl.addWidget(batch_param_group)
 
@@ -704,9 +708,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_log = QTextEdit()
         self.batch_log.setReadOnly(True)
         self.batch_log.setMinimumHeight(140)
-        self.batch_log.setPlaceholderText(
-            "Batch progress and summary will appear here..."
-        )
+        self.batch_log.setPlaceholderText("Batch progress and summary will appear here...")
         lg_layout.addWidget(self.batch_log)
         bl.addWidget(log_group)
         bl.addStretch()
@@ -764,17 +766,33 @@ class MafftAlignmentTab(BaseTabWidget):
             self.batch_mafft_path_edit.setText(path)
 
     def _load_example(self):
-        """Load the bundled cytb protein example for alignment."""
-        text = load_example_text("phylo", "cytb_protein.fasta")
+        """Load the bundled MSA protein example for alignment."""
+        text = load_example_text("protein", "msa_example_pro.fasta")
         if not text:
-            QMessageBox.information(
-                self,
-                self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
-            )
+            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("已载入示例数据: cytb_protein.fasta"))
+        self.show_status(self.tr("Example loaded"))
+
+    def _load_batch_example(self):
+        """Stage two example FASTA files and add them to the batch file list."""
+        paths = []
+        for fname in ("msa_example_pro.fasta", "msa_example_dna.fasta"):
+            staged = stage_example("protein", fname)
+            if staged:
+                paths.append(staged)
+        if not paths:
+            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            return
+        self.batch_files_list.clear()
+        for p in paths:
+            self.batch_files_list.addItem(QListWidgetItem(p))
+        self.batch_files_edit.setText(f"{len(paths)} file(s) selected")
+        if not self.batch_out_dir_edit.text().strip() and paths:
+            parent_dir = os.path.dirname(paths[0])
+            if parent_dir:
+                self.batch_out_dir_edit.setText(parent_dir)
+        self.show_status(self.tr("Example files loaded for batch"))
 
     def _browse_output_file(self):
         path, selected_filter = QFileDialog.getSaveFileName(
@@ -853,8 +871,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
     def _run_batch(self):
         input_files = [
-            self.batch_files_list.item(i).text()
-            for i in range(self.batch_files_list.count())
+            self.batch_files_list.item(i).text() for i in range(self.batch_files_list.count())
         ]
         out_dir = self.batch_out_dir_edit.text().strip()
         pattern = self.batch_name_pattern.text().strip()
@@ -863,9 +880,7 @@ class MafftAlignmentTab(BaseTabWidget):
         mafft_exe = self.batch_mafft_path_edit.text().strip() or _default_mafft_exe()
 
         if not input_files:
-            QMessageBox.warning(
-                self, "Batch Input Error", "Please select at least one FASTA file."
-            )
+            QMessageBox.warning(self, "Batch Input Error", "Please select at least one FASTA file.")
             return
         if not out_dir:
             QMessageBox.warning(
@@ -878,18 +893,12 @@ class MafftAlignmentTab(BaseTabWidget):
             )
             return
         try:
-            _ = pattern.format(
-                stem="sample", method=_strategy_key(strategy), ext="fasta"
-            )
+            _ = pattern.format(stem="sample", method=_strategy_key(strategy), ext="fasta")
         except Exception as exc:
-            QMessageBox.warning(
-                self, "Naming Pattern Error", f"Invalid pattern:\n{exc}"
-            )
+            QMessageBox.warning(self, "Naming Pattern Error", f"Invalid pattern:\n{exc}")
             return
         if not os.path.isfile(mafft_exe):
-            QMessageBox.warning(
-                self, "MAFFT Path Error", f"MAFFT launcher not found:\n{mafft_exe}"
-            )
+            QMessageBox.warning(self, "MAFFT Path Error", f"MAFFT launcher not found:\n{mafft_exe}")
             return
 
         self.run_btn.setEnabled(False)

@@ -10,6 +10,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QMessageBox,
     QFileDialog,
+    QGridLayout,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -32,6 +33,7 @@ from PyQt6.QtGui import QFont
 
 from utils.common_components import BaseTabWidget
 from utils.app_paths import resource_path, tool_path_from_config, user_data_file
+from utils.example_data import load_example_text, stage_example
 
 # Per-user config file where the user-selected MUSCLE path is persisted.
 # Mirrors the pattern used by blast_config.py (legacy repo-root config.ini is
@@ -312,9 +314,7 @@ class _MuscleBatchWorker(QThread):
                 break
             tmp_in = tmp_out = None
             try:
-                self.progress.emit(
-                    f"[{idx}/{total}] Reading: {os.path.basename(in_path)}"
-                )
+                self.progress.emit(f"[{idx}/{total}] Reading: {os.path.basename(in_path)}")
                 with open(in_path, "r", encoding="utf-8", errors="replace") as f:
                     raw = f.read().strip()
                 seqs = _parse_fasta_to_dict(raw)
@@ -348,10 +348,10 @@ class _MuscleBatchWorker(QThread):
                 if self._killed:
                     break
                 if self._proc.returncode != 0:
-                    err = (self._proc.stderr.read() or b"").decode("utf-8", errors="replace").strip()
-                    raise RuntimeError(
-                        f"MUSCLE exited with code {self._proc.returncode}: {err}"
+                    err = (
+                        (self._proc.stderr.read() or b"").decode("utf-8", errors="replace").strip()
                     )
+                    raise RuntimeError(f"MUSCLE exited with code {self._proc.returncode}: {err}")
 
                 with open(tmp_out, "r", encoding="utf-8") as fout:
                     aligned_fasta = fout.read()
@@ -370,9 +370,7 @@ class _MuscleBatchWorker(QThread):
 
                 stem = os.path.splitext(os.path.basename(in_path))[0]
                 out_name = self._render_name(stem, ext)
-                out_path = self._ensure_unique_path(
-                    os.path.join(self.output_dir, out_name)
-                )
+                out_path = self._ensure_unique_path(os.path.join(self.output_dir, out_name))
                 with open(out_path, "w", encoding="utf-8") as fw:
                     fw.write(out_text)
 
@@ -381,9 +379,7 @@ class _MuscleBatchWorker(QThread):
 
             except Exception as exc:
                 fail_msgs.append(f"{os.path.basename(in_path)} -> {exc}")
-                self.progress.emit(
-                    f"[{idx}/{total}] Failed: {os.path.basename(in_path)}"
-                )
+                self.progress.emit(f"[{idx}/{total}] Failed: {os.path.basename(in_path)}")
             finally:
                 self._proc = None
                 for p in (tmp_in, tmp_out):
@@ -439,30 +435,33 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _rebuild_input_area(self):
         self.input_label.setText("Input Sequences (FASTA):")
         self.input_text.setPlaceholderText(
-            "Paste ≥ 2 sequences in FASTA format, or drag-and-drop a file…\n\n"
-            "DNA example:\n"
-            ">seq1\nATGCGATCGATCGTAA\n"
-            ">seq2\nATGCGTTCGATCGCAA\n"
-            ">seq3\nATGCGATCGAACGTAA\n\n"
-            "Protein example:\n"
-            ">prot1\nMKTFFVAGLMAGIS\n"
-            ">prot2\nMKTFFVAGLMSGIS"
+            "Paste ≥ 2 sequences in FASTA format, or drag-and-drop a file…"
         )
-        self.input_text.setMinimumHeight(200)
-        self.upload_btn.setText("Upload FASTA File")
-        self.input_hint.setStyleSheet("color: #888;")
+        self.input_text.setMinimumHeight(150)
+        self.upload_btn.setText("Upload File")
         self.input_hint.hide()
+
+        # Place Example button next to Upload File — both fill the row
+        ig = self.input_group.layout()
+        ig.removeWidget(self.upload_btn)
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        btn_row.addWidget(self.upload_btn, 1)
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setToolTip(self.tr("Load example sequences for MSA"))
+        self.example_btn.clicked.connect(self._load_example)
+        btn_row.addWidget(self.example_btn, 1)
+        ig.insertLayout(1, btn_row)
 
     def _setup_parameters(self):
         param_group = QGroupBox("Alignment Parameters")
         param_group.setFlat(True)
-        pg_layout = QVBoxLayout(param_group)
+        pg_layout = QGridLayout(param_group)
         pg_layout.setContentsMargins(12, 16, 0, 4)
-        pg_layout.setSpacing(6)
-
-        # Row 1: alignment method  |  sequence order  |  threads
-        row1 = QHBoxLayout()
-        row1.setSpacing(20)
+        pg_layout.setVerticalSpacing(6)
+        pg_layout.setHorizontalSpacing(10)
+        pg_layout.setColumnMinimumWidth(0, 130)
+        pg_layout.setColumnStretch(1, 1)
 
         # Keep seq_type_combo alive (used by _detect_type) but hidden
         self.seq_type_combo = QComboBox()
@@ -470,43 +469,42 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.seq_type_combo.setCurrentIndex(0)
         self.seq_type_combo.hide()
 
+        # Row 0: alignment method  |  sequence order  |  threads
         method_label = QLabel("Alignment Method:")
         self.method_combo = QComboBox()
         self.method_combo.addItems([
             "Accurate (–align)",
             "Fast / Large datasets (–super5)",
         ])
-        self.method_combo.setMinimumWidth(240)
+        self.method_combo.setMinimumWidth(200)
         self.method_combo.setToolTip(
             "Accurate (–align): progressive alignment — best for ≤ a few hundred sequences\n"
             "Fast / Super5 (–super5): heuristic — suitable for thousands of sequences"
         )
 
-        row1.addWidget(method_label)
-        row1.addWidget(self.method_combo)
-        row1.addSpacing(20)
         order_label = QLabel("Sequence Order:")
         self.order_combo = QComboBox()
         self.order_combo.addItems([
             "Input sequence order",
             "MUSCLE output order",
         ])
-        self.order_combo.setMinimumWidth(220)
-        row1.addWidget(order_label)
-        row1.addWidget(self.order_combo)
-        row1.addSpacing(20)
-        row1.addWidget(QLabel("Threads:"))
+        self.order_combo.setMinimumWidth(180)
+
+        threads_label = QLabel("Threads:")
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, min(64, (os.cpu_count() or 4)))
         self.threads_spin.setValue(1)
         self.threads_spin.setFixedWidth(70)
-        row1.addWidget(self.threads_spin)
-        row1.addStretch()
 
-        # Row 3: single-file output path
-        row3 = QHBoxLayout()
-        row3.setSpacing(10)
+        pg_layout.addWidget(method_label, 0, 0)
+        pg_layout.addWidget(self.method_combo, 0, 1)
+        pg_layout.addWidget(order_label, 0, 2)
+        pg_layout.addWidget(self.order_combo, 0, 3)
+        pg_layout.addWidget(threads_label, 0, 4)
+        pg_layout.addWidget(self.threads_spin, 0, 5)
+        pg_layout.setColumnStretch(6, 1)  # trailing stretch
 
+        # Row 1: single-file output path
         output_label = QLabel("Output File:")
         self.output_file_edit = QLineEdit()
         self.output_file_edit.setPlaceholderText("Choose aligned FASTA output path")
@@ -518,14 +516,11 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.output_file_btn.setFixedWidth(80)
         self.output_file_btn.clicked.connect(self._browse_output_file)
 
-        row3.addWidget(output_label)
-        row3.addWidget(self.output_file_edit)
-        row3.addWidget(self.output_file_btn)
+        pg_layout.addWidget(output_label, 1, 0)
+        pg_layout.addWidget(self.output_file_edit, 1, 1, 1, 5)
+        pg_layout.addWidget(self.output_file_btn, 1, 6)
 
-        # Row 4: MUSCLE executable path
-        row4 = QHBoxLayout()
-        row4.setSpacing(10)
-
+        # Row 2: MUSCLE executable path
         exe_label = QLabel("MUSCLE Path:")
         self.muscle_path_edit = QLineEdit()
         self.muscle_path_edit.setPlaceholderText("Choose MUSCLE executable path")
@@ -538,13 +533,9 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.muscle_browse_btn.setFixedWidth(80)
         self.muscle_browse_btn.clicked.connect(self._browse_muscle_exe)
 
-        row4.addWidget(exe_label)
-        row4.addWidget(self.muscle_path_edit)
-        row4.addWidget(self.muscle_browse_btn)
-
-        pg_layout.addLayout(row1)
-        pg_layout.addLayout(row3)
-        pg_layout.addLayout(row4)
+        pg_layout.addWidget(exe_label, 2, 0)
+        pg_layout.addWidget(self.muscle_path_edit, 2, 1, 1, 5)
+        pg_layout.addWidget(self.muscle_browse_btn, 2, 6)
 
         self.content_area.insertWidget(1, param_group)
 
@@ -585,7 +576,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         bl.setSpacing(8)
         bl.setContentsMargins(8, 8, 8, 8)
 
-        # Input files
+        # Input files row
         row_files = QHBoxLayout()
         row_files.addWidget(QLabel("Input FASTA Files:"))
         self.batch_files_edit = QLineEdit()
@@ -593,97 +584,104 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_files_edit.setReadOnly(True)
         self.batch_files_btn = QPushButton("Browse")
         self.batch_files_btn.clicked.connect(self._select_batch_files)
+        self.batch_example_btn = QPushButton("Example")
+        self.batch_example_btn.setToolTip(self.tr("Load example FASTA files for batch MSA"))
+        self.batch_example_btn.clicked.connect(self._load_batch_example)
         row_files.addWidget(self.batch_files_edit)
         row_files.addWidget(self.batch_files_btn)
+        row_files.addWidget(self.batch_example_btn)
         bl.addLayout(row_files)
 
         self.batch_files_list = QListWidget()
         self.batch_files_list.setMinimumHeight(80)
         bl.addWidget(self.batch_files_list)
 
-        # Output directory
-        row_out = QHBoxLayout()
-        row_out.addWidget(QLabel("Output Directory:"))
+        # --- Batch Parameters QGroupBox (includes output dir + naming) ---
+        batch_param_group = QGroupBox("Batch Parameters")
+        batch_param_group.setFlat(True)
+        bpg_layout = QGridLayout(batch_param_group)
+        bpg_layout.setContentsMargins(12, 16, 0, 4)
+        bpg_layout.setVerticalSpacing(6)
+        bpg_layout.setHorizontalSpacing(10)
+        bpg_layout.setColumnMinimumWidth(0, 130)
+        bpg_layout.setColumnStretch(1, 1)
+
+        # Row 0: Output Directory
+        out_dir_label = QLabel("Output Directory:")
         self.batch_out_dir_edit = QLineEdit()
         self.batch_out_dir_edit.setPlaceholderText("Choose output folder")
         self.batch_out_dir_btn = QPushButton("Browse")
+        self.batch_out_dir_btn.setFixedWidth(80)
         self.batch_out_dir_btn.clicked.connect(self._select_batch_output_dir)
-        row_out.addWidget(self.batch_out_dir_edit)
-        row_out.addWidget(self.batch_out_dir_btn)
-        bl.addLayout(row_out)
 
-        # Auto naming pattern
-        row_name = QHBoxLayout()
-        row_name.addWidget(QLabel("Auto Naming Pattern:"))
+        bpg_layout.addWidget(out_dir_label, 0, 0)
+        bpg_layout.addWidget(self.batch_out_dir_edit, 0, 1, 1, 5)
+        bpg_layout.addWidget(self.batch_out_dir_btn, 0, 6)
+
+        # Row 1: Auto Naming Pattern
+        name_label = QLabel("Auto Naming Pattern:")
         self.batch_name_pattern = QLineEdit("{stem}_muscle5_{method}.{ext}")
         self.batch_name_pattern.setToolTip(
-            "Placeholders: {stem}, {method}, {ext}\n"
-            "Example: {stem}_muscle5_{method}.{ext}"
+            "Placeholders: {stem}, {method}, {ext}\nExample: {stem}_muscle5_{method}.{ext}"
         )
-        row_name.addWidget(self.batch_name_pattern)
-        bl.addLayout(row_name)
 
-        # --- Batch parameters QGroupBox ---
-        batch_param_group = QGroupBox("Batch Parameters")
-        batch_param_group.setFlat(True)
-        bpg_layout = QVBoxLayout(batch_param_group)
-        bpg_layout.setContentsMargins(12, 16, 0, 4)
-        bpg_layout.setSpacing(6)
+        bpg_layout.addWidget(name_label, 1, 0)
+        bpg_layout.addWidget(self.batch_name_pattern, 1, 1, 1, 5)
 
-        # Output format + sequence order + overwrite
-        row_mode = QHBoxLayout()
-        row_mode.addWidget(QLabel("Output Format:"))
+        # Row 2: Output Format + Sequence Order + Overwrite
+        fmt_label = QLabel("Output Format:")
         self.batch_fmt_combo = QComboBox()
         self.batch_fmt_combo.addItems(["FASTA (aligned)", "CLUSTAL", "Summary"])
-        row_mode.addWidget(self.batch_fmt_combo)
 
-        row_mode.addSpacing(20)
-        row_mode.addWidget(QLabel("Sequence Order:"))
+        order_label = QLabel("Sequence Order:")
         self.batch_order_combo = QComboBox()
         self.batch_order_combo.addItems([
             "Input sequence order",
             "MUSCLE output order",
         ])
-        self.batch_order_combo.setMinimumWidth(200)
-        row_mode.addWidget(self.batch_order_combo)
+        self.batch_order_combo.setMinimumWidth(170)
 
         self.batch_overwrite = QCheckBox("Overwrite existing")
-        row_mode.addWidget(self.batch_overwrite)
-        row_mode.addStretch()
-        bpg_layout.addLayout(row_mode)
 
-        # Alignment method + threads
-        row_params = QHBoxLayout()
-        row_params.addWidget(QLabel("Alignment Method:"))
+        bpg_layout.addWidget(fmt_label, 2, 0)
+        bpg_layout.addWidget(self.batch_fmt_combo, 2, 1)
+        bpg_layout.addWidget(order_label, 2, 2)
+        bpg_layout.addWidget(self.batch_order_combo, 2, 3)
+        bpg_layout.addWidget(self.batch_overwrite, 2, 4)
+        bpg_layout.setColumnStretch(6, 1)
+
+        # Row 3: Alignment Method + Threads
+        method_label = QLabel("Alignment Method:")
         self.batch_method_combo = QComboBox()
         self.batch_method_combo.addItems([
             "Accurate (\u2013align)",
             "Fast / Large datasets (\u2013super5)",
         ])
-        self.batch_method_combo.setMinimumWidth(240)
-        row_params.addWidget(self.batch_method_combo)
-        row_params.addSpacing(20)
-        row_params.addWidget(QLabel("Threads:"))
+        self.batch_method_combo.setMinimumWidth(200)
+
+        threads_label = QLabel("Threads:")
         self.batch_threads_spin = QSpinBox()
         self.batch_threads_spin.setRange(1, min(64, os.cpu_count() or 4))
         self.batch_threads_spin.setValue(1)
         self.batch_threads_spin.setFixedWidth(70)
-        row_params.addWidget(self.batch_threads_spin)
-        row_params.addStretch()
-        bpg_layout.addLayout(row_params)
 
-        # MUSCLE executable path
-        row_exe = QHBoxLayout()
-        row_exe.addWidget(QLabel("MUSCLE Path:"))
+        bpg_layout.addWidget(method_label, 3, 0)
+        bpg_layout.addWidget(self.batch_method_combo, 3, 1)
+        bpg_layout.addWidget(threads_label, 3, 2)
+        bpg_layout.addWidget(self.batch_threads_spin, 3, 3)
+
+        # Row 4: MUSCLE executable path
+        exe_label = QLabel("MUSCLE Path:")
         self.batch_muscle_path_edit = QLineEdit()
         self.batch_muscle_path_edit.setPlaceholderText("Choose MUSCLE executable path")
         self.batch_muscle_path_edit.setText(self._saved_muscle_path)
         batch_exe_btn = QPushButton("Browse")
         batch_exe_btn.setFixedWidth(80)
         batch_exe_btn.clicked.connect(self._browse_batch_muscle_exe)
-        row_exe.addWidget(self.batch_muscle_path_edit)
-        row_exe.addWidget(batch_exe_btn)
-        bpg_layout.addLayout(row_exe)
+
+        bpg_layout.addWidget(exe_label, 4, 0)
+        bpg_layout.addWidget(self.batch_muscle_path_edit, 4, 1, 1, 5)
+        bpg_layout.addWidget(batch_exe_btn, 4, 6)
 
         bl.addWidget(batch_param_group)
 
@@ -697,9 +695,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_log = QTextEdit()
         self.batch_log.setReadOnly(True)
         self.batch_log.setMinimumHeight(140)
-        self.batch_log.setPlaceholderText(
-            "Batch progress and summary will appear here..."
-        )
+        self.batch_log.setPlaceholderText("Batch progress and summary will appear here...")
         lg_layout.addWidget(self.batch_log)
         bl.addWidget(log_group)
 
@@ -824,6 +820,34 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             except Exception as e:
                 QMessageBox.warning(self, "File Read Error", str(e))
 
+    def _load_example(self):
+        text = load_example_text("protein", "msa_example_pro.fasta")
+        if not text:
+            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            return
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("Example loaded"))
+
+    def _load_batch_example(self):
+        """Stage two example FASTA files and add them to the batch file list."""
+        paths = []
+        for fname in ("msa_example_pro.fasta", "msa_example_dna.fasta"):
+            staged = stage_example("protein", fname)
+            if staged:
+                paths.append(staged)
+        if not paths:
+            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            return
+        self.batch_files_list.clear()
+        for p in paths:
+            self.batch_files_list.addItem(QListWidgetItem(p))
+        self.batch_files_edit.setText(f"{len(paths)} file(s) selected")
+        if not self.batch_out_dir_edit.text().strip() and paths:
+            parent_dir = os.path.dirname(paths[0])
+            if parent_dir:
+                self.batch_out_dir_edit.setText(parent_dir)
+        self.show_status(self.tr("Example files loaded for batch"))
+
     def clear(self):
         self.input_text.clear()
         self.output_text.clear()
@@ -870,8 +894,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
     def _run_batch(self):
         input_files = [
-            self.batch_files_list.item(i).text()
-            for i in range(self.batch_files_list.count())
+            self.batch_files_list.item(i).text() for i in range(self.batch_files_list.count())
         ]
         out_dir = self.batch_out_dir_edit.text().strip()
         pattern = self.batch_name_pattern.text().strip()
@@ -880,9 +903,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         muscle_exe = self.batch_muscle_path_edit.text().strip() or MUSCLE_EXE
 
         if not input_files:
-            QMessageBox.warning(
-                self, "Batch Input Error", "Please select at least one FASTA file."
-            )
+            QMessageBox.warning(self, "Batch Input Error", "Please select at least one FASTA file.")
             return
         if not out_dir:
             QMessageBox.warning(
@@ -898,9 +919,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         try:
             _ = pattern.format(stem="sample", method=method, ext="fasta")
         except Exception as exc:
-            QMessageBox.warning(
-                self, "Naming Pattern Error", f"Invalid pattern:\n{exc}"
-            )
+            QMessageBox.warning(self, "Naming Pattern Error", f"Invalid pattern:\n{exc}")
             return
 
         self._save_muscle_path(muscle_exe)
@@ -1025,9 +1044,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         self._aligned_fasta = ""
         self.run_btn.setEnabled(False)
-        self.status_label.setText(
-            f"Running MUSCLE ({method}) on {len(seqs)} sequences…"
-        )
+        self.status_label.setText(f"Running MUSCLE ({method}) on {len(seqs)} sequences…")
 
         self._worker = _MuscleWorker(clean_fasta, method, threads, muscle_exe)
         self._worker.finished.connect(self._on_alignment_done)

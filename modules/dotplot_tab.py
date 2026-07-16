@@ -1,8 +1,10 @@
 from utils.common_components import BaseTabWidget
+from utils.example_data import load_example_text
 from PyQt6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QSpinBox,
     QFileDialog,
     QMessageBox,
@@ -38,17 +40,26 @@ class DotPlotTab(BaseTabWidget):
 
     def _update_ui_layout(self):
         self.input_text.setPlaceholderText(
-            "Paste one or two sequences in FASTA format (recommended), or drag-and-drop a FASTA file...\n\n"
-            "Example (two sequences):\n"
-            ">seqA\n"
-            "ATGCTAGCTAGCTAGCTAGC\n"
-            ">seqB\n"
-            "ATGCGAGCTTGCTAGATAGC\n\n"
-            "If only one sequence is provided, DotPlot performs self-comparison."
+            "Paste one or two sequences in FASTA format, or drag-and-drop a file..."
         )
-        self.input_text.setMinimumHeight(170)
+        self.input_text.setMinimumHeight(130)
         self.input_hint.hide()
         self.output_group.hide()
+
+        # Place Example button next to Upload File in a horizontal row
+        ig = self.input_group.layout()
+        # Remove upload_btn from its current position in the QVBoxLayout
+        ig.removeWidget(self.upload_btn)
+        # Create horizontal row for the two buttons — both stretch to fill
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        btn_row.addWidget(self.upload_btn, 1)
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setToolTip(self.tr("Load example sequences for DotPlot"))
+        self.example_btn.clicked.connect(self._load_example)
+        btn_row.addWidget(self.example_btn, 1)
+        # Insert the button row after input_text (index 0)
+        ig.insertLayout(1, btn_row)
 
     def _setup_parameters(self):
         # Comparison mode
@@ -83,10 +94,10 @@ class DotPlotTab(BaseTabWidget):
         self.add_content_layout(word_row)
 
     def _setup_plot_canvas(self):
-        self.figure = Figure(figsize=(7.5, 4.5), tight_layout=True)
+        self.figure = Figure(figsize=(7.5, 3.8), tight_layout=True)
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
-        self.canvas.setMinimumHeight(300)
+        self.canvas.setMinimumHeight(240)
         self.add_content_widget(self.toolbar)
         self.add_content_widget(self.canvas)
         self._draw_placeholder_plot()
@@ -134,6 +145,14 @@ class DotPlotTab(BaseTabWidget):
                 self.input_hint.clear()
             except Exception as e:
                 QMessageBox.warning(self, "File Read Error", str(e))
+
+    def _load_example(self):
+        text = load_example_text("protein", "pairwise_pro.fasta")
+        if not text:
+            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            return
+        self.input_text.setPlainText(text)
+        self.show_status(self.tr("Example loaded"))
 
     def _parse_fasta_records(self, text: str):
         records = []
@@ -235,9 +254,7 @@ class DotPlotTab(BaseTabWidget):
         else:
             records = [("sequence_1", text)]
 
-        records = [
-            (h, self._sanitize_seq(s)) for h, s in records if self._sanitize_seq(s)
-        ]
+        records = [(h, self._sanitize_seq(s)) for h, s in records if self._sanitize_seq(s)]
         if not records:
             self.status_label.setText("No valid sequence found.")
             return
@@ -290,9 +307,7 @@ class DotPlotTab(BaseTabWidget):
 
         dot_count = int(matrix.sum())
         density = (dot_count / matrix.size) * 100 if matrix.size else 0.0
-        self.status_label.setText(
-            f"DotPlot generated: {dot_count} dots, density {density:.4f}%."
-        )
+        self.status_label.setText(f"DotPlot generated: {dot_count} dots, density {density:.4f}%.")
 
     def clear(self):
         super().clear()

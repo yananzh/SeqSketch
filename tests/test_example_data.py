@@ -101,12 +101,11 @@ def test_mafft_example_fills_input_text(qapp):
     from modules.mafft_alignment_tab import MafftAlignmentTab
 
     tab = MafftAlignmentTab()
-    btn = _find_button(tab, "Example")
-    assert btn is not None, "MAFFT tab has no Example button"
-    btn.click()
+    assert hasattr(tab, "example_btn"), "MAFFT tab has no Example button"
+    tab.example_btn.click()
     text = tab.input_text.toPlainText()
     assert text.startswith(">")
-    assert text.count(">") == 8
+    assert text.count(">") == 3
 
 
 def test_trimal_example_adds_file_to_list(qapp):
