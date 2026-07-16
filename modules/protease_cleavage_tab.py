@@ -233,17 +233,13 @@ class ProteaseCleavageTab(BaseTabWidget):
             QMessageBox.warning(self, "Format Error", str(e))
             return
         if not records:
-            QMessageBox.warning(
-                self, "Input Error", "No valid FASTA sequences detected."
-            )
+            QMessageBox.warning(self, "Input Error", "No valid FASTA sequences detected.")
             return
 
         header, seq = records[0]
         seq = "".join(c for c in seq.upper() if c in AA)
         if not seq:
-            QMessageBox.warning(
-                self, "Input Error", "Sequence is empty after cleaning."
-            )
+            QMessageBox.warning(self, "Input Error", "Sequence is empty after cleaning.")
             return
 
         protease_name = self.protease_combo.currentText()
@@ -271,17 +267,13 @@ class ProteaseCleavageTab(BaseTabWidget):
                     "start": start + 1,
                     "end": end,
                     "length": len(frag_seq),
-                    "sequence": frag_seq
-                    if len(frag_seq) <= 40
-                    else frag_seq[:37] + "...",
+                    "sequence": frag_seq if len(frag_seq) <= 40 else frag_seq[:37] + "...",
                     "mw": round(mw, 2),
                     "full_seq": frag_seq,
                 })
 
         if not fragments:
-            QMessageBox.warning(
-                self, "No Fragments", "No cleavage sites found for this protease."
-            )
+            QMessageBox.warning(self, "No Fragments", "No cleavage sites found for this protease.")
             return
 
         # Display results
@@ -289,12 +281,8 @@ class ProteaseCleavageTab(BaseTabWidget):
         out_lines.append(f"Protease: {protease_name}  |  Missed cleavages: {missed}")
         out_lines.append(f"Sequence: {header}  |  Length: {len(seq)} aa")
         out_lines.append("")
-        out_lines.append(
-            f"{'#':>4}  {'Start':>6} {'End':>6} {'Len':>5}  {'MW (Da)':>10}  Sequence"
-        )
-        out_lines.append(
-            f"{'─' * 4}  {'─' * 6} {'─' * 6} {'─' * 5}  {'─' * 10}  {'─' * 8}"
-        )
+        out_lines.append(f"{'#':>4}  {'Start':>6} {'End':>6} {'Len':>5}  {'MW (Da)':>10}  Sequence")
+        out_lines.append(f"{'─' * 4}  {'─' * 6} {'─' * 6} {'─' * 5}  {'─' * 10}  {'─' * 8}")
 
         for idx, frag in enumerate(fragments, 1):
             out_lines.append(
@@ -308,9 +296,7 @@ class ProteaseCleavageTab(BaseTabWidget):
 
         self.output_text.setPlainText("\n".join(out_lines))
         self.current_results = fragments
-        self.status_label.setText(
-            f"Digested with {protease_name} — {len(fragments)} fragments"
-        )
+        self.status_label.setText(f"Digested with {protease_name} — {len(fragments)} fragments")
 
     def clear(self):
         self.input_text.clear()
@@ -322,7 +308,8 @@ class ProteaseCleavageTab(BaseTabWidget):
         """Export digestion fragments to a CSV file."""
         if not self.current_results:
             QMessageBox.warning(
-                self, self.tr("Export Error"),
+                self,
+                self.tr("Export Error"),
                 self.tr("Run a digestion first to generate fragments."),
             )
             return
@@ -347,7 +334,9 @@ class ProteaseCleavageTab(BaseTabWidget):
                         f"{frag['mw']:.2f}",
                         frag["sequence"],
                     ])
-            self.status_label.setText(self.tr(f"Exported {len(self.current_results)} fragments to {path}"))
+            self.status_label.setText(
+                self.tr(f"Exported {len(self.current_results)} fragments to {path}")
+            )
         except Exception as e:
             QMessageBox.warning(self, self.tr("Export Error"), str(e))
 

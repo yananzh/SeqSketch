@@ -239,9 +239,13 @@ class GCPlotTab(BaseTabWidget):
             fig.clear()
             ax = fig.add_subplot(111)
             ax.text(
-                0.5, 0.5,
+                0.5,
+                0.5,
                 self.tr(f"{label} plot will appear here after clicking 'Plot'"),
-                ha="center", va="center", fontsize=12, color="#999",
+                ha="center",
+                va="center",
+                fontsize=12,
+                color="#999",
                 transform=ax.transAxes,
             )
             ax.set_xticks([])
@@ -388,7 +392,9 @@ class GCPlotTab(BaseTabWidget):
         n = len(seq)
         if n >= 10000:
             ax.xaxis.set_major_formatter(
-                ticker.FuncFormatter(lambda v, _: f"{v/1000:.0f} kb" if v >= 1000 else f"{int(v)}")
+                ticker.FuncFormatter(
+                    lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
+                )
             )
             ax.set_xlabel(self.tr("Position (kb)"), fontsize=12)
         else:
@@ -409,26 +415,37 @@ class GCPlotTab(BaseTabWidget):
         ax.plot(x, gc_skew, color="#388e3c", linewidth=1.0)
         ax.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
         ax.fill_between(
-            x, 0, gc_skew,
-            where=(gc_skew > 0), color="#388e3c", alpha=0.15,
+            x,
+            0,
+            gc_skew,
+            where=(gc_skew > 0),
+            color="#388e3c",
+            alpha=0.15,
             label=self.tr("G excess"),
         )
         ax.fill_between(
-            x, 0, gc_skew,
-            where=(gc_skew < 0), color="#d32f2f", alpha=0.15,
+            x,
+            0,
+            gc_skew,
+            where=(gc_skew < 0),
+            color="#d32f2f",
+            alpha=0.15,
             label=self.tr("C excess"),
         )
         ax.set_ylabel(self.tr("GC Skew"), fontsize=12)
         ax.set_title(
             self.tr(f"GC Skew = (G−C)/(G+C) — {header}"),
-            fontsize=13, fontweight="bold",
+            fontsize=13,
+            fontweight="bold",
         )
         ax.set_ylim(-1, 1)
 
         n = len(seq)
         if n >= 10000:
             ax.xaxis.set_major_formatter(
-                ticker.FuncFormatter(lambda v, _: f"{v/1000:.0f} kb" if v >= 1000 else f"{int(v)}")
+                ticker.FuncFormatter(
+                    lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
+                )
             )
             ax.set_xlabel(self.tr("Position (kb)"), fontsize=12)
         else:
@@ -450,31 +467,54 @@ class GCPlotTab(BaseTabWidget):
         ax.plot(x, cumul_skew, color="#7b1fa2", linewidth=1.2)
         ax.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
         ax.fill_between(
-            x, 0, cumul_skew,
-            where=(cumul_skew > 0), color="#7b1fa2", alpha=0.12,
+            x,
+            0,
+            cumul_skew,
+            where=(cumul_skew > 0),
+            color="#7b1fa2",
+            alpha=0.12,
             label=self.tr("G excess (leading)"),
         )
         ax.fill_between(
-            x, 0, cumul_skew,
-            where=(cumul_skew < 0), color="#e65100", alpha=0.12,
+            x,
+            0,
+            cumul_skew,
+            where=(cumul_skew < 0),
+            color="#e65100",
+            alpha=0.12,
             label=self.tr("C excess (lagging)"),
         )
         ax.set_ylabel(self.tr("Cumulative GC Skew"), fontsize=12)
         ax.set_title(
             self.tr(f"Cumulative GC Skew = Σ (G−C)/(G+C) — {header}"),
-            fontsize=13, fontweight="bold",
+            fontsize=13,
+            fontweight="bold",
         )
         idx_min = np.argmin(cumul_skew)
         idx_max = np.argmax(cumul_skew)
-        ax.scatter(x[idx_min], cumul_skew[idx_min], color="#d32f2f", s=60, zorder=5,
-                   label=self.tr(f"oriC ≈ {int(x[idx_min])} bp"))
-        ax.scatter(x[idx_max], cumul_skew[idx_max], color="#2e7d32", s=60, zorder=5,
-                   label=self.tr(f"terC ≈ {int(x[idx_max])} bp"))
+        ax.scatter(
+            x[idx_min],
+            cumul_skew[idx_min],
+            color="#d32f2f",
+            s=60,
+            zorder=5,
+            label=self.tr(f"oriC ≈ {int(x[idx_min])} bp"),
+        )
+        ax.scatter(
+            x[idx_max],
+            cumul_skew[idx_max],
+            color="#2e7d32",
+            s=60,
+            zorder=5,
+            label=self.tr(f"terC ≈ {int(x[idx_max])} bp"),
+        )
 
         n = len(seq)
         if n >= 10000:
             ax.xaxis.set_major_formatter(
-                ticker.FuncFormatter(lambda v, _: f"{v/1000:.0f} kb" if v >= 1000 else f"{int(v)}")
+                ticker.FuncFormatter(
+                    lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
+                )
             )
             ax.set_xlabel(self.tr("Position (kb)"), fontsize=12)
         else:

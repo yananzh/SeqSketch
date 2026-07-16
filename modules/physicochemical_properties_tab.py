@@ -112,9 +112,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
             QMessageBox.warning(self, "Format Error", str(e))
             return
         if not records:
-            QMessageBox.warning(
-                self, "Input Error", "No valid FASTA sequences detected."
-            )
+            QMessageBox.warning(self, "Input Error", "No valid FASTA sequences detected.")
             return
         self.current_results = []
         out_lines = []
@@ -231,9 +229,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
                 seq_lines = []
             else:
                 if not re.match(r"^[A-Za-z]+$", line):
-                    raise ValueError(
-                        f"Sequence line contains invalid characters: {line}"
-                    )
+                    raise ValueError(f"Sequence line contains invalid characters: {line}")
                 seq_lines.append(line)
         if header and seq_lines:
             records.append((header, "".join(seq_lines)))
@@ -277,9 +273,15 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
             "</ul>"
         )
         from PyQt6.QtWidgets import (
-            QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea,
+            QDialog,
+            QVBoxLayout,
+            QHBoxLayout,
+            QLabel,
+            QPushButton,
+            QScrollArea,
         )
         from PyQt6.QtCore import Qt as QtCore
+
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Physicochemical Properties"))
         dlg.setFixedSize(800, 620)

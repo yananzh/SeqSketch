@@ -267,18 +267,14 @@ class HydrophobicityPlotTab(BaseTabWidget):
             QMessageBox.warning(self, "Format Error", str(e))
             return
         if not records:
-            QMessageBox.warning(
-                self, "Input Error", "No valid FASTA sequences detected."
-            )
+            QMessageBox.warning(self, "Input Error", "No valid FASTA sequences detected.")
             return
 
         # Use the first sequence
         header, seq = records[0]
         seq = "".join(c for c in seq.upper() if c.isalpha())
         if not seq:
-            QMessageBox.warning(
-                self, "Input Error", "Sequence is empty after cleaning."
-            )
+            QMessageBox.warning(self, "Input Error", "Sequence is empty after cleaning.")
             return
 
         scale_name = self.scale_combo.currentText()
@@ -384,9 +380,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
                 self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight")
                 self.status_label.setText(f"Figure saved: {file_path}")
             except Exception as e:
-                QMessageBox.warning(
-                    self, "Export Error", f"Failed to save figure:\n{str(e)}"
-                )
+                QMessageBox.warning(self, "Export Error", f"Failed to save figure:\n{str(e)}")
 
     def show_help(self):
         from PyQt6.QtWidgets import (
