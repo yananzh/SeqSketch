@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QFormLayout,
+    QGridLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -27,6 +28,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import QTextBrowser, QDialog
 from utils.common_components import BaseTabWidget
+from utils.app_paths import resource_path
 import os
 
 # Reuse thread classes and config from the existing dialog modules
@@ -46,7 +48,7 @@ _DEFAULT_MAX_HITS = 50
 
 
 def _default_blast_threads() -> int:
-    return max(1, min(os.cpu_count() or 2, 8))
+    return 2
 
 
 def _read_text_file(path: str) -> str:
@@ -99,7 +101,7 @@ def _make_plain_section(title: str) -> tuple[QWidget, QVBoxLayout]:
 
 def _make_form() -> QFormLayout:
     form = QFormLayout()
-    form.setSpacing(10)
+    form.setSpacing(6)
     form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
     form.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
     return form
@@ -116,7 +118,8 @@ def _show_help(parent: QWidget, title: str, html: str) -> None:
     """Show a scrollable help dialog."""
     dlg = QDialog(parent)
     dlg.setWindowTitle(title)
-    dlg.resize(640, 560)
+    dlg.setMinimumWidth(660)
+    dlg.setMinimumHeight(480)
     lay = QVBoxLayout(dlg)
     browser = QTextBrowser()
     browser.setOpenExternalLinks(True)
@@ -129,142 +132,100 @@ def _show_help(parent: QWidget, title: str, html: str) -> None:
 
 
 _HELP_BUILD = """
-<h2 style="color:#2563eb;">🗄️ Build BLAST Database</h2>
-<p>A BLAST database is a pre-indexed, searchable version of your FASTA sequences.
-Building it once makes queries <b>hundreds of times faster</b> than scanning raw FASTA files.</p>
+<h2>Build BLAST Database</h2>
 
-<h3>📋 Steps to Build</h3>
+<p><b>What does this tool do?</b><br>
+A BLAST database is a pre-indexed, searchable version of your FASTA sequences.
+Building it once makes queries hundreds of times faster than scanning raw FASTA files.</p>
+
+<h3>Quick Start</h3>
 <ol>
-  <li><b>Select FASTA file</b> — drag &amp; drop onto the field or click <b>Browse</b>.
-  The file is auto-detected as nucleotide or protein.</li>
-  <li><b>Choose output folder</b> — where the index files will be created.</li>
-  <li><b>Name the database</b> — use a short name without spaces (e.g. <code>ecoli_genome</code>).</li>
-  <li>Click <b>Build Database</b> — <code>makeblastdb</code> runs and the new database
-  is automatically selected for searching.</li>
+<li>Select an <b>Input FASTA</b> file — the sequence type (nucleotide or protein) is auto-detected.</li>
+<li>Choose an <b>Output folder</b> where the index files will be created.</li>
+<li>Enter a <b>Database name</b> without spaces (e.g. <code>ecoli_genome</code>).</li>
+<li>Click <b>Build DB</b> — <code>makeblastdb</code> runs and the new database is auto-selected for searching.</li>
 </ol>
 
-<h3>📁 Output Files</h3>
-<table style="border-collapse:collapse;width:100%;">
-  <tr style="background:#eef2f7;">
-    <th style="padding:6px 10px;text-align:left;">Nucleotide</th>
-    <th style="padding:6px 10px;text-align:left;">Protein</th>
-  </tr>
-  <tr>
-    <td style="padding:4px 10px;"><code>.nhr .nin .nsq</code></td>
-    <td style="padding:4px 10px;"><code>.phr .pin .psq</code></td>
-  </tr>
+<h3>Output Files</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Nucleotide</b></td><td>→ <code>.nhr .nin .nsq</code></td></tr>
+<tr><td><b>Protein</b></td><td>→ <code>.phr .pin .psq</code></td></tr>
 </table>
-<p style="color:#64748b;">➕ alias files <code>.nal</code> / <code>.pal</code> may also be created.</p>
+<p>Alias files <code>.nal</code> / <code>.pal</code> may also be created.</p>
 
-<h3>💡 Tips</h3>
+<h3>Tips</h3>
 <ul>
-  <li>The bundled BLAST+ is auto-detected — use the <b>BLAST+ Path</b> field only if you need a different version.</li>
-  <li>Database names must not contain spaces or special characters (<code>\\ / : * ? " &lt; &gt; |</code>).</li>
-  <li>Building a database for a large genome may take several minutes.</li>
+<li>The bundled BLAST+ is auto-detected — set <b>BLAST+ Path</b> only if you need a different version.</li>
+<li>Database names must not contain spaces or special characters (<code>\\ / : * ? \" &lt; &gt; |</code>).</li>
+<li>Building a database for a large genome may take several minutes.</li>
 </ul>
 """
 
 _HELP_RUN = """
-<h2 style="color:#2563eb;">🔬 Local BLAST Help</h2>
-<p>Search your query sequences against a local BLAST database using the NCBI BLAST+ toolkit.
-Results are saved as a formatted table and can be exported to CSV, TSV, or Excel.</p>
+<h2>Local BLAST</h2>
 
-<h3>🧬 BLAST Programs</h3>
-<table style="border-collapse:collapse;width:100%;">
-  <tr style="background:#eef2f7;">
-    <th style="padding:6px 10px;text-align:left;">Program</th>
-    <th style="padding:6px 10px;text-align:left;">Query → Database</th>
-    <th style="padding:6px 10px;text-align:left;">Auto-select</th>
-  </tr>
-  <tr>
-    <td style="padding:4px 10px;"><code><b>blastn</b></code></td>
-    <td style="padding:4px 10px;">DNA → DNA</td>
-    <td style="padding:4px 10px;">nucl + nucl</td>
-  </tr>
-  <tr style="background:#f8fafc;">
-    <td style="padding:4px 10px;"><code><b>blastp</b></code></td>
-    <td style="padding:4px 10px;">Protein → Protein</td>
-    <td style="padding:4px 10px;">prot + prot</td>
-  </tr>
-  <tr>
-    <td style="padding:4px 10px;"><code><b>blastx</b></code></td>
-    <td style="padding:4px 10px;">DNA <i>(translated)</i> → Protein</td>
-    <td style="padding:4px 10px;">nucl + prot</td>
-  </tr>
-  <tr style="background:#f8fafc;">
-    <td style="padding:4px 10px;"><code><b>tblastn</b></code></td>
-    <td style="padding:4px 10px;">Protein → DNA <i>(translated)</i></td>
-    <td style="padding:4px 10px;">prot + nucl</td>
-  </tr>
-  <tr>
-    <td style="padding:4px 10px;"><code><b>tblastx</b></code></td>
-    <td style="padding:4px 10px;">DNA <i>(translated)</i> → DNA <i>(translated)</i></td>
-    <td style="padding:4px 10px;">manual only</td>
-  </tr>
-</table>
-<p style="color:#64748b;">📌 The program is auto-selected based on your query and database types. You can override it manually.</p>
+<p><b>What does this tool do?</b><br>
+Search your query sequences against a local BLAST database using the NCBI BLAST+ toolkit.
+Results are saved as a tab-separated table (outfmt 6) that you can open in any spreadsheet
+application or text editor.</p>
 
-<h3>⚙️ Parameters</h3>
-<table style="border-collapse:collapse;width:100%;">
-  <tr style="background:#eef2f7;">
-    <th style="padding:6px 10px;text-align:left;">Parameter</th>
-    <th style="padding:6px 10px;text-align:left;">Description</th>
-    <th style="padding:6px 10px;text-align:left;">Typical Value</th>
-  </tr>
-  <tr>
-    <td style="padding:4px 10px;"><b>E-value</b></td>
-    <td style="padding:4px 10px;">Maximum expected hits by chance. <b>Lower = stricter</b>.</td>
-    <td style="padding:4px 10px;"><code>1e-5</code> (general)<br><code>1e-10</code> (strict)</td>
-  </tr>
-  <tr style="background:#f8fafc;">
-    <td style="padding:4px 10px;"><b>Threads</b></td>
-    <td style="padding:4px 10px;">CPU cores for parallel search. Default: auto-detected.</td>
-    <td style="padding:4px 10px;">4 ~ 8</td>
-  </tr>
-  <tr>
-    <td style="padding:4px 10px;"><b>Max hits</b></td>
-    <td style="padding:4px 10px;">Maximum subject sequences reported per query.</td>
-    <td style="padding:4px 10px;"><code>50</code> (default)</td>
-  </tr>
-</table>
-
-<h3>🚀 Quick Start</h3>
+<h3>Quick Start — Using an Existing Database</h3>
 <ol>
-  <li>Set <b>BLAST+ Path</b> (auto-detected if bundled).</li>
-  <li>Select your <b>query FASTA file</b>.</li>
-  <li>Choose an <b>existing database</b> or create a <b>new one</b> from a FASTA file.</li>
-  <li>Adjust the <b>BLAST program</b> and <b>parameters</b> if needed.</li>
-  <li>Set the <b>output file path</b> and click <b>Run BLAST Search</b>.</li>
+<li>Set <b>BLAST+ Path</b> (auto-detected if bundled).</li>
+<li>Select your <b>query FASTA file</b>.</li>
+<li>Choose an <b>existing database</b> from the dropdown or drag & drop its index file.</li>
+<li>Click <b>Run</b> — results are saved to the output file.</li>
 </ol>
 
-<h3>📊 Output Format</h3>
-<p>Results are written in <b>BLAST outfmt 6</b> (tab-separated, 12 columns):</p>
-<table style="border-collapse:collapse;width:100%;">
-  <tr style="background:#eef2f7;">
-    <th style="padding:4px 8px;text-align:left;">#</th>
-    <th style="padding:4px 8px;text-align:left;">Column</th>
-    <th style="padding:4px 8px;text-align:left;">Description</th>
-  </tr>
-  <tr><td style="padding:2px 8px;">1</td><td style="padding:2px 8px;">qseqid</td><td style="padding:2px 8px;">Query sequence ID</td></tr>
-  <tr style="background:#f8fafc;"><td style="padding:2px 8px;">2</td><td style="padding:2px 8px;">sseqid</td><td style="padding:2px 8px;">Subject (database) sequence ID</td></tr>
-  <tr><td style="padding:2px 8px;">3</td><td style="padding:2px 8px;">pident</td><td style="padding:2px 8px;">Percentage of identical matches</td></tr>
-  <tr style="background:#f8fafc;"><td style="padding:2px 8px;">4</td><td style="padding:2px 8px;">length</td><td style="padding:2px 8px;">Alignment length</td></tr>
-  <tr><td style="padding:2px 8px;">5</td><td style="padding:2px 8px;">mismatch</td><td style="padding:2px 8px;">Number of mismatches</td></tr>
-  <tr style="background:#f8fafc;"><td style="padding:2px 8px;">6</td><td style="padding:2px 8px;">gapopen</td><td style="padding:2px 8px;">Number of gap openings</td></tr>
-  <tr><td style="padding:2px 8px;">7–8</td><td style="padding:2px 8px;">qstart/qend</td><td style="padding:2px 8px;">Query alignment range</td></tr>
-  <tr style="background:#f8fafc;"><td style="padding:2px 8px;">9–10</td><td style="padding:2px 8px;">sstart/send</td><td style="padding:2px 8px;">Subject alignment range</td></tr>
-  <tr><td style="padding:2px 8px;">11</td><td style="padding:2px 8px;">evalue</td><td style="padding:2px 8px;">Expect value</td></tr>
-  <tr style="background:#f8fafc;"><td style="padding:2px 8px;">12</td><td style="padding:2px 8px;">bitscore</td><td style="padding:2px 8px;">Bit score</td></tr>
-</table>
-<p style="color:#64748b;">📌 Results open in a dedicated <b>BLAST Result</b> tab with filters, sorting, and export to CSV / TSV / XLSX.</p>
+<h3>Quick Start — Creating a New Database</h3>
+<ol>
+<li>Under <b>Choose or create a database</b>, fill in:
+    <b>Input FASTA</b>, <b>Output folder</b>, and <b>Database name</b>.</li>
+<li>Click <b>Build DB</b> — the new database is built and auto-selected.</li>
+<li>Select your <b>query FASTA file</b> above.</li>
+<li>Click <b>Run</b>.</li>
+</ol>
 
-<h3>💡 Tips</h3>
+<h3>BLAST Programs</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>blastn</b></td><td>→ DNA → DNA</td></tr>
+<tr><td><b>blastp</b></td><td>→ Protein → Protein</td></tr>
+<tr><td><b>blastx</b></td><td>→ DNA (translated) → Protein</td></tr>
+<tr><td><b>tblastn</b></td><td>→ Protein → DNA (translated)</td></tr>
+<tr><td><b>tblastx</b></td><td>→ DNA (translated) → DNA (translated)</td></tr>
+</table>
+<p>The program is auto-selected based on query and database types. You can override it manually.</p>
+
+<h3>Parameters</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>E-value</b></td><td>Maximum expected hits by chance. Lower = stricter.
+    Typical: <code>1e-5</code> (general), <code>1e-10</code> (strict).</td></tr>
+<tr><td><b>Threads</b></td><td>CPU cores for parallel search. Default: 2.</td></tr>
+<tr><td><b>Max hits</b></td><td>Maximum subject sequences reported per query. Default: 50.</td></tr>
+</table>
+
+<h3>Output Format</h3>
+<p>Results are written in <b>BLAST outfmt 6</b> (tab-separated, 12 columns):</p>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td>1</td><td>qseqid</td><td>→ Query sequence ID</td></tr>
+<tr><td>2</td><td>sseqid</td><td>→ Subject (database) sequence ID</td></tr>
+<tr><td>3</td><td>pident</td><td>→ Percentage of identical matches</td></tr>
+<tr><td>4</td><td>length</td><td>→ Alignment length</td></tr>
+<tr><td>5</td><td>mismatch</td><td>→ Number of mismatches</td></tr>
+<tr><td>6</td><td>gapopen</td><td>→ Number of gap openings</td></tr>
+<tr><td>7–8</td><td>qstart / qend</td><td>→ Query alignment range</td></tr>
+<tr><td>9–10</td><td>sstart / send</td><td>→ Subject alignment range</td></tr>
+<tr><td>11</td><td>evalue</td><td>→ Expect value</td></tr>
+<tr><td>12</td><td>bitscore</td><td>→ Bit score</td></tr>
+</table>
+
+<h3>Tips</h3>
 <ul>
-  <li><b>Drag &amp; drop</b> is supported on all file input fields — no need to click Browse.</li>
-  <li>The <b>Pin</b> button keeps your favourite databases at the top of the recent list.</li>
-  <li>Use the <b>↻</b> refresh button if you don't see a newly built database in the dropdown.</li>
-  <li>For very large query files, increase <b>Threads</b> to speed up the search.</li>
-  <li>Identity colour legend: 🟢 ≥ 90% &nbsp; 🟡 ≥ 60% &nbsp; 🔴 &lt; 60%</li>
+<li>Drag & drop is supported on all file input fields.</li>
+<li>The <b>Pin</b> button keeps your favourite databases at the top of the recent list.</li>
+<li>The database list updates automatically when a new database is built.</li>
+<li>For large query files, increase <b>Threads</b> to speed up the search.</li>
+<li>Click <b>Example</b> to try a pre-configured E. coli protein BLAST with bundled data.</li>
 </ul>
 """
 
@@ -327,7 +288,7 @@ class _BuildDbWidget(QWidget):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setSpacing(4 if self._embedded else 14)
+        root.setSpacing(6)
         margin = 0 if self._embedded else 18
         root.setContentsMargins(margin, margin, margin, margin)
 
@@ -388,18 +349,7 @@ class _BuildDbWidget(QWidget):
 
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText(self.tr("my_reference_db"))
-        name_lbl = QLabel(self.tr("Database name"))
-        if self._label_width:
-            name_lbl.setFixedWidth(self._label_width)
-        create_form.addRow(name_lbl, self.name_edit)
-
-        if self._embedded:
-            root.addLayout(create_form)
-        else:
-            create_layout.addLayout(create_form)
-
-        btn_row = QHBoxLayout()
-        self.build_btn = QPushButton(self.tr("Build Database"))
+        self.build_btn = QPushButton(self.tr("Build DB"))
         _set_action_role(self.build_btn, "primary")
         self.build_btn.clicked.connect(self._start_build)
         self.cancel_build_btn = QPushButton(self.tr("Cancel"))
@@ -407,17 +357,29 @@ class _BuildDbWidget(QWidget):
         self.cancel_build_btn.setFixedWidth(80)
         self.cancel_build_btn.clicked.connect(self._cancel_build)
         self.cancel_build_btn.setVisible(False)
-        btn_row.addWidget(self.build_btn)
-        btn_row.addWidget(self.cancel_build_btn)
-        btn_row.addStretch()
-        root.addLayout(btn_row)
 
-        self.status_lbl = QLabel("")
-        self.status_lbl.setProperty("statusText", True)
+        name_row = QHBoxLayout()
+        name_row.addWidget(self.name_edit)
+        name_row.addWidget(self.build_btn)
+        name_row.addWidget(self.cancel_build_btn)
+
+        name_lbl = QLabel(self.tr("Database name"))
+        if self._label_width:
+            name_lbl.setFixedWidth(self._label_width)
+        create_form.addRow(name_lbl, name_row)
+
+        if self._embedded:
+            root.addLayout(create_form)
+        else:
+            create_layout.addLayout(create_form)
+
         if not self._embedded:
-            self.status_lbl.setText(self.tr("Ready to build a database."))
+            self.status_lbl = QLabel(self.tr("Ready to build a database."), self)
+            self.status_lbl.setProperty("statusText", True)
             root.addWidget(self.status_lbl)
             root.addStretch()
+        else:
+            self.status_lbl = None
 
     # ── slots ──────────────────────────────────────────────────────────────
 
@@ -510,7 +472,8 @@ class _BuildDbWidget(QWidget):
         outpath = os.path.join(outdir, name)
         self.build_btn.setVisible(False)
         self.cancel_build_btn.setVisible(True)
-        self.status_lbl.setText("Building database, please wait…")
+        if self.status_lbl:
+            self.status_lbl.setText("Building database, please wait…")
         if self.status_callback:
             self.status_callback("Building BLAST database…")
 
@@ -521,7 +484,8 @@ class _BuildDbWidget(QWidget):
     def _cancel_build(self):
         if self._thread and self._thread.isRunning():
             self._thread.cancel()
-            self.status_lbl.setText("Cancelling…")
+            if self.status_lbl:
+                self.status_lbl.setText("Cancelling…")
 
     def _on_finished(self, success, msg):
         self.build_btn.setEnabled(True)
@@ -543,9 +507,10 @@ class _BuildDbWidget(QWidget):
             )
             if self._database_callback:
                 self._database_callback(outpath)
-            self.status_lbl.setText(
-                f"✔ Database built successfully  →  {self.outdir_edit.text()}/{self.name_edit.text()}"
-            )
+            if self.status_lbl:
+                self.status_lbl.setText(
+                    f"✔ Database built successfully  →  {self.outdir_edit.text()}/{self.name_edit.text()}"
+                )
             QMessageBox.information(
                 self,
                 "Database Built",
@@ -553,7 +518,8 @@ class _BuildDbWidget(QWidget):
                 "The new database has been selected for the BLAST search.",
             )
         else:
-            self.status_lbl.setText("✘ Build failed — see error details.")
+            if self.status_lbl:
+                self.status_lbl.setText("✘ Build failed — see error details.")
             QMessageBox.critical(
                 self, "Build Failed", f"makeblastdb reported an error:\n\n{msg}"
             )
@@ -579,6 +545,11 @@ class _RunQueryWidget(QWidget):
         self._thread = None
         self._build_db_widget = None
         self._build_ui()
+
+    def _status(self, msg: str):
+        """Route status message through the callback if set."""
+        if self.status_callback:
+            self.status_callback(msg)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -666,16 +637,10 @@ class _RunQueryWidget(QWidget):
         self.db_library_combo.currentIndexChanged.connect(self._use_selected_database)
         self.pin_db_btn = QPushButton(self.tr("Pin"))
         _set_action_role(self.pin_db_btn, "secondary")
-        self.pin_db_btn.setFixedWidth(52)
+        self.pin_db_btn.setFixedWidth(80)
         self.pin_db_btn.clicked.connect(self._pin_current_database)
-        refresh_btn = QPushButton(self.tr("↻"))
-        _set_action_role(refresh_btn, "secondary")
-        refresh_btn.setFixedWidth(52)
-        refresh_btn.setToolTip(self.tr("Refresh database list"))
-        refresh_btn.clicked.connect(self.refresh_database_library)
         lib_row.addWidget(self.db_library_combo, 1)
         lib_row.addWidget(self.pin_db_btn)
-        lib_row.addWidget(refresh_btn)
         grp2_layout.addLayout(lib_row)
 
         self._build_db_widget = _BuildDbWidget(
@@ -693,8 +658,11 @@ class _RunQueryWidget(QWidget):
         grp3_layout = QVBoxLayout(grp3)
         grp3_layout.setSpacing(6)
 
-        param_row = QHBoxLayout()
-        param_row.setSpacing(10)
+        grid = QGridLayout()
+        grid.setSpacing(2)
+        grid.setVerticalSpacing(6)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setColumnMinimumWidth(0, lbl_width)
         self.prog_combo = QComboBox()
         self.prog_combo.addItems(list(_PROG_TIPS.keys()))
         self.prog_combo.setMinimumWidth(140)
@@ -708,38 +676,34 @@ class _RunQueryWidget(QWidget):
         self.numhits_spin.setRange(1, 10000)
         self.numhits_spin.setValue(_DEFAULT_MAX_HITS)
         self.numhits_spin.setFixedWidth(80)
-        param_row.addWidget(QLabel(self.tr("Program")))
-        param_row.addWidget(self.prog_combo)
-        param_row.addWidget(QLabel(self.tr("E-value")))
-        param_row.addWidget(self.eval_edit)
-        param_row.addWidget(QLabel(self.tr("Threads")))
-        param_row.addWidget(self.threads_spin)
-        param_row.addWidget(QLabel(self.tr("Max hits")))
-        param_row.addWidget(self.numhits_spin)
-        param_row.addStretch()
-        grp3_layout.addLayout(param_row)
+        grid.addWidget(QLabel(self.tr("Program")), 0, 0)
+        grid.addWidget(self.prog_combo, 0, 1)
+        grid.addWidget(QLabel(self.tr("E-value")), 0, 2)
+        grid.addWidget(self.eval_edit, 0, 3)
+        grid.addWidget(QLabel(self.tr("Threads")), 0, 4)
+        grid.addWidget(self.threads_spin, 0, 5)
+        grid.addWidget(QLabel(self.tr("Max hits")), 0, 6)
+        grid.addWidget(self.numhits_spin, 0, 7)
+        grid.setColumnStretch(8, 1)
 
-        out_row = QHBoxLayout()
-        out_row.setSpacing(8)
         self.out_edit = QLineEdit()
-        self.out_edit.setPlaceholderText(self.tr("blast_result.tsv"))
+        self.out_edit.setPlaceholderText(self.tr("blast_result.xlsx"))
         out_btn = QPushButton(self.tr("Browse"))
         _set_action_role(out_btn, "secondary")
         out_btn.setFixedWidth(80)
         out_btn.clicked.connect(self._choose_outfile)
-        out_row.addWidget(QLabel(self.tr("Output")))
-        out_row.addWidget(self.out_edit, 1)
-        out_row.addWidget(out_btn)
-        grp3_layout.addLayout(out_row)
+        grid.addWidget(QLabel(self.tr("Output File")), 1, 0)
+        out_hbox = QHBoxLayout()
+        out_hbox.setSpacing(8)
+        out_hbox.addWidget(self.out_edit, 1)
+        out_hbox.addWidget(out_btn)
+        grid.addLayout(out_hbox, 1, 1, 1, 8)
+        grp3_layout.addLayout(grid)
         root.addWidget(grp3)
-
-        self.status_lbl = QLabel("")
-        self.status_lbl.setProperty("statusText", True)
-        root.addWidget(self.status_lbl)
 
         # run_btn / cancel_run_btn are created here but placed by the parent
         # BlastLocalTab in its status bar so they sit beside Help.
-        self.run_btn = QPushButton(self.tr("Run BLAST"))
+        self.run_btn = QPushButton(self.tr("Run"))
         _set_action_role(self.run_btn, "primary")
         self.run_btn.clicked.connect(self._start_run)
         self.cancel_run_btn = QPushButton(self.tr("Cancel"))
@@ -922,8 +886,8 @@ class _RunQueryWidget(QWidget):
         f, _ = QFileDialog.getSaveFileName(
             self,
             "Choose output file",
-            "blast_result.tsv",
-            "TSV files (*.tsv);;All Files (*)",
+            "blast_result.xlsx",
+            "Excel files (*.xlsx);;TSV files (*.tsv);;All Files (*)",
         )
         if f:
             self.out_edit.setText(f)
@@ -999,9 +963,7 @@ class _RunQueryWidget(QWidget):
 
         self.run_btn.setVisible(False)
         self.cancel_run_btn.setVisible(True)
-        self.status_lbl.setText("Running BLAST, please wait…")
-        if self.status_callback:
-            self.status_callback("Running BLAST query…")
+        self._status("Running BLAST query…")
 
         self._thread = _RunBlastThread(
             bin_dir,
@@ -1019,20 +981,19 @@ class _RunQueryWidget(QWidget):
     def _cancel_run(self):
         if self._thread and self._thread.isRunning():
             self._thread.cancel()
-            self.status_lbl.setText("Cancelling…")
+            self._status("Cancelling…")
 
     def _on_finished(self, success, out_file, msg):
         self.run_btn.setEnabled(True)
         self.run_btn.setVisible(True)
         self.cancel_run_btn.setVisible(False)
-        if self.status_callback:
-            self.status_callback("")
+        self._status("")
         if success:
-            self.status_lbl.setText(f"✔ BLAST finished  →  {out_file}")
+            self._status(f"✔ BLAST finished  →  {out_file}")
             if self.result_callback and out_file:
                 self.result_callback(out_file)
         else:
-            self.status_lbl.setText("✘ BLAST failed — see error details.")
+            self._status("✘ BLAST failed — see error details.")
             QMessageBox.critical(
                 self, "BLAST Failed", f"BLAST reported an error:\n\n{msg}"
             )
@@ -1056,20 +1017,56 @@ class BlastLocalTab(BaseTabWidget):
 
     def _build_ui(self, status_callback, result_callback):
         self._run_tab = _RunQueryWidget(
-            status_callback=status_callback,
+            status_callback=self.show_status,
             result_callback=result_callback,
             blast_bin_dir_getter=get_blast_bin_dir,
         )
         self.content_area.addWidget(self._run_tab)
         self.content_area.addStretch()
 
-        # Place Run BLAST / Cancel beside Help in the bottom status row
+        # Place Run / Cancel beside Help in the bottom status row
         self.status_layout.insertWidget(
             self.status_layout.count() - 1, self._run_tab.run_btn
         )
         self.status_layout.insertWidget(
             self.status_layout.count() - 1, self._run_tab.cancel_run_btn
         )
+
+        # Example and Clear buttons
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.clicked.connect(self._load_example)
+        self.clear_btn = QPushButton(self.tr("Clear"))
+        self.clear_btn.clicked.connect(self._clear)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.example_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
+
+    def _load_example(self):
+        """Load bundled E.coli protein BLAST example query and database."""
+        query_path = resource_path("examples", "blast", "query_seq_pro.fasta")
+        db_path = resource_path("examples", "blast", "E.coli_pro_db")
+        if not os.path.isfile(query_path):
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("示例数据加载失败，请检查安装是否完整。"),
+            )
+            return
+        self._run_tab.query_file_edit.setText(query_path)
+        self._run_tab.db_edit.setText(db_path)
+        self._run_tab._auto_select_blast_program()
+        self._run_tab.refresh_database_library(current_path=db_path)
+        self.show_status(self.tr("已载入示例数据: E.coli protein BLAST"))
+
+    def _clear(self):
+        """Clear all inputs."""
+        self._run_tab.query_file_edit.clear()
+        self._run_tab.db_edit.clear()
+        self._run_tab.out_edit.clear()
+        self._run_tab.eval_edit.setText("1e-5")
+        self._run_tab.prog_combo.setCurrentIndex(0)
+        self._run_tab.threads_spin.setValue(_default_blast_threads())
+        self._run_tab.numhits_spin.setValue(_DEFAULT_MAX_HITS)
+        self.show_status(self.tr("Cleared"))
 
     def _get_blast_bin_dir(self) -> str:
         return (

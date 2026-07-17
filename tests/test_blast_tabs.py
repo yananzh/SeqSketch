@@ -367,6 +367,6 @@ def test_local_blast_actions_place_primary_action_left_of_help(qapp, monkeypatch
     # Help button is now provided by BaseTabWidget in the shared status bar
     assert hasattr(tab, "help_btn"), "BaseTabWidget should provide a help button"
     assert tab.help_btn.text() == "Help"
-    assert tab._run_tab.run_btn.text() == "Run BLAST"
-    # Run BLAST left of Help in the status bar
+    assert tab._run_tab.run_btn.text() == "Run"
+    # Run left of Help in the status bar
     assert tab._run_tab.run_btn.x() < tab.help_btn.x()

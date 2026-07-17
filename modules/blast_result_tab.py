@@ -2,12 +2,10 @@ from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
-    QSplitter,
     QTableWidget,
     QTableWidgetItem,
     QPushButton,
     QFileDialog,
-    QTextEdit,
     QLabel,
     QMessageBox,
     QFrame,
@@ -124,10 +122,7 @@ class BlastResultTab(QWidget):
         root.addLayout(filter_row)
         root.addWidget(self._hline())
 
-        # ── splitter: table on top, detail panel below ────────────────────
-        splitter = QSplitter(Qt.Orientation.Vertical)
-
-        # table
+        # ── table ────────────────────────────────────────────────────────
         self.table = QTableWidget()
         self.table.setColumnCount(len(_COLUMNS))
         self.table.setHorizontalHeaderLabels(_HDR)
@@ -135,58 +130,12 @@ class BlastResultTab(QWidget):
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSortingEnabled(True)
         self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.itemSelectionChanged.connect(self._on_selection_changed)
-        splitter.addWidget(self.table)
-
-        # detail pane
-        detail_w = QWidget()
-        dl = QVBoxLayout(detail_w)
-        dl.setContentsMargins(0, 0, 0, 0)
-        dl.addWidget(QLabel("<b>Hit Detail</b>"))
-        self.detail_text = QTextEdit()
-        self.detail_text.setReadOnly(True)
-        self.detail_text.setPlaceholderText("Click a row to view details.")
-        self.detail_text.setMaximumHeight(140)
-        dl.addWidget(self.detail_text)
-        splitter.addWidget(detail_w)
-
-        splitter.setStretchFactor(0, 5)
-        splitter.setStretchFactor(1, 1)
-        root.addWidget(splitter)
+        root.addWidget(self.table)
 
         # ── stat label ────────────────────────────────────────────────────
         self._stat_lbl = QLabel("")
         self._stat_lbl.setStyleSheet("color: #666; font-size: 11px;")
         root.addWidget(self._stat_lbl)
-        root.addWidget(self._hline())
-
-        # ── button bar ────────────────────────────────────────────────────
-        btn_row = QHBoxLayout()
-
-        load_btn = QPushButton("📂  Open TSV…")
-        load_btn.setToolTip("Load a different BLAST results TSV file.")
-        load_btn.clicked.connect(self._open_other_tsv)
-
-        exp_csv_btn = QPushButton("Export CSV")
-        exp_csv_btn.setToolTip("Save results to a comma-separated file.")
-        exp_csv_btn.clicked.connect(lambda: self._export("csv"))
-
-        exp_tsv_btn = QPushButton("Export TSV")
-        exp_tsv_btn.setToolTip("Save results to a tab-separated file.")
-        exp_tsv_btn.clicked.connect(lambda: self._export("tsv"))
-
-        exp_xlsx_btn = QPushButton("Export XLSX")
-        exp_xlsx_btn.setToolTip(
-            "Save results to an Excel (.xlsx) file with formatting."
-        )
-        exp_xlsx_btn.clicked.connect(self._export_xlsx)
-
-        btn_row.addWidget(load_btn)
-        btn_row.addStretch()
-        btn_row.addWidget(exp_csv_btn)
-        btn_row.addWidget(exp_tsv_btn)
-        btn_row.addWidget(exp_xlsx_btn)
-        root.addLayout(btn_row)
 
     @staticmethod
     def _hline():
@@ -238,10 +187,6 @@ class BlastResultTab(QWidget):
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
                     )
-                if c == 2:
-                    bg = _identity_color(val)
-                    if bg:
-                        item.setBackground(bg)
                 self.table.setItem(r, c, item)
 
         self.table.setSortingEnabled(True)
@@ -282,8 +227,7 @@ class BlastResultTab(QWidget):
         visible = len(visible_rows)
         if visible:
             self._stat_lbl.setText(
-                f"Showing {visible} / {total} hit{'s' if total != 1 else ''}.  "
-                "Identity colour: green ≥ 90 %, yellow ≥ 60 %, red < 60 %."
+                f"Showing {visible} / {total} hit{'s' if total != 1 else ''}."
             )
             self.table.selectRow(0)
         else:
@@ -293,7 +237,6 @@ class BlastResultTab(QWidget):
                 )
             else:
                 self._stat_lbl.setText("No hits found in this file.")
-            self.detail_text.clear()
 
     def _reset_filters(self):
         self.min_identity_spin.setValue(0.0)
@@ -301,20 +244,6 @@ class BlastResultTab(QWidget):
         self.min_length_spin.setValue(0)
 
     # ---------------------------------------------------------------- slots
-
-    def _on_selection_changed(self):
-        rows = self.table.selectionModel().selectedRows()
-        if not rows:
-            self.detail_text.clear()
-            return
-        r = rows[0].row()
-        # get data from model (might be sorted differently than _rows)
-        parts = [
-            self.table.item(r, c).text() if self.table.item(r, c) else ""
-            for c in range(12)
-        ]
-        lines = [f"{label:>12}: {parts[i]}" for i, (label, _) in enumerate(_COLUMNS)]
-        self.detail_text.setPlainText("\n".join(lines))
 
     def _open_other_tsv(self):
         f, _ = QFileDialog.getOpenFileName(

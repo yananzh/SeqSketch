@@ -271,7 +271,6 @@ class MainWindow(QMainWindow):
     def _open_blast_local_tab(self, sub_index: int = 0):
         """Open (or focus) the Local BLAST tab and switch to sub_index."""
         from modules.blast_local_tab import BlastLocalTab
-        from modules.blast_result_tab import BlastResultTab
 
         for i in range(self.tabs.count()):
             if isinstance(self.tabs.widget(i), BlastLocalTab):
@@ -279,14 +278,8 @@ class MainWindow(QMainWindow):
                 self.tabs.widget(i).switch_to(sub_index)
                 return
 
-        def on_result(tsv_path):
-            result_tab = BlastResultTab(tsv_path)
-            self.tabs.addTab(result_tab, self.tr("BLAST Result"))
-            self.tabs.setCurrentWidget(result_tab)
-
         tab = BlastLocalTab(
             status_callback=self.status.showMessage,
-            result_callback=on_result,
         )
         self.tabs.addTab(tab, self.tr("Local BLAST"))
         self.tabs.setCurrentWidget(tab)
