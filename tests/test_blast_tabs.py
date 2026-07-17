@@ -14,9 +14,7 @@ from modules.blast_result_tab import BlastResultTab
 def test_local_blast_tab_uses_inline_database_builder_and_shared_query_editor_style(
     qapp, monkeypatch
 ):
-    monkeypatch.setattr(
-        "modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin"
-    )
+    monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
 
     tab = BlastLocalTab()
 
@@ -42,9 +40,7 @@ def test_local_blast_tab_uses_inline_database_builder_and_shared_query_editor_st
     assert not hasattr(tab._run_tab, "hero_title")
     assert not hasattr(tab._run_tab, "hero_body")
     assert not hasattr(tab._run_tab, "workflow_tip")
-    assert "Browse" in [
-        button.text() for button in tab._run_tab.findChildren(QPushButton)
-    ]
+    assert "Browse" in [button.text() for button in tab._run_tab.findChildren(QPushButton)]
     assert "Choose FASTA" not in [
         button.text() for button in tab._run_tab.findChildren(QPushButton)
     ]
@@ -63,9 +59,7 @@ def test_local_blast_tab_uses_inline_database_builder_and_shared_query_editor_st
 
 
 def test_local_blast_tab_can_choose_query_fasta(qapp, monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        "modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin"
-    )
+    monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
 
     query_path = tmp_path / "query.fna"
     query_path.write_text(">query1\nATGCGT\n", encoding="utf-8")
@@ -82,9 +76,7 @@ def test_local_blast_tab_can_choose_query_fasta(qapp, monkeypatch, tmp_path):
 
 
 def test_local_blast_inline_builder_selects_new_database(qapp, monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        "modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin"
-    )
+    monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
 
     fasta_path = tmp_path / "reference.fna"
     fasta_path.write_text(">seq1\nATGC\n", encoding="utf-8")
@@ -131,12 +123,8 @@ def test_local_blast_inline_builder_selects_new_database(qapp, monkeypatch, tmp_
     assert saved_records[-1]["db_type"] == "nucl"
 
 
-def test_local_blast_inline_builder_detects_protein_database(
-    qapp, monkeypatch, tmp_path
-):
-    monkeypatch.setattr(
-        "modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin"
-    )
+def test_local_blast_inline_builder_detects_protein_database(qapp, monkeypatch, tmp_path):
+    monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
 
     fasta_path = tmp_path / "reference.faa"
     fasta_path.write_text(">seq1\nMKWVTFISLLFLFSSAYS\n", encoding="utf-8")
@@ -149,15 +137,11 @@ def test_local_blast_inline_builder_detects_protein_database(
 
 
 def test_blast_menu_uses_single_local_blast_action(qapp, monkeypatch):
-    monkeypatch.setattr(
-        "modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin"
-    )
+    monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
 
     window = MainWindow()
     menu_bar = window.menuBar()
-    blast_menu = next(
-        action.menu() for action in menu_bar.actions() if action.text() == "BLAST"
-    )
+    blast_menu = next(action.menu() for action in menu_bar.actions() if action.text() == "BLAST")
 
     local_blast_action = next(
         action for action in blast_menu.actions() if action.text() == "Local BLAST"
@@ -179,9 +163,7 @@ def test_blast_menu_uses_single_local_blast_action(qapp, monkeypatch):
 
 
 def test_local_blast_tab_exposes_recent_database_picker(qapp, monkeypatch):
-    monkeypatch.setattr(
-        "modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin"
-    )
+    monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
     monkeypatch.setattr(
         "modules.blast_local_tab.list_blast_databases",
         lambda: [
@@ -212,12 +194,8 @@ def test_local_blast_tab_exposes_recent_database_picker(qapp, monkeypatch):
     assert tab._run_tab.db_edit.text() == r"C:\db\genome"
 
 
-def test_local_blast_tab_blocks_mismatched_query_and_program(
-    qapp, monkeypatch, tmp_path
-):
-    monkeypatch.setattr(
-        "modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin"
-    )
+def test_local_blast_tab_blocks_mismatched_query_and_program(qapp, monkeypatch, tmp_path):
+    monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
 
     warnings: list[tuple[str, str]] = []
     thread_started = {"value": False}
@@ -284,9 +262,7 @@ def test_blast_result_tab_filters_visible_rows(qapp, tmp_path):
 
 
 def test_local_blast_tab_can_pin_current_database(qapp, monkeypatch):
-    monkeypatch.setattr(
-        "modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin"
-    )
+    monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
 
     saved_calls: list[dict[str, object]] = []
 
@@ -305,9 +281,7 @@ def test_local_blast_tab_can_pin_current_database(qapp, monkeypatch):
     def fake_remember_blast_database(base_path, **kwargs):
         saved_calls.append({"base_path": base_path, **kwargs})
 
-    monkeypatch.setattr(
-        "modules.blast_local_tab.list_blast_databases", fake_list_blast_databases
-    )
+    monkeypatch.setattr("modules.blast_local_tab.list_blast_databases", fake_list_blast_databases)
     monkeypatch.setattr(
         "modules.blast_local_tab.remember_blast_database", fake_remember_blast_database
     )
@@ -354,9 +328,7 @@ def test_blast_database_library_persists_pinned_and_recent_order(tmp_path, monke
 
 
 def test_local_blast_actions_place_primary_action_left_of_help(qapp, monkeypatch):
-    monkeypatch.setattr(
-        "modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin"
-    )
+    monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
 
     tab = BlastLocalTab()
     tab.resize(1100, 700)

@@ -301,23 +301,17 @@ class _BuildDbWidget(QWidget):
             root.addWidget(sep)
             create_label = QLabel(self.tr("Create new database"))
             create_label.setProperty("sectionTitle", True)
-            create_label.setStyleSheet(
-                "font-size: 14px; font-weight: 700; color: #0f172a;"
-            )
+            create_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #0f172a;")
             root.addWidget(create_label)
         else:
-            create_section, create_layout = _make_card(
-                self.tr("Create new database from FASTA")
-            )
+            create_section, create_layout = _make_card(self.tr("Create new database from FASTA"))
             root.addWidget(create_section)
 
         create_form = _make_form()
 
         fasta_row = QHBoxLayout()
         self.fasta_edit = _DropLineEdit()
-        self.fasta_edit.setPlaceholderText(
-            self.tr("Select FASTA file (drag & drop or browse)")
-        )
+        self.fasta_edit.setPlaceholderText(self.tr("Select FASTA file (drag & drop or browse)"))
         self.fasta_edit.dropped.connect(self._on_fasta_dropped)
         fasta_btn = QPushButton(self.tr("Browse"))
         _set_action_role(fasta_btn, "secondary")
@@ -333,9 +327,7 @@ class _BuildDbWidget(QWidget):
         outdir_row = QHBoxLayout()
         self.outdir_edit = QLineEdit()
         self.outdir_edit.setReadOnly(True)
-        self.outdir_edit.setPlaceholderText(
-            self.tr("Select output folder for database files")
-        )
+        self.outdir_edit.setPlaceholderText(self.tr("Select output folder for database files"))
         outdir_btn = QPushButton(self.tr("Browse"))
         _set_action_role(outdir_btn, "secondary")
         outdir_btn.setFixedWidth(80)
@@ -430,14 +422,10 @@ class _BuildDbWidget(QWidget):
         bin_dir = self._current_blast_bin_dir()
 
         if not fasta or not os.path.isfile(fasta):
-            QMessageBox.warning(
-                self, "Input Error", "Please select a valid FASTA file."
-            )
+            QMessageBox.warning(self, "Input Error", "Please select a valid FASTA file.")
             return
         if not outdir or not os.path.isdir(outdir):
-            QMessageBox.warning(
-                self, "Input Error", "Please select a valid output folder."
-            )
+            QMessageBox.warning(self, "Input Error", "Please select a valid output folder.")
             return
         if not name:
             QMessageBox.warning(self, "Input Error", "Please enter a database name.")
@@ -495,9 +483,7 @@ class _BuildDbWidget(QWidget):
             self.status_callback("")
         if success:
             outpath = os.path.abspath(
-                os.path.join(
-                    self.outdir_edit.text().strip(), self.name_edit.text().strip()
-                )
+                os.path.join(self.outdir_edit.text().strip(), self.name_edit.text().strip())
             )
             remember_blast_database(
                 outpath,
@@ -520,9 +506,7 @@ class _BuildDbWidget(QWidget):
         else:
             if self.status_lbl:
                 self.status_lbl.setText("✘ Build failed — see error details.")
-            QMessageBox.critical(
-                self, "Build Failed", f"makeblastdb reported an error:\n\n{msg}"
-            )
+            QMessageBox.critical(self, "Build Failed", f"makeblastdb reported an error:\n\n{msg}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -588,9 +572,7 @@ class _RunQueryWidget(QWidget):
         query_row = QHBoxLayout()
         query_row.setSpacing(8)
         self.query_file_edit = _DropLineEdit()
-        self.query_file_edit.setPlaceholderText(
-            self.tr("Query FASTA file (drag & drop or browse)")
-        )
+        self.query_file_edit.setPlaceholderText(self.tr("Query FASTA file (drag & drop or browse)"))
         self.query_file_edit.dropped.connect(self._on_query_file_changed)
         query_btn = QPushButton(self.tr("Browse"))
         _set_action_role(query_btn, "secondary")
@@ -895,21 +877,15 @@ class _RunQueryWidget(QWidget):
     def _start_run(self):
         query_file = os.path.abspath(self.query_file_edit.text().strip())
         if not query_file or not os.path.isfile(query_file):
-            QMessageBox.warning(
-                self, "Input Error", "Please select a valid query FASTA file."
-            )
+            QMessageBox.warning(self, "Input Error", "Please select a valid query FASTA file.")
             return
         try:
             query_seq = _read_text_file(query_file)
         except Exception as exc:
-            QMessageBox.warning(
-                self, "Input Error", f"Could not read the query file:\n{exc}"
-            )
+            QMessageBox.warning(self, "Input Error", f"Could not read the query file:\n{exc}")
             return
         if not query_seq.strip():
-            QMessageBox.warning(
-                self, "Input Error", "The selected query file is empty."
-            )
+            QMessageBox.warning(self, "Input Error", "The selected query file is empty.")
             return
         if not query_seq.strip().startswith(">"):
             QMessageBox.warning(
@@ -928,9 +904,7 @@ class _RunQueryWidget(QWidget):
         bin_dir = self._current_blast_bin_dir()
 
         if not db:
-            QMessageBox.warning(
-                self, "Input Error", "Please select a local BLAST database."
-            )
+            QMessageBox.warning(self, "Input Error", "Please select a local BLAST database.")
             return
         if not evalue:
             QMessageBox.warning(
@@ -938,9 +912,7 @@ class _RunQueryWidget(QWidget):
             )
             return
         if not out_file:
-            QMessageBox.warning(
-                self, "Input Error", "Please specify an output file path."
-            )
+            QMessageBox.warning(self, "Input Error", "Please specify an output file path.")
             return
         is_valid, validation_message = validate_query_program_selection(
             query_seq,
@@ -994,9 +966,7 @@ class _RunQueryWidget(QWidget):
                 self.result_callback(out_file)
         else:
             self._status("✘ BLAST failed — see error details.")
-            QMessageBox.critical(
-                self, "BLAST Failed", f"BLAST reported an error:\n\n{msg}"
-            )
+            QMessageBox.critical(self, "BLAST Failed", f"BLAST reported an error:\n\n{msg}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1025,9 +995,7 @@ class BlastLocalTab(BaseTabWidget):
         self.content_area.addStretch()
 
         # Place Run / Cancel beside Help in the bottom status row
-        self.status_layout.insertWidget(
-            self.status_layout.count() - 1, self._run_tab.run_btn
-        )
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._run_tab.run_btn)
         self.status_layout.insertWidget(
             self.status_layout.count() - 1, self._run_tab.cancel_run_btn
         )
@@ -1069,11 +1037,7 @@ class BlastLocalTab(BaseTabWidget):
         self.show_status(self.tr("Cleared"))
 
     def _get_blast_bin_dir(self) -> str:
-        return (
-            self._run_tab.blast_path_edit.text().strip()
-            if hasattr(self, "_run_tab")
-            else ""
-        )
+        return self._run_tab.blast_path_edit.text().strip() if hasattr(self, "_run_tab") else ""
 
     def _persist_blast_bin_dir_if_valid(self) -> None:
         if hasattr(self, "_run_tab"):

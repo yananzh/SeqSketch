@@ -86,9 +86,7 @@ class BlastResultTab(QWidget):
         root.setSpacing(8)
 
         # ── header bar ────────────────────────────────────────────────────
-        self._title_lbl = QLabel(
-            f"<b>BLAST Results</b>  —  {os.path.basename(self.tsv_path)}"
-        )
+        self._title_lbl = QLabel(f"<b>BLAST Results</b>  —  {os.path.basename(self.tsv_path)}")
         self._title_lbl.setStyleSheet("color: #444; padding: 2px 0;")
         root.addWidget(self._title_lbl)
         root.addWidget(self._hline())
@@ -226,9 +224,7 @@ class BlastResultTab(QWidget):
         total = len(self._rows)
         visible = len(visible_rows)
         if visible:
-            self._stat_lbl.setText(
-                f"Showing {visible} / {total} hit{'s' if total != 1 else ''}."
-            )
+            self._stat_lbl.setText(f"Showing {visible} / {total} hit{'s' if total != 1 else ''}.")
             self.table.selectRow(0)
         else:
             if total:
@@ -298,9 +294,7 @@ class BlastResultTab(QWidget):
             ws = wb.active
             ws.title = "BLAST Results"
 
-            header_fill = PatternFill(
-                start_color="2563EB", end_color="2563EB", fill_type="solid"
-            )
+            header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
             header_font = Font(color="FFFFFF", bold=True, size=11)
             header_align = XlAlignment(horizontal="center", vertical="center")
 
@@ -310,15 +304,9 @@ class BlastResultTab(QWidget):
                 cell.font = header_font
                 cell.alignment = header_align
 
-            green_fill = PatternFill(
-                start_color="C8F0C8", end_color="C8F0C8", fill_type="solid"
-            )
-            yellow_fill = PatternFill(
-                start_color="FFF5B4", end_color="FFF5B4", fill_type="solid"
-            )
-            red_fill = PatternFill(
-                start_color="FFD2D2", end_color="FFD2D2", fill_type="solid"
-            )
+            green_fill = PatternFill(start_color="C8F0C8", end_color="C8F0C8", fill_type="solid")
+            yellow_fill = PatternFill(start_color="FFF5B4", end_color="FFF5B4", fill_type="solid")
+            red_fill = PatternFill(start_color="FFD2D2", end_color="FFD2D2", fill_type="solid")
 
             for r in range(self.table.rowCount()):
                 for c in range(12):
