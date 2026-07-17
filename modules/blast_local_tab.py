@@ -46,6 +46,18 @@ from .blast_config import (
 
 _DEFAULT_MAX_HITS = 50
 
+_OUTFMT_OPTIONS = {
+    "6 (TSV)": "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
+    "0 (Pairwise)": "0",
+    "5 (XML)": "5",
+}
+
+_OUTFMT_EXT = {
+    "6 (TSV)": ".tsv",
+    "0 (Pairwise)": ".txt",
+    "5 (XML)": ".xml",
+}
+
 
 def _default_blast_threads() -> int:
     return 2
@@ -166,24 +178,26 @@ _HELP_RUN = """
 
 <p><b>What does this tool do?</b><br>
 Search your query sequences against a local BLAST database using the NCBI BLAST+ toolkit.
-Results are saved as a tab-separated table (outfmt 6) that you can open in any spreadsheet
-application or text editor.</p>
+Results are saved to an output file in the format you choose and can be opened in any
+spreadsheet application or text editor.</p>
 
 <h3>Quick Start — Using an Existing Database</h3>
 <ol>
 <li>Set <b>BLAST+ Path</b> (auto-detected if bundled).</li>
 <li>Select your <b>query FASTA file</b>.</li>
-<li>Choose an <b>existing database</b> from the dropdown or drag & drop its index file.</li>
-<li>Click <b>Run</b> — results are saved to the output file.</li>
+<li>Pick a database: drag &amp; drop a <b>Database file</b> (*.phr / *.nhr) or
+    select a <b>Database name</b> from the saved list — the two are kept in sync.</li>
+<li>Choose <b>Outfmt</b> (default: TSV, 12 columns) and set the <b>Output File</b> path.</li>
+<li>Click <b>Run</b>.</li>
 </ol>
 
 <h3>Quick Start — Creating a New Database</h3>
 <ol>
-<li>Under <b>Choose or create a database</b>, fill in:
-    <b>Input FASTA</b>, <b>Output folder</b>, and <b>Database name</b>.</li>
-<li>Click <b>Build DB</b> — the new database is built and auto-selected.</li>
-<li>Select your <b>query FASTA file</b> above.</li>
-<li>Click <b>Run</b>.</li>
+<li>In the <b>Create new database</b> section, select an <b>Input FASTA</b>,
+    an <b>Output folder</b>, and enter a <b>Database name</b>.</li>
+<li>Click <b>Build DB</b> — the new database is built and auto-selected
+    in the <b>Database file</b> and <b>Database name</b> fields above.</li>
+<li>Select your <b>query FASTA file</b> and click <b>Run</b>.</li>
 </ol>
 
 <h3>BLAST Programs</h3>
@@ -198,14 +212,16 @@ application or text editor.</p>
 
 <h3>Parameters</h3>
 <table border="0" cellpadding="4" cellspacing="2">
-<tr><td><b>E-value</b></td><td>Maximum expected hits by chance. Lower = stricter.
+<tr><td><b>E-value</b></td><td>→ Maximum expected hits by chance. Lower = stricter.
     Typical: <code>1e-5</code> (general), <code>1e-10</code> (strict).</td></tr>
-<tr><td><b>Threads</b></td><td>CPU cores for parallel search. Default: 2.</td></tr>
-<tr><td><b>Max hits</b></td><td>Maximum subject sequences reported per query. Default: 50.</td></tr>
+<tr><td><b>Threads</b></td><td>→ CPU cores for parallel search. Default: 2.</td></tr>
+<tr><td><b>Max hits</b></td><td>→ Maximum subject sequences reported per query. Default: 50.</td></tr>
+<tr><td><b>Outfmt</b></td><td>→ Output format. <b>6 (TSV)</b> gives 12 tab-separated columns;
+    <b>0 (Pairwise)</b> is human-readable alignments; <b>5 (XML)</b> for programmatic use.
+    The output file extension updates automatically.</td></tr>
 </table>
 
-<h3>Output Format</h3>
-<p>Results are written in <b>BLAST outfmt 6</b> (tab-separated, 12 columns):</p>
+<h3>Output Columns (outfmt 6)</h3>
 <table border="0" cellpadding="4" cellspacing="2">
 <tr><td>1</td><td>qseqid</td><td>→ Query sequence ID</td></tr>
 <tr><td>2</td><td>sseqid</td><td>→ Subject (database) sequence ID</td></tr>
@@ -221,11 +237,12 @@ application or text editor.</p>
 
 <h3>Tips</h3>
 <ul>
-<li>Drag & drop is supported on all file input fields.</li>
-<li>The <b>Pin</b> button keeps your favourite databases at the top of the recent list.</li>
-<li>The database list updates automatically when a new database is built.</li>
+<li>Drag &amp; drop is supported on all file input fields — no need to click Browse.</li>
+<li>The <b>Pin</b> button keeps your favourite databases at the top of the saved list.</li>
+<li>The database list deduplicates automatically — you won't see the same database twice.</li>
 <li>For large query files, increase <b>Threads</b> to speed up the search.</li>
-<li>Click <b>Example</b> to try a pre-configured E. coli protein BLAST with bundled data.</li>
+<li>Click <b>Example</b> to try a pre-configured E. coli protein BLAST with bundled data,
+    then <b>Clear</b> to reset all fields.</li>
 </ul>
 """
 
@@ -537,7 +554,7 @@ class _RunQueryWidget(QWidget):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setSpacing(6)
+        root.setSpacing(10)
         root.setContentsMargins(6, 6, 6, 6)
 
         # ── Group 1: Input BLAST+ Path and Query sequence ──
@@ -592,18 +609,23 @@ class _RunQueryWidget(QWidget):
         grp2_layout = QVBoxLayout(grp2)
         grp2_layout.setSpacing(6)
 
+        choose_label = QLabel(self.tr("Choose existing database"))
+        choose_label.setProperty("sectionTitle", True)
+        choose_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #0f172a;")
+        grp2_layout.addWidget(choose_label)
+
         db_row = QHBoxLayout()
         db_row.setSpacing(8)
         self.db_edit = _DropLineEdit()
         self.db_edit.setPlaceholderText(
-            self.tr("Select database *.nhr/*.phr (drag & drop or browse)")
+            self.tr("Drag & drop a database index file (*.phr, *.nhr), or choose a saved database below")
         )
         self.db_edit.dropped.connect(self._on_db_dropped)
         db_btn = QPushButton(self.tr("Browse"))
         _set_action_role(db_btn, "secondary")
         db_btn.setFixedWidth(80)
         db_btn.clicked.connect(self._choose_db)
-        db_lbl = QLabel(self.tr("Existing DB"))
+        db_lbl = QLabel(self.tr("Database file"))
         db_lbl.setFixedWidth(lbl_width)
         db_row.addWidget(db_lbl)
         db_row.addWidget(self.db_edit, 1)
@@ -612,15 +634,17 @@ class _RunQueryWidget(QWidget):
 
         lib_row = QHBoxLayout()
         lib_row.setSpacing(8)
-        # Offset the combo left edge to match the line-edits in the row above:
-        # label_width + inter-widget spacing = lbl_width + 8
-        lib_row.setContentsMargins(lbl_width + 8, 0, 0, 0)
         self.db_library_combo = QComboBox()
+        self.db_library_combo.setToolTip(self.tr("Or pick a previously saved database"))
         self.db_library_combo.currentIndexChanged.connect(self._use_selected_database)
         self.pin_db_btn = QPushButton(self.tr("Pin"))
         _set_action_role(self.pin_db_btn, "secondary")
         self.pin_db_btn.setFixedWidth(80)
+        self.pin_db_btn.setToolTip(self.tr("Keep this database at the top of the list"))
         self.pin_db_btn.clicked.connect(self._pin_current_database)
+        name_lbl = QLabel(self.tr("Database name"))
+        name_lbl.setFixedWidth(lbl_width)
+        lib_row.addWidget(name_lbl)
         lib_row.addWidget(self.db_library_combo, 1)
         lib_row.addWidget(self.pin_db_btn)
         grp2_layout.addLayout(lib_row)
@@ -647,17 +671,17 @@ class _RunQueryWidget(QWidget):
         grid.setColumnMinimumWidth(0, lbl_width)
         self.prog_combo = QComboBox()
         self.prog_combo.addItems(list(_PROG_TIPS.keys()))
-        self.prog_combo.setMinimumWidth(140)
+        self.prog_combo.setFixedWidth(110)
         self.eval_edit = QLineEdit("1e-5")
-        self.eval_edit.setFixedWidth(100)
+        self.eval_edit.setFixedWidth(110)
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, 64)
         self.threads_spin.setValue(_default_blast_threads())
-        self.threads_spin.setFixedWidth(60)
+        self.threads_spin.setFixedWidth(110)
         self.numhits_spin = QSpinBox()
         self.numhits_spin.setRange(1, 10000)
         self.numhits_spin.setValue(_DEFAULT_MAX_HITS)
-        self.numhits_spin.setFixedWidth(80)
+        self.numhits_spin.setFixedWidth(110)
         grid.addWidget(QLabel(self.tr("Program")), 0, 0)
         grid.addWidget(self.prog_combo, 0, 1)
         grid.addWidget(QLabel(self.tr("E-value")), 0, 2)
@@ -666,10 +690,16 @@ class _RunQueryWidget(QWidget):
         grid.addWidget(self.threads_spin, 0, 5)
         grid.addWidget(QLabel(self.tr("Max hits")), 0, 6)
         grid.addWidget(self.numhits_spin, 0, 7)
-        grid.setColumnStretch(8, 1)
+        self.outfmt_combo = QComboBox()
+        self.outfmt_combo.addItems(list(_OUTFMT_OPTIONS.keys()))
+        self.outfmt_combo.setFixedWidth(110)
+        self.outfmt_combo.currentTextChanged.connect(self._on_outfmt_changed)
+        grid.addWidget(QLabel(self.tr("Outfmt")), 0, 8)
+        grid.addWidget(self.outfmt_combo, 0, 9)
+        grid.setColumnStretch(10, 1)
 
         self.out_edit = QLineEdit()
-        self.out_edit.setPlaceholderText(self.tr("blast_result.xlsx"))
+        self.out_edit.setPlaceholderText(self.tr("blast_result.tsv"))
         out_btn = QPushButton(self.tr("Browse"))
         _set_action_role(out_btn, "secondary")
         out_btn.setFixedWidth(80)
@@ -679,7 +709,7 @@ class _RunQueryWidget(QWidget):
         out_hbox.setSpacing(8)
         out_hbox.addWidget(self.out_edit, 1)
         out_hbox.addWidget(out_btn)
-        grid.addLayout(out_hbox, 1, 1, 1, 8)
+        grid.addLayout(out_hbox, 1, 1, 1, 10)
         grp3_layout.addLayout(grid)
         root.addWidget(grp3)
 
@@ -865,14 +895,22 @@ class _RunQueryWidget(QWidget):
             self._on_db_dropped(f)
 
     def _choose_outfile(self):
+        outfmt_key = self.outfmt_combo.currentText()
+        ext = _OUTFMT_EXT.get(outfmt_key, ".tsv")
+        default_name = f"blast_result{ext}"
+        filter_str = f"{ext.upper()} files (*{ext});;All Files (*)"
         f, _ = QFileDialog.getSaveFileName(
             self,
             "Choose output file",
-            "blast_result.xlsx",
-            "Excel files (*.xlsx);;TSV files (*.tsv);;All Files (*)",
+            default_name,
+            filter_str,
         )
         if f:
             self.out_edit.setText(f)
+
+    def _on_outfmt_changed(self, key: str):
+        ext = _OUTFMT_EXT.get(key, ".tsv")
+        self.out_edit.setPlaceholderText(self.tr(f"blast_result{ext}"))
 
     def _start_run(self):
         query_file = os.path.abspath(self.query_file_edit.text().strip())
@@ -901,6 +939,7 @@ class _RunQueryWidget(QWidget):
         num_hits = self.numhits_spin.value()
         out_file = self.out_edit.text().strip()
         program = self.prog_combo.currentText()
+        outfmt = _OUTFMT_OPTIONS[self.outfmt_combo.currentText()]
         bin_dir = self._current_blast_bin_dir()
 
         if not db:
@@ -946,6 +985,7 @@ class _RunQueryWidget(QWidget):
             out_file,
             num_threads,
             num_hits,
+            outfmt,
         )
         self._thread.finished.connect(self._on_finished)
         self._thread.start()

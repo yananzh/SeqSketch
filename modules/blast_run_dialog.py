@@ -37,7 +37,16 @@ class _RunBlastThread(QThread):
     finished = pyqtSignal(bool, str, str)  # success, out_file, message
 
     def __init__(
-        self, bin_dir, program, db, evalue, query_seq, out_file, num_threads, num_hits
+        self,
+        bin_dir,
+        program,
+        db,
+        evalue,
+        query_seq,
+        out_file,
+        num_threads,
+        num_hits,
+        outfmt="6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
     ):
         super().__init__()
         self.bin_dir = bin_dir
@@ -48,6 +57,7 @@ class _RunBlastThread(QThread):
         self.out_file = out_file
         self.num_threads = str(num_threads)
         self.num_hits = str(num_hits)
+        self.outfmt = outfmt
         self._proc = None
         self._cancelled = False
 
@@ -80,8 +90,7 @@ class _RunBlastThread(QThread):
                 "-out",
                 tmp_out,
                 "-outfmt",
-                "6 qseqid sseqid pident length mismatch gapopen "
-                "qstart qend sstart send evalue bitscore",
+                self.outfmt,
                 "-num_threads",
                 self.num_threads,
                 "-max_target_seqs",
@@ -163,9 +172,7 @@ class BlastRunDialog(QDialog):
 
         # ── query input ───────────────────────────────────────────────────
         query_lbl = QLabel("Query sequence (FASTA format):")
-        query_lbl.setToolTip(
-            "Paste one or more sequences in FASTA format (>header\\nSEQUENCE)."
-        )
+        query_lbl.setToolTip("Paste one or more sequences in FASTA format (>header\\nSEQUENCE).")
         self.query_edit = QTextEdit()
         self.query_edit.setPlaceholderText(
             "Paste your query sequence in FASTA format, or use the buttons below.\n\n"
@@ -214,9 +221,7 @@ class BlastRunDialog(QDialog):
         db_row = QHBoxLayout()
         self.db_edit = QLineEdit()
         self.db_edit.setReadOnly(True)
-        self.db_edit.setPlaceholderText(
-            "Select a database file (any .nhr / .phr file)…"
-        )
+        self.db_edit.setPlaceholderText("Select a database file (any .nhr / .phr file)…")
         db_btn = QPushButton("Browse…")
         db_btn.setFixedWidth(90)
         db_btn.clicked.connect(self._choose_db)
@@ -398,9 +403,7 @@ class BlastRunDialog(QDialog):
         bin_dir = get_blast_bin_dir()
 
         if not query_seq:
-            QMessageBox.warning(
-                self, "Input Error", "Please paste or load a query sequence."
-            )
+            QMessageBox.warning(self, "Input Error", "Please paste or load a query sequence.")
             return
         if not query_seq.startswith(">"):
             QMessageBox.warning(
@@ -410,9 +413,7 @@ class BlastRunDialog(QDialog):
             )
             return
         if not db:
-            QMessageBox.warning(
-                self, "Input Error", "Please select a local BLAST database."
-            )
+            QMessageBox.warning(self, "Input Error", "Please select a local BLAST database.")
             return
         if not evalue:
             QMessageBox.warning(
@@ -420,9 +421,7 @@ class BlastRunDialog(QDialog):
             )
             return
         if not out_file:
-            QMessageBox.warning(
-                self, "Input Error", "Please specify an output file path."
-            )
+            QMessageBox.warning(self, "Input Error", "Please specify an output file path.")
             return
         if not bin_dir:
             QMessageBox.warning(
@@ -461,9 +460,7 @@ class BlastRunDialog(QDialog):
             self.accept()
         else:
             self.status_lbl.setText("BLAST failed — see error details.")
-            QMessageBox.critical(
-                self, "BLAST Failed", f"BLAST reported an error:\n\n{msg}"
-            )
+            QMessageBox.critical(self, "BLAST Failed", f"BLAST reported an error:\n\n{msg}")
         if self._thread is not None:
             self._thread.wait()
             self._thread.deleteLater()

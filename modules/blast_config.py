@@ -6,15 +6,11 @@ from datetime import datetime
 
 from utils.app_paths import portable_root, resource_path, user_data_file
 
-_LEGACY_CONFIG_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)), "config.ini"
-)
+_LEGACY_CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.ini")
 
 if getattr(sys, "frozen", False):
     _writable = os.path.join(portable_root(), "config.ini")
-    CONFIG_FILE = (
-        _writable if os.path.isfile(_writable) else resource_path("config.ini")
-    )
+    CONFIG_FILE = _writable if os.path.isfile(_writable) else resource_path("config.ini")
 else:
     CONFIG_FILE = user_data_file("config.ini")
 CONFIG_SECTION = "BLAST"
@@ -61,9 +57,7 @@ def _detect_bundled_bin() -> str | None:
     if not candidates:
         return None
 
-    candidates.sort(
-        key=lambda p: _version_key(os.path.basename(os.path.dirname(p))), reverse=True
-    )
+    candidates.sort(key=lambda p: _version_key(os.path.basename(os.path.dirname(p))), reverse=True)
     return candidates[0]
 
 
@@ -73,9 +67,7 @@ def _now_iso() -> str:
 
 def _normalize_database_record(record: dict) -> dict[str, str | bool]:
     return {
-        "name": str(
-            record.get("name") or os.path.basename(str(record.get("base_path") or ""))
-        ),
+        "name": str(record.get("name") or os.path.basename(str(record.get("base_path") or ""))),
         "base_path": str(record.get("base_path") or ""),
         "db_type": str(record.get("db_type") or ""),
         "source_fasta": str(record.get("source_fasta") or ""),
@@ -97,21 +89,33 @@ def _load_database_records() -> list[dict[str, str | bool]]:
     if not isinstance(payload, list):
         return []
 
-    return [
-        _normalize_database_record(record)
-        for record in payload
-        if isinstance(record, dict)
-    ]
+    records = [_normalize_database_record(record) for record in payload if isinstance(record, dict)]
+    # Deduplicate by normalized path (keep first occurrence)
+    seen: set[str] = set()
+    deduped: list[dict[str, str | bool]] = []
+    for record in records:
+        normed = _norm_path(str(record.get("base_path", "")))
+        if normed and normed not in seen:
+            seen.add(normed)
+            deduped.append(record)
+    return deduped
 
 
 def _save_database_records(records: list[dict[str, str | bool]]) -> None:
-    normalized = [
-        _normalize_database_record(record)
-        for record in records
-        if record.get("base_path")
-    ]
+    # Deduplicate before saving
+    seen: set[str] = set()
+    deduped: list[dict[str, str | bool]] = []
+    for record in records:
+        bp = record.get("base_path")
+        if not bp:
+            continue
+        record = _normalize_database_record(record)
+        normed = _norm_path(str(bp))
+        if normed not in seen:
+            seen.add(normed)
+            deduped.append(record)
     with open(DATABASES_FILE, "w", encoding="utf-8") as handle:
-        json.dump(normalized, handle, indent=2)
+        json.dump(deduped, handle, indent=2)
 
 
 def list_blast_databases() -> list[dict[str, str | bool]]:
@@ -122,6 +126,11 @@ def list_blast_databases() -> list[dict[str, str | bool]]:
     return records
 
 
+def _norm_path(path: str) -> str:
+    """Normalize a path for deduplication (case-insensitive on Windows)."""
+    return os.path.normcase(os.path.normpath(os.path.abspath(path)))
+
+
 def remember_blast_database(
     base_path: str,
     *,
@@ -130,19 +139,20 @@ def remember_blast_database(
     name: str = "",
     pinned: bool | None = None,
 ) -> None:
-    base_path = str(base_path or "").strip()
-    if not base_path:
+    normed = _norm_path(str(base_path or "").strip())
+    if not normed or normed in (".", ".."):
         return
+    nice_path = os.path.normpath(os.path.abspath(str(base_path or "").strip()))
 
     records = _load_database_records()
     existing = next(
-        (record for record in records if record["base_path"] == base_path),
+        (record for record in records if _norm_path(record["base_path"]) == normed),
         None,
     )
     if existing is None:
         existing = _normalize_database_record({
-            "name": name or os.path.basename(base_path),
-            "base_path": base_path,
+            "name": name or os.path.basename(nice_path),
+            "base_path": nice_path,
             "db_type": db_type,
             "source_fasta": source_fasta,
             "last_used_at": _now_iso(),
