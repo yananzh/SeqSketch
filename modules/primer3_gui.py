@@ -72,9 +72,7 @@ class Worker(QObject):
         try:
             self.progress.emit("Calling Primer3 core for computation...")
             if p3_bindings is None:
-                self.error.emit(
-                    "Failed to import primer3. Please install: pip install primer3-py"
-                )
+                self.error.emit("Failed to import primer3. Please install: pip install primer3-py")
                 return
             if hasattr(p3_bindings, "design_primers"):
                 results = p3_bindings.design_primers(
@@ -255,19 +253,13 @@ class PrimerDesignTab(QWidget):
         self.p_tm_opt.setValue(60)
         self.p_tm_max.setValue(63)
         self.p_tm_min.setToolTip(
-            self.tr(
-                "Minimum acceptable melting temperature (°C).\nTypical range: 55-60°C."
-            )
+            self.tr("Minimum acceptable melting temperature (°C).\nTypical range: 55-60°C.")
         )
         self.p_tm_opt.setToolTip(
-            self.tr(
-                "Optimal melting temperature (°C).\nPrimer3 will prefer primers near this Tm."
-            )
+            self.tr("Optimal melting temperature (°C).\nPrimer3 will prefer primers near this Tm.")
         )
         self.p_tm_max.setToolTip(
-            self.tr(
-                "Maximum acceptable melting temperature (°C).\nTypical range: 60-65°C."
-            )
+            self.tr("Maximum acceptable melting temperature (°C).\nTypical range: 60-65°C.")
         )
         tm_box = QWidget()
         tm_h = QHBoxLayout(tm_box)
@@ -292,9 +284,7 @@ class PrimerDesignTab(QWidget):
             self.tr("Minimum acceptable GC content (%).\nTypical range: 40-60%.")
         )
         self.p_gc_opt.setToolTip(
-            self.tr(
-                "Optimal GC content (%).\nPrimer3 will prefer primers near this GC%."
-            )
+            self.tr("Optimal GC content (%).\nPrimer3 will prefer primers near this GC%.")
         )
         self.p_gc_max.setToolTip(
             self.tr("Maximum acceptable GC content (%).\nTypical range: 40-60%.")
@@ -422,9 +412,7 @@ class PrimerDesignTab(QWidget):
             "Product Size",
         ])
         self.results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.results_table.setSelectionBehavior(
-            QTableWidget.SelectionBehavior.SelectRows
-        )
+        self.results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
 
         header = self.results_table.horizontalHeader()
         if header is not None:
@@ -479,14 +467,7 @@ class PrimerDesignTab(QWidget):
         if text.startswith(">"):
             lines = text.splitlines()
             seq_lines = [line.strip() for line in lines if not line.startswith(">")]
-            return (
-                ""
-                .join(seq_lines)
-                .replace(" ", "")
-                .replace("\r", "")
-                .replace("\n", "")
-                .upper()
-            )
+            return "".join(seq_lines).replace(" ", "").replace("\r", "").replace("\n", "").upper()
         return text.replace(" ", "").replace("\r", "").replace("\n", "").upper()
 
     def _validate_sequence(self, sequence: str) -> bool:
@@ -589,9 +570,7 @@ class PrimerDesignTab(QWidget):
     def start_design_task(self):
         raw_text = self.seq_input.toPlainText().strip()
         if not raw_text:
-            QMessageBox.warning(
-                self, "Input Error", "Please enter a valid DNA template sequence."
-            )
+            QMessageBox.warning(self, "Input Error", "Please enter a valid DNA template sequence.")
             return
 
         sequence = self._normalize_sequence(raw_text)
@@ -603,9 +582,7 @@ class PrimerDesignTab(QWidget):
             )
             return
         if len(sequence) < 50:
-            QMessageBox.warning(
-                self, "Input Error", "Sequence is too short (minimum 50 bp)."
-            )
+            QMessageBox.warning(self, "Input Error", "Sequence is too short (minimum 50 bp).")
             return
         if not self._validate_parameter_ranges():
             return
@@ -680,11 +657,7 @@ class PrimerDesignTab(QWidget):
         self.current_results = results
         num_returned = int(results.get("PRIMER_PAIR_NUM_RETURNED", 0) or 0)
         if num_returned == 0:
-            explain = (
-                results.get("PRIMER_PAIR_EXPLAIN")
-                or results.get("PRIMER_LEFT_EXPLAIN")
-                or ""
-            )
+            explain = results.get("PRIMER_PAIR_EXPLAIN") or results.get("PRIMER_LEFT_EXPLAIN") or ""
             self.show_error_message(
                 "No primer pairs found. Try relaxing constraints."
                 + (f"\n\nPrimer3 explain: {explain}" if explain else "")
@@ -766,9 +739,7 @@ class PrimerDesignTab(QWidget):
         lines = ["\t".join(headers)]
 
         if selected_only:
-            rows = sorted({
-                idx.row() for idx in self.results_table.selectionModel().selectedRows()
-            })
+            rows = sorted({idx.row() for idx in self.results_table.selectionModel().selectedRows()})
         else:
             rows = list(range(self.results_table.rowCount()))
 
@@ -857,9 +828,7 @@ class PrimerDesignTab(QWidget):
 
             # Header styling
             header_font = Font(name="Segoe UI", bold=True, color="FFFFFF", size=11)
-            header_fill = PatternFill(
-                start_color="4a90e2", end_color="4a90e2", fill_type="solid"
-            )
+            header_fill = PatternFill(start_color="4a90e2", end_color="4a90e2", fill_type="solid")
             header_align = Alignment(horizontal="center", vertical="center")
             thin_border = Border(
                 left=Side(style="thin", color="cccccc"),
@@ -871,34 +840,24 @@ class PrimerDesignTab(QWidget):
             # Write headers
             for col in range(self.results_table.columnCount()):
                 hdr_item = self.results_table.horizontalHeaderItem(col)
-                cell = ws.cell(
-                    row=1, column=col + 1, value=hdr_item.text() if hdr_item else ""
-                )
+                cell = ws.cell(row=1, column=col + 1, value=hdr_item.text() if hdr_item else "")
                 cell.font = header_font
                 cell.fill = header_fill
                 cell.alignment = header_align
                 cell.border = thin_border
 
             # Fwd/Rev row fills
-            fwd_fill = PatternFill(
-                start_color="eef7ff", end_color="eef7ff", fill_type="solid"
-            )
-            rev_fill = PatternFill(
-                start_color="fff4ee", end_color="fff4ee", fill_type="solid"
-            )
+            fwd_fill = PatternFill(start_color="eef7ff", end_color="eef7ff", fill_type="solid")
+            rev_fill = PatternFill(start_color="fff4ee", end_color="fff4ee", fill_type="solid")
             data_align = Alignment(vertical="center")
 
             # Write data rows
             for row in range(self.results_table.rowCount()):
                 type_item = self.results_table.item(row, 1)
-                row_fill = (
-                    fwd_fill if (type_item and type_item.text() == "Fwd") else rev_fill
-                )
+                row_fill = fwd_fill if (type_item and type_item.text() == "Fwd") else rev_fill
                 for col in range(self.results_table.columnCount()):
                     item = self.results_table.item(row, col)
-                    cell = ws.cell(
-                        row=row + 2, column=col + 1, value=item.text() if item else ""
-                    )
+                    cell = ws.cell(row=row + 2, column=col + 1, value=item.text() if item else "")
                     cell.fill = row_fill
                     cell.alignment = data_align
                     cell.border = thin_border
@@ -911,9 +870,7 @@ class PrimerDesignTab(QWidget):
                     cell_val = ws.cell(row=row + 1, column=col + 1).value
                     if cell_val:
                         max_width = max(max_width, len(str(cell_val)) + 2)
-                ws.column_dimensions[get_column_letter(col + 1)].width = min(
-                    max_width, 60
-                )
+                ws.column_dimensions[get_column_letter(col + 1)].width = min(max_width, 60)
 
             # Freeze header row
             ws.freeze_panes = "A2"

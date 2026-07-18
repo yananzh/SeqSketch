@@ -50,7 +50,8 @@ def _mock_primer3_for_analysis(monkeypatch, **overrides):
         return params["fwd_tm"] if call_count["tm"] == 1 else params["rev_tm"]
 
     monkeypatch.setattr(
-        "modules.primer_analysis_tab.primer3.calc_tm", _mock_tm,
+        "modules.primer_analysis_tab.primer3.calc_tm",
+        _mock_tm,
     )
     monkeypatch.setattr(
         "modules.primer_analysis_tab.primer3.calc_hairpin",
@@ -64,9 +65,7 @@ def _mock_primer3_for_analysis(monkeypatch, **overrides):
         "modules.primer_analysis_tab.primer3.calc_heterodimer",
         lambda fwd, rev, mv_conc=50, dv_conc=3: params["heterodimer"],
     )
-    monkeypatch.setattr(
-        "modules.primer_analysis_tab._HAS_PRIMER3", True
-    )
+    monkeypatch.setattr("modules.primer_analysis_tab._HAS_PRIMER3", True)
 
 
 # ── _gc_percent ────────────────────────────────────────────────────────────
@@ -501,13 +500,9 @@ def test_primer_design_menu_action_triggers_tab(qapp):
     window = MainWindow()
     menu_bar = window.menuBar()
     primer_menu = next(
-        action.menu()
-        for action in menu_bar.actions()
-        if action.text() == "Primer Design"
+        action.menu() for action in menu_bar.actions() if action.text() == "Primer Design"
     )
-    design_action = next(
-        a for a in primer_menu.actions() if a.text() == "qPCR Primer Design"
-    )
+    design_action = next(a for a in primer_menu.actions() if a.text() == "qPCR Primer Design")
     design_action.trigger()
     assert window.tabs.count() == 1
     assert window.tabs.tabText(0) == "qPCR Primer Design"
@@ -517,13 +512,9 @@ def test_primer_analysis_menu_action_triggers_tab(qapp):
     window = MainWindow()
     menu_bar = window.menuBar()
     primer_menu = next(
-        action.menu()
-        for action in menu_bar.actions()
-        if action.text() == "Primer Design"
+        action.menu() for action in menu_bar.actions() if action.text() == "Primer Design"
     )
-    analysis_action = next(
-        a for a in primer_menu.actions() if a.text() == "Primer Analysis"
-    )
+    analysis_action = next(a for a in primer_menu.actions() if a.text() == "Primer Analysis")
     analysis_action.trigger()
     assert window.tabs.count() == 1
     assert window.tabs.tabText(0) == "Primer Analysis"

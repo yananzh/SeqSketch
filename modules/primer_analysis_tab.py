@@ -184,7 +184,8 @@ class PrimerAnalysisTab(QWidget):
             records.append((header, seq))
         if len(records) < 2:
             QMessageBox.information(
-                self, self.tr("Example"),
+                self,
+                self.tr("Example"),
                 self.tr("Example file has insufficient records."),
             )
             return
@@ -328,15 +329,11 @@ and calculates the expected PCR product size.</p>
             )
             return
         if len(fwd) < 8 or len(rev) < 8:
-            self.results_text.setPlainText(
-                "Primer sequences are too short (minimum 8 nt)."
-            )
+            self.results_text.setPlainText("Primer sequences are too short (minimum 8 nt).")
             return
         valid = set("ACGTUN")
         if not all(c in valid for c in fwd) or not all(c in valid for c in rev):
-            self.results_text.setPlainText(
-                "Invalid bases detected. Allowed: A/C/G/T/U/N."
-            )
+            self.results_text.setPlainText("Invalid bases detected. Allowed: A/C/G/T/U/N.")
             return
 
         mv = self.mv_spin.value()
@@ -392,9 +389,7 @@ and calculates the expected PCR product size.</p>
 
         html = []
         html.append('<div style="font-family:Segoe UI,sans-serif;">')
-        html.append(
-            '<h3 style="color:#1976d2;margin:0 0 8px 0;">Primer Pair Analysis Results</h3>'
-        )
+        html.append('<h3 style="color:#1976d2;margin:0 0 8px 0;">Primer Pair Analysis Results</h3>')
 
         # Main metrics table
         html.append(
@@ -429,9 +424,7 @@ and calculates the expected PCR product size.</p>
             )
 
         # Pair-level metrics
-        html.append(
-            '<tr style="background:#fff3e0;"><td colspan="3"><b>Pair Metrics</b></td></tr>'
-        )
+        html.append('<tr style="background:#fff3e0;"><td colspan="3"><b>Pair Metrics</b></td></tr>')
         pair_rows = [
             ("Tm Difference", f"{tm_diff:.1f} °C", ""),
             ("Cross-Dimer ΔG", f"{heterodimer.dg:.2f} kcal/mol", ""),
@@ -448,12 +441,8 @@ and calculates the expected PCR product size.</p>
         if template_raw and len(template_raw) >= len(fwd) + len(rev):
             fwd_pos = self._find_binding(template_raw, fwd)
             rev_pos = self._find_binding(template_raw, rev)
-            product_size = (
-                abs(rev_pos - fwd_pos) + len(rev) if fwd_pos > 0 and rev_pos > 0 else 0
-            )
-            html.append(
-                '<h4 style="color:#1976d2;margin:12px 0 6px 0;">Template Binding</h4>'
-            )
+            product_size = abs(rev_pos - fwd_pos) + len(rev) if fwd_pos > 0 and rev_pos > 0 else 0
+            html.append('<h4 style="color:#1976d2;margin:12px 0 6px 0;">Template Binding</h4>')
             html.append(
                 '<table cellpadding="5" cellspacing="0" style="border-collapse:collapse;width:100%;">'
             )
@@ -489,9 +478,7 @@ and calculates the expected PCR product size.</p>
             if asc and str(asc).strip():
                 dimer_sections.append((label, str(asc)))
         if dimer_sections:
-            html.append(
-                '<h4 style="color:#1976d2;margin:12px 0 6px 0;">Dimer Structures</h4>'
-            )
+            html.append('<h4 style="color:#1976d2;margin:12px 0 6px 0;">Dimer Structures</h4>')
             for label, structure in dimer_sections:
                 html.append(f"<p><b>{label}:</b></p>")
                 html.append(
@@ -499,9 +486,7 @@ and calculates the expected PCR product size.</p>
                 )
 
         # Quality assessment
-        html.append(
-            '<h4 style="color:#1976d2;margin:12px 0 6px 0;">Quality Assessment</h4>'
-        )
+        html.append('<h4 style="color:#1976d2;margin:12px 0 6px 0;">Quality Assessment</h4>')
         warnings = []
         if tm_diff > 2.0:
             warnings.append(("warn", f"Tm difference > 2°C ({tm_diff:.1f}°C)"))
@@ -534,9 +519,7 @@ and calculates the expected PCR product size.</p>
         html.append("</div>")
         self._last_results = "".join(html)
         self.results_text.setHtml(self._last_results)
-        self.status_label.setText(
-            f"Done. ΔTm={tm_diff:.1f}°C, Fwd={len(fwd)}nt, Rev={len(rev)}nt"
-        )
+        self.status_label.setText(f"Done. ΔTm={tm_diff:.1f}°C, Fwd={len(fwd)}nt, Rev={len(rev)}nt")
 
 
 if __name__ == "__main__":
