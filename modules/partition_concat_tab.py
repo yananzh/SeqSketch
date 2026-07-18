@@ -181,9 +181,7 @@ def _write_fasta(filepath: str, ids: list[str], seqs: list[str]) -> None:
 
 def _concatenate_alignments(
     files: list[str], gene_names: list[str] | None = None
-) -> tuple[
-    list[str], list[str], list[tuple[str, int, int]], list[tuple[str, list[str]]]
-]:
+) -> tuple[list[str], list[str], list[tuple[str, int, int]], list[tuple[str, list[str]]]]:
     """Concatenate aligned FASTA files into a supermatrix.
 
     Returns (ids, seqs, partitions, gene_ids) where gene_ids is a list of
@@ -203,17 +201,13 @@ def _concatenate_alignments(
     for i, fpath in enumerate(files):
         if not os.path.isfile(fpath):
             raise RuntimeError(f"File not found: {fpath}")
-        gene_name = (
-            gene_names[i] if gene_names and i < len(gene_names) else f"gene{i + 1}"
-        )
+        gene_name = gene_names[i] if gene_names and i < len(gene_names) else f"gene{i + 1}"
         ids, seqs = _read_fasta(fpath)
         if not ids:
             raise ValueError(f"No sequences in {fpath}")
         lengths = {len(s) for s in seqs}
         if len(lengths) > 1:
-            raise ValueError(
-                f"Unaligned sequences in {fpath} (lengths: {sorted(lengths)})"
-            )
+            raise ValueError(f"Unaligned sequences in {fpath} (lengths: {sorted(lengths)})")
         seq_len = len(seqs[0]) if seqs else 0
 
         file_map = dict(zip(ids, seqs))
@@ -314,15 +308,12 @@ class _ConcatPartitionWorker(BaseWorker):
         try:
             # --- Stage 1: Concatenate ---
             self.progress.emit("⏳ Concatenating aligned gene sequences…")
-            ids, seqs, partitions, gene_ids = _concatenate_alignments(
-                self.files, self.gene_names
-            )
+            ids, seqs, partitions, gene_ids = _concatenate_alignments(self.files, self.gene_names)
             total_len = len(seqs[0]) if seqs else 0
 
             _write_fasta(self.concat_output, ids, seqs)
             self.progress.emit(
-                f"✔ Concatenation: {len(ids)} taxa, "
-                f"{len(partitions)} genes, {total_len} positions"
+                f"✔ Concatenation: {len(ids)} taxa, {len(partitions)} genes, {total_len} positions"
             )
 
             # --- Stage 2: Write NEXUS partition file ---
@@ -360,9 +351,7 @@ class _ConcatPartitionWorker(BaseWorker):
                 else:
                     summary += f"  {_gene_name:<12} {present:>7}  (all present)\n"
 
-            summary += (
-                "\nReady for IQ-TREE, MrBayes, or RAxML-NG with partition-aware models."
-            )
+            summary += "\nReady for IQ-TREE, MrBayes, or RAxML-NG with partition-aware models."
             self.emit_finished(summary)
 
         except Exception as exc:
@@ -398,11 +387,15 @@ class PartitionConcatTab(BaseTabWidget):
         file_btn_row = QHBoxLayout()
         add_btn = QPushButton(self.tr("Add Files"))
         add_btn.clicked.connect(self._add_files)
+        example_btn = QPushButton(self.tr("Example"))
+        example_btn.setToolTip(self.tr("Load bundled example gene files"))
+        example_btn.clicked.connect(self._load_example)
         remove_btn = QPushButton(self.tr("Remove Selected"))
         remove_btn.clicked.connect(self._remove_selected)
         clear_files_btn = QPushButton(self.tr("Clear All"))
         clear_files_btn.clicked.connect(self._clear_files)
         file_btn_row.addWidget(add_btn)
+        file_btn_row.addWidget(example_btn)
         file_btn_row.addWidget(remove_btn)
         file_btn_row.addWidget(clear_files_btn)
         file_btn_row.addStretch()
@@ -413,9 +406,7 @@ class PartitionConcatTab(BaseTabWidget):
         # ── Parameters section ────────────────────────────────────────────
         param_group = QGroupBox(self.tr("Parameters"))
         param_form = QFormLayout(param_group)
-        param_form.setLabelAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-        )
+        param_form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         param_form.setVerticalSpacing(10)
         param_form.setHorizontalSpacing(12)
 
@@ -426,9 +417,7 @@ class PartitionConcatTab(BaseTabWidget):
         self._format_edit = QLineEdit(self.tr("NEXUS (MrBayes / IQ-TREE)"))
         self._format_edit.setReadOnly(True)
         self._format_edit.setFixedWidth(210)
-        self._format_edit.setToolTip(
-            self.tr("NEXUS: charset + SETS block for MrBayes & IQ-TREE.")
-        )
+        self._format_edit.setToolTip(self.tr("NEXUS: charset + SETS block for MrBayes & IQ-TREE."))
         fmt_prefix_row.addWidget(self._format_edit)
 
         fmt_prefix_row.addSpacing(20)
@@ -436,9 +425,7 @@ class PartitionConcatTab(BaseTabWidget):
         fmt_prefix_row.addWidget(QLabel(self.tr("Output prefix:")))
         self._prefix_edit = QLineEdit("concat_partition")
         self._prefix_edit.setFixedWidth(130)
-        self._prefix_edit.setToolTip(
-            self.tr("Output files: <prefix>.fasta and <prefix>.nex")
-        )
+        self._prefix_edit.setToolTip(self.tr("Output files: <prefix>.fasta and <prefix>.nex"))
         fmt_prefix_row.addWidget(self._prefix_edit)
         fmt_prefix_row.addStretch()
         param_form.addRow(self.tr("Partition format:"), _wrap_layout(fmt_prefix_row))
@@ -500,6 +487,36 @@ class PartitionConcatTab(BaseTabWidget):
         if paths:
             self._auto_fill_outdir()
             self.show_status(self.tr("Added {n} file(s)").format(n=len(paths)))
+
+    def _load_example(self) -> None:
+        """Load bundled example gene files into the file list."""
+        from PyQt6.QtWidgets import QMessageBox
+        from utils.example_data import stage_example
+
+        self._file_list.clear()
+        examples = [
+            ("phylo", "gene1.fasta"),
+            ("phylo", "gene2.fasta"),
+            ("phylo", "gene3.fasta"),
+        ]
+        loaded = []
+        for folder, name in examples:
+            path = stage_example(folder, name)
+            if not path:
+                continue
+            loaded.append(name)
+            item = QListWidgetItem(os.path.basename(path))
+            item.setData(256, path)
+            self._file_list.addItem(item)
+        if not loaded:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("Failed to load example data. Please check the installation."),
+            )
+            return
+        self._auto_fill_outdir()
+        self.show_status(self.tr("Example loaded: ") + ", ".join(loaded))
 
     def _auto_fill_outdir(self) -> None:
         """Set output directory to the first input file's directory."""

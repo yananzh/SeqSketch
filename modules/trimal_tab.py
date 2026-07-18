@@ -28,8 +28,6 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QComboBox,
-    QDialog,
-    QDialogButtonBox,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -42,9 +40,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QRadioButton,
-    QTextBrowser,
     QVBoxLayout,
-    QWidget,
 )
 
 
@@ -172,93 +168,7 @@ def _parse_column_change(log: str, out_path: str = "", before_cols: int = 0) -> 
     return ""
 
 
-def _show_help(parent: QWidget, title: str, html: str) -> None:
-    dlg = QDialog(parent)
-    dlg.setWindowTitle(title)
-    dlg.setMinimumWidth(660)
-    dlg.setMinimumHeight(480)
-    lay = QVBoxLayout(dlg)
-    browser = QTextBrowser()
-    browser.setOpenExternalLinks(True)
-    browser.setHtml(html)
-    lay.addWidget(browser)
-    btn = QPushButton(parent.tr("Close"))
-    btn.clicked.connect(dlg.accept)
-    lay.addWidget(btn)
-    dlg.exec()
-
-
-# ── help text ─────────────────────────────────────────────────────────────
-_HELP_HTML = """
-<h2>Alignment Trimming (trimAl) &mdash; Clean Up Your MSA</h2>
-
-<p><b>What does this tool do?</b><br>
-trimAl removes poorly aligned or gap-rich columns from a multiple sequence
-alignment (MSA). Cleaner alignments produce more accurate phylogenetic trees
-and more reliable downstream analyses.</p>
-
-<h3>Quick Start</h3>
-<ol>
-  <li>Add alignment files via <b>Add Files</b> or drag &amp; drop.</li>
-  <li>Choose an <b>output folder</b> (auto-filled from the first file).</li>
-  <li>Select a <b>trimming method</b> (start with <b>gappyout</b>).</li>
-  <li>Click <b>▶ Run trimAl</b>.</li>
-</ol>
-<p>Output files are named <code>&lt;original_name&gt;.trimmed&lt;ext&gt;</code>
-and saved in the output folder.</p>
-
-<h3>Trimming Methods</h3>
-<table border="0" cellspacing="6" cellpadding="2">
-<tr>
-  <td><b>gappyout</b></td>
-  <td>Removes columns with unusually high gap proportions. Fast and effective —
-  good default choice for most datasets.</td>
-</tr>
-<tr>
-  <td><b>automated1</b></td>
-  <td>Auto-selects the best method based on alignment statistics.
-  Uses <i>strictplus</i> for large datasets, <i>strict</i> for smaller ones.</td>
-</tr>
-<tr>
-  <td><b>strict</b></td>
-  <td>Applies gap-score and similarity thresholds derived from alignment
-  statistics. More aggressive than <i>gappyout</i>.</td>
-</tr>
-<tr>
-  <td><b>strictplus</b></td>
-  <td>Like <i>strict</i> but also filters out sequence fragments. Best for
-  large, heterogeneous datasets.</td>
-</tr>
-</table>
-
-<h3>Output Formats</h3>
-<ul>
-  <li><b>FASTA</b> &mdash; Default; compatible with most downstream tools.</li>
-  <li><b>PHYLIP</b> &mdash; For IQ-TREE, RAxML.</li>
-  <li><b>NEXUS</b> &mdash; For MrBayes, BEAST.</li>
-  <li><b>CLUSTAL</b> &mdash; ClustalW format.</li>
-  <li><b>MEGA</b> &mdash; MEGA format.</li>
-</ul>
-
-<h3>Use Cases</h3>
-<ul>
-  <li>Pre-process alignments before <b>ML Tree Construction (IQ-TREE)</b>.</li>
-  <li>Clean noisy NGS-derived alignments with many gap regions.</li>
-  <li>Batch-trim hundreds of gene alignments for phylogenomic pipelines.</li>
-</ul>
-
-<h3>Tips</h3>
-<ul>
-  <li>Start with <b>gappyout</b> or <b>automated1</b> for most datasets.</li>
-  <li>After trimming, feed the output into <b>ML Tree Construction (IQ-TREE)</b>
-  or <b>MSA Visualization</b>.</li>
-  <li>Check the log after each run for column-count changes and any warnings.</li>
-  <li>Supported input formats: FASTA, CLUSTAL, PHYLIP, NEXUS (auto-converted).</li>
-</ul>
-"""
-
-
-# ── drag-and-drop file list ───────────────────────────────────────────────
+# ── bundled trimAl path ──────────────────────────────────────────────────── ───────────────────────────────────────────────
 class _DropFileList(QListWidget):
     """QListWidget accepting multiple file drops, with placeholder text."""
 
@@ -586,7 +496,53 @@ class AlignmentTrimmingTab(BaseTabWidget):
     # ── Help ──────────────────────────────────────────────────────────────
     def show_help(self):
         """Show the trimAl help dialog."""
-        _show_help(self, self.tr("Alignment Trimming — Help"), _HELP_HTML)
+        help_text = """
+<h2>Alignment Trimming (trimAl) &mdash; Clean Up Your MSA</h2>
+
+<p><b>What does this tool do?</b><br>
+trimAl removes poorly aligned or gap-rich columns from a multiple sequence
+alignment (MSA). Cleaner alignments produce more accurate phylogenetic trees
+and more reliable downstream analyses.</p>
+
+<h3>Quick Start</h3>
+<ol>
+<li>Add alignment files via <b>Add Files</b> or drag &amp; drop.</li>
+<li>Choose an <b>output folder</b> (auto-filled from the first file).</li>
+<li>Select a <b>trimming method</b> (start with <b>gappyout</b>).</li>
+<li>Click <b>Run trimAl</b>.</li>
+</ol>
+
+<h3>Trimming Methods</h3>
+<ul>
+<li><b>gappyout</b> &mdash; removes columns with unusually high gap proportions.
+Fast and effective &mdash; good default for most datasets.</li>
+<li><b>automated1</b> &mdash; auto-selects the best method based on alignment
+statistics.</li>
+<li><b>strict</b> &mdash; more aggressive trimming based on alignment
+statistics.</li>
+<li><b>strictplus</b> &mdash; like strict but also filters out short sequence
+fragments.</li>
+</ul>
+
+<h3>Output Formats</h3>
+<ul>
+<li><b>FASTA</b> &mdash; default, compatible with most tools.</li>
+<li><b>PHYLIP</b> &mdash; for IQ-TREE / RAxML.</li>
+<li><b>NEXUS</b> &mdash; for MrBayes / BEAST.</li>
+<li><b>CLUSTAL</b> &mdash; ClustalW format.</li>
+<li><b>MEGA</b> &mdash; MEGA format.</li>
+</ul>
+
+<h3>Tips</h3>
+<ul>
+<li>Start with <b>gappyout</b> or <b>automated1</b> for most datasets.</li>
+<li>After trimming, feed the output into <b>ML Tree Construction (IQ-TREE)</b>
+or <b>MSA Visualization</b>.</li>
+<li>Check the log after each run for column-count changes and any warnings.</li>
+<li>Supported input formats: FASTA, CLUSTAL, PHYLIP, NEXUS (auto-converted).</li>
+</ul>
+        """
+        self.show_help_dialog("Help - Alignment Trimming", help_text, 820, 580)
 
     # ── file management ───────────────────────────────────────────────────
     def _load_example(self):

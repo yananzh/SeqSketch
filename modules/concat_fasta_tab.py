@@ -137,6 +137,7 @@ class ConcatFastaTab(BaseTabWidget):
         seq_count = 0
         try:
             from modules.fasta_processor import FASTAProcessor
+
             processor = FASTAProcessor()
             if processor.read_file(path):
                 seq_count = len(processor.records)
@@ -187,7 +188,8 @@ class ConcatFastaTab(BaseTabWidget):
             self._add_path(path)
         if not loaded:
             QMessageBox.information(
-                self, self.tr("Example"),
+                self,
+                self.tr("Example"),
                 self.tr("Failed to load example data. Please check the installation."),
             )
             return

@@ -9,7 +9,6 @@ Powered by Bio.Phylo.TreeConstruction.
 """
 
 import os
-import random
 from io import StringIO
 
 import numpy as np
@@ -19,9 +18,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import (
     QComboBox,
-    QDialog,
     QFileDialog,
-    QFrame,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
@@ -31,9 +28,7 @@ from PyQt6.QtWidgets import (
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
-    QTextBrowser,
     QVBoxLayout,
-    QWidget,
 )
 
 from utils.common_components import BaseTabWidget, apply_log_viewer_style, validate_input_path
@@ -84,16 +79,6 @@ class _DropLineEdit(QLineEdit):
                     a0.acceptProposedAction()
                     return
         super().dropEvent(a0)
-
-
-# ---------------------------------------------------------------------------
-# Horizontal separator helper
-# ---------------------------------------------------------------------------
-def _hline() -> QFrame:
-    line = QFrame()
-    line.setFrameShape(QFrame.Shape.HLine)
-    line.setFrameShadow(QFrame.Shadow.Sunken)
-    return line
 
 
 # ---------------------------------------------------------------------------
@@ -187,6 +172,11 @@ class _DistanceTreeWorker(QThread):
             Phylo.write(tree, buf, "newick")
             newick_str = buf.getvalue().strip()
 
+            # Convert BioPython node-name bootstrap to standard Newick:
+            #   )Inner2100.00:0.18  →  )100.00:0.18
+            import re
+            newick_str = re.sub(r"\)Inner\d+?(\d+\.\d+):", r")\1:", newick_str)
+
             self.finished_ok.emit({
                 "matrix": matrix,
                 "names": names,
@@ -264,7 +254,7 @@ class DistanceTreeTab(BaseTabWidget):
         lbl_w = 120
 
         # ── Input group ─────────────────────────────────────────────
-        grp_in = QGroupBox(self.tr("Input"))
+        grp_in = QGroupBox(self.tr("Input and Method"))
         gl = QVBoxLayout(grp_in)
         gl.setSpacing(8)
 
@@ -336,7 +326,7 @@ class DistanceTreeTab(BaseTabWidget):
             self.tr("Auto-generated from input name, or choose manually...")
         )
         out_row.addWidget(self._out_edit, 1)
-        self._save_btn = QPushButton(self.tr("Save As"))
+        self._save_btn = QPushButton(self.tr("Browse"))
         self._save_btn.setFixedWidth(90)
         self._save_btn.clicked.connect(self._browse_output)
         out_row.addWidget(self._save_btn)
@@ -367,18 +357,25 @@ class DistanceTreeTab(BaseTabWidget):
         self._run_btn.clicked.connect(self._compute)
 
         self._export_csv_btn = QPushButton(self.tr("Export Matrix"))
-        self._export_csv_btn.setFixedWidth(160)
-        self._export_csv_btn.setEnabled(False)
+        self._export_csv_btn.setFixedWidth(130)
+        # Always blue; enabled/disabled not needed
         self._export_csv_btn.clicked.connect(self._export_csv)
 
         self._clear_btn = QPushButton(self.tr("Clear"))
         self._clear_btn.setFixedWidth(80)
         self._clear_btn.clicked.connect(self._clear_all)
 
+        self._example_btn = QPushButton(self.tr("Example"))
+        self._example_btn.setToolTip(
+            self.tr("Load bundled example alignment (csrA_pro_mafft.fasta)")
+        )
+        self._example_btn.clicked.connect(self._load_example)
+
         # Insert before Help button (rightmost in status_layout)
-        # Order: [Run] [Export Matrix] [Clear] [Help]
+        # Order: [Run] [Export Matrix] [Example] [Clear] [Help]
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._run_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._export_csv_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._example_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._clear_btn)
 
     def _connect_signals(self):
@@ -386,6 +383,12 @@ class DistanceTreeTab(BaseTabWidget):
         self._file_edit.textChanged.connect(self._on_file_text_changed)
 
     # ── Slots ───────────────────────────────────────────────────────
+    def _auto_suggest_output(self, path: str) -> None:
+        """Auto-fill the output tree path from the input file, if empty."""
+        if not self._out_edit.text().strip():
+            base, _ = os.path.splitext(path)
+            self._out_edit.setText(base + "_tree.nwk")
+
     def _browse_input(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
@@ -398,10 +401,7 @@ class DistanceTreeTab(BaseTabWidget):
         )
         if path:
             self._file_edit.setText(path)
-            # Auto-suggest output
-            if not self._out_edit.text().strip():
-                base, _ = os.path.splitext(path)
-                self._out_edit.setText(base + "_tree.nwk")
+            self._auto_suggest_output(path)
             self._update_model_combo()
 
     def _on_file_text_changed(self, text: str):
@@ -409,10 +409,26 @@ class DistanceTreeTab(BaseTabWidget):
             self._update_model_combo()
 
     def _on_file_dropped(self, path: str):
-        if not self._out_edit.text().strip():
-            base, _ = os.path.splitext(path)
-            self._out_edit.setText(base + "_tree.nwk")
+        self._auto_suggest_output(path)
         self._update_model_combo()
+
+    def _load_example(self):
+        """Load the bundled csrA protein alignment example."""
+        from utils.example_data import stage_example
+        from PyQt6.QtWidgets import QMessageBox
+
+        path = stage_example("phylo", "csrA_pro_mafft.fasta")
+        if not path:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("Failed to load example data. Please check the installation."),
+            )
+            return
+        self._file_edit.setText(path)
+        self._auto_suggest_output(path)
+        self._update_model_combo()
+        self.show_status(self.tr("Example loaded: csrA_pro_mafft.fasta"))
 
     def _update_model_combo(self):
         """Detect sequence type and update model choices accordingly."""
@@ -495,7 +511,9 @@ class DistanceTreeTab(BaseTabWidget):
         self._thread.start()
 
     def _on_bootstrap_progress(self, current: int, total: int):
-        self.show_status(self.tr(f"Bootstrap replicate {current}/{total}…"))
+        # Throttle: update status only every 10th replicate or at start/end
+        if current % 10 == 0 or current == 1 or current == total:
+            self.show_status(self.tr(f"Bootstrap replicate {current}/{total}…"))
 
     def _on_result(self, data: dict):
         self._matrix_data = data["matrix"]
@@ -514,21 +532,20 @@ class DistanceTreeTab(BaseTabWidget):
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(self._newick_str + "\n")
             boot_msg = f", {n_bootstrap} bootstrap replicates" if n_bootstrap else ""
-            self.log_message(self.tr(f"✔ Tree saved → {output_path}  ({n_taxa} taxa{boot_msg})"))
+            self.log_message(self.tr(f"Tree saved → {output_path}  ({n_taxa} taxa{boot_msg})"))
             status_msg = self.tr(
-                f"✔ {self._method_combo.currentText()} tree saved ({n_taxa} taxa{boot_msg})"
+                f"{self._method_combo.currentText()} tree saved ({n_taxa} taxa{boot_msg})"
             )
             self.show_status(status_msg)
         except Exception as exc:
-            self.log_message(self.tr(f"✖ Failed to save tree: {exc}"), "ERROR")
+            self.log_message(self.tr(f"Failed to save tree: {exc}"), "ERROR")
             self.show_status(self.tr("Tree computed but save failed"))
 
-        self._export_csv_btn.setEnabled(True)
         self._set_running(False)
         self._thread = None
 
     def _on_error(self, msg: str):
-        self.log_message(f"✖ {msg}", "ERROR")
+        self.log_message(msg, "ERROR")
         self.show_status(self.tr(f"Error: {msg}"))
         self._set_running(False)
         self._thread = None
@@ -588,8 +605,13 @@ class DistanceTreeTab(BaseTabWidget):
             if ext == ".xlsx":
                 import pandas as pd
 
+                # Replace diagonal 0→1 to match table display
+                xlsx_data = [
+                    [1.0 if i == j else v for j, v in enumerate(row)]
+                    for i, row in enumerate(self._matrix_data)
+                ]
                 df = pd.DataFrame(
-                    self._matrix_data,
+                    xlsx_data,
                     index=self._names,
                     columns=self._names,
                 )
@@ -598,13 +620,15 @@ class DistanceTreeTab(BaseTabWidget):
                 with open(path, "w", encoding="utf-8") as f:
                     f.write("taxa," + ",".join(self._names) + "\n")
                     for i, name in enumerate(self._names):
-                        f.write(
-                            name + "," + ",".join(f"{v:.6f}" for v in self._matrix_data[i]) + "\n"
-                        )
-            self.log_message(self.tr(f"✔ Matrix exported → {path}"))
+                        row_vals = [
+                            "1.000000" if i == j else f"{v:.6f}"
+                            for j, v in enumerate(self._matrix_data[i])
+                        ]
+                        f.write(name + "," + ",".join(row_vals) + "\n")
+            self.log_message(self.tr(f"Matrix exported → {path}"))
             self.show_status(self.tr("Matrix exported"))
         except Exception as exc:
-            self.log_message(self.tr(f"✖ Export failed: {exc}"), "ERROR")
+            self.log_message(self.tr(f"Export failed: {exc}"), "ERROR")
 
     def _clear_all(self):
         self._file_edit.clear()
@@ -615,7 +639,6 @@ class DistanceTreeTab(BaseTabWidget):
         self._matrix_data = None
         self._newick_str = ""
         self._names = []
-        self._export_csv_btn.setEnabled(False)
         self._bootstrap_spin.setValue(0)
         # Reset model combo to DNA defaults
         self._model_combo.clear()
@@ -634,24 +657,11 @@ class DistanceTreeTab(BaseTabWidget):
         self._out_edit.setEnabled(not running)
         self._browse_btn.setEnabled(not running)
         self._save_btn.setEnabled(not running)
+        self._example_btn.setEnabled(not running)
 
     # ── Help ────────────────────────────────────────────────────────
     def show_help(self):
-        dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("Distance Tree Construction — Help"))
-        dlg.resize(640, 560)
-        lay = QVBoxLayout(dlg)
-        browser = QTextBrowser()
-        browser.setOpenExternalLinks(True)
-        browser.setHtml(self._help_html())
-        lay.addWidget(browser)
-        close_btn = QPushButton(self.tr("Close"))
-        close_btn.clicked.connect(dlg.accept)
-        lay.addWidget(close_btn)
-        dlg.exec()
-
-    def _help_html(self) -> str:
-        return self.tr("""
+        help_text = """
 <h2>Distance Tree Construction</h2>
 
 <p><b>What does this tool do?</b><br>
@@ -661,62 +671,58 @@ Powered by <b>BioPython</b> — no external binaries needed.</p>
 
 <h3>Quick Start</h3>
 <ol>
-  <li><b>Load</b> a FASTA (or PHYLIP, NEXUS, CLUSTAL) alignment file.<br>
-      <small>Models auto-update based on DNA or Protein detection.</small></li>
-  <li>Choose a <b>distance model</b> and <b>tree method</b>.</li>
-  <li>Optionally set <b>Bootstrap</b> replicates (100–1000) for branch support.</li>
-  <li>Set the output <b>tree file (.nwk)</b> path (auto-suggested).</li>
-  <li>Click <b>Run</b> — the matrix appears below, tree saved to file.</li>
-  <li>Use <b>Export Matrix</b> to save the distance table as CSV / Excel.</li>
+<li>Load a FASTA (or PHYLIP, NEXUS, CLUSTAL) alignment file, or click <b>Example</b>
+to load the bundled sample. Models auto-update based on DNA or Protein detection.</li>
+<li>Choose a <b>distance model</b> and <b>tree method</b>.</li>
+<li>Optionally set <b>Bootstrap</b> replicates for branch support.</li>
+<li>Set the output <b>tree file (.nwk)</b> path (auto-suggested).</li>
+<li>Click <b>Run</b> — the matrix appears below, tree saved to file.</li>
+<li>Use <b>Export Matrix</b> to save the distance table as CSV.</li>
 </ol>
 
 <h3>Distance Models</h3>
-<p><b>DNA:</b></p>
-<table>
-  <tr><td><b>p-distance (identity)</b></td><td>&mdash; fraction of differing sites</td></tr>
-  <tr><td><b>BLAST identity (blastn)</b></td><td>&mdash; BLAST identity-based distance</td></tr>
-</table>
-<p><b>Protein:</b></p>
-<table>
-  <tr><td><b>BLOSUM62</b></td><td>&mdash; widely used for protein alignments</td></tr>
-  <tr><td><b>Dayhoff</b></td><td>&mdash; PAM-based substitution matrix</td></tr>
-  <tr><td><b>p-distance (identity)</b></td><td>&mdash; fraction of differing sites</td></tr>
-</table>
+<ul>
+<li><b>p-distance (identity)</b> &mdash; fraction of differing sites (DNA &amp; Protein).</li>
+<li><b>BLAST identity (blastn)</b> &mdash; BLAST identity-based distance (DNA only).</li>
+<li><b>BLOSUM62</b> &mdash; widely used for protein alignments.</li>
+<li><b>Dayhoff</b> &mdash; PAM-based substitution matrix (Protein).</li>
+</ul>
 
 <h3>Tree Methods</h3>
-<table>
-  <tr><td><b>NJ</b></td><td>&mdash; Neighbor-Joining: fast, accurate, widely used</td></tr>
-  <tr><td><b>UPGMA</b></td><td>&mdash; Unweighted Pair Group Method: assumes molecular clock (ultrametric)</td></tr>
-</table>
+<ul>
+<li><b>NJ</b> &mdash; Neighbor-Joining: fast, accurate, widely used.</li>
+<li><b>UPGMA</b> &mdash; Unweighted Pair Group Method: assumes molecular clock (ultrametric).</li>
+</ul>
 
-<h3>Bootstrap Support</h3>
+<h3>Bootstrap</h3>
 <p>Set <b>Bootstrap</b> &gt; 0 to compute branch support values via
 column resampling. Bootstrap values appear as node labels in the output
 Newick tree. Recommended: 100 for quick checks, 500–1000 for publication.</p>
 
 <h3>Supported Input Formats</h3>
-<table>
-  <tr><td><b>FASTA</b></td><td><code>.fasta .fa .fas .fna .ffn .faa</code></td></tr>
-  <tr><td><b>PHYLIP</b></td><td><code>.phy .phylip</code></td></tr>
-  <tr><td><b>NEXUS</b></td><td><code>.nex .nxs</code></td></tr>
-  <tr><td><b>CLUSTAL</b></td><td><code>.aln .clustal</code></td></tr>
-  <tr><td><b>Stockholm</b></td><td><code>.sto</code></td></tr>
-</table>
+<ul>
+<li><b>FASTA</b> &mdash; .fasta .fa .fas .fna .ffn .faa</li>
+<li><b>PHYLIP</b> &mdash; .phy .phylip</li>
+<li><b>NEXUS</b> &mdash; .nex .nxs</li>
+<li><b>CLUSTAL</b> &mdash; .aln .clustal</li>
+<li><b>Stockholm</b> &mdash; .sto</li>
+</ul>
 
 <h3>Output</h3>
 <ul>
-  <li><b>Tree file</b> &mdash; Newick format (.nwk), ready for visualization in
-  <b>Simple Tree Visualization (Phytreeviz)</b> or IQ-TREE.</li>
-  <li><b>Distance Matrix</b> &mdash; displayed in the table; export to CSV for
-  heatmap plotting or external analysis.</li>
+<li><b>Tree file</b> &mdash; Newick format (.nwk), ready for visualization in
+Simple Tree Visualization or IQ-TREE.</li>
+<li><b>Distance Matrix</b> &mdash; displayed in the table; export to CSV for
+heatmap plotting or external analysis.</li>
 </ul>
 
 <h3>Tips</h3>
 <ul>
-  <li>Files can be <b>dragged &amp; dropped</b> directly into the input field.</li>
-  <li>For large alignments (100+ taxa) the computation may take a few seconds.</li>
-  <li>NJ trees are unrooted by default; use <b>Simple Tree Visualization</b> to
-  re-root your tree.</li>
-  <li>For maximum-likelihood trees, see <b>ML Tree Construction (IQ-TREE)</b>.</li>
+<li>Click <b>Example</b> to quickly load a bundled alignment and try the tool.</li>
+<li>Files can be dragged &amp; dropped directly into the input field.</li>
+<li>For large alignments (100+ taxa) the computation may take a few seconds.</li>
+<li>NJ trees are unrooted by default; use <b>Tree Visualization</b> to re-root.</li>
+<li>For maximum-likelihood trees, see <b>ML Tree Construction (IQ-TREE)</b>.</li>
 </ul>
-""")
+        """
+        self.show_help_dialog("Help - Distance Tree Construction", help_text, 820, 580)

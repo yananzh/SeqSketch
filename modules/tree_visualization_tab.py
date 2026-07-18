@@ -310,15 +310,7 @@ class SimpleTreeVisualizationTab(BaseTabWidget):
         self._file_edit = _DropLineEdit()
         self._file_edit.setPlaceholderText(self.tr("Tree file (drag & drop or Browse)"))
         self._file_edit.fileDropped.connect(self._on_file_selected)
-        browse_btn = QPushButton(self.tr("Browse"))
-        browse_btn.setFixedWidth(90)
-        browse_btn.clicked.connect(self._browse_file)
-        file_example_btn = QPushButton(self.tr("Example"))
-        file_example_btn.setFixedWidth(90)
-        file_example_btn.clicked.connect(self._load_example)
         file_row.addWidget(self._file_edit, 1)
-        file_row.addWidget(browse_btn)
-        file_row.addWidget(file_example_btn)
         gl.addLayout(file_row)
 
         fmt_row = QHBoxLayout()
@@ -328,6 +320,16 @@ class SimpleTreeVisualizationTab(BaseTabWidget):
         self._fmt_combo.setToolTip(self.tr("Auto-detected from file extension"))
         fmt_row.addWidget(self._fmt_combo, 1)
         gl.addLayout(fmt_row)
+
+        btn_row = QHBoxLayout()
+        browse_btn = QPushButton(self.tr("Browse"))
+        browse_btn.clicked.connect(self._browse_file)
+        file_example_btn = QPushButton(self.tr("Example"))
+        file_example_btn.setToolTip(self.tr("Load bundled example tree (csrA_pro_mafft_tree.nwk)"))
+        file_example_btn.clicked.connect(self._load_example)
+        btn_row.addWidget(browse_btn, 1)
+        btn_row.addWidget(file_example_btn, 1)
+        gl.addLayout(btn_row)
         ctrl_vbox.addWidget(grp_file)
 
         # ── Tree Options ───────────────────────────────────────────
@@ -391,7 +393,7 @@ class SimpleTreeVisualizationTab(BaseTabWidget):
 
         self._root_method_combo.currentTextChanged.connect(_on_root_method_changed)
 
-        self._show_support_check = QCheckBox(self.tr("Show bootstrap / support values"))
+        self._show_support_check = QCheckBox(self.tr("Show bootstrap values"))
         self._show_support_check.setChecked(True)
         ol.addWidget(self._show_support_check)
 
@@ -571,26 +573,34 @@ graphics, we recommend:</p>
         self._graphics_view.reset_view()
 
     def _clear(self):
-        """Clear the canvas and reset the file input."""
+        """Clear the canvas and reset all parameters to defaults."""
         self._show_placeholder()
         self._file_edit.clear()
+        self._fmt_combo.setCurrentIndex(0)
+        self._layout_combo.setCurrentIndex(0)
+        self._orient_combo.setCurrentIndex(0)
+        self._root_method_combo.setCurrentIndex(0)
+        self._outgroup_combo.clearEditText()
+        self._outgroup_combo.setEnabled(False)
+        self._show_support_check.setChecked(True)
+        self._show_scale_check.setChecked(True)
         self._set_status(self.tr(""))
 
     # ------------------------------------------------------------------
     # Slots
     # ------------------------------------------------------------------
     def _load_example(self):
-        """Load the bundled cytb reference tree for visualization."""
-        path = stage_example("phylo", "cytb_tree.nwk")
+        """Load the bundled csrA tree example for visualization."""
+        path = stage_example("phylo", "csrA_pro_mafft_tree.nwk")
         if not path:
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check the installation."),
             )
             return
         self._file_edit.setText(path)
-        self.show_status(self.tr("已载入示例数据: cytb_tree.nwk"))
+        self.show_status(self.tr("Example loaded: csrA_pro_mafft_tree.nwk"))
 
     def _browse_file(self):
         path, _ = QFileDialog.getOpenFileName(
