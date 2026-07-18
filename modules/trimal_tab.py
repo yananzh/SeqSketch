@@ -11,11 +11,7 @@ Unified single interface:
 Supported trimming methods:
     Automated:  -automated1, -gappyout, -strict, -strictplus
 
-Output formats: FASTA (default), CLUSTAL, PHYLIP, NEXUS, PIR, MEGA, HTML
-
-Reference:
-  Capella-Gutiérrez et al. (2009) Bioinformatics 25(15):1972-1973.
-  https://doi.org/10.1093/bioinformatics/btp348
+Output formats: FASTA (default), CLUSTAL, PHYLIP, NEXUS, MEGA
 """
 
 import os
@@ -37,7 +33,6 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QFrame,
-    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -242,8 +237,7 @@ and saved in the output folder.</p>
   <li><b>PHYLIP</b> &mdash; For IQ-TREE, RAxML.</li>
   <li><b>NEXUS</b> &mdash; For MrBayes, BEAST.</li>
   <li><b>CLUSTAL</b> &mdash; ClustalW format.</li>
-  <li><b>PIR</b> / <b>MEGA</b> &mdash; NBRF/PIR and MEGA formats.</li>
-  <li><b>HTML</b> &mdash; Colour-coded alignment; for visual inspection only.</li>
+  <li><b>MEGA</b> &mdash; MEGA format.</li>
 </ul>
 
 <h3>Use Cases</h3>
@@ -261,11 +255,6 @@ and saved in the output folder.</p>
   <li>Check the log after each run for column-count changes and any warnings.</li>
   <li>Supported input formats: FASTA, CLUSTAL, PHYLIP, NEXUS (auto-converted).</li>
 </ul>
-<hr>
-<p style="color:#888;font-size:11px;">
-Reference: Capella-Gutiérrez et al. (2009) Bioinformatics 25(15):1972–1973.
-<a href="https://doi.org/10.1093/bioinformatics/btp348">doi:10.1093/bioinformatics/btp348</a>
-</p>
 """
 
 
@@ -468,9 +457,6 @@ class AlignmentTrimmingTab(BaseTabWidget):
         io_layout.addLayout(exe_row)
 
         # ── input alignment files ──────────────────────────────────────────
-        files_lbl = QLabel(self.tr("Input alignment files:"))
-        files_lbl.setProperty("sectionTitle", True)
-        io_layout.addWidget(files_lbl)
 
         self.file_list = _DropFileList(
             self.tr("Drag & drop alignment files here, or use the buttons below")
@@ -543,19 +529,16 @@ class AlignmentTrimmingTab(BaseTabWidget):
             rb.setToolTip(desc)
             self._method_grp.addButton(rb)
 
-        # 2x2 grid of automated methods
-        auto_grid = QGridLayout()
-        auto_grid.setHorizontalSpacing(12)
-        auto_grid.setVerticalSpacing(8)
-        auto_grid.setColumnStretch(0, 1)
-        auto_grid.setColumnStretch(1, 1)
+        # single row of automated methods
+        auto_row = QHBoxLayout()
+        auto_row.setSpacing(12)
 
-        auto_grid.addWidget(self.rb_gappyout, 0, 0)
-        auto_grid.addWidget(self.rb_auto1, 0, 1)
-        auto_grid.addWidget(self.rb_strict, 1, 0)
-        auto_grid.addWidget(self.rb_strictplus, 1, 1)
+        auto_row.addWidget(self.rb_gappyout)
+        auto_row.addWidget(self.rb_auto1)
+        auto_row.addWidget(self.rb_strict)
+        auto_row.addWidget(self.rb_strictplus)
 
-        method_layout.addLayout(auto_grid)
+        method_layout.addLayout(auto_row)
         self.rb_gappyout.setChecked(True)
         self.add_content_widget(method_box)
 
@@ -569,17 +552,14 @@ class AlignmentTrimmingTab(BaseTabWidget):
             "CLUSTAL",
             "PHYLIP",
             "NEXUS",
-            "PIR",
             "MEGA",
-            "HTML",
         ])
         self.fmt_combo.setMinimumWidth(130)
         self.fmt_combo.setToolTip(
             self.tr(
                 "FASTA   — default, compatible with most tools\n"
                 "PHYLIP  — for IQ-TREE / RAxML\n"
-                "NEXUS   — for MrBayes / BEAST\n"
-                "HTML    — colour-coded, visual inspection only"
+                "NEXUS   — for MrBayes / BEAST"
             )
         )
         fmt_layout.addWidget(fmt_lbl)
@@ -610,19 +590,27 @@ class AlignmentTrimmingTab(BaseTabWidget):
 
     # ── file management ───────────────────────────────────────────────────
     def _load_example(self):
-        """Load the bundled aligned cytb protein example into the file list."""
-        path = stage_example("phylo", "cytb_protein_aligned.fasta")
-        if not path:
+        """Load bundled aligned example files into the file list."""
+        examples = [
+            ("phylo", "cytb_protein_aligned.fasta"),
+            ("phylo", "aligned_pro.fasta"),
+        ]
+        loaded = []
+        self.file_list.clear()
+        for subdir, fname in examples:
+            path = stage_example(subdir, fname)
+            if path:
+                loaded.append(fname)
+                self.file_list._add_path(path)
+        if not loaded:
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Example data failed to load. Please check your installation."),
             )
             return
-        self.file_list.clear()
-        self.file_list._add_path(path)
         self._auto_fill_outdir()
-        self.show_status(self.tr("已载入示例数据: cytb_protein_aligned.fasta"))
+        self.show_status(self.tr("Example data loaded: ") + ", ".join(loaded))
 
     def _add_files(self):
         files, _ = QFileDialog.getOpenFileNames(
@@ -703,9 +691,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
             "CLUSTAL": "-clustal",
             "PHYLIP": "-phylip",
             "NEXUS": "-nexus",
-            "PIR": "-pir",
             "MEGA": "-mega",
-            "HTML": "-htmlout",
         }
         fmt = self.fmt_combo.currentText()
         if fmt in fmt_map:
@@ -718,9 +704,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
             "CLUSTAL": ".aln",
             "PHYLIP": ".phy",
             "NEXUS": ".nex",
-            "PIR": ".pir",
             "MEGA": ".meg",
-            "HTML": ".html",
         }.get(self.fmt_combo.currentText(), ".fasta")
 
     # ── run / stop ────────────────────────────────────────────────────────
@@ -858,7 +842,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
     def _on_file_done(self, success: bool, out_path: str, log: str):
         fname = os.path.basename(out_path)
         if success:
-            self.log_area.append(f"✔  {fname}")
+            self.log_area.append(f"  {fname}")
             if log:
                 for line in log[:300].splitlines():
                     self.log_area.append(f"   {line}")
@@ -889,15 +873,15 @@ class AlignmentTrimmingTab(BaseTabWidget):
                 if item:
                     base = os.path.splitext(os.path.basename(item.data(256)))[0]
                     out_name = os.path.join(outdir, base + ".trimmed" + self._out_ext())
-                self.show_status(f"✔ Done  →  {os.path.basename(out_name)}")
+                self.show_status(f"Done  →  {os.path.basename(out_name)}")
                 self.log_area.append(f"Output: {out_name}")
             else:
-                self.show_status(f"✔ All {succeeded} files trimmed successfully")
+                self.show_status(f"All {succeeded} files trimmed successfully")
                 self.log_area.append(
                     f"All {succeeded} files trimmed successfully.\nOutput folder: {outdir}"
                 )
         else:
-            self.show_status(f"✔ {succeeded} succeeded   ✘ {failed} failed — see log")
+            self.show_status(f"{succeeded} succeeded   ✘ {failed} failed — see log")
             self.log_area.append(
                 f"{succeeded} succeeded, {failed} failed.\nOutput folder: {outdir}"
             )

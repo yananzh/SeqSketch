@@ -46,13 +46,12 @@ class ConcatFastaTab(BaseTabWidget):
         self.remove_btn = QPushButton("Remove Selected")
         self.remove_btn.setToolTip("Remove the currently selected file from the list")
         self.clear_files_btn = QPushButton("Clear All")
-        self.example_btn = QPushButton(self.tr("Example"))
-        self.example_btn.setFixedWidth(90)
-        self.example_btn.clicked.connect(self._load_example)
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setToolTip("Load bundled example gene files")
         file_btn_row.addWidget(self.add_btn)
+        file_btn_row.addWidget(self.example_btn)
         file_btn_row.addWidget(self.remove_btn)
         file_btn_row.addWidget(self.clear_files_btn)
-        file_btn_row.addWidget(self.example_btn)
         file_btn_row.addStretch()
         input_main.addLayout(file_btn_row)
 
@@ -116,6 +115,7 @@ class ConcatFastaTab(BaseTabWidget):
         self.add_btn.clicked.connect(self.add_files)
         self.remove_btn.clicked.connect(self.remove_selected)
         self.clear_files_btn.clicked.connect(self.clear_files_list)
+        self.example_btn.clicked.connect(self._load_example)
         self.output_btn.clicked.connect(self.select_output_file)
         self.run_btn.clicked.connect(self.run_concat)
         self.preview_btn.clicked.connect(self.preview_concat)
@@ -168,24 +168,30 @@ class ConcatFastaTab(BaseTabWidget):
         self.file_list.clear()
 
     def _load_example(self):
-        """Load two bundled example files into the file list for a meaningful concat demo."""
+        """Load bundled example gene files into the file list."""
         from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
 
+        self.file_list.clear()
         examples = [
-            ("phylo", "cytb_cds_raw.fasta"),
-            ("dna", "hbb_exon1.fasta"),
+            ("phylo", "gene1.fasta"),
+            ("phylo", "gene2.fasta"),
+            ("phylo", "gene3.fasta"),
         ]
+        loaded = []
         for folder, name in examples:
             path = stage_example(folder, name)
             if not path:
-                QMessageBox.information(
-                    self, self.tr("Example"),
-                    self.tr("Failed to load example data. Please check the installation."),
-                )
-                return
+                continue
+            loaded.append(name)
             self._add_path(path)
-        self.show_status(self.tr("Example loaded: 2 files"))
+        if not loaded:
+            QMessageBox.information(
+                self, self.tr("Example"),
+                self.tr("Failed to load example data. Please check the installation."),
+            )
+            return
+        self.show_status(self.tr("Example loaded: ") + ", ".join(loaded))
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
