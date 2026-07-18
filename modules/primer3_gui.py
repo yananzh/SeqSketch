@@ -4,6 +4,7 @@ PCR Primer Assistant (PyQt6 + primer3-py)
 
 import csv
 import importlib
+import os
 import sys
 from typing import Any, Dict
 
@@ -49,6 +50,7 @@ except ImportError:
 
 # Shared styling
 from utils.common_components import apply_sequence_editor_style
+from utils.example_data import load_example_text
 
 try:
     p3_bindings = importlib.import_module("primer3.bindings")
@@ -104,7 +106,7 @@ class PrimerDesignTab(QWidget):
 
     def init_ui(self):
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setContentsMargins(0, 0, 0, 8)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         root_layout.addWidget(splitter, 1)
@@ -124,25 +126,27 @@ class PrimerDesignTab(QWidget):
         )
 
         # Patch drag-drop to load file content directly
-        def _drag_enter(event, self=self):
+        _tab = self
+
+        def _drag_enter(widget, event):
             if event.mimeData().hasUrls():
                 event.acceptProposedAction()
             else:
-                QTextEdit.dragEnterEvent(self.seq_input, event)
+                QTextEdit.dragEnterEvent(widget, event)
 
-        def _drop(event, self=self):
+        def _drop(widget, event):
             if event.mimeData().hasUrls():
                 for url in event.mimeData().urls():
                     path = url.toLocalFile()
                     if path and os.path.isfile(path):
                         try:
                             with open(path, "r", encoding="utf-8") as f:
-                                self.seq_input.setText(f.read())
-                            self.status_label.setText(f"Dropped file: {path}")
+                                _tab.seq_input.setText(f.read())
+                            _tab.status_label.setText(f"Dropped file: {path}")
                         except Exception:
                             pass
                         return
-            QTextEdit.dropEvent(self.seq_input, event)
+            QTextEdit.dropEvent(widget, event)
 
         import types
 
@@ -151,8 +155,11 @@ class PrimerDesignTab(QWidget):
 
         seq_btn_row = QHBoxLayout()
         self.load_seq_btn = QPushButton("Load from File")
+        self.example_seq_btn = QPushButton(self.tr("Example"))
+        self.example_seq_btn.setToolTip(self.tr("Load HBB exon 1 example sequence"))
         self.clear_seq_btn = QPushButton("Clear")
         seq_btn_row.addWidget(self.load_seq_btn)
+        seq_btn_row.addWidget(self.example_seq_btn)
         seq_btn_row.addWidget(self.clear_seq_btn)
         seq_btn_row.addStretch()
 
@@ -240,13 +247,13 @@ class PrimerDesignTab(QWidget):
         self.p_tm_opt = QDoubleSpinBox()
         self.p_tm_max = QDoubleSpinBox()
         for spin in (self.p_tm_min, self.p_tm_opt, self.p_tm_max):
-            spin.setRange(40.0, 85.0)
-            spin.setDecimals(1)
-            spin.setSingleStep(0.1)
+            spin.setRange(40, 85)
+            spin.setDecimals(0)
+            spin.setSingleStep(1)
             spin.setFixedWidth(68)
-        self.p_tm_min.setValue(57.0)
-        self.p_tm_opt.setValue(60.0)
-        self.p_tm_max.setValue(63.0)
+        self.p_tm_min.setValue(57)
+        self.p_tm_opt.setValue(60)
+        self.p_tm_max.setValue(63)
         self.p_tm_min.setToolTip(
             self.tr(
                 "Minimum acceptable melting temperature (°C).\nTypical range: 55-60°C."
@@ -274,13 +281,13 @@ class PrimerDesignTab(QWidget):
         self.p_gc_opt = QDoubleSpinBox()
         self.p_gc_max = QDoubleSpinBox()
         for spin in (self.p_gc_min, self.p_gc_opt, self.p_gc_max):
-            spin.setRange(20.0, 80.0)
-            spin.setDecimals(1)
-            spin.setSingleStep(0.1)
+            spin.setRange(20, 80)
+            spin.setDecimals(0)
+            spin.setSingleStep(1)
             spin.setFixedWidth(68)
-        self.p_gc_min.setValue(40.0)
-        self.p_gc_opt.setValue(50.0)
-        self.p_gc_max.setValue(60.0)
+        self.p_gc_min.setValue(40)
+        self.p_gc_opt.setValue(50)
+        self.p_gc_max.setValue(60)
         self.p_gc_min.setToolTip(
             self.tr("Minimum acceptable GC content (%).\nTypical range: 40-60%.")
         )
@@ -315,9 +322,10 @@ class PrimerDesignTab(QWidget):
         adv_form = QFormLayout(adv_group)
 
         self.salt_mono_spin = QDoubleSpinBox()
-        self.salt_mono_spin.setRange(10.0, 200.0)
-        self.salt_mono_spin.setDecimals(1)
-        self.salt_mono_spin.setValue(50.0)
+        self.salt_mono_spin.setRange(10, 200)
+        self.salt_mono_spin.setDecimals(0)
+        self.salt_mono_spin.setSingleStep(1)
+        self.salt_mono_spin.setValue(50)
         self.salt_mono_spin.setFixedWidth(104)
         self.salt_mono_spin.setSuffix(" mM")
         self.salt_mono_spin.setToolTip(
@@ -331,9 +339,10 @@ class PrimerDesignTab(QWidget):
         adv_form.addRow(salt_label, self.salt_mono_spin)
 
         self.mg_spin = QDoubleSpinBox()
-        self.mg_spin.setRange(0.5, 10.0)
-        self.mg_spin.setDecimals(1)
-        self.mg_spin.setValue(3.0)
+        self.mg_spin.setRange(1, 10)
+        self.mg_spin.setDecimals(0)
+        self.mg_spin.setSingleStep(1)
+        self.mg_spin.setValue(3)
         self.mg_spin.setFixedWidth(104)
         self.mg_spin.setSuffix(" mM")
         self.mg_spin.setToolTip(
@@ -350,22 +359,27 @@ class PrimerDesignTab(QWidget):
         self.max_poly_x_spin = QSpinBox()
         self.max_poly_x_spin.setValue(4)
         self.max_self_any_spin = QDoubleSpinBox()
-        self.max_self_any_spin.setValue(8.0)
+        self.max_self_any_spin.setDecimals(0)
+        self.max_self_any_spin.setSingleStep(1)
+        self.max_self_any_spin.setValue(8)
         self.max_self_end_spin = QDoubleSpinBox()
-        self.max_self_end_spin.setValue(3.0)
+        self.max_self_end_spin.setDecimals(0)
+        self.max_self_end_spin.setSingleStep(1)
+        self.max_self_end_spin.setValue(3)
         self.max_hairpin_tm_spin = QDoubleSpinBox()
-        self.max_hairpin_tm_spin.setValue(47.0)
+        self.max_hairpin_tm_spin.setDecimals(0)
+        self.max_hairpin_tm_spin.setSingleStep(1)
+        self.max_hairpin_tm_spin.setValue(47)
         self.max_diff_tm_spin = QDoubleSpinBox()
-        self.max_diff_tm_spin.setValue(2.0)
+        self.max_diff_tm_spin.setDecimals(0)
+        self.max_diff_tm_spin.setSingleStep(1)
+        self.max_diff_tm_spin.setValue(2)
         self.gc_clamp_spin = QSpinBox()
         self.gc_clamp_spin.setValue(1)
 
         self.design_button = QPushButton("Design Primers")
-        self.design_button.setMinimumHeight(38)
         self.help_btn = QPushButton(self.tr("Help"))
-        self.help_btn.setMinimumHeight(38)
         self.export_excel_btn = QPushButton(self.tr("Export Excel"))
-        self.export_excel_btn.setMinimumHeight(38)
         if not _HAS_OPENPYXL:
             self.export_excel_btn.setEnabled(False)
             self.export_excel_btn.setToolTip(
@@ -454,6 +468,7 @@ class PrimerDesignTab(QWidget):
         self.seq_input.textChanged.connect(self.on_sequence_changed)
 
         self.load_seq_btn.clicked.connect(self.load_sequence_from_file)
+        self.example_seq_btn.clicked.connect(self._load_example)
         self.clear_seq_btn.clicked.connect(self.clear_sequence)
         self.export_excel_btn.clicked.connect(self.export_results_excel)
         self.help_btn.clicked.connect(self.show_help_dialog)
@@ -494,6 +509,19 @@ class PrimerDesignTab(QWidget):
         except Exception as exc:
             QMessageBox.critical(self, "Load Error", f"Failed to read file:\n{exc}")
 
+    def _load_example(self):
+        """Load the bundled HBB exon 1 DNA example."""
+        text = load_example_text("dna", "hbb_exon1.fasta")
+        if not text:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("Failed to load example data. Please check your installation."),
+            )
+            return
+        self.seq_input.setPlainText(text)
+        self.status_label.setText(self.tr("Loaded example data: hbb_exon1.fasta"))
+
     def clear_sequence(self):
         self.seq_input.clear()
         self.results_table.setRowCount(0)
@@ -509,22 +537,22 @@ class PrimerDesignTab(QWidget):
         self.p_len_opt.setValue(20)
         self.p_len_max.setValue(25)
 
-        self.p_tm_min.setValue(57.0)
-        self.p_tm_opt.setValue(60.0)
-        self.p_tm_max.setValue(63.0)
+        self.p_tm_min.setValue(57)
+        self.p_tm_opt.setValue(60)
+        self.p_tm_max.setValue(63)
 
-        self.p_gc_min.setValue(40.0)
-        self.p_gc_opt.setValue(50.0)
-        self.p_gc_max.setValue(60.0)
+        self.p_gc_min.setValue(40)
+        self.p_gc_opt.setValue(50)
+        self.p_gc_max.setValue(60)
 
         self.max_poly_x_spin.setValue(4)
-        self.max_self_any_spin.setValue(8.0)
-        self.max_self_end_spin.setValue(3.0)
-        self.max_hairpin_tm_spin.setValue(47.0)
+        self.max_self_any_spin.setValue(8)
+        self.max_self_end_spin.setValue(3)
+        self.max_hairpin_tm_spin.setValue(47)
         self.num_primers_spin.setValue(5)
 
-        self.salt_mono_spin.setValue(50.0)
-        self.mg_spin.setValue(3.0)
+        self.salt_mono_spin.setValue(50)
+        self.mg_spin.setValue(3)
 
         self.prod_size_min.setValue(80)
         self.prod_size_max.setValue(150)
@@ -1021,17 +1049,18 @@ class PrimerDesignTab(QWidget):
     # ── Help Dialog ─────────────────────────────────────────────────
 
     def show_help_dialog(self):
-        from PyQt6.QtWidgets import QScrollArea
+        from PyQt6.QtWidgets import QDialog, QLabel, QPushButton, QScrollArea, QVBoxLayout
         from PyQt6.QtCore import Qt as QtCore
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("qPCR Primer Design - Help"))
-        dlg.setFixedSize(680, 500)
+        dlg.setFixedSize(720, 540)
         layout = QVBoxLayout(dlg)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAsNeeded)
 
         label = QLabel(
             self.tr("""
@@ -1045,45 +1074,49 @@ that meet strict Tm, GC%, and product-size constraints suitable for qPCR.</p>
 <h3>Quick Start</h3>
 <ol>
 <li><b>Enter a template DNA sequence</b> — paste raw sequence or FASTA format
-    (bases A/C/G/T/U/N allowed). Click <b>Load from File</b> to open a
-    .fa / .fasta / .txt file.</li>
+    (bases A/C/G/T/U/N allowed), or click <b>Example</b> to load HBB exon 1.</li>
 <li><b>Adjust parameters</b> if needed — the defaults (80-150 bp product,
     57-63°C Tm, 40-60% GC) work well for most qPCR applications.</li>
 <li><b>Click "Design Primers"</b> to launch Primer3 in the background.</li>
-<li><b>Review results</b> in the table — select any row to see the primer
-    binding positions drawn on the template map below.</li>
-<li><b>Export</b> your results to Excel for downstream use.</li>
+<li><b>Review results</b> in the table — select any row to see primer
+    binding positions drawn on the template map.</li>
+<li><b>Export</b> results to Excel or CSV for downstream use.</li>
 </ol>
 
 <h3>Parameter Guide</h3>
 <table border='0' cellpadding='4' cellspacing='2'>
-<tr><td><b>Product Size</b></td><td>Expected amplicon length (Min-Max).
+<tr><td><b>Product Size (Min/Max)</b></td><td>Expected amplicon length in bp.
     qPCR: 70-200 bp for optimal efficiency.</td></tr>
 <tr><td><b>Primer Pair Count</b></td><td>How many pairs to return.
-    More = more candidates to choose from.</td></tr>
+    Higher values give more candidates to choose from.</td></tr>
 <tr><td><b>Length (Min/Opt/Max)</b></td><td>Primer length in nt.
-    Typical: 18-25 nt.</td></tr>
+    Typical: 18-25 nt. Must satisfy Min &le; Opt &le; Max.</td></tr>
 <tr><td><b>Tm (Min/Opt/Max)</b></td><td>Melting temperature in °C.
-    Typical for qPCR: 57-63°C. Min &le; Opt &le; Max.</td></tr>
+    Typical qPCR range: 57-63°C. Min &le; Opt &le; Max.</td></tr>
 <tr><td><b>GC% (Min/Opt/Max)</b></td><td>GC content percentage.
     Typical: 40-60%. Min &le; Opt &le; Max.</td></tr>
+</table>
+
+<h3>Advanced Parameters</h3>
+<table border='0' cellpadding='4' cellspacing='2'>
 <tr><td><b>Salt (Monovalent)</b></td><td>Na&plus;/K&plus; concentration (mM).
     Affects Tm calculation. Standard PCR: 50 mM.</td></tr>
 <tr><td><b>Mg&sup2;&plus;</b></td><td>Magnesium concentration (mM).
-    qPCR typically 2.5-3.5 mM. Affects Tm and specificity.</td></tr>
+    Affects Tm and specificity. qPCR typical: 2-3 mM.</td></tr>
 </table>
 
 <h3>Interpreting Results</h3>
 <ul>
-<li><b>Pair #</b> — ranked by Primer3 (1 = best score).</li>
-<li><b>Fwd/Rev</b> — Forward (sense) or Reverse (antisense) primer.</li>
-<li><b>Position</b> — 5' start on the template (1-based).</li>
+<li><b>Pair #</b> — ranked by Primer3 penalty score (1 = best).</li>
+<li><b>Fwd / Rev</b> — Forward (sense) or Reverse (antisense) primer.</li>
+<li><b>Position</b> — 5' start coordinate on the template (1-based).</li>
+<li><b>Length</b> — primer length in nucleotides.</li>
 <li><b>Tm</b> — melting temperature. Fwd and Rev should be within 2°C.</li>
-<li><b>GC%</b> — between 40-60% is optimal for qPCR.</li>
+<li><b>GC%</b> — GC content. 40-60% is optimal for qPCR.</li>
 <li><b>Product Size</b> — expected amplicon length in bp.</li>
 </ul>
 <p><b>Binding Site Map</b> — Blue arrows = Forward primers,
-Orange arrows = Reverse primers, placed on the template line.</p>
+Orange arrows = Reverse primers, drawn on the template line to scale.</p>
 
 <h3>Troubleshooting</h3>
 <p><b>"No primer pairs found"</b></p>
@@ -1091,16 +1124,20 @@ Orange arrows = Reverse primers, placed on the template line.</p>
 <li>Relax constraints — widen Tm, GC%, or length ranges.</li>
 <li>Increase the product size range (e.g. 70-200 bp).</li>
 <li>Increase the number of primer pairs requested.</li>
-<li>Check that your template is valid (A/C/G/T/U/N only).</li>
+<li>Verify the template contains valid bases (A/C/G/T/U/N only).</li>
 <li>For short templates (&lt;100 bp), reduce the product size range.</li>
-<li>Verify primer3-py is installed: <code>pip install primer3-py</code></li>
+<li>Ensure primer3-py is installed: <code>pip install primer3-py</code></li>
 </ul>
-<p><b>Tm mismatch</b> — narrow the Tm range (e.g. 58-62°C).</p>
+
+<h3>After Design — Analyze Your Primers</h3>
+<p>Open <b>Primer Design &rarr; Primer Analysis</b> to check hairpin,
+self-dimer, and cross-dimer properties of any primer pair from the results.</p>
 """)
         )
         label.setTextFormat(QtCore.TextFormat.RichText)
         label.setWordWrap(True)
-        label.setMargin(16)
+        label.setAlignment(QtCore.AlignmentFlag.AlignTop | QtCore.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
         scroll.setWidget(label)
         layout.addWidget(scroll)
 

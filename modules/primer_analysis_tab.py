@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.common_components import apply_sequence_editor_style
+from utils.example_data import load_example_text
 
 try:
     import primer3
@@ -39,10 +40,6 @@ def _gc_percent(seq: str) -> float:
     seq = seq.upper()
     gc = seq.count("G") + seq.count("C")
     return gc / len(seq) * 100.0
-
-
-EXAMPLE_FWD = "ATCGATCGATCGATCGATCG"
-EXAMPLE_REV = "GCTAGCTAGCTAGCTAGCTA"
 
 
 class PrimerAnalysisTab(QWidget):
@@ -62,28 +59,28 @@ class PrimerAnalysisTab(QWidget):
         input_v = QVBoxLayout(input_group)
 
         fwd_row = QHBoxLayout()
-        fwd_row.addWidget(QLabel(self.tr("Forward (5'→3'):")))
+        fwd_label = QLabel(self.tr("Forward (5'→3'):"))
+        fwd_label.setFixedWidth(130)
+        fwd_row.addWidget(fwd_label)
         self.fwd_edit = QLineEdit()
         self.fwd_edit.setPlaceholderText(self.tr("e.g. ATCGATCGATCGATCGATCG"))
         self.fwd_edit.setMinimumWidth(240)
+        self.fwd_len_label = QLabel("0 nt")
         fwd_row.addWidget(self.fwd_edit, 1)
+        fwd_row.addWidget(self.fwd_len_label)
         input_v.addLayout(fwd_row)
 
         rev_row = QHBoxLayout()
-        rev_row.addWidget(QLabel(self.tr("Reverse (5'→3'):")))
+        rev_label = QLabel(self.tr("Reverse (5'→3'):"))
+        rev_label.setFixedWidth(130)
+        rev_row.addWidget(rev_label)
         self.rev_edit = QLineEdit()
         self.rev_edit.setPlaceholderText(self.tr("e.g. GCTAGCTAGCTAGCTAGCTA"))
         self.rev_edit.setMinimumWidth(240)
         self.rev_len_label = QLabel("0 nt")
         rev_row.addWidget(self.rev_edit, 1)
+        rev_row.addWidget(self.rev_len_label)
         input_v.addLayout(rev_row)
-
-        example_row = QHBoxLayout()
-        self.example_btn = QPushButton(self.tr("Load Example"))
-        self.example_btn.setToolTip(self.tr("Load a sample primer pair for testing"))
-        example_row.addWidget(self.example_btn)
-        example_row.addStretch()
-        input_v.addLayout(example_row)
 
         root.addWidget(input_group)
 
@@ -95,7 +92,8 @@ class PrimerAnalysisTab(QWidget):
         self.template_edit.setPlaceholderText(
             self.tr("Paste template to check binding positions and product size...")
         )
-        self.template_edit.setMaximumHeight(80)
+        self.template_edit.setMinimumHeight(60)
+        self.template_edit.setMaximumHeight(120)
         template_v.addWidget(self.template_edit)
         root.addWidget(template_group)
 
@@ -105,6 +103,8 @@ class PrimerAnalysisTab(QWidget):
         salt_row.addWidget(QLabel(self.tr("Salt (mM):")))
         self.mv_spin = QDoubleSpinBox()
         self.mv_spin.setRange(10, 200)
+        self.mv_spin.setDecimals(0)
+        self.mv_spin.setSingleStep(1)
         self.mv_spin.setValue(50)
         self.mv_spin.setFixedWidth(104)
         self.mv_spin.setToolTip(self.tr("Monovalent salt (Na⁺/K⁺) concentration"))
@@ -113,8 +113,10 @@ class PrimerAnalysisTab(QWidget):
         salt_row.addSpacing(16)
         salt_row.addWidget(QLabel(self.tr("Mg²⁺ (mM):")))
         self.dv_spin = QDoubleSpinBox()
-        self.dv_spin.setRange(0.5, 10)
-        self.dv_spin.setValue(3.0)
+        self.dv_spin.setRange(1, 10)
+        self.dv_spin.setDecimals(0)
+        self.dv_spin.setSingleStep(1)
+        self.dv_spin.setValue(3)
         self.dv_spin.setFixedWidth(104)
         self.dv_spin.setToolTip(self.tr("Divalent salt (Mg²⁺) concentration"))
         salt_row.addWidget(self.dv_spin)
@@ -127,7 +129,7 @@ class PrimerAnalysisTab(QWidget):
         self.results_text = QTextEdit()
         self.results_text.setReadOnly(True)
         self.results_text.setPlaceholderText(
-            self.tr("Enter forward and reverse primer sequences, then click Analyze.")
+            self.tr("Enter forward and reverse primer sequences, then click Run.")
         )
         results_v.addWidget(self.results_text)
         root.addWidget(results_group, 1)
@@ -138,31 +140,61 @@ class PrimerAnalysisTab(QWidget):
         self.status_label.setStyleSheet("color: #666; padding: 2px 8px;")
         status_row.addWidget(self.status_label)
         status_row.addStretch()
-        self.analyze_btn = QPushButton(self.tr("Analyze"))
-        self.analyze_btn.setMinimumHeight(34)
+        self.run_btn = QPushButton(self.tr("Run"))
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setToolTip(self.tr("Load example primer pair and template"))
         self.copy_btn = QPushButton(self.tr("Copy Results"))
-        self.copy_btn.setMinimumHeight(34)
         self.clear_btn = QPushButton(self.tr("Clear"))
-        self.clear_btn.setMinimumHeight(34)
         self.help_btn = QPushButton(self.tr("Help"))
-        self.help_btn.setMinimumHeight(34)
-        status_row.addWidget(self.analyze_btn)
+        status_row.addWidget(self.run_btn)
+        status_row.addWidget(self.example_btn)
         status_row.addWidget(self.copy_btn)
         status_row.addWidget(self.clear_btn)
         status_row.addWidget(self.help_btn)
         root.addLayout(status_row)
 
     def connect_signals(self):
-        self.analyze_btn.clicked.connect(self.run_analysis)
+        self.run_btn.clicked.connect(self.run_analysis)
         self.example_btn.clicked.connect(self._load_example)
         self.copy_btn.clicked.connect(self._copy_results)
         self.clear_btn.clicked.connect(self._clear_all)
         self.help_btn.clicked.connect(self._show_help)
+        self.fwd_edit.textChanged.connect(self._on_input_changed)
+        self.rev_edit.textChanged.connect(self._on_input_changed)
 
     def _load_example(self):
-        self.fwd_edit.setText(EXAMPLE_FWD)
-        self.rev_edit.setText(EXAMPLE_REV)
-        self.status_label.setText("Loaded example primer pair.")
+        """Load example primer pair and template from primer_example.fasta."""
+        text = load_example_text("dna", "primer_example.fasta")
+        if not text:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("Failed to load example data. Please check your installation."),
+            )
+            return
+        # Parse multi-record FASTA — extract first two as primers, third as template
+        records: list[tuple[str, str]] = []
+        for block in text.split(">"):
+            block = block.strip()
+            if not block:
+                continue
+            lines = block.splitlines()
+            header = lines[0].strip()
+            seq = "".join(line.strip() for line in lines[1:]).upper()
+            records.append((header, seq))
+        if len(records) < 2:
+            QMessageBox.information(
+                self, self.tr("Example"),
+                self.tr("Example file has insufficient records."),
+            )
+            return
+        self.fwd_edit.setText(records[0][1])
+        self.rev_edit.setText(records[1][1])
+        if len(records) >= 3:
+            # Reconstruct FASTA for template display
+            template_text = f">{records[2][0]}\n{records[2][1]}"
+            self.template_edit.setPlainText(template_text)
+        self.status_label.setText(self.tr("Loaded example: primer_example.fasta"))
 
     def _copy_results(self):
         if not self._last_results:
@@ -180,17 +212,18 @@ class PrimerAnalysisTab(QWidget):
         self.status_label.setText("Cleared.")
 
     def _show_help(self):
-        from PyQt6.QtWidgets import QScrollArea
+        from PyQt6.QtWidgets import QDialog, QLabel, QPushButton, QScrollArea, QVBoxLayout
         from PyQt6.QtCore import Qt as QtCore
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Primer Analysis - Help"))
-        dlg.setFixedSize(600, 440)
+        dlg.setFixedSize(680, 500)
         layout = QVBoxLayout(dlg)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAsNeeded)
 
         label = QLabel(
             self.tr("""
@@ -199,50 +232,60 @@ class PrimerAnalysisTab(QWidget):
 <p><b>What does this tool do?</b><br>
 Analyzes a user-specified primer pair for key thermodynamic properties
 including Tm, GC%, hairpin formation, self-dimer, and cross-dimer potential.
-Optionally, you can provide a template sequence to check binding positions
-and expected product size.</p>
+Optionally, provide a template sequence to check binding positions and
+expected product size.</p>
 
 <h3>Quick Start</h3>
 <ol>
-<li><b>Enter primer sequences</b> — forward and reverse, in 5'&rarr;3'
-    orientation. Or click <b>Load Example</b> to try with sample data.</li>
-<li><b>Optionally paste a template</b> to detect binding positions and
-    calculate the expected PCR product size.</li>
-<li><b>Adjust salt conditions</b> if your PCR buffer differs from defaults
+<li>Enter forward and reverse primer sequences (5'&rarr;3' orientation),
+    or click <b>Example</b> to load sample data.</li>
+<li>Optionally paste a template sequence to detect binding positions
+    and calculate the expected PCR product size.</li>
+<li>Adjust salt conditions if your buffer differs from defaults
     (50 mM Na&plus;/K&plus;, 3 mM Mg&sup2;&plus;).</li>
-<li><b>Click "Analyze"</b> to compute all properties.</li>
-<li><b>Review the results table</b> and quality assessment.</li>
-<li><b>Copy Results</b> saves the full report to your clipboard.</li>
+<li>Click <b>Run</b> to compute all properties.</li>
+<li>Review the results — metrics are color-coded:
+    <span style="color:#2e7d32;">green</span> = optimal,
+    <span style="color:#e65100;">orange</span> = marginal,
+    <span style="color:#c62828;">red</span> = poor.</li>
+<li>Click <b>Copy Results</b> to save the full report to your clipboard.</li>
 </ol>
 
-<h3>What each metric means</h3>
+<h3>Metrics Reference</h3>
 <table border='0' cellpadding='4' cellspacing='2'>
-<tr><td><b>Tm</b></td><td>Melting temperature. Fwd and Rev should be
-    within 2°C of each other for qPCR.</td></tr>
-<tr><td><b>GC%</b></td><td>GC content. 40-60% is optimal.</td></tr>
-<tr><td><b>Hairpin &Delta;G</b></td><td>Energy of internal secondary
-    structure. More negative = stronger hairpin (bad).</td></tr>
-<tr><td><b>Self-Dimer</b></td><td>A primer binding to itself.
-    Can cause PCR failure. Avoid any dimer formation.</td></tr>
+<tr><td><b>Tm</b></td><td>Melting temperature (°C). Fwd and Rev should be
+    within 2°C of each other for synchronized annealing.</td></tr>
+<tr><td><b>GC%</b></td><td>GC content (%). Optimal range: 40-60%.</td></tr>
+<tr><td><b>Hairpin &Delta;G</b></td><td>Free energy of internal secondary
+    structure (kcal/mol). More negative = stronger hairpin (bad).</td></tr>
+<tr><td><b>Hairpin Tm</b></td><td>Melting temperature of the hairpin
+    structure. Lower is better.</td></tr>
+<tr><td><b>Self-Dimer</b></td><td>Primer binding to itself. Can cause
+    PCR failure. Avoid any dimer with &Delta;G &lt; -3 kcal/mol.</td></tr>
 <tr><td><b>Cross-Dimer</b></td><td>Forward binding to reverse primer.
-    Produces primer-dimers instead of product.</td></tr>
-<tr><td><b>Tm Difference</b></td><td>|Fwd Tm - Rev Tm|. Keep &lt;2°C
-    for synchronized annealing.</td></tr>
+    Produces primer-dimers instead of desired amplicon.</td></tr>
+<tr><td><b>Tm Difference</b></td><td>|Fwd Tm - Rev Tm|. Keep
+    &lt;2°C for qPCR.</td></tr>
 </table>
 
 <h3>Quality Assessment</h3>
-<p>The tool automatically checks:</p>
+<p>The tool automatically flags potential issues:</p>
 <ul>
-<li>Tm difference &lt; 2°C</li>
-<li>GC% within 40-60%</li>
-<li>No self-dimer or cross-dimer formation</li>
+<li>&#10003; <b>All checks passed</b> — primer pair looks good.</li>
+<li>&#9888; <b>Warnings</b> — Tm difference &gt; 2°C, GC% out of
+    40-60% range, or dimer/hairpin structures detected.</li>
 </ul>
-<p>Green checkmark = all good. Orange warnings = potential issues to review.</p>
+
+<h3>Template Binding (Optional)</h3>
+<p>When a template is provided, the tool searches for both forward and
+reverse primer binding sites (including reverse-complement matches)
+and calculates the expected PCR product size.</p>
 """)
         )
         label.setTextFormat(QtCore.TextFormat.RichText)
         label.setWordWrap(True)
-        label.setMargin(16)
+        label.setAlignment(QtCore.AlignmentFlag.AlignTop | QtCore.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
         scroll.setWidget(label)
         layout.addWidget(scroll)
 
@@ -252,7 +295,11 @@ and expected product size.</p>
         dlg.exec()
 
     def _on_input_changed(self):
-        pass
+        """Update live length indicators as the user types."""
+        fwd_len = len(self._normalize(self.fwd_edit.text()))
+        rev_len = len(self._normalize(self.rev_edit.text()))
+        self.fwd_len_label.setText(f"{fwd_len} nt")
+        self.rev_len_label.setText(f"{rev_len} nt")
 
     def _normalize(self, raw: str) -> str:
         return raw.strip().upper().replace(" ", "").replace("\r", "").replace("\n", "")

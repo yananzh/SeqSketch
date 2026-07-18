@@ -4358,3 +4358,101 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-07-18 10:39:13.700687
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-18 10:41:36.667184
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-18 10:44:21.375840
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: 'QTextEdit' object has no attribute 'mimeData'
+Traceback (most recent call last):
+  File "f:\ui\modules\primer3_gui.py", line 128, in _drag_enter
+    if event.mimeData().hasUrls():
+       ^^^^^^^^^^^^^^
+AttributeError: 'QTextEdit' object has no attribute 'mimeData'
+UNHANDLED: 'QTextEdit' object has no attribute 'mimeData'
+Traceback (most recent call last):
+  File "f:\ui\modules\primer3_gui.py", line 128, in _drag_enter
+    if event.mimeData().hasUrls():
+       ^^^^^^^^^^^^^^
+AttributeError: 'QTextEdit' object has no attribute 'mimeData'
+UNHANDLED: 'QTextEdit' object has no attribute 'mimeData'
+Traceback (most recent call last):
+  File "f:\ui\modules\primer3_gui.py", line 128, in _drag_enter
+    if event.mimeData().hasUrls():
+       ^^^^^^^^^^^^^^
+AttributeError: 'QTextEdit' object has no attribute 'mimeData'
+
+============================================================
+startup : 2026-07-18 10:51:35.482021
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-18 10:56:02.347100
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-18 11:02:41.469539
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-18 11:11:24.651225
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-18 11:18:20.176785
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-18 11:21:24.285911
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-18 11:28:07.162708
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
