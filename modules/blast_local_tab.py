@@ -849,7 +849,9 @@ class _RunQueryWidget(QWidget):
 
         if selected and selected not in (".", ".."):
             for index in range(1, self.db_library_combo.count()):
-                stored = os.path.normpath(os.path.abspath(str(self.db_library_combo.itemData(index) or "")))
+                stored = os.path.normpath(
+                    os.path.abspath(str(self.db_library_combo.itemData(index) or ""))
+                )
                 if os.path.normcase(stored) == os.path.normcase(selected):
                     self.db_library_combo.setCurrentIndex(index)
                     break
