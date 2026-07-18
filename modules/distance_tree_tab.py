@@ -175,6 +175,7 @@ class _DistanceTreeWorker(QThread):
             # Convert BioPython node-name bootstrap to standard Newick:
             #   )Inner2100.00:0.18  →  )100.00:0.18
             import re
+
             newick_str = re.sub(r"\)Inner\d+?(\d+\.\d+):", r")\1:", newick_str)
 
             self.finished_ok.emit({
