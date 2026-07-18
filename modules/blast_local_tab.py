@@ -113,7 +113,7 @@ def _make_plain_section(title: str) -> tuple[QWidget, QVBoxLayout]:
 
 def _make_form() -> QFormLayout:
     form = QFormLayout()
-    form.setSpacing(6)
+    form.setSpacing(8)
     form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
     form.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
     return form
@@ -312,14 +312,9 @@ class _BuildDbWidget(QWidget):
         create_layout = None  # only used in non-embedded mode
 
         if self._embedded:
-            sep = QFrame()
-            sep.setFrameShape(QFrame.Shape.HLine)
-            sep.setFrameShadow(QFrame.Shadow.Sunken)
-            root.addWidget(sep)
-            create_label = QLabel(self.tr("Create new database"))
-            create_label.setProperty("sectionTitle", True)
-            create_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #0f172a;")
-            root.addWidget(create_label)
+            # In embedded mode the parent QGroupBox provides the title;
+            # no need for a separator or internal label.
+            pass
         else:
             create_section, create_layout = _make_card(self.tr("Create new database from FASTA"))
             root.addWidget(create_section)
@@ -512,7 +507,7 @@ class _BuildDbWidget(QWidget):
                 self._database_callback(outpath)
             if self.status_lbl:
                 self.status_lbl.setText(
-                    f"✔ Database built successfully  →  {self.outdir_edit.text()}/{self.name_edit.text()}"
+                    f"Database built successfully  →  {self.outdir_edit.text()}/{self.name_edit.text()}"
                 )
             QMessageBox.information(
                 self,
@@ -558,13 +553,13 @@ class _RunQueryWidget(QWidget):
         root.setContentsMargins(6, 6, 6, 6)
 
         # ── Group 1: Input BLAST+ Path and Query sequence ──
-        grp1 = QGroupBox(self.tr("Input BLAST+ Path and Query sequence"))
+        grp1 = QGroupBox(self.tr("Input BLAST+ Path and Query sequences"))
         grp1_layout = QVBoxLayout(grp1)
         grp1_layout.setSpacing(6)
 
         lbl_width = max(
+            QLabel(self.tr("Query sequences")).sizeHint().width(),
             QLabel(self.tr("BLAST+ Path")).sizeHint().width(),
-            QLabel(self.tr("Query sequence")).sizeHint().width(),
         )
 
         path_row = QHBoxLayout()
@@ -595,7 +590,7 @@ class _RunQueryWidget(QWidget):
         _set_action_role(query_btn, "secondary")
         query_btn.setFixedWidth(80)
         query_btn.clicked.connect(self._choose_query_file)
-        query_lbl = QLabel(self.tr("Query sequence"))
+        query_lbl = QLabel(self.tr("Query sequences"))
         query_lbl.setFixedWidth(lbl_width)
         query_row.addWidget(query_lbl)
         query_row.addWidget(self.query_file_edit, 1)
@@ -607,18 +602,20 @@ class _RunQueryWidget(QWidget):
         # ── Group 2: Choose or create a database ──
         grp2 = QGroupBox(self.tr("Choose or create a database"))
         grp2_layout = QVBoxLayout(grp2)
-        grp2_layout.setSpacing(6)
+        grp2_layout.setSpacing(10)
 
-        choose_label = QLabel(self.tr("Choose existing database"))
-        choose_label.setProperty("sectionTitle", True)
-        choose_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #0f172a;")
-        grp2_layout.addWidget(choose_label)
+        # Sub-group: Choose existing database
+        existing_grp = QGroupBox(self.tr("Choose existing database"))
+        existing_layout = QVBoxLayout(existing_grp)
+        existing_layout.setSpacing(6)
 
         db_row = QHBoxLayout()
         db_row.setSpacing(8)
         self.db_edit = _DropLineEdit()
         self.db_edit.setPlaceholderText(
-            self.tr("Drag & drop a database index file (*.phr, *.nhr), or choose a saved database below")
+            self.tr(
+                "Drag & drop a database index file (*.phr, *.nhr), or choose a saved database below"
+            )
         )
         self.db_edit.dropped.connect(self._on_db_dropped)
         db_btn = QPushButton(self.tr("Browse"))
@@ -630,7 +627,7 @@ class _RunQueryWidget(QWidget):
         db_row.addWidget(db_lbl)
         db_row.addWidget(self.db_edit, 1)
         db_row.addWidget(db_btn)
-        grp2_layout.addLayout(db_row)
+        existing_layout.addLayout(db_row)
 
         lib_row = QHBoxLayout()
         lib_row.setSpacing(8)
@@ -647,8 +644,11 @@ class _RunQueryWidget(QWidget):
         lib_row.addWidget(name_lbl)
         lib_row.addWidget(self.db_library_combo, 1)
         lib_row.addWidget(self.pin_db_btn)
-        grp2_layout.addLayout(lib_row)
+        existing_layout.addLayout(lib_row)
 
+        grp2_layout.addWidget(existing_grp)
+
+        # Sub-group: Create new database
         self._build_db_widget = _BuildDbWidget(
             status_callback=self.status_callback,
             blast_bin_dir_getter=self._blast_bin_dir_getter,
@@ -656,7 +656,10 @@ class _RunQueryWidget(QWidget):
             embedded=True,
             label_width=lbl_width,
         )
-        grp2_layout.addWidget(self._build_db_widget)
+        build_grp = QGroupBox(self.tr("Create new database"))
+        build_layout = QVBoxLayout(build_grp)
+        build_layout.addWidget(self._build_db_widget)
+        grp2_layout.addWidget(build_grp)
         root.addWidget(grp2)
 
         # ── Group 3: BLAST Parameters & Output ──
@@ -830,7 +833,7 @@ class _RunQueryWidget(QWidget):
         self._auto_select_blast_program()
 
     def refresh_database_library(self, current_path: str = ""):
-        selected = current_path or self.db_edit.text().strip()
+        selected = os.path.normpath(os.path.abspath(current_path or self.db_edit.text().strip()))
         self.db_library_combo.blockSignals(True)
         self.db_library_combo.clear()
         self.db_library_combo.addItem(self.tr("Choose a saved database..."), "")
@@ -844,9 +847,10 @@ class _RunQueryWidget(QWidget):
                 label = f"{label} [Pinned]"
             self.db_library_combo.addItem(label, str(record["base_path"]))
 
-        if selected:
+        if selected and selected not in (".", ".."):
             for index in range(1, self.db_library_combo.count()):
-                if self.db_library_combo.itemData(index) == selected:
+                stored = os.path.normpath(os.path.abspath(str(self.db_library_combo.itemData(index) or "")))
+                if os.path.normcase(stored) == os.path.normcase(selected):
                     self.db_library_combo.setCurrentIndex(index)
                     break
 
@@ -1001,7 +1005,7 @@ class _RunQueryWidget(QWidget):
         self.cancel_run_btn.setVisible(False)
         self._status("")
         if success:
-            self._status(f"✔ BLAST finished  →  {out_file}")
+            self._status(f"BLAST finished  →  {out_file}")
             if self.result_callback and out_file:
                 self.result_callback(out_file)
         else:
@@ -1056,20 +1060,23 @@ class BlastLocalTab(BaseTabWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Example data could not be loaded. Please check the installation."),
             )
             return
         self._run_tab.query_file_edit.setText(query_path)
         self._run_tab.db_edit.setText(db_path)
         self._run_tab._auto_select_blast_program()
+        remember_blast_database(db_path, db_type="prot", name="E.coli_pro_db")
         self._run_tab.refresh_database_library(current_path=db_path)
-        self.show_status(self.tr("已载入示例数据: E.coli protein BLAST"))
+        self.show_status(self.tr("Example loaded: E. coli protein BLAST"))
 
     def _clear(self):
         """Clear all inputs."""
         self._run_tab.query_file_edit.clear()
         self._run_tab.db_edit.clear()
+        self._run_tab.db_library_combo.setCurrentIndex(0)
         self._run_tab.out_edit.clear()
+        self._run_tab._on_outfmt_changed(self._run_tab.outfmt_combo.currentText())
         self._run_tab.eval_edit.setText("1e-5")
         self._run_tab.prog_combo.setCurrentIndex(0)
         self._run_tab.threads_spin.setValue(_default_blast_threads())
