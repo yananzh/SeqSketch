@@ -4762,3 +4762,33 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-07-19 11:40:15.422720
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'QDialog' is not defined
+Traceback (most recent call last):
+  File "f:\ui\modules\one_step_multigenephy_tab.py", line 502, in _show_example
+    dlg = QDialog(self)
+          ^^^^^^^
+NameError: name 'QDialog' is not defined
+
+============================================================
+startup : 2026-07-19 11:43:25.075126
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-19 11:45:22.503472
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A

@@ -5,7 +5,6 @@ import os
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDialog,
     QFileDialog,
     QFormLayout,
     QGroupBox,
@@ -15,8 +14,6 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSpinBox,
-    QTextBrowser,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -50,8 +47,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.gene_columns: list[str] = []
         self._worker: WorkflowWorker | None = None
         self._loading = False
+        self._last_treefile = ""
         super().__init__("One Step MultiGenePhy", "file")
         self._build_ui()
+        self.show_status(self.tr("Ready — load an Excel workbook to start"))
 
     def _build_ui(self) -> None:
         # ── Input section ──
@@ -135,10 +134,14 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         validate_btn.clicked.connect(self._check_inputs)
         example_btn = QPushButton(self.tr("See an Example"))
         example_btn.clicked.connect(self._show_example)
+        use_example_btn = QPushButton(self.tr("Use an Example"))
+        use_example_btn.setToolTip(self.tr("Load a bundled example Excel workbook"))
+        use_example_btn.clicked.connect(self._load_example)
         validate_row = QHBoxLayout()
         validate_row.setContentsMargins(0, 0, 0, 0)
         validate_row.addWidget(validate_btn)
         validate_row.addWidget(example_btn)
+        validate_row.addWidget(use_example_btn)
         validate_row.addStretch()
         input_form.addRow(QWidget(), _wrap_layout(validate_row))
 
@@ -227,28 +230,30 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.keep_intermediates_check = QCheckBox(self.tr("Preserve intermediate files"))
         self.keep_intermediates_check.setChecked(True)
         boot_row.addWidget(self.keep_intermediates_check)
-        param_form.addRow(self.tr("IQ-TREE Bootstrap:"), _wrap_layout(boot_row))
+        param_form.addRow(self.tr("IQ-TREE:"), _wrap_layout(boot_row))
 
         self.add_content_widget(param_group)
         self.content_area.addStretch()
 
         # ── Start / Cancel buttons in status bar ──────────────────────────
-        self.start_btn = QPushButton(self.tr("Start Workflow"))
-        self.start_btn.clicked.connect(self.start_run)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self.start_btn)
+        self._run_btn = QPushButton(self.tr("Start Workflow"))
+        self._run_btn.clicked.connect(self.start_run)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._run_btn)
 
-        self.clear_btn = QPushButton(self.tr("Clear"))
-        self.clear_btn.clicked.connect(self._clear)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
+        self._clear_btn = QPushButton(self.tr("Clear"))
+        self._clear_btn.clicked.connect(self._clear)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._clear_btn)
 
-        self.cancel_btn = QPushButton(self.tr("Cancel"))
-        self.cancel_btn.setVisible(False)
-        self.cancel_btn.setStyleSheet(
-            "QPushButton{background:#d32f2f;color:white;border-radius:4px;font-weight:bold;}"
-            "QPushButton:hover{background:#b71c1c;}"
-        )
-        self.cancel_btn.clicked.connect(self._cancel_workflow)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self.cancel_btn)
+        self._stop_btn = QPushButton(self.tr("Cancel"))
+        self._stop_btn.setVisible(False)
+        self._stop_btn.setProperty("stopButton", True)
+        self._stop_btn.clicked.connect(self._cancel_workflow)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._stop_btn)
+
+        self._view_tree_btn = QPushButton(self.tr("View Tree"))
+        self._view_tree_btn.setVisible(False)
+        self._view_tree_btn.clicked.connect(self._open_tree_viewer)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._view_tree_btn)
 
         self.log_area.setMaximumHeight(400)
 
@@ -338,9 +343,8 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.log_message(self.tr("Invalid: {count}").format(count=summary.get("invalid_count", 0)))
 
     def _handle_step_update(self, step_name: str, status: str) -> None:
-        message = f"{step_name}: {status}"
-        self.show_status(message)
-        self.log_message(message)
+        self.show_status(f"{step_name}: {status}")
+        self.log_message(f"{step_name}: {status}")
 
     def _append_log(self, line: str) -> None:
         self.log_message(line)
@@ -370,6 +374,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 path = getattr(artifacts, attr, "")
                 if path:
                     self.log_message(f"  {label}: {path}")
+            tree_path = getattr(artifacts, "treefile_path", "")
+            if tree_path and os.path.isfile(tree_path):
+                self._last_treefile = tree_path
+                self._view_tree_btn.setVisible(True)
 
         warnings = list(getattr(result, "warnings", []))
         self.show_status(self.tr("Completed with warnings") if warnings else self.tr("Completed"))
@@ -382,9 +390,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     # Button state management
     # ------------------------------------------------------------------
     def _set_running_state(self, running: bool) -> None:
-        self.start_btn.setVisible(not running)
-        self.clear_btn.setVisible(not running)
-        self.cancel_btn.setVisible(running)
+        self._run_btn.setVisible(not running)
+        self._clear_btn.setVisible(not running)
+        self._stop_btn.setVisible(running)
 
     # ------------------------------------------------------------------
     # Pre-run validation
@@ -441,10 +449,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.log_area.append(self.tr("── Input Validation ──"))
 
         if not excel_path or not os.path.isfile(excel_path):
-            self.log_area.append(self.tr("✗ Excel file not found."))
+            self.log_area.append(self.tr("[FAIL] Excel file not found."))
             self.show_status(self.tr("Validation failed"))
             return
-        self.log_area.append(self.tr("✓ Excel file: {path}").format(path=excel_path))
+        self.log_area.append(self.tr("[OK] Excel file: {path}").format(path=excel_path))
 
         try:
             import pandas as pd
@@ -452,7 +460,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
             if strain_column not in df.columns:
                 self.log_area.append(
-                    self.tr('✗ Strain column "{col}" not found').format(col=strain_column)
+                    self.tr('[FAIL] Strain column "{col}" not found').format(col=strain_column)
                 )
             else:
                 strain_names = df[strain_column].fillna("").astype(str).str.strip()
@@ -463,17 +471,17 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 ]
                 if bad_names:
                     self.log_area.append(
-                        self.tr("⚠ {count} strain name(s) contain spaces/special chars:").format(
+                        self.tr("[WARN] {count} strain name(s) contain spaces/special chars:").format(
                             count=len(bad_names)
                         )
                     )
                     for name in bad_names[:10]:
                         self.log_area.append(f"    • {name}")
                 else:
-                    self.log_area.append(self.tr("✓ Strain names: all valid"))
+                    self.log_area.append(self.tr("[OK] Strain names: all valid"))
         except Exception as exc:
             self.log_area.append(
-                self.tr("⚠ Could not check strain names: {error}").format(error=exc)
+                self.tr("[WARN] Could not check strain names: {error}").format(error=exc)
             )
 
         tools = [
@@ -485,69 +493,64 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         for tool_name, tool_path in tools:
             if os.path.isfile(tool_path):
                 self.log_area.append(
-                    self.tr("✓ {tool}: {path}").format(tool=tool_name, path=tool_path)
+                    self.tr("[OK] {tool}: {path}").format(tool=tool_name, path=tool_path)
                 )
             else:
-                self.log_area.append(self.tr("✗ {tool}: NOT FOUND").format(tool=tool_name))
+                self.log_area.append(self.tr("[FAIL] {tool}: NOT FOUND").format(tool=tool_name))
                 all_ok = False
 
         self.show_status(self.tr("Validation passed") if all_ok else self.tr("Issues found"))
 
     def _show_example(self) -> None:
         """Show an example Excel format reference in a dialog."""
-        dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("Example Workbook Format"))
-        dlg.resize(580, 420)
-        lay = QVBoxLayout(dlg)
-        browser = QTextBrowser()
-        browser.setOpenExternalLinks(True)
-        browser.setHtml(self._example_html())
-        lay.addWidget(browser)
-        close_btn = QPushButton(self.tr("Close"))
-        close_btn.clicked.connect(dlg.accept)
-        lay.addWidget(close_btn)
-        dlg.exec()
-
-    def _example_html(self) -> str:
-        return self.tr("""
-<style>
-table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-th { background: #ecf0f1; }
-td, th { border: 1px solid #bbb; padding: 8px 12px; text-align: left; }
-code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
-</style>
+        help_text = self.tr("""
 <h2>Example Workbook Format</h2>
 
 <p>The Excel workbook must have a <b>header row</b> with one <b>strain column</b>
 and one or more <b>gene columns</b>.</p>
 
-<table>
+<table border='1' cellpadding='4' cellspacing='0'>
 <tr><th>Strain</th><th>ITS</th><th>TEF1</th><th>RPB2</th></tr>
-<tr><td>Strain_A</td><td>MK123456</td><td>MK123457</td><td>ATGCGTACGT…</td></tr>
-<tr><td>Strain_B</td><td>MK123458</td><td>MK123459</td><td>ATGCGTTCGT…</td></tr>
-<tr><td>Strain_C</td><td></td><td>MK123460</td><td>ATGCCTACGT…</td></tr>
+<tr><td>Strain_A</td><td>MK123456</td><td>MK123457</td><td>ATGCGTACGT...</td></tr>
+<tr><td>Strain_B</td><td>MK123458</td><td>MK123459</td><td>ATGCGTTCGT...</td></tr>
+<tr><td>Strain_C</td><td></td><td>MK123460</td><td>ATGCCTACGT...</td></tr>
 </table>
 
 <h3>Cell values can be:</h3>
 <ul>
-  <li><b>NCBI accession</b> — e.g. <code>MK123456</code> (auto-fetched)</li>
-  <li><b>Raw sequence</b> — e.g. <code>ATGCGTACGT…</code> (used directly)</li>
-  <li><b>Blank</b> — missing data (filled with gaps)</li>
+<li><b>NCBI accession</b> &mdash; e.g. <code>MK123456</code> (auto-fetched)</li>
+<li><b>Raw sequence</b> &mdash; e.g. <code>ATGCGTACGT...</code> (used directly)</li>
+<li><b>Blank</b> &mdash; missing data (filled with gaps)</li>
 </ul>
 
 <h3>Requirements</h3>
 <ul>
-  <li>First row = header</li>
-  <li>Strain column = unique strain identifiers</li>
-  <li>Gene columns = one per locus</li>
-  <li>Strain names: letters, digits, underscores only</li>
+<li>First row = header</li>
+<li>Strain column = unique strain identifiers</li>
+<li>Gene columns = one per locus</li>
+<li>Strain names: letters, digits, underscores only</li>
 </ul>
 """)
+        self.show_help_dialog(self.tr("Example Workbook Format"), help_text, 580, 460)
+
+    def _load_example(self) -> None:
+        """Load the bundled MultiGenePhy example Excel workbook."""
+        from utils.example_data import stage_example
+
+        path = stage_example("phylo", "MultiGenePhy_example.xlsx")
+        if not path:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("Failed to load example data. Please check the installation."),
+            )
+            return
+        self.excel_path_edit.setText(path)
+        self.load_sheet_columns()
+        self.show_status(self.tr("Example loaded: MultiGenePhy_example.xlsx"))
 
     def _clear(self) -> None:
-        """Clear the log area and all input fields."""
-        self.log_area.clear()
-        self.show_status(self.tr(""))
+        """Clear the log area and reset all parameters to defaults."""
         self.excel_path_edit.clear()
         self.sheet_name_combo.clear()
         self.sheet_name_combo.addItem("Sheet1")
@@ -556,6 +559,17 @@ and one or more <b>gene columns</b>.</p>
         self.email_edit.clear()
         self.gene_edit.clear()
         self.output_dir_edit.clear()
+        self.mafft_mode_combo.setCurrentText("--auto")
+        self.trimal_mode_combo.setCurrentText("automated1")
+        self.threads_spin.setValue(0)
+        self.bootstrap_mode_combo.setCurrentIndex(0)
+        self.bootstrap_spin.setValue(1000)
+        self.keep_intermediates_check.setChecked(True)
+        self.gene_columns = []
+        self._last_treefile = ""
+        self._view_tree_btn.setVisible(False)
+        self.log_area.clear()
+        self.show_status(self.tr(""))
 
     # ------------------------------------------------------------------
     # Cancel support
@@ -578,6 +592,21 @@ and one or more <b>gene columns</b>.</p>
                 self._worker.wait(5000)
             self._worker.deleteLater()
             self._worker = None
+
+    def _open_tree_viewer(self) -> None:
+        """Open the resulting tree file in the Tree Visualization tab."""
+        if not self._last_treefile or not os.path.isfile(self._last_treefile):
+            return
+        main_win = self.window()
+        if main_win and hasattr(main_win, "open_tree_visualization_tab"):
+            main_win.open_tree_visualization_tab()
+            from modules.tree_visualization_tab import SimpleTreeVisualizationTab
+            for i in range(main_win.tabs.count()):
+                widget = main_win.tabs.widget(i)
+                if isinstance(widget, SimpleTreeVisualizationTab):
+                    widget._file_edit.setText(self._last_treefile)
+                    main_win.tabs.setCurrentIndex(i)
+                    break
 
     # ------------------------------------------------------------------
     # Run workflow
@@ -669,72 +698,46 @@ and one or more <b>gene columns</b>.</p>
         worker.start()
 
     def show_help(self) -> None:
-        from PyQt6.QtWidgets import QDialog, QTextBrowser
-
-        dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("One Step MultiGenePhy Help"))
-        dlg.resize(680, 560)
-        lay = QVBoxLayout(dlg)
-        browser = QTextBrowser()
-        browser.setOpenExternalLinks(True)
-        browser.setHtml(self._help_html())
-        lay.addWidget(browser)
-        close_btn = QPushButton(self.tr("Close"))
-        close_btn.clicked.connect(dlg.accept)
-        lay.addWidget(close_btn)
-        dlg.exec()
-
-    def _help_html(self) -> str:
-        return self.tr("""
+        help_text = """
 <h2>One Step MultiGenePhy &mdash; Automated Phylogenomics Pipeline</h2>
 
 <p><b>What does this tool do?</b><br>
 Import a gene-by-gene Excel workbook and run the complete
-<b>fetch → normalize → align → trim → concatenate → tree</b> pipeline
+<b>fetch &rarr; normalize &rarr; align &rarr; trim &rarr; concatenate &rarr; tree</b> pipeline
 in one step. Supports mixed NCBI accessions and private sequences.</p>
 
 <h3>Quick Start</h3>
 <ol>
-  <li><b>Browse</b> to select an Excel workbook — sheet and strain column
-  auto-populate.</li>
-  <li>Enter your <b>NCBI email</b> if any cells contain accessions.</li>
-  <li>Click <b>Validate Inputs</b> to check format and tool paths.</li>
-  <li>Select an <b>output directory</b> and click <b>Start Workflow</b>.</li>
+<li>Click <b>Browse</b> to select an Excel workbook.</li>
+<li>Enter your <b>NCBI email</b> if any cells contain accessions.</li>
+<li>Click <b>Validate Inputs</b> to check format and tool paths.</li>
+<li>Select an <b>output directory</b> and click <b>Start Workflow</b>.</li>
 </ol>
 
 <h3>Workbook Format</h3>
 <ul>
-  <li><b>First row</b> must be the header row.</li>
-  <li>One column = <b>strain identifiers</b> (e.g. <i>Strain</i>).</li>
-  <li>Remaining columns = <b>gene loci</b> (e.g. <i>ITS, TEF1, RPB2</i>).</li>
-  <li>Each gene cell contains either an <b>NCBI accession</b>, a
-  <b>raw sequence</b>, or is <b>blank</b> (missing data).</li>
-</ul>
-
-<h3>Use Cases</h3>
-<ul>
-  <li>Build multi-locus phylogenies from mixed public/private data.</li>
-  <li>Rapidly test gene combinations for phylogenetic signal.</li>
-  <li>Reproducible batch processing of large gene-family datasets.</li>
+<li>First row = header row.</li>
+<li>One column = <b>strain identifiers</b> (e.g. <i>Species</i>).</li>
+<li>Remaining columns = <b>gene loci</b> (e.g. <i>ITS, TEF1, RPB2</i>).</li>
+<li>Each gene cell: NCBI accession, raw sequence, or blank (missing data).</li>
 </ul>
 
 <h3>Pipeline Steps</h3>
 <ol>
-  <li><b>Import</b> — parse Excel cells, classify accessions vs. sequences.</li>
-  <li><b>Fetch / Normalize</b> — download NCBI sequences, normalize into FASTA.</li>
-  <li><b>Align per Gene</b> — run MAFFT on each gene independently.</li>
-  <li><b>Trim per Gene</b> — run trimAl to remove poorly aligned columns.</li>
-  <li><b>Concatenate</b> — join into supermatrix + NEXUS partition.</li>
-  <li><b>Build Tree</b> — run IQ-TREE with partition-aware model.</li>
-  <li><b>Summarize</b> — HTML report, summary, manifest.</li>
+<li><b>Import</b> &mdash; parse Excel, classify accessions vs. sequences.</li>
+<li><b>Fetch</b> &mdash; download NCBI sequences, normalize into FASTA.</li>
+<li><b>Align</b> &mdash; MAFFT each gene independently.</li>
+<li><b>Trim</b> &mdash; trimAl to remove poorly aligned columns.</li>
+<li><b>Concatenate</b> &mdash; supermatrix + NEXUS partition.</li>
+<li><b>Build Tree</b> &mdash; IQ-TREE with partition-aware model.</li>
+<li><b>Summarize</b> &mdash; HTML report, manifest.</li>
 </ol>
 
 <h3>Tips</h3>
 <ul>
-  <li>Strain names with spaces or special characters may cause errors —
-  use <b>Validate Inputs</b> to check.</li>
-  <li>For large datasets, increase <b>Threads</b> to speed up MAFFT/IQ-TREE.</li>
-  <li>Click <b>Cancel</b> to abort a running workflow.</li>
-  <li>The <b>UFBoot + SH-aLRT</b> option provides robust branch support.</li>
+<li>Strain names with spaces or special characters may cause errors.</li>
+<li>For large datasets, increase <b>Threads</b> to speed up MAFFT/IQ-TREE.</li>
+<li>UFBoot + SH-aLRT provides robust branch support.</li>
 </ul>
-""")
+        """
+        self.show_help_dialog("Help - One Step MultiGenePhy", help_text, 820, 580)
