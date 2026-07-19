@@ -160,9 +160,7 @@ class BookmarkManager(QWidget):
         # ── Toolbar row ──────────────────────────────────────────
         toolbar = QHBoxLayout()
         self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText(
-            "Search bookmarks (name and URL, live filter)"
-        )
+        self.search_box.setPlaceholderText("Search bookmarks…")
         self.search_box.setClearButtonEnabled(True)
         self.search_box.textChanged.connect(self.filter_bookmarks)
         toolbar.addWidget(self.search_box, 1)
@@ -213,7 +211,7 @@ class BookmarkManager(QWidget):
         self.category_tree.itemChanged.connect(self.on_category_renamed)
         self.category_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.category_tree.customContextMenuRequested.connect(self.show_category_menu)
-        h_layout.addWidget(self.category_tree, 2)
+        h_layout.addWidget(self.category_tree, 3)
 
         self.bookmark_list = BookmarkList(self)
         self.bookmark_list.setAlternatingRowColors(True)
@@ -292,16 +290,35 @@ class BookmarkManager(QWidget):
 
     def _load_sample_data(self):
         self.bookmarks = {
-            "Learning": [
-                {"name": "Python Official", "url": "https://www.python.org"},
-                {"name": "PyQt6 Docs", "url": "https://doc.qt.io/qtforpython-6/"},
+            "Courses": [
+                {
+                    "name": "Bioinformatics Specialization (UCSD)",
+                    "url": "https://www.coursera.org/specializations/bioinformatics",
+                },
+                {"name": "EMBL-EBI Training", "url": "https://www.ebi.ac.uk/training/"},
+                {"name": "Rosalind", "url": "https://rosalind.info"},
+                {
+                    "name": "NCBI Tutorials",
+                    "url": "https://www.ncbi.nlm.nih.gov/guide/training-tutorials/",
+                },
             ],
-            "News": [
-                {"name": "BBC News", "url": "https://www.bbc.com"},
-                {"name": "CNN", "url": "https://www.cnn.com"},
+            "Books": [
+                {"name": "Biopython Tutorial", "url": "https://biopython.org/wiki/Documentation"},
+                {
+                    "name": "Bioinformatics Algorithms (Pevzner)",
+                    "url": "https://www.bioinformaticsalgorithms.org",
+                },
+                {"name": "Biostar Handbook", "url": "https://www.biostarhandbook.com"},
+                {"name": "NCBI Handbook", "url": "https://www.ncbi.nlm.nih.gov/books/NBK21101/"},
             ],
-            "Tools": [
-                {"name": "GitHub", "url": "https://github.com"},
+            "Online Resources": [
+                {"name": "Biostars", "url": "https://www.biostars.org"},
+                {
+                    "name": "Awesome Bioinformatics (GitHub)",
+                    "url": "https://github.com/danielecook/Awesome-Bioinformatics",
+                },
+                {"name": "IQ-TREE Documentation", "url": "http://www.iqtree.org/doc/"},
+                {"name": "iTOL", "url": "https://itol.embl.de"},
             ],
         }
         self.categories = list(self.bookmarks.keys())
@@ -550,11 +567,7 @@ class BookmarkManager(QWidget):
                 return
             category = self._cat_name(category_item)
             row = self.bookmark_list.row(item)
-            if (
-                row >= 0
-                and category in self.bookmarks
-                and row < len(self.bookmarks[category])
-            ):
+            if row >= 0 and category in self.bookmarks and row < len(self.bookmarks[category]):
                 self.bookmarks[category][row] = {"name": name, "url": url}
                 self._display_bookmarks(category)
                 self._save_bookmarks()
@@ -611,9 +624,10 @@ class BookmarkManager(QWidget):
         items = self.bookmark_list.selectedItems()
         menu = QMenu(self)
 
-        add_bm_act = QAction("Add Bookmark", self)
-        add_bm_act.triggered.connect(self.add_bookmark)
-        menu.addAction(add_bm_act)
+        if not items:
+            add_bm_act = QAction("Add Bookmark", self)
+            add_bm_act.triggered.connect(self.add_bookmark)
+            menu.addAction(add_bm_act)
 
         if items:
             menu.addSeparator()
@@ -632,9 +646,7 @@ class BookmarkManager(QWidget):
             move_menu = QMenu("Move to", self)
             for cat in self.categories:
                 a = QAction(cat, self)
-                a.triggered.connect(
-                    lambda checked=False, c=cat: self.move_selected_to_category(c)
-                )
+                a.triggered.connect(lambda checked=False, c=cat: self.move_selected_to_category(c))
                 move_menu.addAction(a)
             menu.addMenu(move_menu)
         menu.exec(self.bookmark_list.viewport().mapToGlobal(pos))
@@ -648,9 +660,7 @@ class BookmarkManager(QWidget):
             return
         src_cat = self._cat_name(src_item)
         if src_cat == target_cat:
-            QMessageBox.information(
-                self, "Notice", "Target category is the same as current."
-            )
+            QMessageBox.information(self, "Notice", "Target category is the same as current.")
             return
         rows = sorted([self.bookmark_list.row(it) for it in items], reverse=True)
         moved: List[Dict[str, str]] = []
@@ -680,9 +690,7 @@ class BookmarkManager(QWidget):
         target_item = self.category_tree.itemAt(pos)
         if not target_item:
             if self.category_tree.topLevelItemCount() == 0:
-                QMessageBox.warning(
-                    self, "Notice", "No categories available. Create one first."
-                )
+                QMessageBox.warning(self, "Notice", "No categories available. Create one first.")
                 return
             target_item = self.category_tree.topLevelItem(0)
         target_cat = self._cat_name(target_item)
@@ -694,9 +702,7 @@ class BookmarkManager(QWidget):
         moved = False
         if selected:
             if src_cat:
-                rows = sorted(
-                    [self.bookmark_list.row(it) for it in selected], reverse=True
-                )
+                rows = sorted([self.bookmark_list.row(it) for it in selected], reverse=True)
                 copied: List[Dict[str, str]] = []
                 for r in rows:
                     if 0 <= r < len(self.bookmarks.get(src_cat, [])):
@@ -755,8 +761,8 @@ class BookmarkManager(QWidget):
     # ============== Help ==============
     def _show_help(self):
         dlg = QDialog(self)
-        dlg.setWindowTitle("Favorites Manager - Help")
-        dlg.setFixedSize(600, 500)
+        dlg.setWindowTitle("Bookmarks - Help")
+        dlg.setFixedSize(600, 480)
         layout = QVBoxLayout(dlg)
 
         scroll = QScrollArea()
@@ -764,63 +770,46 @@ class BookmarkManager(QWidget):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         label = QLabel("""
-<h2>Favorites Manager</h2>
+<h2>Bookmarks</h2>
 
 <p><b>What does this tool do?</b><br>
 Organize your frequently-used URLs into categories with drag-and-drop,
 live search, and JSON/HTML import/export. All bookmarks are saved
-automatically to <code>bookmarks.json</code> in your user data folder.</p>
+automatically to your user data folder.</p>
 
 <h3>Quick Start</h3>
 <ol>
-<li><b>Create a category</b> — click <b>Add Category</b> in the toolbar,
-    or right-click the left panel and choose <b>New Category</b>.</li>
-<li><b>Add bookmarks</b> — click <b>Add Bookmark</b>, press <b>Ctrl+D</b>,
-    or right-click the right panel and choose <b>Add Bookmark</b>.</li>
-<li><b>Open a bookmark</b> — <b>double-click</b> it in the list.
-    It opens in your default web browser.</li>
-<li><b>Search</b> — type in the search box to filter by name or URL.
-    Results update live. Clear the box to see all bookmarks again.</li>
-<li><b>Organize</b> — drag bookmarks from the list and drop them
-    onto a category in the tree, or use right-click <b>Move to</b>.</li>
+<li>Click <b>Add Category</b> to create a folder, or right-click the left panel.</li>
+<li>Click <b>Add Bookmark</b> or press <b>Ctrl+D</b> to add a new bookmark.</li>
+<li><b>Double-click</b> a bookmark to open it in your browser.</li>
+<li>Type in the search box to filter by name or URL.</li>
 </ol>
 
-<h3>Right-Click Menus</h3>
-<table border='0' cellpadding='4' cellspacing='2'>
-<tr><td><b>Left panel (Categories)</b></td><td>New Category, Add Bookmark,
-    Open All in Category, Rename, Delete</td></tr>
-<tr><td><b>Right panel (Bookmarks)</b></td><td>Add Bookmark, Open, Edit,
-    Delete, Move to (any category)</td></tr>
-</table>
-
 <h3>Keyboard Shortcuts</h3>
-<table border='0' cellpadding='4' cellspacing='2'>
-<tr><td><b>Ctrl+D</b></td><td>Add a new bookmark to the current category</td></tr>
-<tr><td><b>F2</b></td><td>Rename the selected bookmark</td></tr>
-<tr><td><b>Delete</b></td><td>Delete selected bookmark(s)</td></tr>
-</table>
+<ul>
+<li><b>Ctrl+D</b> &mdash; Add bookmark</li>
+<li><b>F2</b> &mdash; Rename selected bookmark</li>
+<li><b>Delete</b> &mdash; Delete selected bookmark(s)</li>
+</ul>
 
 <h3>Import / Export</h3>
 <ul>
-<li><b>Import</b> — merge bookmarks from a JSON file. Duplicate
-    categories are renamed with an <code>_import</code> suffix.</li>
-<li><b>Export (dropdown)</b> — choose <b>JSON</b> (for backup/sharing)
-    or <b>HTML</b> (Netscape bookmark format, compatible with Chrome,
-    Firefox, Edge).</li>
+<li><b>Import</b> &mdash; merge bookmarks from a JSON file.</li>
+<li><b>Export JSON</b> &mdash; backup or share your bookmarks.</li>
+<li><b>Export HTML</b> &mdash; Netscape format, compatible with Chrome/Firefox/Edge.</li>
 </ul>
 
 <h3>Tips</h3>
 <ul>
-<li>Categories can be renamed by double-clicking or pressing F2.</li>
 <li>Drag bookmarks between categories to reorganize quickly.</li>
-<li>The status bar shows how many bookmarks are in the current category.</li>
-<li>URLs are validated — only <code>http://</code> and <code>https://</code>
-    links are accepted. Duplicate URLs trigger a confirmation prompt.</li>
+<li>Right-click panels for context menus with more options.</li>
+<li>Duplicate URLs trigger a confirmation prompt.</li>
 </ul>
 """)
         label.setTextFormat(Qt.TextFormat.RichText)
         label.setWordWrap(True)
-        label.setMargin(16)
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setMargin(20)
         scroll.setWidget(label)
         layout.addWidget(scroll)
 
@@ -865,9 +854,7 @@ automatically to <code>bookmarks.json</code> in your user data folder.</p>
                 ordered = {cat: self.bookmarks.get(cat, []) for cat in self.categories}
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(ordered, f, ensure_ascii=False, indent=2)
-                QMessageBox.information(
-                    self, "Export Successful", f"Exported to: {file_path}"
-                )
+                QMessageBox.information(self, "Export Successful", f"Exported to: {file_path}")
             except Exception as e:
                 QMessageBox.warning(self, "Export Failed", f"Failed to export: {e}")
 
@@ -880,9 +867,7 @@ automatically to <code>bookmarks.json</code> in your user data folder.</p>
         try:
             lines: List[str] = []
             lines.append("<!DOCTYPE NETSCAPE-Bookmark-file-1>")
-            lines.append(
-                '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">'
-            )
+            lines.append('<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">')
             lines.append("<TITLE>Bookmarks</TITLE>")
             lines.append("<H1>Bookmarks</H1>")
             lines.append("<DL><p>")

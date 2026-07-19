@@ -351,12 +351,12 @@ class MainWindow(QMainWindow):
 
         self._find_or_open(AlignmentTrimmingTab, "Alignment Trimming (trimAl)")
 
-    # ── Favorites ────────────────────────────────────────────────────────
+    # ── Bookmarks ────────────────────────────────────────────────────────
 
     def open_favorites_manager_tab(self):
         from modules.favorites_manager import BookmarkManager
 
-        self._find_or_open(BookmarkManager, "Favorites")
+        self._find_or_open(BookmarkManager, "Bookmarks")
 
     # ── Misc ─────────────────────────────────────────────────────────────
 
@@ -383,37 +383,35 @@ class MainWindow(QMainWindow):
 
     def show_about_dialog(self):
         about_text = self.tr("""
-<div style="text-align:center; margin-bottom:10px;">
-<h1 style="color:#2c7fb8; font-size:20px; margin:0; text-align:center;">SeqSketch</h1>
-<p style="color:#666; font-size:12px; margin:2px 0; text-align:center;">Sequence Analysis &amp; Visualization Toolkit</p>
+<div style="text-align:center;">
+<h2 style="color:#2c7fb8; font-size:26px; margin-bottom:6px;">SeqSketch</h2>
+<p style="color:#888; font-size:14px; margin:0 0 16px 0;">Sequence Analysis &amp; Visualization Toolkit</p>
+
+<p style="font-size:14px; color:#555; margin:0; line-height:1.8;">
+<b>Version 1.0.0</b><br>
+yananzh &middot; MIT License
+</p>
+
+<p style="font-size:13px; color:#999; margin:12px 0 0 0;">
+Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
+</p>
+
+<p style="margin:16px 0 0 0; font-size:14px;">
+<a href="https://github.com/yananzh/SeqSketch" style="color:#2c7fb8; text-decoration:none;">github.com/yananzh/SeqSketch</a>
+</p>
 </div>
-
-<hr style="border:none; border-top:1px solid #ddd;">
-
-<p style="text-align:center; font-size:12px; margin:8px 0;">
-<b>v1.0.0</b> &middot; yananzh &middot; MIT License<br>
-Python 3 &middot; PyQt6 &middot; Biopython &middot; Matplotlib
-</p>
-
-<hr style="border:none; border-top:1px solid #ddd;">
-
-<p style="text-align:center; font-size:12px; color:#444; margin:8px 0;"><b>40+ modules</b> across 8 functional menus</p>
-
-<table style="margin:0 auto; font-size:11px; border-spacing:3px;">
-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>FASTA Tools</b></td><td>QC, Filter, Extract, Rename, Deduplicate, Concatenate, NCBI Download</td></tr>
-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>DNA Analysis</b></td><td>RNA Conversion, Complement, Translate, ORF Finder, Codon Usage, Sanger, Restriction Enzyme</td></tr>
-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Protein Analysis</b></td><td>Composition, Physicochemical, Hydrophobicity, Protease Cleavage, Annotation, Structure, Function</td></tr>
-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Alignment</b></td><td>Pairwise, DotPlot, MUSCLE, MAFFT, MSA Viewer, Sequence Logo</td></tr>
-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>BLAST</b></td><td>NCBI Online BLAST, Local BLAST</td></tr>
-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Primer Design</b></td><td>qPCR Primer Design (Primer3), Primer Analysis</td></tr>
-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Phylogenetic Tree</b></td><td>trimAl, Concatenation, Distance Tree Construction, ML IQ-TREE, One Step MultiGenePhy, Phytreeviz</td></tr>
-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Favorites</b></td><td>Bookmark &amp; manage frequently used sequences</td></tr>
-</table>
-
-<hr style="border:none; border-top:1px solid #ddd;">
-
-<p style="text-align:center; font-size:11px; color:#999; margin:6px 0;">
-🔗 <a href="https://github.com/yananzh/SeqSketch" style="color:#2c7fb8;">github.com/yananzh/SeqSketch</a>
-</p>
         """)
-        QMessageBox.about(self, self.tr("About SeqSketch"), about_text)
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("About SeqSketch"))
+        dlg.setFixedSize(340, 240)
+        dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(28, 24, 28, 24)
+        label = QLabel(about_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        dlg.exec()

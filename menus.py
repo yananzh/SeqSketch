@@ -285,9 +285,9 @@ def create_menus(window):
     tree_vis_action = QAction(window.tr("Simple Tree Visualization (Phytreeviz)"), window)
     tree_vis_action.triggered.connect(window.open_tree_visualization_tab)
     evolution_menu.addAction(tree_vis_action)
-    # 8. Favorites
-    fav_menu = menubar.addMenu(window.tr("Favorites"))
-    manage_fav_action = QAction(window.tr("Manage Favorites"), window)
+    # 8. Bookmarks
+    fav_menu = menubar.addMenu(window.tr("Bookmarks"))
+    manage_fav_action = QAction(window.tr("Manage Bookmarks"), window)
     manage_fav_action.triggered.connect(window.open_favorites_manager_tab)
     fav_menu.addAction(manage_fav_action)
     # Settings menu
