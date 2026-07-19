@@ -4720,3 +4720,45 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-07-19 11:05:57.789340
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-19 11:21:36.018550
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: cannot import name 'TreeVisualizationTab' from 'modules.tree_visualization_tab' (f:\ui\modules\tree_visualization_tab.py)
+Traceback (most recent call last):
+  File "f:\ui\modules\iqtree_tab.py", line 574, in _open_tree_viewer
+    from modules.tree_visualization_tab import TreeVisualizationTab
+ImportError: cannot import name 'TreeVisualizationTab' from 'modules.tree_visualization_tab' (f:\ui\modules\tree_visualization_tab.py). Did you mean: 'tree_visualization_tab'?
+UNHANDLED: cannot import name 'TreeVisualizationTab' from 'modules.tree_visualization_tab' (f:\ui\modules\tree_visualization_tab.py)
+Traceback (most recent call last):
+  File "f:\ui\modules\iqtree_tab.py", line 574, in _open_tree_viewer
+    from modules.tree_visualization_tab import TreeVisualizationTab
+ImportError: cannot import name 'TreeVisualizationTab' from 'modules.tree_visualization_tab' (f:\ui\modules\tree_visualization_tab.py). Did you mean: 'tree_visualization_tab'?
+
+============================================================
+startup : 2026-07-19 11:26:15.585816
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-19 11:26:22.126675
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A

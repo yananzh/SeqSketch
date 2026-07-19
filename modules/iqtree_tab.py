@@ -11,10 +11,8 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDialog,
     QFileDialog,
     QFormLayout,
-    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -22,7 +20,6 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSpinBox,
-    QTextBrowser,
     QVBoxLayout,
 )
 
@@ -74,15 +71,6 @@ class _DropLineEdit(QLineEdit):
         super().dropEvent(a0)
 
 
-# ---------------------------------------------------------------------------
-# Horizontal separator helper
-# ---------------------------------------------------------------------------
-def _hline() -> QFrame:
-    line = QFrame()
-    line.setFrameShape(QFrame.Shape.HLine)
-    line.setFrameShadow(QFrame.Shadow.Sunken)
-    return line
-
 
 # ---------------------------------------------------------------------------
 # Background worker thread
@@ -110,7 +98,7 @@ class _IqTreeThread(QThread):
                 pass
 
     def run(self):
-        self.progress.emit("⏳ IQ-TREE running…")
+        self.progress.emit("IQ-TREE running…")
         lines: list[str] = []
         try:
             self._proc = subprocess.Popen(
@@ -141,91 +129,6 @@ class _IqTreeThread(QThread):
             self.finished.emit(False, "", f"Error: {exc}")
 
 
-# ---------------------------------------------------------------------------
-# Help dialog
-# ---------------------------------------------------------------------------
-_HELP_HTML = """
-<h2>ML Tree Construction (IQ-TREE) &mdash; Build Phylogenetic Trees</h2>
-
-<p><b>What does this tool do?</b><br>
-Infers maximum-likelihood phylogenetic trees using the bundled
-<b>IQ-TREE 3</b> binary. Supports partition-aware models,
-ultrafast bootstrapping, and automatic model selection.</p>
-
-<h3>Quick Start</h3>
-<ol>
-  <li>Select an <b>alignment file</b> (FASTA, PHYLIP, NEXUS, or CLUSTAL).</li>
-  <li>Choose an optional <b>partition file</b> for multi-gene analysis.</li>
-  <li>Keep defaults (<b>AUTO / TEST / UFBoot 1000</b>) or adjust parameters.</li>
-  <li>Click <b>Run</b>.</li>
-</ol>
-
-<h3>Parameters</h3>
-<ul>
-  <li><b>Seq type</b> &mdash; AUTO (recommended), DNA, AA, CODON, BIN, or MORPH.</li>
-  <li><b>Model</b> &mdash; Keep <b>TEST</b> for automatic model selection
-  (ModelTest-NG). Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
-  <li><b>Threads</b> &mdash; AUTO lets IQ-TREE choose; set a fixed number
-  for reproducibility.</li>
-  <li><b>Prefix</b> &mdash; Output files: <code>&lt;prefix&gt;.treefile</code>,
-  <code>&lt;prefix&gt;.iqtree</code>, etc. Blank = use input filename.</li>
-</ul>
-
-<h3>Bootstrap &amp; Branch Support</h3>
-<ul>
-  <li><b>UFBoot</b> (checked) &mdash; Ultrafast bootstrap (<code>-B</code>).
-  Fast and reliable. Recommended: <b>1000</b> replicates.</li>
-  <li><b>Standard bootstrap</b> (uncheck UFBoot) &mdash; Classic method
-  (<code>-b</code>), slower but traditional.</li>
-  <li><b>SH-aLRT</b> &mdash; Additional branch support test. Can be combined
-  with UFBoot for comprehensive support values.</li>
-  <li>Set bootstrap to <b>0</b> to skip bootstrapping entirely.</li>
-</ul>
-
-<h3>Output Files</h3>
-<ul>
-  <li><code>.treefile</code> &mdash; Best-scoring ML tree (Newick format).</li>
-  <li><code>.iqtree</code> &mdash; Full analysis report.</li>
-  <li><code>.log</code> &mdash; Screen log.</li>
-  <li><code>.contree</code> &mdash; Consensus tree (if bootstrap enabled).</li>
-</ul>
-
-<h3>Use Cases</h3>
-<ul>
-  <li>Infer single-gene or concatenated phylogenies.</li>
-  <li>Use with a partition file from <b>Sequence Concatenation</b> for
-  partition-aware multi-gene analysis.</li>
-  <li>Quick tree for checking alignment quality or taxonomic placement.</li>
-</ul>
-
-<h3>Tips</h3>
-<ul>
-  <li>For most datasets: <code>AUTO / TEST / UFBoot 1000</code> is a good start.</li>
-  <li>Pre-trim your alignments with <b>Alignment Trimming (trimAl)</b>
-  for cleaner trees.</li>
-  <li>Visualize the resulting <code>.treefile</code> with
-  <b>Tree Visualization</b> or <b>iTOL</b> online.</li>
-  <li>IQ-TREE 3 manual:
-  <a href="http://www.iqtree.org/doc/iqtree2-tutorial">
-  http://www.iqtree.org/doc/iqtree2-tutorial</a></li>
-</ul>
-"""
-
-
-class _HelpDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("IQ-TREE Help")
-        self.resize(620, 560)
-        lay = QVBoxLayout(self)
-        browser = QTextBrowser()
-        browser.setOpenExternalLinks(True)
-        browser.setHtml(_HELP_HTML)
-        lay.addWidget(browser)
-        btn = QPushButton("Close")
-        btn.clicked.connect(self.accept)
-        lay.addWidget(btn)
-
 
 # ---------------------------------------------------------------------------
 # Main tab widget
@@ -236,6 +139,7 @@ class IqTreeTab(BaseTabWidget):
     def __init__(self, status_callback=None, parent=None):
         self._status_cb = status_callback
         self._thread: _IqTreeThread | None = None
+        self._last_treefile = ""
         super().__init__("ML Tree Construction (IQ-TREE)", "file")
         self._build_ui()
 
@@ -267,12 +171,8 @@ class IqTreeTab(BaseTabWidget):
         in_browse = QPushButton(self.tr("Browse"))
         in_browse.setFixedWidth(90)
         in_browse.clicked.connect(self._browse_input)
-        in_example = QPushButton(self.tr("Example"))
-        in_example.setFixedWidth(90)
-        in_example.clicked.connect(self._load_example)
         in_row.addWidget(self._input_edit, 1)
         in_row.addWidget(in_browse)
-        in_row.addWidget(in_example)
         input_form.addRow(self.tr("Alignment:"), in_row)
 
         part_row = QHBoxLayout()
@@ -385,10 +285,20 @@ class IqTreeTab(BaseTabWidget):
 
         self.add_content_widget(param_group)
 
-        # ── Run / Clear / Stop buttons in status bar ────────────────────
+        # ── Buttons in status bar: [Run] [Example] [View Tree] [Clear] [Stop] [Help] ──
         self.run_btn = QPushButton(self.tr("Run"))
         self.run_btn.clicked.connect(self._run)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
+
+        self._example_btn = QPushButton(self.tr("Example"))
+        self._example_btn.setToolTip(self.tr("Load bundled example alignment (cytb_protein_aligned.fasta)"))
+        self._example_btn.clicked.connect(self._load_example)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._example_btn)
+
+        self._view_tree_btn = QPushButton(self.tr("View Tree"))
+        self._view_tree_btn.setVisible(False)
+        self._view_tree_btn.clicked.connect(self._open_tree_viewer)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._view_tree_btn)
 
         self.clear_btn = QPushButton(self.tr("Clear"))
         self.clear_btn.clicked.connect(self._clear)
@@ -396,10 +306,7 @@ class IqTreeTab(BaseTabWidget):
 
         self.stop_btn = QPushButton(self.tr("Stop"))
         self.stop_btn.setVisible(False)
-        self.stop_btn.setStyleSheet(
-            "QPushButton{background:#d32f2f;color:white;border-radius:4px;font-weight:bold;}"
-            "QPushButton:hover{background:#b71c1c;}"
-        )
+        self.stop_btn.setProperty("stopButton", True)
         self.stop_btn.clicked.connect(self._stop)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.stop_btn)
 
@@ -423,17 +330,17 @@ class IqTreeTab(BaseTabWidget):
             self._exe_edit.setText(path)
 
     def _load_example(self):
-        """Load the bundled aligned cytb protein example for tree building."""
+        """Load the bundled cytb protein alignment example for tree building."""
         path = stage_example("phylo", "cytb_protein_aligned.fasta")
         if not path:
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. Please check the installation."),
             )
             return
         self._input_edit.setText(path)
-        self.show_status(self.tr("已载入示例数据: cytb_protein_aligned.fasta"))
+        self.show_status(self.tr("Example loaded: cytb_protein_aligned.fasta"))
 
     def _browse_input(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -465,10 +372,23 @@ class IqTreeTab(BaseTabWidget):
             self._thread.stop()
         self.stop_btn.setVisible(False)
         self.run_btn.setEnabled(True)
-        self.show_status(self.tr("⛔ Stopped."))
+        self.show_status(self.tr("Stopped."))
 
     def _clear(self):
-        """Clear the log area and reset status."""
+        """Clear the log area and reset all parameters to defaults."""
+        self._input_edit.clear()
+        self._partition_edit.clear()
+        self._outdir_edit.clear()
+        self._prefix_edit.clear()
+        self._model_edit.setText("TEST")
+        self._seqtype_combo.setCurrentIndex(0)
+        self._threads_spin.setValue(0)
+        self._bootstrap_spin.setValue(1000)
+        self._ufboot_check.setChecked(True)
+        self._alrt_check.setChecked(False)
+        self._alrt_spin.setValue(1000)
+        self._view_tree_btn.setVisible(False)
+        self._last_treefile = ""
         self.log_area.clear()
         self.show_status(self.tr(""))
 
@@ -510,8 +430,53 @@ class IqTreeTab(BaseTabWidget):
         return cmd
 
     def show_help(self):
-        dlg = _HelpDialog(self)
-        dlg.exec()
+        help_text = """
+<h2>ML Tree Construction (IQ-TREE) &mdash; Build Phylogenetic Trees</h2>
+
+<p><b>What does this tool do?</b><br>
+Infers maximum-likelihood phylogenetic trees using the bundled
+<b>IQ-TREE 3</b> binary. Supports partition-aware models,
+ultrafast bootstrapping, and automatic model selection.</p>
+
+<h3>Quick Start</h3>
+<ol>
+<li>Select an <b>alignment file</b> or click <b>Example</b>.</li>
+<li>Choose an optional <b>partition file</b> for multi-gene analysis.</li>
+<li>Keep defaults (<b>AUTO / TEST / UFBoot 1000</b>) or adjust parameters.</li>
+<li>Click <b>Run</b>.</li>
+</ol>
+
+<h3>Parameters</h3>
+<ul>
+<li><b>Seq type</b> &mdash; AUTO (recommended), DNA, AA, CODON, BIN, or MORPH.</li>
+<li><b>Model</b> &mdash; Keep <b>TEST</b> for automatic model selection.
+Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
+<li><b>Threads</b> &mdash; AUTO lets IQ-TREE choose; set a fixed number for reproducibility.</li>
+<li><b>Prefix</b> &mdash; Output files: prefix.treefile, etc. Blank = use input name.</li>
+</ul>
+
+<h3>Bootstrap &amp; Branch Support</h3>
+<ul>
+<li><b>UFBoot</b> &mdash; Ultrafast bootstrap, fast and reliable. Recommended: <b>1000</b>.</li>
+<li><b>Standard bootstrap</b> (uncheck UFBoot) &mdash; Classic method, slower.</li>
+<li><b>SH-aLRT</b> &mdash; Additional branch support test.</li>
+</ul>
+
+<h3>Output Files</h3>
+<ul>
+<li><code>.treefile</code> &mdash; Best-scoring ML tree (Newick format).</li>
+<li><code>.iqtree</code> &mdash; Full analysis report.</li>
+<li><code>.contree</code> &mdash; Consensus tree (if bootstrap enabled).</li>
+</ul>
+
+<h3>Tips</h3>
+<ul>
+<li>For most datasets: AUTO / TEST / UFBoot 1000 is a good start.</li>
+<li>Pre-trim alignments with <b>trimAl</b> for cleaner trees.</li>
+<li>Visualize the resulting tree with <b>Tree Visualization</b>.</li>
+</ul>
+        """
+        self.show_help_dialog("Help - ML Tree Construction", help_text, 820, 580)
 
     # ------------------------------------------------------------------
     # Run IQ-TREE
@@ -519,16 +484,25 @@ class IqTreeTab(BaseTabWidget):
     def _run(self):
         exe = self._exe_edit.text().strip()
         if not exe or not os.path.isfile(exe):
-            self.show_status(self.tr("⚠ IQ-TREE executable not found."))
+            self.log_message(self.tr("IQ-TREE executable not found."), "ERROR")
+            self.show_status(self.tr("IQ-TREE executable not found."))
             return
 
         input_path = self._input_edit.text().strip()
         if not input_path:
-            self.show_status(self.tr("⚠ Please provide an input alignment file."))
+            self.show_status(self.tr("Please provide an input alignment file."))
             return
         if not os.path.isfile(input_path):
-            self.show_status(self.tr("⚠ Input file not found."))
+            self.show_status(self.tr("Input file not found."))
             return
+        # Validate alignment format
+        ext = os.path.splitext(input_path)[1].lower()
+        valid_exts = {".fasta", ".fa", ".fas", ".fna", ".ffn", ".faa", ".phy", ".phylip", ".nex", ".nxs", ".aln", ".clustal", ".txt"}
+        if ext not in valid_exts:
+            self.log_message(
+                self.tr(f"Unknown alignment format '{ext}'. IQ-TREE may not recognize it."),
+                "WARNING",
+            )
 
         cmd = self._build_cmd()
 
@@ -557,7 +531,7 @@ class IqTreeTab(BaseTabWidget):
 
         self.run_btn.setEnabled(False)
         self.stop_btn.setVisible(True)
-        self.show_status(self.tr("⏳ IQ-TREE running…"))
+        self.show_status(self.tr("IQ-TREE running…"))
 
         self._thread = _IqTreeThread(cmd)
         self._thread.progress.connect(self.show_status)
@@ -574,15 +548,33 @@ class IqTreeTab(BaseTabWidget):
         self.stop_btn.setVisible(False)
 
         if success:
-            msg = self.tr("✔ IQ-TREE finished successfully.")
-            if treefile:
+            msg = self.tr("IQ-TREE finished successfully.")
+            if treefile and os.path.isfile(treefile):
+                self._last_treefile = treefile
+                self._view_tree_btn.setVisible(True)
                 msg += f"  {treefile}"
             self.show_status(msg)
         elif "Stopped by user" in output:
-            self.show_status(self.tr("⛔ Run stopped by user."))
+            self.show_status(self.tr("Run stopped by user."))
         else:
-            self.show_status(self.tr("✖ IQ-TREE returned an error. See log below."))
+            self.show_status(self.tr("IQ-TREE returned an error. See log below."))
         if self._thread is not None:
             self._thread.wait()
             self._thread.deleteLater()
             self._thread = None
+
+    def _open_tree_viewer(self):
+        """Open the resulting tree file in the Tree Visualization tab."""
+        if not self._last_treefile or not os.path.isfile(self._last_treefile):
+            return
+        main_win = self.window()
+        if main_win and hasattr(main_win, "open_tree_visualization_tab"):
+            main_win.open_tree_visualization_tab()
+            # Set the file in the visualization tab
+            from modules.tree_visualization_tab import SimpleTreeVisualizationTab
+            for i in range(main_win.tabs.count()):
+                widget = main_win.tabs.widget(i)
+                if isinstance(widget, SimpleTreeVisualizationTab):
+                    widget._file_edit.setText(self._last_treefile)
+                    main_win.tabs.setCurrentIndex(i)
+                    break

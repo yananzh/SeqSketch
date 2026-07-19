@@ -99,6 +99,15 @@ QPushButton:disabled {
     border-color: #cbd5e1;
     color: #f8fafc;
 }
+QPushButton[stopButton="true"] {
+    background: #d32f2f;
+    color: white;
+    border-radius: 4px;
+    font-weight: bold;
+}
+QPushButton[stopButton="true"]:hover {
+    background: #b71c1c;
+}
 
 /* 5. 输入控件 */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QPlainTextEdit {
