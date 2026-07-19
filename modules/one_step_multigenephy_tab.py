@@ -156,32 +156,29 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
         # MAFFT alignment mode
         self.mafft_mode_combo = QComboBox()
-        self.mafft_mode_combo.addItems([
-            "--auto",
-            "--localpair",
-            "--globalpair",
-            "--genafpair",
-        ])
-        self.mafft_mode_combo.setCurrentText("--auto")
+        self.mafft_mode_combo.addItem(self.tr("Auto"), "--auto")
+        self.mafft_mode_combo.addItem(self.tr("Local Pair"), "--localpair")
+        self.mafft_mode_combo.addItem(self.tr("Global Pair"), "--globalpair")
+        self.mafft_mode_combo.addItem(self.tr("Conserved Region"), "--genafpair")
+        self.mafft_mode_combo.setCurrentIndex(0)
         self.mafft_mode_combo.setToolTip(
             self.tr(
-                "--auto: automatic selection; --localpair: local alignment; "
-                "--globalpair: global alignment; --genafpair: conserved region alignment"
+                "Auto: automatic selection | Local Pair: local alignment | "
+                "Global Pair: global alignment | Conserved: conserved region alignment"
             )
         )
 
         self.trimal_mode_combo = QComboBox()
-        self.trimal_mode_combo.addItems([
-            "automated1",
-            "nogaps",
-            "gappyout",
-            "strict",
-            "strictplus",
-        ])
-        self.trimal_mode_combo.setCurrentText("automated1")
+        self.trimal_mode_combo.addItem(self.tr("automated1"), "automated1")
+        self.trimal_mode_combo.addItem(self.tr("gappyout (adaptive)"), "gappyout")
+        self.trimal_mode_combo.addItem(self.tr("strict (conservative)"), "strict")
+        self.trimal_mode_combo.addItem(self.tr("strictplus (most aggressive)"), "strictplus")
+        self.trimal_mode_combo.addItem(self.tr("nogaps (remove gaps only)"), "nogaps")
+        self.trimal_mode_combo.setCurrentIndex(0)
         self.trimal_mode_combo.setToolTip(
             self.tr(
-                "automated1: heuristic | nogaps: remove gap columns | gappyout: adaptive | strict/plus: conservative"
+                "automated1: heuristic | gappyout: adaptive gap removal | "
+                "strict/plus: conservative gap+similarity | nogaps: remove all-gap columns"
             )
         )
 
@@ -193,35 +190,40 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
         mt_row = QHBoxLayout()
         mt_row.setContentsMargins(0, 0, 0, 0)
-        mt_row.addWidget(QLabel(self.tr("MAFFT:")))
+        lbl_mafft = QLabel(self.tr("MAFFT:"))
+        lbl_mafft.setFixedWidth(50)
+        mt_row.addWidget(lbl_mafft)
         mt_row.addWidget(self.mafft_mode_combo, 1)
-        mt_row.addSpacing(12)
-        mt_row.addWidget(QLabel(self.tr("trimAl:")))
+        mt_row.addSpacing(8)
+        lbl_trimal = QLabel(self.tr("trimAl:"))
+        lbl_trimal.setFixedWidth(50)
+        mt_row.addWidget(lbl_trimal)
         mt_row.addWidget(self.trimal_mode_combo, 1)
-        mt_row.addSpacing(12)
-        mt_row.addWidget(QLabel(self.tr("Threads:")))
-        mt_row.addWidget(self.threads_spin)
-        param_form.addRow(self.tr("MAFFT / trimAl / Threads:"), _wrap_layout(mt_row))
+        mt_row.addSpacing(8)
+        lbl_threads = QLabel(self.tr("Threads:"))
+        lbl_threads.setFixedWidth(55)
+        mt_row.addWidget(lbl_threads)
+        mt_row.addWidget(self.threads_spin, 1)
+        param_form.addRow(_wrap_layout(mt_row))
 
         # IQ-TREE bootstrap
         self.bootstrap_mode_combo = QComboBox()
-        self.bootstrap_mode_combo.addItems([
-            self.tr("UFBoot (ultrafast bootstrap)"),
-            self.tr("UFBoot + SH-aLRT"),
-            self.tr("Standard nonparametric bootstrap"),
-        ])
+        self.bootstrap_mode_combo.addItem(self.tr("UFBoot (ultrafast)"), "ufboot")
+        self.bootstrap_mode_combo.addItem(self.tr("UFBoot + SH-aLRT"), "ufboot_shalrt")
+        self.bootstrap_mode_combo.addItem(self.tr("Standard bootstrap"), "standard")
         self.bootstrap_mode_combo.setCurrentIndex(0)
         self.bootstrap_mode_combo.setToolTip(
             self.tr(
-                "UFBoot: ultrafast (-B); UFBoot+SH-aLRT: ultrafast + branch test (-B -alrt); "
+                "UFBoot: ultrafast (-B) | +SH-aLRT: ultrafast + branch test (-B -alrt) | "
                 "Standard: nonparametric (-b)"
             )
         )
         self.bootstrap_spin = QSpinBox()
-        self.bootstrap_spin.setRange(0, 10000)
+        self.bootstrap_spin.setRange(1000, 10000)
         self.bootstrap_spin.setValue(1000)
-        self.bootstrap_spin.setSpecialValueText(self.tr("0 (disabled)"))
-        self.bootstrap_spin.setToolTip(self.tr("Number of bootstrap replicates (0 = skip)"))
+        self.bootstrap_spin.setToolTip(self.tr("Bootstrap replicates. UFBoot min 1000, Standard min 100."))
+        # Auto-adjust bootstrap minimum based on mode
+        self.bootstrap_mode_combo.currentIndexChanged.connect(self._on_bootstrap_mode_changed)
         boot_row = QHBoxLayout()
         boot_row.setContentsMargins(0, 0, 0, 0)
         boot_row.addWidget(self.bootstrap_mode_combo, 1)
@@ -276,6 +278,14 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         if excel_path:
             self.load_sheet_columns()
 
+    def _on_bootstrap_mode_changed(self) -> None:
+        """Adjust bootstrap minimum based on selected mode."""
+        mode = self.bootstrap_mode_combo.currentData()
+        new_min = 100 if mode == "standard" else 1000
+        self.bootstrap_spin.setMinimum(new_min)
+        if self.bootstrap_spin.value() < new_min:
+            self.bootstrap_spin.setValue(new_min)
+
     def _choose_output_dir(self) -> None:
         directory = QFileDialog.getExistingDirectory(
             self,
@@ -300,6 +310,11 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             self.sheet_name_combo.addItems(sheet_names)
             if sheet_name in sheet_names:
                 self.sheet_name_combo.setCurrentText(sheet_name)
+            elif sheet_names:
+                # Default not found — use first sheet
+                sheet_name = sheet_names[0]
+                self.sheet_name_combo.setCurrentIndex(0)
+
             columns = read_excel_columns(excel_path, sheet_name)
 
             # Populate strain column dropdown with all columns
@@ -307,6 +322,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             self.strain_column_combo.addItems(columns)
             if strain_column in columns:
                 self.strain_column_combo.setCurrentText(strain_column)
+            elif columns:
+                # Default not found — use first column as strain
+                strain_column = columns[0]
+                self.strain_column_combo.setCurrentIndex(0)
 
             gene_names = [column for column in columns if column != strain_column]
             self._populate_gene_columns(gene_names)
@@ -559,8 +578,8 @@ and one or more <b>gene columns</b>.</p>
         self.email_edit.clear()
         self.gene_edit.clear()
         self.output_dir_edit.clear()
-        self.mafft_mode_combo.setCurrentText("--auto")
-        self.trimal_mode_combo.setCurrentText("automated1")
+        self.mafft_mode_combo.setCurrentIndex(0)
+        self.trimal_mode_combo.setCurrentIndex(0)
         self.threads_spin.setValue(0)
         self.bootstrap_mode_combo.setCurrentIndex(0)
         self.bootstrap_spin.setValue(1000)
@@ -666,12 +685,10 @@ and one or more <b>gene columns</b>.</p>
             gene_columns=checked_genes,
             output_dir=output_dir,
             ncbi_email=ncbi_email,
-            mafft_mode=self.mafft_mode_combo.currentText(),
-            trimal_mode=self.trimal_mode_combo.currentText(),
+            mafft_mode=self.mafft_mode_combo.currentData(),
+            trimal_mode=self.trimal_mode_combo.currentData(),
             iqtree_bootstrap=self.bootstrap_spin.value(),
-            iqtree_bootstrap_mode=["ufboot", "ufboot_shalrt", "standard"][
-                self.bootstrap_mode_combo.currentIndex()
-            ],
+            iqtree_bootstrap_mode=self.bootstrap_mode_combo.currentData(),
             threads=str(self.threads_spin.value()) if self.threads_spin.value() > 0 else "AUTO",
             keep_intermediates=self.keep_intermediates_check.isChecked(),
         )
@@ -709,10 +726,12 @@ in one step. Supports mixed NCBI accessions and private sequences.</p>
 
 <h3>Quick Start</h3>
 <ol>
-<li>Click <b>Browse</b> to select an Excel workbook.</li>
+<li>Click <b>Use an Example</b> to load the bundled demo workbook, or <b>Browse</b>
+to select your own Excel file.</li>
+<li>Review the auto-detected <b>sheet</b>, <b>strain column</b>, and <b>gene list</b>.</li>
 <li>Enter your <b>NCBI email</b> if any cells contain accessions.</li>
-<li>Click <b>Validate Inputs</b> to check format and tool paths.</li>
-<li>Select an <b>output directory</b> and click <b>Start Workflow</b>.</li>
+<li>Click <b>Validate Inputs</b> to check file format and external tool paths.</li>
+<li>Choose an <b>output directory</b> and click <b>Start Workflow</b>.</li>
 </ol>
 
 <h3>Workbook Format</h3>
@@ -720,25 +739,46 @@ in one step. Supports mixed NCBI accessions and private sequences.</p>
 <li>First row = header row.</li>
 <li>One column = <b>strain identifiers</b> (e.g. <i>Species</i>).</li>
 <li>Remaining columns = <b>gene loci</b> (e.g. <i>ITS, TEF1, RPB2</i>).</li>
-<li>Each gene cell: NCBI accession, raw sequence, or blank (missing data).</li>
+<li>Each gene cell: <b>NCBI accession</b>, <b>raw sequence</b>, or <b>blank</b> (missing data).</li>
 </ul>
 
 <h3>Pipeline Steps</h3>
 <ol>
-<li><b>Import</b> &mdash; parse Excel, classify accessions vs. sequences.</li>
-<li><b>Fetch</b> &mdash; download NCBI sequences, normalize into FASTA.</li>
-<li><b>Align</b> &mdash; MAFFT each gene independently.</li>
-<li><b>Trim</b> &mdash; trimAl to remove poorly aligned columns.</li>
-<li><b>Concatenate</b> &mdash; supermatrix + NEXUS partition.</li>
-<li><b>Build Tree</b> &mdash; IQ-TREE with partition-aware model.</li>
-<li><b>Summarize</b> &mdash; HTML report, manifest.</li>
+<li><b>Import</b> &mdash; parse Excel, classify accessions vs. raw sequences.</li>
+<li><b>Fetch</b> &mdash; download NCBI sequences, normalize into FASTA per gene.</li>
+<li><b>Align</b> &mdash; run MAFFT on each gene independently.</li>
+<li><b>Trim</b> &mdash; run trimAl to remove poorly aligned columns.</li>
+<li><b>Concatenate</b> &mdash; join into supermatrix + NEXUS partition file.</li>
+<li><b>Build Tree</b> &mdash; run IQ-TREE with partition-aware model.</li>
+<li><b>Summarize</b> &mdash; generate HTML report, manifest, and log.</li>
 </ol>
+
+<h3>Parameters</h3>
+<ul>
+<li><b>MAFFT</b> &mdash; Auto (automatic selection), Local Pair, Global Pair, or Conserved Region.</li>
+<li><b>trimAl</b> &mdash; automated1 (heuristic), gappyout (adaptive), strict/plus (conservative), nogaps.</li>
+<li><b>Threads</b> &mdash; AUTO uses all available cores; set a fixed number for reproducibility.</li>
+<li><b>IQ-TREE Bootstrap</b> &mdash; UFBoot (ultrafast, min 1000), UFBoot + SH-aLRT (branch test),
+or Standard bootstrap (min 100).</li>
+<li><b>Preserve intermediate files</b> &mdash; keep per-gene alignments and trimmed files for inspection.</li>
+</ul>
+
+<h3>Output Files</h3>
+<ul>
+<li><code>&lt;prefix&gt;.treefile</code> &mdash; best ML tree in Newick format.</li>
+<li><code>&lt;prefix&gt;.nex</code> &mdash; NEXUS partition file for downstream tools.</li>
+<li><code>report.html</code> &mdash; interactive HTML summary with tree and statistics.</li>
+<li><code>manifest.txt</code> &mdash; file inventory for reproducibility.</li>
+</ul>
 
 <h3>Tips</h3>
 <ul>
-<li>Strain names with spaces or special characters may cause errors.</li>
-<li>For large datasets, increase <b>Threads</b> to speed up MAFFT/IQ-TREE.</li>
-<li>UFBoot + SH-aLRT provides robust branch support.</li>
+<li>Start with <b>Use an Example</b> to see the expected workbook format.</li>
+<li>Strain names should only contain letters, digits, and underscores.</li>
+<li>Use <b>Validate Inputs</b> before running to catch format issues early.</li>
+<li>For large datasets, increase <b>Threads</b> to speed up MAFFT and IQ-TREE.</li>
+<li>After completion, click <b>View Tree</b> to visualize the result.</li>
+<li>Pre-trimmed input sequences usually give better alignments.</li>
 </ul>
         """
-        self.show_help_dialog("Help - One Step MultiGenePhy", help_text, 820, 580)
+        self.show_help_dialog("Help - One Step MultiGenePhy", help_text, 820, 600)
