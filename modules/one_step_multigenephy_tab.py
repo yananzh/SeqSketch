@@ -221,7 +221,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.bootstrap_spin = QSpinBox()
         self.bootstrap_spin.setRange(1000, 10000)
         self.bootstrap_spin.setValue(1000)
-        self.bootstrap_spin.setToolTip(self.tr("Bootstrap replicates. UFBoot min 1000, Standard min 100."))
+        self.bootstrap_spin.setToolTip(
+            self.tr("Bootstrap replicates. UFBoot min 1000, Standard min 100.")
+        )
         # Auto-adjust bootstrap minimum based on mode
         self.bootstrap_mode_combo.currentIndexChanged.connect(self._on_bootstrap_mode_changed)
         boot_row = QHBoxLayout()
