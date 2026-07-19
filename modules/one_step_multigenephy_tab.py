@@ -471,9 +471,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 ]
                 if bad_names:
                     self.log_area.append(
-                        self.tr("[WARN] {count} strain name(s) contain spaces/special chars:").format(
-                            count=len(bad_names)
-                        )
+                        self.tr(
+                            "[WARN] {count} strain name(s) contain spaces/special chars:"
+                        ).format(count=len(bad_names))
                     )
                     for name in bad_names[:10]:
                         self.log_area.append(f"    • {name}")
@@ -601,6 +601,7 @@ and one or more <b>gene columns</b>.</p>
         if main_win and hasattr(main_win, "open_tree_visualization_tab"):
             main_win.open_tree_visualization_tab()
             from modules.tree_visualization_tab import SimpleTreeVisualizationTab
+
             for i in range(main_win.tabs.count()):
                 widget = main_win.tabs.widget(i)
                 if isinstance(widget, SimpleTreeVisualizationTab):

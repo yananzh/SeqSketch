@@ -272,6 +272,7 @@ def test_show_help_displays_structured_workflow_guidance(qapp):
     # show_help calls show_help_dialog which creates a modal dialog;
     # verify the help_text content by inspecting the method source
     import inspect
+
     source = inspect.getsource(tab.show_help)
     assert "Workbook Format" in source
     assert "Quick Start" in source
