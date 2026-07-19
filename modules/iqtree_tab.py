@@ -71,7 +71,6 @@ class _DropLineEdit(QLineEdit):
         super().dropEvent(a0)
 
 
-
 # ---------------------------------------------------------------------------
 # Background worker thread
 # ---------------------------------------------------------------------------
@@ -127,7 +126,6 @@ class _IqTreeThread(QThread):
                 self.finished.emit(False, "", output)
         except Exception as exc:
             self.finished.emit(False, "", f"Error: {exc}")
-
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +289,9 @@ class IqTreeTab(BaseTabWidget):
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
 
         self._example_btn = QPushButton(self.tr("Example"))
-        self._example_btn.setToolTip(self.tr("Load bundled example alignment (cytb_protein_aligned.fasta)"))
+        self._example_btn.setToolTip(
+            self.tr("Load bundled example alignment (cytb_protein_aligned.fasta)")
+        )
         self._example_btn.clicked.connect(self._load_example)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._example_btn)
 
@@ -497,7 +497,21 @@ Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
             return
         # Validate alignment format
         ext = os.path.splitext(input_path)[1].lower()
-        valid_exts = {".fasta", ".fa", ".fas", ".fna", ".ffn", ".faa", ".phy", ".phylip", ".nex", ".nxs", ".aln", ".clustal", ".txt"}
+        valid_exts = {
+            ".fasta",
+            ".fa",
+            ".fas",
+            ".fna",
+            ".ffn",
+            ".faa",
+            ".phy",
+            ".phylip",
+            ".nex",
+            ".nxs",
+            ".aln",
+            ".clustal",
+            ".txt",
+        }
         if ext not in valid_exts:
             self.log_message(
                 self.tr(f"Unknown alignment format '{ext}'. IQ-TREE may not recognize it."),
@@ -572,6 +586,7 @@ Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
             main_win.open_tree_visualization_tab()
             # Set the file in the visualization tab
             from modules.tree_visualization_tab import SimpleTreeVisualizationTab
+
             for i in range(main_win.tabs.count()):
                 widget = main_win.tabs.widget(i)
                 if isinstance(widget, SimpleTreeVisualizationTab):
