@@ -4976,3 +4976,294 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-07-20 16:41:31.111447
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 16:44:04.527822
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 16:44:46.691686
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 16:47:35.808692
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 16:49:25.241660
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 16:58:00.936061
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:02:26.396020
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:06:45.185756
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:13:25.878717
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:15:45.529606
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:26:16.247581
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'QGraphicsScene' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 357, in open_toytree_visualization_tab
+    self._find_or_open(ToytreeVisualizationTab, "Tree Visualization (Toytree)")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 69, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\tree_visualization_toytree_tab.py", line 343, in __init__
+    self._build_ui()
+    ~~~~~~~~~~~~~~^^
+  File "f:\ui\modules\tree_visualization_toytree_tab.py", line 541, in _build_ui
+    self._scene = QGraphicsScene(self)
+                  ^^^^^^^^^^^^^^
+NameError: name 'QGraphicsScene' is not defined
+
+============================================================
+startup : 2026-07-20 17:27:40.967270
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'QGraphicsScene' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 357, in open_toytree_visualization_tab
+    self._find_or_open(ToytreeVisualizationTab, "Tree Visualization (Toytree)")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 69, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\tree_visualization_toytree_tab.py", line 343, in __init__
+    self._build_ui()
+    ~~~~~~~~~~~~~~^^
+  File "f:\ui\modules\tree_visualization_toytree_tab.py", line 541, in _build_ui
+    self._scene = QGraphicsScene(self)
+                  ^^^^^^^^^^^^^^
+NameError: name 'QGraphicsScene' is not defined
+UNHANDLED: name 'QGraphicsScene' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 357, in open_toytree_visualization_tab
+    self._find_or_open(ToytreeVisualizationTab, "Tree Visualization (Toytree)")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 69, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\tree_visualization_toytree_tab.py", line 343, in __init__
+    self._build_ui()
+    ~~~~~~~~~~~~~~^^
+  File "f:\ui\modules\tree_visualization_toytree_tab.py", line 541, in _build_ui
+    self._scene = QGraphicsScene(self)
+                  ^^^^^^^^^^^^^^
+NameError: name 'QGraphicsScene' is not defined
+
+============================================================
+startup : 2026-07-20 17:32:29.945843
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:38:22.897627
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:40:45.738037
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:43:12.446096
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:45:48.217508
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:55:39.261589
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 17:59:15.368981
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 18:02:00.953463
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 18:05:26.374621
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 18:12:06.819368
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 18:12:49.890673
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: 
+Traceback (most recent call last):
+  File "f:\ui\main.py", line 101, in <module>
+    main()
+    ~~~~^^
+  File "f:\ui\main.py", line 91, in main
+    splash.show()
+    ~~~~~~~~~~~^^
+KeyboardInterrupt
+
+============================================================
+startup : 2026-07-20 18:12:56.459858
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 18:14:29.828107
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 18:17:05.196296
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 18:17:25.895604
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 18:19:02.516756
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 18:21:18.508403
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-20 18:22:20.070533
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A

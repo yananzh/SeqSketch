@@ -351,6 +351,11 @@ class MainWindow(QMainWindow):
 
         self._find_or_open(SimpleTreeVisualizationTab, "Tree Visualization")
 
+    def open_toytree_visualization_tab(self):
+        from modules.tree_visualization_toytree_tab import ToytreeVisualizationTab
+
+        self._find_or_open(ToytreeVisualizationTab, "Tree Visualization (Toytree)")
+
     def open_alignment_trimming_tab(self):
         from modules.trimal_tab import AlignmentTrimmingTab
 
