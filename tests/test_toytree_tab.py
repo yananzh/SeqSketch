@@ -126,9 +126,7 @@ def test_main_window_and_menu_use_toytree_label(qapp):
 
     menu_bar = window.menuBar()
     evo_menu = next(
-        action.menu()
-        for action in menu_bar.actions()
-        if action.text() == "Phylogenetic Tree"
+        action.menu() for action in menu_bar.actions() if action.text() == "Phylogenetic Tree"
     )
     action_texts = [action.text() for action in evo_menu.actions() if action.text()]
 

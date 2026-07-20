@@ -124,14 +124,14 @@ def _inject_white_background(svg_bytes: bytes) -> bytes:
     # Replace fill:rgb(...) on the root element only (count=1)
     svg_str = re.sub(
         r'(<svg[^>]*?style="[^"]*?)fill:rgb\([^)]+\)([^"]*")',
-        r'\1fill:white\2',
+        r"\1fill:white\2",
         svg_str,
         count=1,
     )
     # Replace stroke:rgb(...) → stroke:black on root
     svg_str = re.sub(
         r'(<svg[^>]*?style="[^"]*?)stroke:rgb\([^)]+\)([^"]*")',
-        r'\1stroke:black\2',
+        r"\1stroke:black\2",
         svg_str,
         count=1,
     )
@@ -264,7 +264,7 @@ def _get_support_labels(tre) -> list:
     """
     import math
 
-    support = tre.get_node_data('support')
+    support = tre.get_node_data("support")
     labels = []
     for val in support:
         if isinstance(val, float) and math.isnan(val):
@@ -395,13 +395,9 @@ class _ZoomableGraphicsView(QGraphicsView):
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
-        self.setTransformationAnchor(
-            QGraphicsView.ViewportAnchor.AnchorUnderMouse
-        )
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
-        self.setViewportUpdateMode(
-            QGraphicsView.ViewportUpdateMode.SmartViewportUpdate
-        )
+        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
 
     def wheelEvent(self, event):
         factor = 1.15
@@ -451,9 +447,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
         browse_btn = QPushButton(self.tr("Browse"))
         browse_btn.clicked.connect(self._browse_file)
         file_example_btn = QPushButton(self.tr("Example"))
-        file_example_btn.setToolTip(
-            self.tr("Load bundled example tree (csrA_pro_mafft_tree.nwk)")
-        )
+        file_example_btn.setToolTip(self.tr("Load bundled example tree (csrA_pro_mafft_tree.nwk)"))
         file_example_btn.clicked.connect(self._load_example)
         btn_row.addWidget(browse_btn, 1)
         btn_row.addWidget(file_example_btn, 1)
@@ -723,9 +717,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
     def _show_placeholder(self):
         self._scene.clear()
         self._scene.setSceneRect(QRectF(-400, -300, 800, 600))
-        text_item = self._scene.addSimpleText(
-            self.tr("Load a tree file and click Draw Tree")
-        )
+        text_item = self._scene.addSimpleText(self.tr("Load a tree file and click Draw Tree"))
         text_item.setBrush(QColor("#aaa"))
         br = text_item.boundingRect()
         text_item.setPos(-br.width() / 2, -br.height() / 2)
@@ -793,8 +785,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self.tr("Open tree file"),
             "",
             self.tr(
-                "Tree files (*.nwk *.treefile *.tree *.newick *.tre "
-                "*.nex *.nxs);;All Files (*)"
+                "Tree files (*.nwk *.treefile *.tree *.newick *.tre *.nex *.nxs);;All Files (*)"
             ),
         )
         if path:
@@ -814,17 +805,17 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             tre = toytree.tree(path)
             ntips = tre.ntips
             nnodes = tre.nnodes
-            self.show_status(
-                self.tr(f"Loaded: {ntips} tips, {nnodes - ntips} internal nodes")
-            )
+            self.show_status(self.tr(f"Loaded: {ntips} tips, {nnodes - ntips} internal nodes"))
         except Exception:
             pass
 
     def _on_param_changed(self):
         """Auto-redraw when any tree parameter changes, if a tree file is loaded."""
         # When in Outgroup mode but no outgroup selected yet, skip the draw
-        if (self._root_method_combo.currentText() == "Outgroup"
-                and not self._outgroup_combo.currentText().strip()):
+        if (
+            self._root_method_combo.currentText() == "Outgroup"
+            and not self._outgroup_combo.currentText().strip()
+        ):
             return
         tree_file = self._file_edit.text().strip()
         if tree_file and os.path.isfile(tree_file):
@@ -936,9 +927,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self,
             self.tr("Export tree image"),
             "",
-            self.tr(
-                "SVG vector (*.svg);;PDF document (*.pdf);;PNG image (*.png)"
-            ),
+            self.tr("SVG vector (*.svg);;PDF document (*.pdf);;PNG image (*.png)"),
         )
         if not out_path:
             return
