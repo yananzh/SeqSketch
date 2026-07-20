@@ -1,0 +1,10 @@
+.............................................                            [100%]
+============================== warnings summary ===============================
+tests/test_dna_analysis_tabs.py::test_dna_analysis_sequence_editors_use_shared_border_style
+tests/test_dna_analysis_tabs.py::test_sanger_assembly_outputs_merged_fasta_contig_without_input_headers
+tests/test_dna_analysis_tabs.py::test_dna_analysis_output_editors_use_transparent_backgrounds
+  F:\ui\modules\sanger_tab.py:176: PendingDeprecationWarning: The set_tight_layout function will be deprecated in a future version. Use set_layout_engine instead.
+    self._overlap_fig.set_tight_layout(True)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+45 passed, 3 warnings in 2.22s

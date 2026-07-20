@@ -1,0 +1,435 @@
+commit 100eb742a2700e71de2b57c50d076a01c5e3d442
+Author: yanan zhang <yananzh@mail.qjnu.edu.cn>
+Date:   Sun Jul 19 18:15:26 2026 +0800
+
+    about
+
+diff --git a/main_window.py b/main_window.py
+index 21a1fa1..4977df1 100644
+--- a/main_window.py
++++ b/main_window.py
+@@ -351,12 +351,12 @@ class MainWindow(QMainWindow):
+ 
+         self._find_or_open(AlignmentTrimmingTab, "Alignment Trimming (trimAl)")
+ 
+-    # 鈹€鈹€ Favorites 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
++    # 鈹€鈹€ Bookmarks 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+ 
+     def open_favorites_manager_tab(self):
+         from modules.favorites_manager import BookmarkManager
+ 
+-        self._find_or_open(BookmarkManager, "Favorites")
++        self._find_or_open(BookmarkManager, "Bookmarks")
+ 
+     # 鈹€鈹€ Misc 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+ 
+@@ -383,37 +383,35 @@ class MainWindow(QMainWindow):
+ 
+     def show_about_dialog(self):
+         about_text = self.tr("""
+-<div style="text-align:center; margin-bottom:10px;">
+-<h1 style="color:#2c7fb8; font-size:20px; margin:0; text-align:center;">SeqSketch</h1>
+-<p style="color:#666; font-size:12px; margin:2px 0; text-align:center;">Sequence Analysis &amp; Visualization Toolkit</p>
+-</div>
+-
+-<hr style="border:none; border-top:1px solid #ddd;">
++<div style="text-align:center;">
++<h2 style="color:#2c7fb8; font-size:26px; margin-bottom:6px;">SeqSketch</h2>
++<p style="color:#888; font-size:14px; margin:0 0 16px 0;">Sequence Analysis &amp; Visualization Toolkit</p>
+ 
+-<p style="text-align:center; font-size:12px; margin:8px 0;">
+-<b>v1.0.0</b> &middot; yananzh &middot; MIT License<br>
+-Python 3 &middot; PyQt6 &middot; Biopython &middot; Matplotlib
++<p style="font-size:14px; color:#555; margin:0; line-height:1.8;">
++<b>Version 1.0.0</b><br>
++yananzh &middot; MIT License
+ </p>
+ 
+-<hr style="border:none; border-top:1px solid #ddd;">
+-
+-<p style="text-align:center; font-size:12px; color:#444; margin:8px 0;"><b>40+ modules</b> across 8 functional menus</p>
+-
+-<table style="margin:0 auto; font-size:11px; border-spacing:3px;">
+-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>FASTA Tools</b></td><td>QC, Filter, Extract, Rename, Deduplicate, Concatenate, NCBI Download</td></tr>
+-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>DNA Analysis</b></td><td>RNA Conversion, Complement, Translate, ORF Finder, Codon Usage, Sanger, Restriction Enzyme</td></tr>
+-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Protein Analysis</b></td><td>Composition, Physicochemical, Hydrophobicity, Protease Cleavage, Annotation, Structure, Function</td></tr>
+-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Alignment</b></td><td>Pairwise, DotPlot, MUSCLE, MAFFT, MSA Viewer, Sequence Logo</td></tr>
+-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>BLAST</b></td><td>NCBI Online BLAST, Local BLAST</td></tr>
+-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Primer Design</b></td><td>qPCR Primer Design (Primer3), Primer Analysis</td></tr>
+-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Phylogenetic Tree</b></td><td>trimAl, Concatenation, Distance Tree Construction, ML IQ-TREE, One Step MultiGenePhy, Phytreeviz</td></tr>
+-<tr><td style="text-align:right; color:#2c7fb8; white-space:nowrap; padding-right:6px;"><b>Favorites</b></td><td>Bookmark &amp; manage frequently used sequences</td></tr>
+-</table>
+-
+-<hr style="border:none; border-top:1px solid #ddd;">
++<p style="font-size:13px; color:#999; margin:12px 0 0 0;">
++Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
++</p>
+ 
+-<p style="text-align:center; font-size:11px; color:#999; margin:6px 0;">
+-馃敆 <a href="https://github.com/yananzh/SeqSketch" style="color:#2c7fb8;">github.com/yananzh/SeqSketch</a>
++<p style="margin:16px 0 0 0; font-size:14px;">
++<a href="https://github.com/yananzh/SeqSketch" style="color:#2c7fb8; text-decoration:none;">github.com/yananzh/SeqSketch</a>
+ </p>
++</div>
+         """)
+-        QMessageBox.about(self, self.tr("About SeqSketch"), about_text)
++        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel
++
++        dlg = QDialog(self)
++        dlg.setWindowTitle(self.tr("About SeqSketch"))
++        dlg.setFixedSize(340, 240)
++        dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
++        layout = QVBoxLayout(dlg)
++        layout.setContentsMargins(28, 24, 28, 24)
++        label = QLabel(about_text)
++        label.setTextFormat(Qt.TextFormat.RichText)
++        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
++        label.setWordWrap(True)
++        layout.addWidget(label)
++        dlg.exec()
+diff --git a/menus.py b/menus.py
+index 026a9a3..df143fa 100644
+--- a/menus.py
++++ b/menus.py
+@@ -285,9 +285,9 @@ def create_menus(window):
+     tree_vis_action = QAction(window.tr("Simple Tree Visualization (Phytreeviz)"), window)
+     tree_vis_action.triggered.connect(window.open_tree_visualization_tab)
+     evolution_menu.addAction(tree_vis_action)
+-    # 8. Favorites
+-    fav_menu = menubar.addMenu(window.tr("Favorites"))
+-    manage_fav_action = QAction(window.tr("Manage Favorites"), window)
++    # 8. Bookmarks
++    fav_menu = menubar.addMenu(window.tr("Bookmarks"))
++    manage_fav_action = QAction(window.tr("Manage Bookmarks"), window)
+     manage_fav_action.triggered.connect(window.open_favorites_manager_tab)
+     fav_menu.addAction(manage_fav_action)
+     # Settings menu
+diff --git a/modules/__pycache__/favorites_manager.cpython-313.pyc b/modules/__pycache__/favorites_manager.cpython-313.pyc
+index 3f8b3ef..5c030f7 100644
+Binary files a/modules/__pycache__/favorites_manager.cpython-313.pyc and b/modules/__pycache__/favorites_manager.cpython-313.pyc differ
+diff --git a/modules/favorites_manager.py b/modules/favorites_manager.py
+index 8bdd7f2..c56f798 100644
+--- a/modules/favorites_manager.py
++++ b/modules/favorites_manager.py
+@@ -160,9 +160,7 @@ class BookmarkManager(QWidget):
+         # 鈹€鈹€ Toolbar row 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+         toolbar = QHBoxLayout()
+         self.search_box = QLineEdit()
+-        self.search_box.setPlaceholderText(
+-            "Search bookmarks (name and URL, live filter)"
+-        )
++        self.search_box.setPlaceholderText("Search bookmarks鈥?)
+         self.search_box.setClearButtonEnabled(True)
+         self.search_box.textChanged.connect(self.filter_bookmarks)
+         toolbar.addWidget(self.search_box, 1)
+@@ -213,7 +211,7 @@ class BookmarkManager(QWidget):
+         self.category_tree.itemChanged.connect(self.on_category_renamed)
+         self.category_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+         self.category_tree.customContextMenuRequested.connect(self.show_category_menu)
+-        h_layout.addWidget(self.category_tree, 2)
++        h_layout.addWidget(self.category_tree, 3)
+ 
+         self.bookmark_list = BookmarkList(self)
+         self.bookmark_list.setAlternatingRowColors(True)
+@@ -292,16 +290,35 @@ class BookmarkManager(QWidget):
+ 
+     def _load_sample_data(self):
+         self.bookmarks = {
+-            "Learning": [
+-                {"name": "Python Official", "url": "https://www.python.org"},
+-                {"name": "PyQt6 Docs", "url": "https://doc.qt.io/qtforpython-6/"},
++            "Courses": [
++                {
++                    "name": "Bioinformatics Specialization (UCSD)",
++                    "url": "https://www.coursera.org/specializations/bioinformatics",
++                },
++                {"name": "EMBL-EBI Training", "url": "https://www.ebi.ac.uk/training/"},
++                {"name": "Rosalind", "url": "https://rosalind.info"},
++                {
++                    "name": "NCBI Tutorials",
++                    "url": "https://www.ncbi.nlm.nih.gov/guide/training-tutorials/",
++                },
+             ],
+-            "News": [
+-                {"name": "BBC News", "url": "https://www.bbc.com"},
+-                {"name": "CNN", "url": "https://www.cnn.com"},
++            "Books": [
++                {"name": "Biopython Tutorial", "url": "https://biopython.org/wiki/Documentation"},
++                {
++                    "name": "Bioinformatics Algorithms (Pevzner)",
++                    "url": "https://www.bioinformaticsalgorithms.org",
++                },
++                {"name": "Biostar Handbook", "url": "https://www.biostarhandbook.com"},
++                {"name": "NCBI Handbook", "url": "https://www.ncbi.nlm.nih.gov/books/NBK21101/"},
+             ],
+-            "Tools": [
+-                {"name": "GitHub", "url": "https://github.com"},
++            "Online Resources": [
++                {"name": "Biostars", "url": "https://www.biostars.org"},
++                {
++                    "name": "Awesome Bioinformatics (GitHub)",
++                    "url": "https://github.com/danielecook/Awesome-Bioinformatics",
++                },
++                {"name": "IQ-TREE Documentation", "url": "http://www.iqtree.org/doc/"},
++                {"name": "iTOL", "url": "https://itol.embl.de"},
+             ],
+         }
+         self.categories = list(self.bookmarks.keys())
+@@ -550,11 +567,7 @@ class BookmarkManager(QWidget):
+                 return
+             category = self._cat_name(category_item)
+             row = self.bookmark_list.row(item)
+-            if (
+-                row >= 0
+-                and category in self.bookmarks
+-                and row < len(self.bookmarks[category])
+-            ):
++            if row >= 0 and category in self.bookmarks and row < len(self.bookmarks[category]):
+                 self.bookmarks[category][row] = {"name": name, "url": url}
+                 self._display_bookmarks(category)
+                 self._save_bookmarks()
+@@ -611,9 +624,10 @@ class BookmarkManager(QWidget):
+         items = self.bookmark_list.selectedItems()
+         menu = QMenu(self)
+ 
+-        add_bm_act = QAction("Add Bookmark", self)
+-        add_bm_act.triggered.connect(self.add_bookmark)
+-        menu.addAction(add_bm_act)
++        if not items:
++            add_bm_act = QAction("Add Bookmark", self)
++            add_bm_act.triggered.connect(self.add_bookmark)
++            menu.addAction(add_bm_act)
+ 
+         if items:
+             menu.addSeparator()
+@@ -632,9 +646,7 @@ class BookmarkManager(QWidget):
+             move_menu = QMenu("Move to", self)
+             for cat in self.categories:
+                 a = QAction(cat, self)
+-                a.triggered.connect(
+-                    lambda checked=False, c=cat: self.move_selected_to_category(c)
+-                )
++                a.triggered.connect(lambda checked=False, c=cat: self.move_selected_to_category(c))
+                 move_menu.addAction(a)
+             menu.addMenu(move_menu)
+         menu.exec(self.bookmark_list.viewport().mapToGlobal(pos))
+@@ -648,9 +660,7 @@ class BookmarkManager(QWidget):
+             return
+         src_cat = self._cat_name(src_item)
+         if src_cat == target_cat:
+-            QMessageBox.information(
+-                self, "Notice", "Target category is the same as current."
+-            )
++            QMessageBox.information(self, "Notice", "Target category is the same as current.")
+             return
+         rows = sorted([self.bookmark_list.row(it) for it in items], reverse=True)
+         moved: List[Dict[str, str]] = []
+@@ -680,9 +690,7 @@ class BookmarkManager(QWidget):
+         target_item = self.category_tree.itemAt(pos)
+         if not target_item:
+             if self.category_tree.topLevelItemCount() == 0:
+-                QMessageBox.warning(
+-                    self, "Notice", "No categories available. Create one first."
+-                )
++                QMessageBox.warning(self, "Notice", "No categories available. Create one first.")
+                 return
+             target_item = self.category_tree.topLevelItem(0)
+         target_cat = self._cat_name(target_item)
+@@ -694,9 +702,7 @@ class BookmarkManager(QWidget):
+         moved = False
+         if selected:
+             if src_cat:
+-                rows = sorted(
+-                    [self.bookmark_list.row(it) for it in selected], reverse=True
+-                )
++                rows = sorted([self.bookmark_list.row(it) for it in selected], reverse=True)
+                 copied: List[Dict[str, str]] = []
+                 for r in rows:
+                     if 0 <= r < len(self.bookmarks.get(src_cat, [])):
+@@ -755,8 +761,8 @@ class BookmarkManager(QWidget):
+     # ============== Help ==============
+     def _show_help(self):
+         dlg = QDialog(self)
+-        dlg.setWindowTitle("Favorites Manager - Help")
+-        dlg.setFixedSize(600, 500)
++        dlg.setWindowTitle("Bookmarks - Help")
++        dlg.setFixedSize(600, 480)
+         layout = QVBoxLayout(dlg)
+ 
+         scroll = QScrollArea()
+@@ -764,63 +770,46 @@ class BookmarkManager(QWidget):
+         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+ 
+         label = QLabel("""
+-<h2>Favorites Manager</h2>
++<h2>Bookmarks</h2>
+ 
+ <p><b>What does this tool do?</b><br>
+ Organize your frequently-used URLs into categories with drag-and-drop,
+ live search, and JSON/HTML import/export. All bookmarks are saved
+-automatically to <code>bookmarks.json</code> in your user data folder.</p>
++automatically to your user data folder.</p>
+ 
+ <h3>Quick Start</h3>
+ <ol>
+-<li><b>Create a category</b> 鈥?click <b>Add Category</b> in the toolbar,
+-    or right-click the left panel and choose <b>New Category</b>.</li>
+-<li><b>Add bookmarks</b> 鈥?click <b>Add Bookmark</b>, press <b>Ctrl+D</b>,
+-    or right-click the right panel and choose <b>Add Bookmark</b>.</li>
+-<li><b>Open a bookmark</b> 鈥?<b>double-click</b> it in the list.
+-    It opens in your default web browser.</li>
+-<li><b>Search</b> 鈥?type in the search box to filter by name or URL.
+-    Results update live. Clear the box to see all bookmarks again.</li>
+-<li><b>Organize</b> 鈥?drag bookmarks from the list and drop them
+-    onto a category in the tree, or use right-click <b>Move to</b>.</li>
++<li>Click <b>Add Category</b> to create a folder, or right-click the left panel.</li>
++<li>Click <b>Add Bookmark</b> or press <b>Ctrl+D</b> to add a new bookmark.</li>
++<li><b>Double-click</b> a bookmark to open it in your browser.</li>
++<li>Type in the search box to filter by name or URL.</li>
+ </ol>
+ 
+-<h3>Right-Click Menus</h3>
+-<table border='0' cellpadding='4' cellspacing='2'>
+-<tr><td><b>Left panel (Categories)</b></td><td>New Category, Add Bookmark,
+-    Open All in Category, Rename, Delete</td></tr>
+-<tr><td><b>Right panel (Bookmarks)</b></td><td>Add Bookmark, Open, Edit,
+-    Delete, Move to (any category)</td></tr>
+-</table>
+-
+ <h3>Keyboard Shortcuts</h3>
+-<table border='0' cellpadding='4' cellspacing='2'>
+-<tr><td><b>Ctrl+D</b></td><td>Add a new bookmark to the current category</td></tr>
+-<tr><td><b>F2</b></td><td>Rename the selected bookmark</td></tr>
+-<tr><td><b>Delete</b></td><td>Delete selected bookmark(s)</td></tr>
+-</table>
++<ul>
++<li><b>Ctrl+D</b> &mdash; Add bookmark</li>
++<li><b>F2</b> &mdash; Rename selected bookmark</li>
++<li><b>Delete</b> &mdash; Delete selected bookmark(s)</li>
++</ul>
+ 
+ <h3>Import / Export</h3>
+ <ul>
+-<li><b>Import</b> 鈥?merge bookmarks from a JSON file. Duplicate
+-    categories are renamed with an <code>_import</code> suffix.</li>
+-<li><b>Export (dropdown)</b> 鈥?choose <b>JSON</b> (for backup/sharing)
+-    or <b>HTML</b> (Netscape bookmark format, compatible with Chrome,
+-    Firefox, Edge).</li>
++<li><b>Import</b> &mdash; merge bookmarks from a JSON file.</li>
++<li><b>Export JSON</b> &mdash; backup or share your bookmarks.</li>
++<li><b>Export HTML</b> &mdash; Netscape format, compatible with Chrome/Firefox/Edge.</li>
+ </ul>
+ 
+ <h3>Tips</h3>
+ <ul>
+-<li>Categories can be renamed by double-clicking or pressing F2.</li>
+ <li>Drag bookmarks between categories to reorganize quickly.</li>
+-<li>The status bar shows how many bookmarks are in the current category.</li>
+-<li>URLs are validated 鈥?only <code>http://</code> and <code>https://</code>
+-    links are accepted. Duplicate URLs trigger a confirmation prompt.</li>
++<li>Right-click panels for context menus with more options.</li>
++<li>Duplicate URLs trigger a confirmation prompt.</li>
+ </ul>
+ """)
+         label.setTextFormat(Qt.TextFormat.RichText)
+         label.setWordWrap(True)
+-        label.setMargin(16)
++        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
++        label.setMargin(20)
+         scroll.setWidget(label)
+         layout.addWidget(scroll)
+ 
+@@ -865,9 +854,7 @@ automatically to <code>bookmarks.json</code> in your user data folder.</p>
+                 ordered = {cat: self.bookmarks.get(cat, []) for cat in self.categories}
+                 with open(file_path, "w", encoding="utf-8") as f:
+                     json.dump(ordered, f, ensure_ascii=False, indent=2)
+-                QMessageBox.information(
+-                    self, "Export Successful", f"Exported to: {file_path}"
+-                )
++                QMessageBox.information(self, "Export Successful", f"Exported to: {file_path}")
+             except Exception as e:
+                 QMessageBox.warning(self, "Export Failed", f"Failed to export: {e}")
+ 
+@@ -880,9 +867,7 @@ automatically to <code>bookmarks.json</code> in your user data folder.</p>
+         try:
+             lines: List[str] = []
+             lines.append("<!DOCTYPE NETSCAPE-Bookmark-file-1>")
+-            lines.append(
+-                '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">'
+-            )
++            lines.append('<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">')
+             lines.append("<TITLE>Bookmarks</TITLE>")
+             lines.append("<H1>Bookmarks</H1>")
+             lines.append("<DL><p>")
+diff --git a/startup.log b/startup.log
+index a10c21e..a41a873 100644
+--- a/startup.log
++++ b/startup.log
+@@ -4904,3 +4904,67 @@ frozen  : False
+ argv    : ['f:/ui/main.py']
+ cwd     : F:\ui
+ meipass : N/A
++
++============================================================
++startup : 2026-07-19 17:34:36.248735
++python  : F:\ui\.venv\Scripts\python.exe
++frozen  : False
++argv    : ['f:/ui/main.py']
++cwd     : F:\ui
++meipass : N/A
++
++============================================================
++startup : 2026-07-19 17:38:07.394940
++python  : F:\ui\.venv\Scripts\python.exe
++frozen  : False
++argv    : ['f:/ui/main.py']
++cwd     : F:\ui
++meipass : N/A
++
++============================================================
++startup : 2026-07-19 17:40:01.195544
++python  : F:\ui\.venv\Scripts\python.exe
++frozen  : False
++argv    : ['f:/ui/main.py']
++cwd     : F:\ui
++meipass : N/A
++
++============================================================
++startup : 2026-07-19 17:42:39.202336
++python  : F:\ui\.venv\Scripts\python.exe
++frozen  : False
++argv    : ['f:/ui/main.py']
++cwd     : F:\ui
++meipass : N/A
++
++============================================================
++startup : 2026-07-19 17:44:01.208862
++python  : F:\ui\.venv\Scripts\python.exe
++frozen  : False
++argv    : ['f:/ui/main.py']
++cwd     : F:\ui
++meipass : N/A
++
++============================================================
++startup : 2026-07-19 17:52:57.188491
++python  : F:\ui\.venv\Scripts\python.exe
++frozen  : False
++argv    : ['f:/ui/main.py']
++cwd     : F:\ui
++meipass : N/A
++
++============================================================
++startup : 2026-07-19 17:56:12.046578
++python  : F:\ui\.venv\Scripts\python.exe
++frozen  : False
++argv    : ['f:/ui/main.py']
++cwd     : F:\ui
++meipass : N/A
++
++============================================================
++startup : 2026-07-19 18:02:18.077554
++python  : F:\ui\.venv\Scripts\python.exe
++frozen  : False
++argv    : ['f:/ui/main.py']
++cwd     : F:\ui
++meipass : N/A

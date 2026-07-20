@@ -541,10 +541,8 @@ class BaseTabWidget(QWidget):
         else:
             self.show_status("Completed")
         self.set_running_state(False)
-        if self.worker_thread:
-            self.worker_thread.quit()
-            self.worker_thread.wait()
-            self.worker_thread = None
+        # 线程退出由 start_worker() 中的信号连接驱动，此处不再阻塞等待
+        self.worker_thread = None
 
     def handle_worker_error(self, error_msg: str):
         """处理工作线程错误"""
@@ -553,10 +551,8 @@ class BaseTabWidget(QWidget):
         else:
             self.show_status(f"Error: {error_msg}")
         self.set_running_state(False)
-        if self.worker_thread:
-            self.worker_thread.quit()
-            self.worker_thread.wait()
-            self.worker_thread = None
+        # 线程退出由 start_worker() 中的信号连接驱动，此处不再阻塞等待
+        self.worker_thread = None
 
     def start_worker(self, worker: BaseWorker):
         """启动工作线程的通用方法"""
@@ -571,16 +567,20 @@ class BaseTabWidget(QWidget):
         self.worker_thread = QThread()
         worker.moveToThread(self.worker_thread)
 
-        # 连接信号
+        # 连接信号 — quit 必须在 handler 之前连接，
+        # 否则 handler 若阻塞等待线程退出会造成死锁
         self.worker_thread.started.connect(worker.run)
-        worker.finished.connect(self.handle_worker_finished)
-        worker.error.connect(self.handle_worker_error)
         worker.finished.connect(self.worker_thread.quit)
         worker.error.connect(self.worker_thread.quit)
+        worker.finished.connect(self.handle_worker_finished)
+        worker.error.connect(self.handle_worker_error)
 
         # 如果有进度信号，连接到状态显示
         if hasattr(worker, "progress"):
             worker.progress.connect(self.show_status)
+
+        # 线程结束后自动清理
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
 
         self.set_running_state(True)
         self.worker_thread.start()

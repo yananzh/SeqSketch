@@ -55,7 +55,7 @@ def _resolve_trimal_exe() -> str:
     return resource_path("softwares", "trimAl_Windows_v1.5.1", "trimal.exe")
 
 
-TRIMAL_EXE = _resolve_trimal_exe()
+# 动态解析，避免模块级缓存导致 config.ini 运行时变更不生效
 
 _ALIGN_FORMATS = {
     ".fasta": "fasta",
@@ -354,7 +354,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
 
         # ── trimAl path ────────────────────────────────────────────────────
         exe_row = QHBoxLayout()
-        self._exe_edit = _DropLineEdit(TRIMAL_EXE)
+        self._exe_edit = _DropLineEdit(_resolve_trimal_exe())
         self._exe_edit.setPlaceholderText(self.tr("Path to trimal.exe …"))
         self._exe_edit.setToolTip(self.tr("Path to the trimAl executable"))
         exe_chg = QPushButton(self.tr("Browse"))
@@ -680,7 +680,7 @@ or <b>MSA Visualization</b>.</li>
                 QMessageBox.critical(self, "Folder Error", f"Cannot create output folder:\n{e}")
                 return
 
-        exe = self._exe_edit.text().strip() or TRIMAL_EXE
+        exe = self._exe_edit.text().strip() or _resolve_trimal_exe()
         if not os.path.isfile(exe):
             QMessageBox.critical(
                 self,

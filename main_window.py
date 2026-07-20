@@ -21,7 +21,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.tr("SeqSketch"))
         self.resize(920, 700)
         self._init_width = 920
-        self.setAcceptDrops(True)
         icon_path = resource_path("window_logo.png")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
@@ -46,15 +45,6 @@ class MainWindow(QMainWindow):
             self.setStyleSheet(qss)
         except Exception as e:
             print("QSS load failed:", e)
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.accept()
-        else:
-            event.ignore()
-
-    def dropEvent(self, event):
-        pass
 
     def show_message(self, text, error=False):
         if error:
@@ -86,6 +76,21 @@ class MainWindow(QMainWindow):
 
     def close_tab(self, index):
         widget = self.tabs.widget(index)
+        # 停止正在运行的 worker 线程，避免关闭后回调已销毁的 widget
+        if hasattr(widget, "worker_thread") and widget.worker_thread:
+            if widget.worker_thread.isRunning():
+                widget.worker_thread.quit()
+                widget.worker_thread.wait(3000)
+        if hasattr(widget, "_thread") and widget._thread:
+            if hasattr(widget._thread, "stop"):
+                widget._thread.stop()
+            if widget._thread.isRunning():
+                widget._thread.wait(3000)
+        if hasattr(widget, "_batch_worker") and widget._batch_worker:
+            if hasattr(widget._batch_worker, "stop"):
+                widget._batch_worker.stop()
+            if widget._batch_worker.isRunning():
+                widget._batch_worker.wait(3000)
         self.tabs.removeTab(index)
         widget.deleteLater()
 

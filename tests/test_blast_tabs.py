@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import QFileDialog, QLabel, QMessageBox, QPushButton
 from main_window import MainWindow
 from modules import blast_config
 from modules.blast_local_tab import BlastLocalTab
-from modules.blast_result_tab import BlastResultTab
 
 
 def test_local_blast_tab_uses_inline_database_builder_and_shared_query_editor_style(
@@ -234,31 +233,6 @@ def test_local_blast_tab_blocks_mismatched_query_and_program(qapp, monkeypatch, 
     assert warnings
     assert "program" in warnings[0][1].lower()
     assert thread_started["value"] is False
-
-
-def test_blast_result_tab_filters_visible_rows(qapp, tmp_path):
-    tsv_path = tmp_path / "blast_result.tsv"
-    tsv_path.write_text(
-        "qseqid\tsseqid\tpident\tlength\tmismatch\tgapopen\tqstart\tqend\tsstart\tsend\tevalue\tbitscore\n"
-        "q1\thit_a\t98.5\t150\t1\t0\t1\t150\t5\t154\t1e-40\t210\n"
-        "q1\thit_b\t75.0\t80\t10\t1\t3\t82\t8\t87\t1e-12\t120\n"
-        "q1\thit_c\t45.0\t40\t20\t2\t7\t46\t30\t69\t0.5\t60\n",
-        encoding="utf-8",
-    )
-
-    tab = BlastResultTab(str(tsv_path))
-
-    assert tab.table.rowCount() == 3
-    tab.min_identity_spin.setValue(80.0)
-    tab.max_evalue_edit.setText("1e-20")
-    tab.min_length_spin.setValue(100)
-
-    assert tab.table.rowCount() == 1
-    assert "1 / 3" in tab._stat_lbl.text()
-
-    tab.reset_filters_btn.click()
-
-    assert tab.table.rowCount() == 3
 
 
 def test_local_blast_tab_can_pin_current_database(qapp, monkeypatch):

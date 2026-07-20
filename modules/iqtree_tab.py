@@ -38,7 +38,7 @@ def _resolve_iqtree_exe() -> str:
     return resource_path("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
 
 
-IQTREE_EXE = _resolve_iqtree_exe()
+# 动态解析，避免模块级缓存导致 config.ini 运行时变更不生效
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +151,7 @@ class IqTreeTab(BaseTabWidget):
         input_form.setSpacing(8)
 
         exe_row = QHBoxLayout()
-        self._exe_edit = _DropLineEdit(IQTREE_EXE)
+        self._exe_edit = _DropLineEdit(_resolve_iqtree_exe())
         self._exe_edit.setPlaceholderText(self.tr("Path to iqtree3.exe …"))
         self._exe_edit.setToolTip(self.tr("Path to the IQ-TREE executable"))
         exe_chg = QPushButton(self.tr("Browse"))
@@ -393,7 +393,7 @@ class IqTreeTab(BaseTabWidget):
         self.show_status(self.tr(""))
 
     def _build_cmd(self) -> list[str]:
-        exe = self._exe_edit.text().strip() or IQTREE_EXE
+        exe = self._exe_edit.text().strip() or _resolve_iqtree_exe()
         input_path = self._input_edit.text().strip()
         cmd = [exe]
         if input_path:

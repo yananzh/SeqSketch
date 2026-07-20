@@ -49,7 +49,7 @@ main_window.py       -> MainWindow, QTabWidget management, open_*_tab methods
 menus.py             -> QAction wiring into MainWindow.open_*_tab methods
 modules/             -> Feature tabs and supporting modules
 utils/               -> Shared UI base classes, validation helpers, path utilities, example-data loader
-config/settings.py   -> JSON-backed settings manager
+config/settings.py   -> JSON-backed settings manager (planned, currently unused)
 config.ini           -> External tool path overrides
 softwares/           -> Bundled BLAST, IQTree, MAFFT, MUSCLE, TrimAl binaries
 examples/            -> Bundled read-only teaching datasets (phylo/, labs/) resolved via resource_path
@@ -111,7 +111,7 @@ tests/               -> Pytest regression coverage
 - External tool binaries live under `softwares/` by default:
 - BLAST: `softwares/ncbi-blast-2.17.0+/bin/`
 - IQTree: `softwares/iqtree-3.0.1-Windows/bin/`
-- TrimAl: `softwares/trimAl_Windows_x86-64/`
+- TrimAl: `softwares/trimAl_Windows_v1.5.1/`
 - `config.ini` can override tool paths; preserve that behavior when modifying launcher code.
 
 ## UI and Styling
@@ -126,7 +126,7 @@ Core packages currently declared in [requirements.txt](requirements.txt):
 
 - `PyQt6`
 - `biopython`
-- `numpy`, `scipy`, `matplotlib`, `pandas`
+- `numpy`, `matplotlib`, `pandas`
 - `primer3-py`
 - `logomaker`
 - `phytreeviz`

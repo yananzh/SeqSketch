@@ -391,11 +391,11 @@ class _MafftBatchWorker(QThread):
                         else 0
                     ),
                 )
-                stdout_data, _ = self._proc.communicate(timeout=1200)
+                stdout_data, stderr_data = self._proc.communicate(timeout=1200)
                 if self._killed:
                     break
                 if self._proc.returncode != 0:
-                    details = (self._proc.stderr or self._proc.stdout or "").strip()
+                    details = (stderr_data or stdout_data or "").strip()
                     raise RuntimeError(f"MAFFT exited with code {self._proc.returncode}: {details}")
 
                 aligned_fasta = (stdout_data or "").strip()
@@ -1046,10 +1046,8 @@ class MafftAlignmentTab(BaseTabWidget):
         fname = os.path.basename(saved_path)
         self.status_label.setText(f"Done — {n_seq} seqs, {aln_len} bp, → {fname}")
         self.set_running_state(False)
-        if self.worker_thread:
-            self.worker_thread.quit()
-            self.worker_thread.wait()
-            self.worker_thread = None
+        # 线程退出由 start_worker() 信号连接驱动
+        self.worker_thread = None
 
     def handle_worker_error(self, error_msg: str):
         self.run_btn.setEnabled(True)
@@ -1057,10 +1055,8 @@ class MafftAlignmentTab(BaseTabWidget):
         self.status_label.setText("MAFFT alignment failed.")
         QMessageBox.critical(self, "MAFFT Error", error_msg)
         self.set_running_state(False)
-        if self.worker_thread:
-            self.worker_thread.quit()
-            self.worker_thread.wait()
-            self.worker_thread = None
+        # 线程退出由 start_worker() 信号连接驱动
+        self.worker_thread = None
 
     def _normalized_output_file_path(self) -> str:
         path = self.output_file_edit.text().strip()
