@@ -323,20 +323,20 @@ class BookmarkManager(QWidget):
             ],
         }
         self._translate_sample_data()
-    
+
     def _translate_sample_data(self):
         """Translate sample data category names to current language"""
-        if hasattr(self, '_sample_data'):
+        if hasattr(self, "_sample_data"):
             self.bookmarks = {}
             for original_key, items in self._sample_data.items():
                 translated_key = self.tr(original_key)
                 self.bookmarks[translated_key] = items
             self.categories = list(self.bookmarks.keys())
-    
+
     def _check_and_update_default_categories(self):
         """Check and update default category names to current language"""
         # If using sample data, just translate it
-        if hasattr(self, '_sample_data'):
+        if hasattr(self, "_sample_data"):
             self._translate_sample_data()
             return
 
