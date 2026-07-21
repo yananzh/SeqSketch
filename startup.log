@@ -5443,3 +5443,175 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-07-21 18:14:05.722838
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'translations' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main.py", line 98, in <module>
+    main()
+    ~~~~^^
+  File "f:\ui\main.py", line 90, in main
+    window = MainWindow()
+  File "f:\ui\main_window.py", line 28, in __init__
+    self._init_ui()
+    ~~~~~~~~~~~~~^^
+  File "f:\ui\main_window.py", line 38, in _init_ui
+    create_menus(self)
+    ~~~~~~~~~~~~^^^^^^
+  File "f:\ui\menus.py", line 58, in create_menus
+    orf_action = QAction(translations.tr("ORF Finder"), window)
+                         ^^^^^^^^^^^^
+NameError: name 'translations' is not defined
+
+============================================================
+startup : 2026-07-21 18:14:55.389142
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'translations' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main.py", line 98, in <module>
+    main()
+    ~~~~^^
+  File "f:\ui\main.py", line 90, in main
+    window = MainWindow()
+  File "f:\ui\main_window.py", line 28, in __init__
+    self._init_ui()
+    ~~~~~~~~~~~~~^^
+  File "f:\ui\main_window.py", line 38, in _init_ui
+    create_menus(self)
+    ~~~~~~~~~~~~^^^^^^
+  File "f:\ui\menus.py", line 58, in create_menus
+    orf_action = QAction(translations.tr("ORF Finder"), window)
+                         ^^^^^^^^^^^^
+NameError: name 'translations' is not defined
+
+============================================================
+startup : 2026-07-21 18:15:24.963663
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'translations' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main.py", line 98, in <module>
+    main()
+    ~~~~^^
+  File "f:\ui\main.py", line 90, in main
+    window = MainWindow()
+  File "f:\ui\main_window.py", line 28, in __init__
+    self._init_ui()
+    ~~~~~~~~~~~~~^^
+  File "f:\ui\main_window.py", line 38, in _init_ui
+    create_menus(self)
+    ~~~~~~~~~~~~^^^^^^
+  File "f:\ui\menus.py", line 58, in create_menus
+    orf_action = QAction(translations.tr("ORF Finder"), window)
+                         ^^^^^^^^^^^^
+NameError: name 'translations' is not defined
+
+============================================================
+startup : 2026-07-21 18:16:00.388266
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: name 'translations' is not defined
+Traceback (most recent call last):
+  File "f:\ui\main.py", line 98, in <module>
+    main()
+    ~~~~^^
+  File "f:\ui\main.py", line 90, in main
+    window = MainWindow()
+  File "f:\ui\main_window.py", line 28, in __init__
+    self._init_ui()
+    ~~~~~~~~~~~~~^^
+  File "f:\ui\main_window.py", line 38, in _init_ui
+    create_menus(self)
+    ~~~~~~~~~~~~^^^^^^
+  File "f:\ui\menus.py", line 58, in create_menus
+    orf_action = QAction(translations.tr("ORF Finder"), window)
+                         ^^^^^^^^^^^^
+NameError: name 'translations' is not defined
+
+============================================================
+startup : 2026-07-21 18:16:53.476799
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+UNHANDLED: 'BookmarkManager' object has no attribute '_update_default_category_names'
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 364, in open_favorites_manager_tab
+    self._find_or_open(BookmarkManager, "Bookmarks")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 69, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\favorites_manager.py", line 149, in __init__
+    self._check_and_update_default_categories()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "f:\ui\modules\favorites_manager.py", line 344, in _check_and_update_default_categories
+    self._update_default_category_names()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'BookmarkManager' object has no attribute '_update_default_category_names'
+UNHANDLED: 'BookmarkManager' object has no attribute '_update_default_category_names'
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 364, in open_favorites_manager_tab
+    self._find_or_open(BookmarkManager, "Bookmarks")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 69, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\favorites_manager.py", line 149, in __init__
+    self._check_and_update_default_categories()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "f:\ui\modules\favorites_manager.py", line 344, in _check_and_update_default_categories
+    self._update_default_category_names()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'BookmarkManager' object has no attribute '_update_default_category_names'
+UNHANDLED: 'BookmarkManager' object has no attribute '_update_default_category_names'
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 364, in open_favorites_manager_tab
+    self._find_or_open(BookmarkManager, "Bookmarks")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 69, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\favorites_manager.py", line 149, in __init__
+    self._check_and_update_default_categories()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "f:\ui\modules\favorites_manager.py", line 344, in _check_and_update_default_categories
+    self._update_default_category_names()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'BookmarkManager' object has no attribute '_update_default_category_names'
+UNHANDLED: 'BookmarkManager' object has no attribute '_update_default_category_names'
+Traceback (most recent call last):
+  File "f:\ui\main_window.py", line 364, in open_favorites_manager_tab
+    self._find_or_open(BookmarkManager, "Bookmarks")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\ui\main_window.py", line 69, in _find_or_open
+    tab = (factory or tab_class)()
+  File "f:\ui\modules\favorites_manager.py", line 149, in __init__
+    self._check_and_update_default_categories()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "f:\ui\modules\favorites_manager.py", line 344, in _check_and_update_default_categories
+    self._update_default_category_names()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'BookmarkManager' object has no attribute '_update_default_category_names'
+
+============================================================
+startup : 2026-07-21 18:19:22.844615
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A

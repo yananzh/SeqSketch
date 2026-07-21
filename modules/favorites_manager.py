@@ -290,7 +290,7 @@ class BookmarkManager(QWidget):
         self.categories = []
 
     def _load_sample_data(self):
-        self.bookmarks = {
+        self._sample_data = {
             "Courses": [
                 {
                     "name": "Bioinformatics Specialization (UCSD)",
@@ -329,7 +329,7 @@ class BookmarkManager(QWidget):
         if hasattr(self, '_sample_data'):
             self.bookmarks = {}
             for original_key, items in self._sample_data.items():
-                translated_key = translations.tr(original_key)
+                translated_key = self.tr(original_key)
                 self.bookmarks[translated_key] = items
             self.categories = list(self.bookmarks.keys())
     
@@ -339,9 +339,18 @@ class BookmarkManager(QWidget):
         if hasattr(self, '_sample_data'):
             self._translate_sample_data()
             return
-        
-        # For existing data, check if contains default categories
-        self._update_default_category_names()
+
+    def _update_default_category_names(self):
+        """Update known default category names to match current locale."""
+        _DEFAULT_CATEGORIES = {"Courses", "Books", "Online Resources"}
+        for cat in list(self.categories):
+            if cat in _DEFAULT_CATEGORIES:
+                new_name = self.tr(cat)
+                if new_name != cat:
+                    idx = self.categories.index(cat)
+                    self.categories[idx] = new_name
+                    if cat in self.bookmarks:
+                        self.bookmarks[new_name] = self.bookmarks.pop(cat)
 
     def _save_bookmarks(self):
         # Atomic write: serialize to a temp file in the same directory, then

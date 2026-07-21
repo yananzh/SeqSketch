@@ -55,7 +55,7 @@ def create_menus(window):
     translate_action = QAction(window.tr("Translate"), window)
     translate_action.triggered.connect(window.open_translate_tab)
     dna_menu.addAction(translate_action)
-    orf_action = QAction(translations.tr("ORF Finder"), window)
+    orf_action = QAction(window.tr("ORF Finder"), window)
     orf_action.triggered.connect(window.open_orf_tab)
     dna_menu.addAction(orf_action)
     sanger_viewer_action = QAction(window.tr("Sanger Chromatogram Viewer"), window)
