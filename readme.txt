@@ -1,69 +1,105 @@
 # SeqSketch
 
-一个基于PyQt6的生物信息学序列分析软件，支持FASTA、FASTQ、GenBank等格式，集成多种本地和在线分析工具，界面美观，支持中英文切换。
+一个基于 PyQt6 的生物信息学序列分析桌面应用，集成多种本地和在线分析工具，覆盖 FASTA 处理、DNA/RNA/蛋白分析、多序列比对、BLAST、引物设计、系统发育树构建与可视化、桑格测序等完整工作流。
 
 ## 主要特性
-- 丰富的序列分析工具（FASTA、DNA、蛋白、比对、BLAST、引物、进化分析、收藏夹）
-- **桑格测序数据处理**：支持.ab1文件解析，专业级峰图可视化，四通道信号显示，序列拼接
-- 拖放文件、批量处理、结果导出、操作历史
-- 现代化UI，支持浅色/深色主题
-- 国际化支持（中英文）
 
-## 桑格测序数据处理功能
-- **专业峰图显示**：横坐标为碱基编号，每个主峰在对应碱基位置居中显示
-- **四通道信号叠加**：同时显示G/A/T/C四通道荧光信号
-- **碱基标注**：每个碱基上方显示对应的碱基字母
-- **质量分数可视化**：可选的Phred质量分数显示
-- **序列区域选择**：支持选择高质量区域并导出
-- **正反向序列拼接**：自动检测重叠区域并拼接序列
+### FASTA 工具
+- 序列统计、批量重命名 ID、简化序列头、按 ID / 正则 / 长度筛选
+- 去重、合并 FASTA、NCBI 在线下载
 
-## 安装依赖
+### DNA / RNA 分析
+- 转换为 RNA、互补/反向互补、翻译、ORF 查找
+- 密码子偏好分析、限制性内切酶分析、GC 含量绘图
+- 桑格测序峰图查看与序列拼接
+
+### 蛋白分析
+- 氨基酸组成、疏水性绘图、蛋白酶切割位点预测
+- 理化性质分析、序列 Logo 生成
+
+### 比对与系统发育
+- 双序列比对（Pairwise）、多序列比对（MAFFT / MUSCLE）
+- MSA 可视化、比对格式转换
+- trimAl 修剪、分区拼接（Partition / Concatenation）
+- IQ-TREE 建树、toytree 树可视化、距离矩阵树
+- 一步式多基因系统发育分析（One-Step Multi-Gene Phylogeny）
+
+### BLAST
+- 本地 BLAST 搜索（需配置 BLAST+ 数据库）
+- 建库对话框
+
+### 其他
+- 点阵图（Dotplot）、引物分析（Primer3）
+- 收藏夹管理器（书签分类、导入/导出 JSON / HTML、拖放排序）
+- 操作日志记录、浅色/深色主题切换
+
+## 安装与运行
+
 ```bash
+# 安装依赖
 pip install -r requirements.txt
-```
 
-## 启动方法
-```bash
+# 安装开发依赖（pytest、ruff）
+pip install -r dev-requirements.txt
+
+# 启动
 python main.py
 ```
 
-## Windows 单文件打包（推荐）
-在项目根目录执行：
+## 测试
+
+```bash
+# 运行全部测试
+py -m pytest -q
+
+# 按模块运行
+py -m pytest tests/test_fasta_tools_tabs.py -q
+py -m pytest tests/test_dna_analysis_tabs.py -q
+py -m pytest tests/test_example_data.py -q
+py -m pytest tests/test_blast_tabs.py -q
+py -m pytest tests/test_primer_tabs.py -q
+py -m pytest tests/test_toytree_tab.py -q
+py -m pytest tests/test_one_step_multigenephy_tab.py -q
+py -m pytest tests/test_one_step_multigenephy_workflow.py -q
+
+# 代码检查
+ruff check .
+```
+
+## Windows 打包
 
 ```powershell
-.\scripts\build_windows_onefile.ps1 -Profile balanced
+.\scripts\build_onedir.ps1
 ```
 
-可选 `Profile`：
-- `small`：体积更小，启动略慢
-- `balanced`：体积和启动速度平衡（默认）
-- `fast`：启动更快，体积更大
-
-打包产物：
-
-```text
-dist\SeqSketch\SeqSketch.exe
-```
-
-也可使用批处理：
-
-```bat
-scripts\build_windows_onefile.bat balanced
-```
-
-## 测试桑格测序功能
-```bash
-python test_sanger.py
-```
+产物为 `dist/SeqSketch/`，是一个自包含便携文件夹，可直接复制到任意位置运行。
 
 ## 目录结构
-- main.py: 程序入口
-- ui/: 界面相关代码
-- modules/: 功能模块
-  - fasta_processor.py: FASTA文件处理模块
-  - sequence_analyzer.py: 序列分析模块
-  - sanger_tab.py: **桑格测序数据处理模块**
-  - example_usage.py: 使用示例
-  - test_fasta_modules.py: 测试文件
-- utils/: 工具函数
-- resources/: 图标和语言包
+
+```
+main.py              # 程序入口，启动画面
+main_window.py       # 主窗口，QTabWidget 管理
+menus.py             # 菜单栏定义
+styles.qss           # 主样式表
+config.ini           # 外部工具路径覆盖
+SeqSketch.spec       # PyInstaller 打包配置
+modules/             # 功能模块（~40 个独立 Tab）
+utils/               # 基础组件、路径工具、示例数据加载
+scripts/             # 构建脚本
+examples/            # 教学示例数据（phylo/、dna/、protein/、blast/、sanger/）
+softwares/           # 捆绑的外部工具（BLAST、IQTree、MAFFT、MUSCLE、TrimAl）
+resources/           # 图标和样式
+tests/               # Pytest 回归测试
+config/              # 设置管理
+docs/                # 设计文档
+```
+
+## 技术栈
+
+- **GUI**: PyQt6
+- **科学计算**: NumPy、Matplotlib、Pandas、Biopython
+- **引物设计**: Primer3-py
+- **序列 Logo**: Logomaker
+- **打包**: PyInstaller (onedir)
+- **测试**: Pytest (timeout 60s, QT_QPA_PLATFORM=offscreen)
+- **代码检查**: Ruff
