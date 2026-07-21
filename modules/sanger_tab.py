@@ -1,22 +1,22 @@
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QDialog,
+    QDoubleSpinBox,
+    QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QPushButton,
-    QTextEdit,
-    QGroupBox,
-    QFileDialog,
     QMessageBox,
+    QPushButton,
     QScrollArea,
-    QDialog,
     QSpinBox,
-    QDoubleSpinBox,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
 
 from utils.common_components import (
     apply_sequence_editor_style,
@@ -657,15 +657,13 @@ class SangerTab(QWidget):
             "<li>For primer-walking projects, assemble each pair separately and then use a multiple-sequence alignment tool for the final contig</li>"
             "</ul>"
         )
+        from PyQt6.QtCore import Qt as QtCore
         from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
             QHBoxLayout,
             QLabel,
             QPushButton,
-            QScrollArea,
+            QVBoxLayout,
         )
-        from PyQt6.QtCore import Qt as QtCore
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Sanger Sequence Assembly"))

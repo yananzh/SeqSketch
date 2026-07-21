@@ -33,7 +33,6 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import BaseTabWidget, apply_log_viewer_style, validate_input_path
 
-
 # ── Distance model presets ────────────────────────────────────────────────
 _DNA_MODELS = [
     ("p-distance (identity)", "identity"),
@@ -222,7 +221,7 @@ def _detect_seq_type(path: str) -> str:
                 continue
             dna_count = sum(1 for c in seq_str if c in dna_chars)
             return "DNA" if dna_count / len(seq_str) >= 0.85 else "AA"
-    except Exception:
+    except (OSError, ValueError, StopIteration):
         pass
     return "DNA"
 
@@ -415,8 +414,9 @@ class DistanceTreeTab(BaseTabWidget):
 
     def _load_example(self):
         """Load the bundled csrA protein alignment example."""
-        from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
+
+        from utils.example_data import stage_example
 
         path = stage_example("phylo", "csrA_pro_mafft.fasta")
         if not path:

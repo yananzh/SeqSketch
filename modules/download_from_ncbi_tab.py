@@ -1,26 +1,27 @@
+import os
+import time
 from collections import Counter
 from datetime import datetime
-import time
+from urllib.error import URLError
 
+from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
     QFrame,
-    QVBoxLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
-    QFileDialog,
-    QComboBox,
     QPlainTextEdit,
+    QPushButton,
     QSizePolicy,
     QSpinBox,
-    QCheckBox,
-    QGroupBox,
+    QVBoxLayout,
 )
-from PyQt6.QtCore import Qt, QThread, QObject, pyqtSignal
+
 from utils.common_components import BaseTabWidget
-from urllib.error import URLError
-import os
 
 
 def normalize_accession_list(acc_text: str) -> tuple[list[str], list[str]]:

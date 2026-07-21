@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -20,11 +25,6 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
 
 from utils.common_components import apply_transparent_text_edit_background
 from utils.example_data import stage_example
@@ -493,14 +493,14 @@ class SangerViewerTab(QWidget):
     # ------------------------------------------------------------------
 
     def _show_help(self) -> None:
+        from PyQt6.QtCore import Qt
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
-        from PyQt6.QtCore import Qt
 
         help_text = (
             "<h2>Sanger Chromatogram Viewer &mdash; AB1 Chromatogram Browser</h2>"

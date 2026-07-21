@@ -1,7 +1,7 @@
-import sys
-import os
-import traceback
 import datetime
+import os
+import sys
+import traceback
 
 # ── 启动日志（在任何 import 之前写入，确保 Qt 初始化崩溃也能诊断） ────────────
 _STARTUP_LOG = os.path.join(
@@ -18,13 +18,13 @@ try:
         _log_f.write(f"argv    : {sys.argv}\n")
         _log_f.write(f"cwd     : {os.getcwd()}\n")
         _log_f.write(f"meipass : {getattr(sys, '_MEIPASS', 'N/A')}\n")
-except Exception:
+except OSError:
     pass
 
 try:
-    from PyQt6.QtWidgets import QApplication, QSplashScreen, QMessageBox
-    from PyQt6.QtGui import QPixmap
     from PyQt6.QtCore import Qt
+    from PyQt6.QtGui import QPixmap
+    from PyQt6.QtWidgets import QApplication, QMessageBox, QSplashScreen
 except Exception as _e:
     with open(_STARTUP_LOG, "a", encoding="utf-8") as _log_f:
         _log_f.write(f"FATAL: PyQt6 import failed: {_e}\n")
@@ -41,7 +41,7 @@ def _excepthook(exc_type, exc_value, exc_tb):
     try:
         with open(_STARTUP_LOG, "a", encoding="utf-8") as _log_f:
             _log_f.write(f"UNHANDLED: {exc_value}\n{tb_str}")
-    except Exception:
+    except OSError:
         pass
     try:
         QMessageBox.critical(

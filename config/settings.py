@@ -5,7 +5,7 @@
 import json
 import os
 import sys
-from typing import Dict, Any
+from typing import Any, Dict
 
 from utils.app_paths import user_data_file
 
@@ -44,7 +44,7 @@ class Settings:
                         if key not in settings:
                             settings[key] = value
                     return settings
-            except Exception:
+            except (OSError, json.JSONDecodeError):
                 return default_settings
 
         return default_settings

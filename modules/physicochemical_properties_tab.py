@@ -1,10 +1,12 @@
-from PyQt6.QtWidgets import QMessageBox, QFileDialog, QPushButton, QHBoxLayout
-from PyQt6.QtCore import Qt
-from utils.common_components import BaseTabWidget, apply_transparent_text_edit_background
-from utils.example_data import load_example_text
-from Bio.SeqUtils.ProtParam import ProteinAnalysis
 import csv
 import re
+
+from Bio.SeqUtils.ProtParam import ProteinAnalysis
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QMessageBox, QPushButton
+
+from utils.common_components import BaseTabWidget, apply_transparent_text_edit_background
+from utils.example_data import load_example_text
 
 PROPERTIES = [
     ("Length (aa)", "length"),
@@ -272,15 +274,15 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
             "<li>Use <b>Export CSV</b> to compare properties across multiple proteins in a spreadsheet</li>"
             "</ul>"
         )
+        from PyQt6.QtCore import Qt as QtCore
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QHBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
-        from PyQt6.QtCore import Qt as QtCore
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Physicochemical Properties"))

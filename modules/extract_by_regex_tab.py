@@ -1,20 +1,21 @@
+import os
+import re
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
-    QFileDialog,
     QSizePolicy,
-    QComboBox,
-    QCheckBox,
-    QGroupBox,
 )
+
 from utils.common_components import BaseTabWidget, FileDropLineEdit
-import os
-import re
 
 
 def full_header_text(record) -> str:
@@ -230,8 +231,9 @@ class ExtractByRegexTab(BaseTabWidget):
 
     def _load_example(self):
         """Load the bundled UniProt example plus a matching regex."""
-        from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
+
+        from utils.example_data import stage_example
 
         path = stage_example("dna", "simple_header.fasta")
         if not path:

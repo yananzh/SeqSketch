@@ -1,19 +1,20 @@
+import os
 from collections import Counter
+
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
-    QVBoxLayout,
+    QFileDialog,
+    QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
-    QFileDialog,
-    QGridLayout,
-    QGroupBox,
     QSizePolicy,
+    QVBoxLayout,
 )
-from PyQt6.QtCore import pyqtSignal
-from utils.common_components import FASTAWorker, BaseTabWidget, FileDropLineEdit
-import os
 
+from utils.common_components import BaseTabWidget, FASTAWorker, FileDropLineEdit
 
 NUCLEOTIDE_BASES = set("ACGTUNRYMKSWBDHV")
 AMBIGUOUS_BASES = set("RYMKSWBDHV")
@@ -361,8 +362,9 @@ class SequenceStatisticsTab(BaseTabWidget):
 
     def _load_example(self):
         """Load the bundled cytb teaching example into the input field."""
-        from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
+
+        from utils.example_data import stage_example
 
         path = stage_example("phylo", "cytb_cds_raw.fasta")
         if not path:

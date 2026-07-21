@@ -1,6 +1,6 @@
-import os
 import configparser
 import json
+import os
 import sys
 from datetime import datetime
 
@@ -51,7 +51,7 @@ def _detect_bundled_bin() -> str | None:
             bin_dir = os.path.join(softwares_dir, name, "bin")
             if os.path.isfile(os.path.join(bin_dir, "blastn.exe")):
                 candidates.append(bin_dir)
-    except Exception:
+    except OSError:
         return None
 
     if not candidates:

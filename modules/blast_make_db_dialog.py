@@ -1,21 +1,23 @@
-from PyQt6.QtWidgets import (
-    QDialog,
-    QVBoxLayout,
-    QHBoxLayout,
-    QFormLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QFileDialog,
-    QRadioButton,
-    QButtonGroup,
-    QMessageBox,
-    QFrame,
-)
-from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtGui import QFont
 import os
 import subprocess
+
+from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import (
+    QButtonGroup,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QVBoxLayout,
+)
+
 from .blast_config import get_blast_bin_dir, set_blast_bin_dir
 
 

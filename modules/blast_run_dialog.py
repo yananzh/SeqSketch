@@ -1,21 +1,23 @@
-from PyQt6.QtWidgets import (
-    QDialog,
-    QVBoxLayout,
-    QHBoxLayout,
-    QFormLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QFileDialog,
-    QComboBox,
-    QTextEdit,
-    QSpinBox,
-    QFrame,
-    QMessageBox,
-)
-from PyQt6.QtCore import QThread, pyqtSignal
 import os
 import subprocess
+
+from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QTextEdit,
+    QVBoxLayout,
+)
+
 from .blast_config import get_blast_bin_dir, set_blast_bin_dir
 
 # outfmt 6 column names (header written to TSV)

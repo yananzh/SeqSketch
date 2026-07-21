@@ -1,30 +1,32 @@
 """GC Content / GC Skew Plot Tab — sliding-window analysis for DNA sequences."""
 
+import matplotlib
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QMessageBox,
-    QVBoxLayout,
+    QCheckBox,
+    QComboBox,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QComboBox,
-    QSpinBox,
-    QGroupBox,
-    QScrollArea,
+    QMessageBox,
     QPushButton,
-    QWidget,
-    QCheckBox,
+    QScrollArea,
+    QSpinBox,
     QStackedWidget,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt
+
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
-import matplotlib
 
 matplotlib.use("Qt5Agg")
+import math
+
+import matplotlib.ticker as ticker
+import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-import numpy as np
-import math
-import matplotlib.ticker as ticker
 
 
 class GCPlotTab(BaseTabWidget):
@@ -558,10 +560,10 @@ class GCPlotTab(BaseTabWidget):
     def show_help(self):
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
 
         help_text = self.tr("""

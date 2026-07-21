@@ -1,27 +1,28 @@
 """Hydrophobicity Plot Tab — sliding-window hydrophobicity analysis for protein sequences."""
 
+import matplotlib
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QMessageBox,
-    QVBoxLayout,
+    QComboBox,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QComboBox,
-    QSpinBox,
-    QGroupBox,
-    QScrollArea,
+    QMessageBox,
     QPushButton,
+    QScrollArea,
+    QSpinBox,
+    QVBoxLayout,
     QWidget,
 )
-from PyQt6.QtCore import Qt
+
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
-import matplotlib
 
 matplotlib.use("Qt5Agg")
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
 import numpy as np
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 # ── Hydrophobicity scales ───────────────────────────────────────────────────
 # Values for the 20 standard amino acids (A R N D C Q E G H I L K M F P S T W Y V)
@@ -385,10 +386,10 @@ class HydrophobicityPlotTab(BaseTabWidget):
     def show_help(self):
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
 
         help_text = """

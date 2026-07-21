@@ -1,18 +1,20 @@
 """Filter FASTA sequences by sequence length."""
 
+import os
+
 from PyQt6.QtWidgets import (
+    QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
-    QFileDialog,
     QSizePolicy,
     QSpinBox,
-    QGroupBox,
 )
+
 from utils.common_components import BaseTabWidget, FileDropLineEdit
-import os
 
 
 class FilterByLengthTab(BaseTabWidget):
@@ -154,8 +156,9 @@ class FilterByLengthTab(BaseTabWidget):
 
     def _load_example(self):
         """Load the bundled cytb teaching example into the input field."""
-        from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
+
+        from utils.example_data import stage_example
 
         path = stage_example("phylo", "cytb_cds_raw.fasta")
         if not path:

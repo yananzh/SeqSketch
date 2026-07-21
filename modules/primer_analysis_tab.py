@@ -213,8 +213,8 @@ class PrimerAnalysisTab(QWidget):
         self.status_label.setText("Cleared.")
 
     def _show_help(self):
-        from PyQt6.QtWidgets import QDialog, QLabel, QPushButton, QScrollArea, QVBoxLayout
         from PyQt6.QtCore import Qt as QtCore
+        from PyQt6.QtWidgets import QLabel, QPushButton, QScrollArea, QVBoxLayout
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Primer Analysis - Help"))
@@ -404,13 +404,13 @@ and calculates the expected PCR product size.</p>
             ("Tm (°C)", f"{fwd_tm:.1f}", f"{rev_tm:.1f}", None),
             ("GC%", f"{fwd_gc:.1f}%", f"{rev_gc:.1f}%", None),
             (
-                f"Hairpin ΔG",
+                "Hairpin ΔG",
                 f"{fwd_hairpin.dg:.2f} kcal/mol",
                 f"{rev_hairpin.dg:.2f} kcal/mol",
                 None,
             ),
             (
-                f"Hairpin Tm",
+                "Hairpin Tm",
                 f"{hp_fwd_tm:.1f} °C" if hp_fwd_tm else "n/a",
                 f"{hp_rev_tm:.1f} °C" if hp_rev_tm else "n/a",
                 None,

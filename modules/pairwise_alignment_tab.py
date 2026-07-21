@@ -1,27 +1,29 @@
+import re
+
+from Bio import Align
+from Bio.Align import substitution_matrices
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
-    QMessageBox,
+    QComboBox,
+    QDialog,
+    QDoubleSpinBox,
     QFileDialog,
+    QFrame,
     QGridLayout,
-    QVBoxLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QComboBox,
-    QTextEdit,
+    QMessageBox,
     QPushButton,
-    QDoubleSpinBox,
-    QFrame,
-    QGroupBox,
-    QDialog,
     QTextBrowser,
+    QTextEdit,
+    QVBoxLayout,
 )
-from PyQt6.QtGui import QFont
+
 from utils.common_components import (
     BaseTabWidget,
 )
 from utils.example_data import load_example_text
-from Bio import Align
-from Bio.Align import substitution_matrices
-import re
 
 
 def _parse_fasta_text(text: str):
@@ -523,7 +525,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         """Extract (aln_seq1, aln_seq2) with gap characters from a PairwiseAlignment."""
         try:
             return str(best[0]), str(best[1])
-        except Exception:
+        except (AttributeError, IndexError, TypeError):
             pass
         # Fallback: parse FASTA output
         fasta = best.format("fasta")

@@ -1,10 +1,12 @@
-from PyQt6.QtWidgets import QMessageBox, QFileDialog, QPushButton, QHBoxLayout
+import csv
+import re
+
+from Bio.SeqUtils.ProtParam import ProteinAnalysis
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QMessageBox, QPushButton
+
 from utils.common_components import BaseTabWidget, apply_transparent_text_edit_background
 from utils.example_data import load_example_text
-from Bio.SeqUtils.ProtParam import ProteinAnalysis
-import re
-import csv
 
 AMINO_ACIDS = [
     "A",
@@ -216,15 +218,15 @@ class AminoAcidCompositionTab(BaseTabWidget):
             "<li>Use <b>Export CSV</b> to open the composition table in Excel or R</li>"
             "</ul>"
         )
+        from PyQt6.QtCore import Qt as QtCore
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QHBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
-        from PyQt6.QtCore import Qt as QtCore
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Amino Acid Composition"))

@@ -1,25 +1,25 @@
-from utils.common_components import BaseTabWidget
-from utils.example_data import load_example_text
+import matplotlib
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QComboBox,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QSpinBox,
-    QFileDialog,
-    QMessageBox,
 )
-from PyQt6.QtCore import Qt
 
-import matplotlib
+from utils.common_components import BaseTabWidget
+from utils.example_data import load_example_text
 
 matplotlib.use("Qt5Agg")
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
+import re
 
 import numpy as np
-import re
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 
 class DotPlotTab(BaseTabWidget):
@@ -369,7 +369,7 @@ DotPlot visualizes sequence similarity as a 2D map. Matching regions appear as d
 <li>For long sequences, compare subsequences first for faster rendering.</li>
 </ul>
         """
-        from PyQt6.QtWidgets import QDialog, QTextBrowser, QVBoxLayout, QPushButton
+        from PyQt6.QtWidgets import QDialog, QPushButton, QTextBrowser, QVBoxLayout
 
         dlg = QDialog(self)
         dlg.setWindowTitle("Help – DotPlot")

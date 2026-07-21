@@ -406,7 +406,7 @@ Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
 </p>
 </div>
         """)
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel
+        from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("About SeqSketch"))

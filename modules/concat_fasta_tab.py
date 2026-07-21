@@ -1,8 +1,12 @@
 """Concatenate multiple FASTA files into a single output file."""
 
+import os
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QVBoxLayout,
+    QCheckBox,
+    QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -10,13 +14,11 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QPlainTextEdit,
     QPushButton,
-    QFileDialog,
     QSizePolicy,
-    QCheckBox,
-    QGroupBox,
+    QVBoxLayout,
 )
+
 from utils.common_components import BaseTabWidget
-import os
 
 
 class ConcatFastaTab(BaseTabWidget):
@@ -141,7 +143,7 @@ class ConcatFastaTab(BaseTabWidget):
             processor = FASTAProcessor()
             if processor.read_file(path):
                 seq_count = len(processor.records)
-        except Exception:
+        except (OSError, ValueError):
             pass
         label = os.path.basename(path)
         if seq_count:
@@ -170,8 +172,9 @@ class ConcatFastaTab(BaseTabWidget):
 
     def _load_example(self):
         """Load bundled example gene files into the file list."""
-        from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
+
+        from utils.example_data import stage_example
 
         self.file_list.clear()
         examples = [

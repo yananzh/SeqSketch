@@ -1,19 +1,21 @@
 """Deduplicate FASTA sequences — by ID or by sequence content."""
 
+import os
+
 from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
-    QFileDialog,
     QSizePolicy,
-    QComboBox,
-    QCheckBox,
-    QGroupBox,
 )
+
 from utils.common_components import BaseTabWidget, FileDropLineEdit
-import os
 
 DEDUP_BY_ID = "by_id"
 DEDUP_BY_SEQ = "by_seq"
@@ -144,8 +146,9 @@ class DeduplicateTab(BaseTabWidget):
 
     def _load_example(self):
         """Load the bundled cytb teaching example into the input field."""
-        from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
+
+        from utils.example_data import stage_example
 
         path = stage_example("dna", "cytb_cds_deduplicate.fasta")
         if not path:

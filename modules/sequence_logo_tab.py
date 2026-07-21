@@ -1,25 +1,25 @@
+import matplotlib
 from PyQt6.QtWidgets import (
-    QMessageBox,
+    QComboBox,
     QFileDialog,
-    QVBoxLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QComboBox,
-    QGroupBox,
-    QScrollArea,
+    QMessageBox,
     QPushButton,
+    QScrollArea,
+    QVBoxLayout,
     QWidget,
 )
 
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
-import matplotlib
 
 matplotlib.use("Qt5Agg")
+import logomaker
+import pandas as pd
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-import pandas as pd
-import logomaker
 
 
 class SequenceLogoTab(BaseTabWidget):
@@ -451,7 +451,7 @@ class SequenceLogoTab(BaseTabWidget):
 
     def show_help(self):
         """Show help dialog."""
-        from PyQt6.QtWidgets import QDialog, QTextBrowser, QVBoxLayout, QPushButton
+        from PyQt6.QtWidgets import QDialog, QPushButton, QTextBrowser, QVBoxLayout
 
         help_text = """
 <h2>Sequence Logo — Visualize Sequence Conservation</h2>

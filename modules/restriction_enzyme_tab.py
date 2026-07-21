@@ -5,25 +5,25 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional
 
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
-    QGroupBox,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QComboBox,
     QCheckBox,
-    QSpinBox,
+    QComboBox,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
     QMessageBox,
     QPushButton,
-    QFileDialog,
+    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
+    QVBoxLayout,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
 
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
@@ -41,7 +41,7 @@ class _AnalysisWorker(QObject):
 
     def run(self):
         try:
-            from Bio.Restriction import RestrictionBatch, CommOnly, AllEnzymes
+            from Bio.Restriction import AllEnzymes, CommOnly, RestrictionBatch
             from Bio.Seq import Seq
 
             all_enz = {e.__name__: e for e in AllEnzymes}
@@ -272,7 +272,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         # Build enzyme list
         use_common = self._enzyme_set_combo.currentIndex() == 0
         try:
-            from Bio.Restriction import CommOnly, AllEnzymes
+            from Bio.Restriction import AllEnzymes, CommOnly
 
             enzyme_names = (
                 [e.__name__ for e in CommOnly] if use_common else [e.__name__ for e in AllEnzymes]
@@ -493,15 +493,15 @@ class RestrictionEnzymeTab(BaseTabWidget):
             "<li>Use <b>Export Excel</b> to save the results table as a spreadsheet</li>"
             "</ul>"
         )
+        from PyQt6.QtCore import Qt as QtCore
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QHBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
-        from PyQt6.QtCore import Qt as QtCore
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Restriction Enzyme Analysis"))

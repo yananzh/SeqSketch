@@ -20,10 +20,6 @@ import tempfile
 
 from Bio import AlignIO
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-
-from utils.app_paths import resource_path, tool_path_from_config
-from utils.common_components import BaseTabWidget, apply_log_viewer_style
-from utils.example_data import stage_example
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -42,6 +38,10 @@ from PyQt6.QtWidgets import (
     QRadioButton,
     QVBoxLayout,
 )
+
+from utils.app_paths import resource_path, tool_path_from_config
+from utils.common_components import BaseTabWidget, apply_log_viewer_style
+from utils.example_data import stage_example
 
 
 # ── bundled trimAl path ────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ def _count_fasta_alignment_columns(path: str) -> int:
                 elif in_seq:
                     seq_len += len(line)
             return seq_len
-    except Exception:
+    except OSError:
         return 0
 
 
@@ -153,7 +153,7 @@ def _parse_column_change(log: str, out_path: str = "", before_cols: int = 0) -> 
     elif out_path and os.path.isfile(out_path):
         try:
             after = _count_fasta_alignment_columns(out_path)
-        except Exception:
+        except OSError:
             pass
 
     # Build result using known before count
@@ -269,7 +269,7 @@ class _BatchTrimThread(QThread):
         if self._proc and self._proc.poll() is None:
             try:
                 self._proc.kill()
-            except Exception:
+            except OSError:
                 pass
 
     def run(self):
@@ -743,17 +743,17 @@ or <b>MSA Visualization</b>.</li>
         sep = "─" * 48
         self.log_area.clear()
         self.log_area.append(f"{sep}")
-        self.log_area.append(f"  TrimAl Run Summary")
+        self.log_area.append("  TrimAl Run Summary")
         self.log_area.append(f"{sep}")
         self.log_area.append(f"  trimAl path      : {exe}")
         self.log_area.append(f"  Output folder    : {outdir}")
         self.log_area.append(f"  Trimming method  : {method_name}")
         self.log_area.append(f"  Output format    : {fmt_name}")
         self.log_area.append(f"  Files to trim    : {total}")
-        self.log_area.append(f"  ── Input files ──")
+        self.log_area.append("  ── Input files ──")
         for fname, fmt_label in file_infos:
             self.log_area.append(f"    {fname}  [{fmt_label}]")
-        self.log_area.append(f"  ── Commands ──")
+        self.log_area.append("  ── Commands ──")
         for index, (cmd, _, _) in enumerate(tasks, start=1):
             self.log_area.append(f"    [{index}] {_format_command(cmd)}")
         self.log_area.append(f"{sep}")

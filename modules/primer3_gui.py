@@ -8,6 +8,11 @@ import os
 import sys
 from typing import Any, Dict
 
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+
+# matplotlib for primer binding site map
+from matplotlib.figure import Figure
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
@@ -23,25 +28,20 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
-    QSplitter,
     QSpinBox,
-    QTabWidget,
+    QSplitter,
     QTableWidget,
     QTableWidgetItem,
+    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
-# matplotlib for primer binding site map
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
-
 # openpyxl for Excel export
 try:
     import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
 
     _HAS_OPENPYXL = True
@@ -54,7 +54,7 @@ from utils.example_data import load_example_text
 
 try:
     p3_bindings = importlib.import_module("primer3.bindings")
-except Exception:
+except ImportError:
     p3_bindings = None
 
 
@@ -141,7 +141,7 @@ class PrimerDesignTab(QWidget):
                             with open(path, "r", encoding="utf-8") as f:
                                 _tab.seq_input.setText(f.read())
                             _tab.status_label.setText(f"Dropped file: {path}")
-                        except Exception:
+                        except (OSError, UnicodeDecodeError):
                             pass
                         return
             QTextEdit.dropEvent(widget, event)
@@ -1006,8 +1006,8 @@ class PrimerDesignTab(QWidget):
     # ── Help Dialog ─────────────────────────────────────────────────
 
     def show_help_dialog(self):
-        from PyQt6.QtWidgets import QDialog, QLabel, QPushButton, QScrollArea, QVBoxLayout
         from PyQt6.QtCore import Qt as QtCore
+        from PyQt6.QtWidgets import QLabel, QPushButton, QScrollArea, QVBoxLayout
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("qPCR Primer Design - Help"))

@@ -1,6 +1,6 @@
-from collections import Counter
 import os
 import re
+from collections import Counter
 
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -23,7 +23,6 @@ from utils.common_components import (
     BaseTabWidget,
     FileDropLineEdit,
 )
-
 
 SIMPLIFY_MODE_FIRST_TOKEN = "first_token"
 SIMPLIFY_MODE_DELIMITER_FIELD = "delimiter_field"

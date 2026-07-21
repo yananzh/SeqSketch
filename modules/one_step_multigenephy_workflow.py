@@ -689,7 +689,7 @@ class OneStepMultiGenePhyRunner:
                         artifacts.manifest_path,
                         _build_manifest_payload(step_status, warnings, artifacts),
                     )
-                except Exception:
+                except OSError:
                     pass
 
             if persistence_errors:

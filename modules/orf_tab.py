@@ -1,27 +1,29 @@
-from utils.common_components import BaseTabWidget
-from utils.example_data import load_example_text
 import re
+
 from Bio.Data import CodonTable
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QSpinBox,
+    QAbstractItemView,
     QComboBox,
-    QHBoxLayout,
-    QLabel,
-    QGroupBox,
-    QPushButton,
-    QVBoxLayout,
     QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QPushButton,
+    QSpinBox,
+    QSplitter,
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
-    QSplitter,
-    QAbstractItemView,
+    QVBoxLayout,
     QWidget,
 )
-from PyQt6.QtCore import Qt
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
+
+from utils.common_components import BaseTabWidget
+from utils.example_data import load_example_text
 
 # NCBI genetic code table id, keyed by the human-readable label shown in the combo box.
 GENETIC_CODES = {
@@ -563,14 +565,14 @@ Translation: MKPGFK*
 <li>The output is shown in a sortable table &mdash; click column headers to sort by length, frame, or position.  Use <b>Copy to Clipboard</b> to copy selected ORF sequences, or <b>Export Result</b> to save all ORFs as a FASTA file.</li>
 </ul>
         """
+        from PyQt6.QtCore import Qt
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
-        from PyQt6.QtCore import Qt
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - ORF Finder")

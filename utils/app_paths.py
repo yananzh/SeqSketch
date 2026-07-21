@@ -2,7 +2,6 @@ import configparser
 import os
 import sys
 
-
 APP_NAME = "SeqSketch"
 
 
@@ -72,6 +71,6 @@ def tool_path_from_config(section: str, key: str) -> str | None:
         rel = cfg.get(section, key, fallback=None)
         if rel:
             return os.path.normpath(os.path.join(portable_root(), rel))
-    except Exception:
+    except (OSError, configparser.Error):
         pass
     return None

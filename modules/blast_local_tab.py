@@ -8,32 +8,32 @@ A single tab widget that runs Local BLAST and can build a database inline:
 Results open as a new tab in the main window via result_callback.
 """
 
-from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QFormLayout,
-    QGridLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QFileDialog,
-    QComboBox,
-    QFrame,
-    QGroupBox,
-    QMessageBox,
-    QSpinBox,
-)
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
-from PyQt6.QtWidgets import QTextBrowser, QDialog
-from utils.common_components import BaseTabWidget
-from utils.app_paths import resource_path
 import os
 
-# Reuse thread classes and config from the existing dialog modules
-from .blast_make_db_dialog import _MakeDbThread
-from .blast_run_dialog import _RunBlastThread, _PROG_TIPS
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QTextBrowser,
+    QVBoxLayout,
+    QWidget,
+)
+
+from utils.app_paths import resource_path
+from utils.common_components import BaseTabWidget
+
 from .blast_config import (
     detect_query_sequence_type,
     get_blast_bin_dir,
@@ -43,6 +43,10 @@ from .blast_config import (
     set_blast_bin_dir,
     validate_query_program_selection,
 )
+
+# Reuse thread classes and config from the existing dialog modules
+from .blast_make_db_dialog import _MakeDbThread
+from .blast_run_dialog import _PROG_TIPS, _RunBlastThread
 
 _DEFAULT_MAX_HITS = 50
 

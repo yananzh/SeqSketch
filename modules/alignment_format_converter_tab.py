@@ -3,8 +3,8 @@ import os
 from Bio import AlignIO
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
-    QFileDialog,
     QComboBox,
+    QFileDialog,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -21,7 +21,6 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import load_example_text, stage_example
-
 
 FORMAT_LABELS = {
     "FASTA": "fasta",
@@ -378,9 +377,9 @@ Click <b>Save As</b> to choose a different location.</p>
 """
         from PyQt6.QtWidgets import (
             QDialog,
+            QPushButton,
             QTextBrowser,
             QVBoxLayout,
-            QPushButton,
         )
 
         dlg = QDialog(self)

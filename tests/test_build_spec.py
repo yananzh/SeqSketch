@@ -2,8 +2,8 @@
 
 import os
 import sys
-import pytest
 
+import pytest
 
 SPEC_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "SeqSketch.spec"

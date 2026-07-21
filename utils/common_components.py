@@ -3,26 +3,26 @@ Common worker base classes and components
 Reduce duplication and provide unified error handling and signals
 """
 
-from PyQt6.QtCore import QObject, QThread, pyqtSignal, Qt
-from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QGroupBox,
-    QPushButton,
-    QFrame,
-    QTextEdit,
-    QLineEdit,
-    QFileDialog,
-    QMessageBox,
-    QDialog,
-    QScrollArea,
-)
-from typing import Any, Dict, Optional
 import logging
 import os
+from typing import Any, Dict, Optional
 
+from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
+from PyQt6.QtWidgets import (
+    QDialog,
+    QFileDialog,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 # ── Shared file-drop line edit ──────────────────────────────────────────────
 
@@ -338,7 +338,7 @@ class BaseTabWidget(QWidget):
 
     def open_file(self):
         """Open file (sequence mode)"""
-        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from PyQt6.QtWidgets import QMessageBox
 
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -357,7 +357,7 @@ class BaseTabWidget(QWidget):
 
     def export_result(self):
         """Export result (sequence mode)"""
-        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from PyQt6.QtWidgets import QMessageBox
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,

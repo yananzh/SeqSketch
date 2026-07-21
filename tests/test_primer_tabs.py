@@ -14,13 +14,12 @@ import pytest
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QLineEdit, QMessageBox, QPushButton, QTextEdit
 
+from main_window import MainWindow
+from modules.primer3_gui import PrimerDesignTab
 from modules.primer_analysis_tab import (
     PrimerAnalysisTab,
     _gc_percent,
 )
-from modules.primer3_gui import PrimerDesignTab
-from main_window import MainWindow
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 

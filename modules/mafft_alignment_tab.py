@@ -301,7 +301,7 @@ class _MafftBatchWorker(QThread):
         if self._proc and self._proc.poll() is None:
             try:
                 self._proc.kill()
-            except Exception:
+            except OSError:
                 pass
 
     def _render_name(self, stem: str, ext: str) -> str:

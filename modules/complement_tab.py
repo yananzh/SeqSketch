@@ -1,7 +1,9 @@
+import re
+
+from PyQt6.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QMessageBox, QPushButton
+
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
-import re
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton, QMessageBox, QGroupBox
 
 
 class ComplementTab(BaseTabWidget):
@@ -196,14 +198,14 @@ CGATCGCAT
 <li>Multi-FASTA input is supported &mdash; each sequence is transformed independently</li>
 </ul>
         """
+        from PyQt6.QtCore import Qt
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
-        from PyQt6.QtCore import Qt
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Complement/Reverse Complement")

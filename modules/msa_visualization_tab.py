@@ -5,28 +5,27 @@ import tempfile
 import matplotlib
 
 matplotlib.use("Qt5Agg")
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
-
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QMessageBox,
-    QFileDialog,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QComboBox,
-    QPushButton,
-    QTextEdit,
     QCheckBox,
-    QSpinBox,
+    QComboBox,
+    QDialog,
+    QFileDialog,
     QFrame,
     QGroupBox,
-    QDialog,
-    QTextBrowser,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
     QScrollArea,
+    QSpinBox,
+    QTextBrowser,
+    QTextEdit,
+    QVBoxLayout,
     QWidget,
 )
-from PyQt6.QtCore import Qt
 
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text

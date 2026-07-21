@@ -1,24 +1,26 @@
 """Protease Cleavage Map Tab — predict proteolytic digestion fragments."""
 
-from PyQt6.QtWidgets import (
-    QMessageBox,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QComboBox,
-    QSpinBox,
-    QGroupBox,
-    QScrollArea,
-    QCheckBox,
-    QTextEdit,
-    QPushButton,
-    QFileDialog,
-)
-from PyQt6.QtCore import Qt
-from utils.common_components import BaseTabWidget, apply_sequence_editor_style
-from utils.example_data import load_example_text
 import csv
 import re
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSpinBox,
+    QTextEdit,
+    QVBoxLayout,
+)
+
+from utils.common_components import BaseTabWidget, apply_sequence_editor_style
+from utils.example_data import load_example_text
 
 # ── Protease definitions ─────────────────────────────────────────────────────
 # Each entry: (display_name, cleavage_rule)
@@ -343,10 +345,9 @@ class ProteaseCleavageTab(BaseTabWidget):
     def show_help(self):
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QLabel,
             QPushButton,
-            QScrollArea,
+            QVBoxLayout,
         )
 
         help_text = """

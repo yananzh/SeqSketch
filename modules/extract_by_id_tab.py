@@ -1,25 +1,25 @@
+import os
 from collections import Counter
 
 from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
     QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
-    QFileDialog,
     QPlainTextEdit,
+    QPushButton,
     QSizePolicy,
-    QComboBox,
-    QCheckBox,
     QVBoxLayout,
 )
+
 from utils.common_components import (
     BaseTabWidget,
     FileDropLineEdit,
 )
-import os
-
 
 # Remove worker, use main thread
 
@@ -314,8 +314,9 @@ class ExtractByIDTab(BaseTabWidget):
 
     def _load_example(self):
         """Load the bundled cytb teaching example and a few sample IDs."""
-        from utils.example_data import stage_example
         from PyQt6.QtWidgets import QMessageBox
+
+        from utils.example_data import stage_example
 
         path = stage_example("phylo", "cytb_cds_raw.fasta")
         if not path:
@@ -460,8 +461,9 @@ class ExtractByIDTab(BaseTabWidget):
         self.set_running_state(True)
         self.log_message("Starting extraction...", "INFO")
         try:
-            from modules.fasta_processor import FASTAProcessor
             import os
+
+            from modules.fasta_processor import FASTAProcessor
 
             # Load FASTA
             self.show_status("Loading FASTA file...")

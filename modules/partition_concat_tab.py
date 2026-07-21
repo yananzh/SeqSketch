@@ -168,7 +168,7 @@ def _detect_seq_type(files: list[str]) -> str:
                 dna_count = sum(1 for c in first_seq if c in "ACGTRYSWKMBDHVNU")
                 ratio = dna_count / len(first_seq) if first_seq else 0
                 return "DNA" if ratio >= 0.85 else "AA"
-    except Exception:
+    except (OSError, ValueError):
         pass
     return "DNA"
 
@@ -491,6 +491,7 @@ class PartitionConcatTab(BaseTabWidget):
     def _load_example(self) -> None:
         """Load bundled example gene files into the file list."""
         from PyQt6.QtWidgets import QMessageBox
+
         from utils.example_data import stage_example
 
         self._file_list.clear()
@@ -588,14 +589,14 @@ class PartitionConcatTab(BaseTabWidget):
         sep = "─" * 48
         self.log_area.clear()
         self.log_area.append(f"{sep}")
-        self.log_area.append(f"  Sequence Concatenation Summary")
+        self.log_area.append("  Sequence Concatenation Summary")
         self.log_area.append(f"{sep}")
         self.log_area.append(f"  Sequence type    : {seq_type} (auto-detected)")
-        self.log_area.append(f"  Partition format : NEXUS")
+        self.log_area.append("  Partition format : NEXUS")
         self.log_area.append(f"  Output directory : {out_dir}")
         self.log_area.append(f"  Output prefix    : {prefix}")
         self.log_area.append(f"  Files to merge   : {len(files)}")
-        self.log_area.append(f"  ── Input files ──")
+        self.log_area.append("  ── Input files ──")
         for fname in gene_names:
             self.log_area.append(f"    {fname}")
         self.log_area.append(f"{sep}")

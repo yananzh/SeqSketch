@@ -5,14 +5,16 @@ import os
 import re
 import tempfile
 import time
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
-from PyQt6.QtCore import Qt, QMimeData, QByteArray, QDataStream, QIODevice
-from PyQt6.QtGui import QAction, QDrag, QColor
+from PyQt6.QtCore import QByteArray, QDataStream, QIODevice, QMimeData, Qt
+from PyQt6.QtGui import QAction, QColor, QDrag
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QInputDialog,
@@ -28,12 +30,9 @@ from PyQt6.QtWidgets import (
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
-    QFileDialog,
-    QAbstractItemView,
 )
 
 from utils.app_paths import user_data_file
-
 
 # URL validation regex
 _URL_RE = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
@@ -499,7 +498,7 @@ class BookmarkManager(QWidget):
         for bm in self.bookmarks.get(cat, []):
             try:
                 webbrowser.open(bm["url"])
-            except Exception:
+            except OSError:
                 pass
         self.status_label.setText(f"Opened all in '{cat}'")
 

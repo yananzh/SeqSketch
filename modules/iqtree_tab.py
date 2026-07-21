@@ -7,7 +7,6 @@ import os
 import subprocess
 
 from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -24,7 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import resource_path, tool_path_from_config
-from utils.common_components import BaseTabWidget, apply_log_viewer_style
+from utils.common_components import BaseTabWidget, FileDropLineEdit, apply_log_viewer_style
 from utils.example_data import stage_example
 
 
@@ -37,38 +36,6 @@ def _resolve_iqtree_exe() -> str:
             return exe
     return resource_path("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
 
-
-# 动态解析，避免模块级缓存导致 config.ini 运行时变更不生效
-
-
-# ---------------------------------------------------------------------------
-# Drag-and-drop enabled QLineEdit
-# ---------------------------------------------------------------------------
-class _DropLineEdit(QLineEdit):
-    """QLineEdit that accepts file drops."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setAcceptDrops(True)
-
-    def dragEnterEvent(self, a0: QDragEnterEvent | None) -> None:  # noqa: N802
-        if a0:
-            mime = a0.mimeData()
-            if mime and mime.hasUrls():
-                a0.acceptProposedAction()
-                return
-        super().dragEnterEvent(a0)
-
-    def dropEvent(self, a0: QDropEvent | None) -> None:  # noqa: N802
-        if a0:
-            mime = a0.mimeData()
-            if mime:
-                urls = mime.urls()
-                if urls:
-                    self.setText(urls[0].toLocalFile())
-                    a0.acceptProposedAction()
-                    return
-        super().dropEvent(a0)
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +60,7 @@ class _IqTreeThread(QThread):
         if self._proc:
             try:
                 self._proc.kill()
-            except Exception:
+            except OSError:
                 pass
 
     def run(self):
@@ -151,7 +118,8 @@ class IqTreeTab(BaseTabWidget):
         input_form.setSpacing(8)
 
         exe_row = QHBoxLayout()
-        self._exe_edit = _DropLineEdit(_resolve_iqtree_exe())
+        self._exe_edit = FileDropLineEdit({".exe"})
+        self._exe_edit.setText(_resolve_iqtree_exe())
         self._exe_edit.setPlaceholderText(self.tr("Path to iqtree3.exe …"))
         self._exe_edit.setToolTip(self.tr("Path to the IQ-TREE executable"))
         exe_chg = QPushButton(self.tr("Browse"))
@@ -163,7 +131,7 @@ class IqTreeTab(BaseTabWidget):
         input_form.addRow(self.tr("IQ-TREE exe:"), exe_row)
 
         in_row = QHBoxLayout()
-        self._input_edit = _DropLineEdit()
+        self._input_edit = FileDropLineEdit()
         self._input_edit.setPlaceholderText(self.tr("Drag file here or click Browse…"))
         self._input_edit.textChanged.connect(self._auto_fill_outdir)
         in_browse = QPushButton(self.tr("Browse"))
@@ -174,7 +142,7 @@ class IqTreeTab(BaseTabWidget):
         input_form.addRow(self.tr("Alignment:"), in_row)
 
         part_row = QHBoxLayout()
-        self._partition_edit = _DropLineEdit()
+        self._partition_edit = FileDropLineEdit()
         self._partition_edit.setPlaceholderText(
             self.tr("Optional — partition/nexus file for multi-gene analysis (-p)")
         )
@@ -269,7 +237,7 @@ class IqTreeTab(BaseTabWidget):
 
         # Row 4: Output directory
         outdir_row = QHBoxLayout()
-        self._outdir_edit = _DropLineEdit()
+        self._outdir_edit = QLineEdit()
         self._outdir_edit.setPlaceholderText(
             self.tr("Optional — leave blank to save alongside input file")
         )

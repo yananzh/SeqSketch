@@ -900,7 +900,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             ntips = tre.ntips
             nnodes = tre.nnodes
             self.show_status(self.tr(f"Loaded: {ntips} tips, {nnodes - ntips} internal nodes"))
-        except Exception:
+        except (OSError, ValueError, RuntimeError):
             pass
 
     def _on_param_changed(self):
@@ -921,7 +921,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         if mapping_path and os.path.isfile(mapping_path):
             try:
                 mapping = _parse_tip_mapping_file(mapping_path)
-            except Exception:
+            except (OSError, ValueError):
                 pass  # show_status will be called on draw failure
 
         return {
@@ -998,7 +998,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         if self._render_thread is not None:
             try:
                 self._render_thread.finished.disconnect(self._on_render_done)
-            except Exception:
+            except (TypeError, RuntimeError):
                 pass
             self._render_thread = None
 
@@ -1050,7 +1050,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         if self._export_thread is not None:
             try:
                 self._export_thread.finished.disconnect(self._on_export_done)
-            except Exception:
+            except (TypeError, RuntimeError):
                 pass
             self._export_thread = None
 

@@ -1,7 +1,9 @@
+import re
+
+from PyQt6.QtWidgets import QHBoxLayout, QMessageBox, QPushButton
+
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
-from PyQt6.QtWidgets import QPushButton, QHBoxLayout, QMessageBox
-import re
 
 
 class RNATab(BaseTabWidget):
@@ -158,14 +160,14 @@ UUAAGGCC
 <li>IUPAC codes (R, Y, M, etc.) are preserved; only A/T/G/C are subject to T &rarr; U conversion</li>
 </ul>
         """
+        from PyQt6.QtCore import Qt
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
-        from PyQt6.QtCore import Qt
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Convert to RNA")

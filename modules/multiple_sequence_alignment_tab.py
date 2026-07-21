@@ -1,38 +1,38 @@
+import configparser
 import os
 import re
+import subprocess
 import sys
 import tempfile
-import subprocess
-import configparser
 from datetime import datetime
 
 from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
-    QMessageBox,
+    QCheckBox,
+    QComboBox,
+    QDialog,
     QFileDialog,
+    QFrame,
     QGridLayout,
-    QVBoxLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QComboBox,
-    QTextEdit,
-    QPushButton,
-    QSpinBox,
-    QFrame,
-    QGroupBox,
-    QDialog,
-    QTextBrowser,
-    QTabWidget,
     QListWidget,
     QListWidgetItem,
-    QCheckBox,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QTabWidget,
+    QTextBrowser,
+    QTextEdit,
+    QVBoxLayout,
     QWidget,
 )
-from PyQt6.QtGui import QFont
 
-from utils.common_components import BaseTabWidget
 from utils.app_paths import resource_path, tool_path_from_config, user_data_file
+from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text, stage_example
 
 # Per-user config file where the user-selected MUSCLE path is persisted.
@@ -260,7 +260,7 @@ class _MuscleBatchWorker(QThread):
         if self._proc and self._proc.poll() is None:
             try:
                 self._proc.kill()
-            except Exception:
+            except OSError:
                 pass
 
     def _render_name(self, stem: str, ext: str) -> str:
@@ -781,7 +781,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
                 saved = cfg.get("MSA", "muscle_exe", fallback="").strip()
                 if saved:
                     return saved
-        except Exception:
+        except (OSError, configparser.Error):
             pass
         return MUSCLE_EXE
 

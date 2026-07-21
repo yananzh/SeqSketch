@@ -1,15 +1,17 @@
-from utils.common_components import BaseTabWidget
-from utils.example_data import load_example_text
 import re
+
 from Bio.Data import CodonTable
 from PyQt6.QtWidgets import (
     QComboBox,
+    QGroupBox,
     QHBoxLayout,
-    QVBoxLayout,
     QLabel,
     QPushButton,
-    QGroupBox,
+    QVBoxLayout,
 )
+
+from utils.common_components import BaseTabWidget
+from utils.example_data import load_example_text
 
 # NCBI genetic code table id, keyed by the human-readable label shown in the combo box.
 GENETIC_CODES = {
@@ -299,14 +301,14 @@ Met-Lys-Phe-Gly-Stop
 <li>Multi-FASTA input is supported &mdash; each record is translated independently</li>
 </ul>
         """
+        from PyQt6.QtCore import Qt
         from PyQt6.QtWidgets import (
             QDialog,
-            QVBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
-        from PyQt6.QtCore import Qt
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Translate")

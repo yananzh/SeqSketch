@@ -1,5 +1,5 @@
-import re
 import json
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -9,7 +9,6 @@ from modules.one_step_multigenephy_models import (
     GeneDataset,
     ParsedExcelSheet,
 )
-
 
 _ACCESSION_RE = re.compile(r"^[A-Z]{1,4}_?\d+(?:\.\d+)?$", re.IGNORECASE)
 _DNA_RE = re.compile(r"^[ACGTRYSWKMBDHVN-]+$", re.IGNORECASE)

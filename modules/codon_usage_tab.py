@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import csv
 import collections
+import csv
 import math
 import re
 from typing import Dict, List, Optional, Tuple
@@ -11,37 +11,37 @@ from typing import Dict, List, Optional, Tuple
 import matplotlib
 import matplotlib.patches as mpatches
 import numpy as np
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-
+from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QTextEdit,
-    QPushButton,
-    QComboBox,
-    QGroupBox,
-    QSplitter,
-    QTabWidget,
-    QTableWidget,
-    QTableWidgetItem,
-    QFileDialog,
-    QMessageBox,
     QApplication,
-    QHeaderView,
-    QLineEdit,
-    QRadioButton,
-    QCheckBox,
     QButtonGroup,
+    QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
     QSizePolicy,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
-from PyQt6.QtGui import QColor
+
 from utils.example_data import load_example_text
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1390,15 +1390,14 @@ class CodonUsageTab(QWidget):
             "<li><b>GC Content / GC Skew Plot</b> — whole-sequence GC analysis with sliding windows</li>"
             "</ul>"
         )
+        from PyQt6.QtCore import Qt as QtCore
         from PyQt6.QtWidgets import (
-            QDialog,
-            QVBoxLayout,
             QHBoxLayout,
             QLabel,
             QPushButton,
             QScrollArea,
+            QVBoxLayout,
         )
-        from PyQt6.QtCore import Qt as QtCore
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Codon Usage Analysis"))
