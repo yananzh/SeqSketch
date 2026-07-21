@@ -508,11 +508,11 @@ class ToytreeVisualizationTab(BaseTabWidget):
 
         # Tip name mapping file (optional, drag & drop)
         self._mapping_edit = _DropLineEdit()
-        self._mapping_edit.setPlaceholderText(
-            self.tr("Drop a mapping file (optional)")
-        )
+        self._mapping_edit.setPlaceholderText(self.tr("Drop a mapping file (optional)"))
         self._mapping_edit.setToolTip(
-            self.tr("Two-column file: old_name,new_name — replaces tip labels in the tree (CSV/TSV, optional)")
+            self.tr(
+                "Two-column file: old_name,new_name — replaces tip labels in the tree (CSV/TSV, optional)"
+            )
         )
         self._mapping_edit.fileDropped.connect(self._on_mapping_selected)
         self._mapping_edit.textChanged.connect(self._on_param_changed)
