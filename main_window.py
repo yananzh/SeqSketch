@@ -346,11 +346,6 @@ class MainWindow(QMainWindow):
             reuse=False,
         )
 
-    def open_tree_visualization_tab(self):
-        from modules.tree_visualization_tab import SimpleTreeVisualizationTab
-
-        self._find_or_open(SimpleTreeVisualizationTab, "Tree Visualization")
-
     def open_toytree_visualization_tab(self):
         from modules.tree_visualization_toytree_tab import ToytreeVisualizationTab
 

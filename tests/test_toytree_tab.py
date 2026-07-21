@@ -131,7 +131,6 @@ def test_main_window_and_menu_use_toytree_label(qapp):
     action_texts = [action.text() for action in evo_menu.actions() if action.text()]
 
     assert "Tree Visualization (Toytree)" in action_texts
-    assert "Simple Tree Visualization (Phytreeviz)" in action_texts
 
 
 def test_main_window_toytree_tab_single_instance(qapp):

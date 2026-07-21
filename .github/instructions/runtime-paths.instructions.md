@@ -1,7 +1,7 @@
 ---
 description: "Use when editing runtime path lookup, bundled external-tool launchers, or per-user config/data files. Covers resource_path/user_data_file, legacy config migration, and subprocess/thread conventions for packaged Windows builds."
 name: "Runtime Paths And External Tools"
-applyTo: main.py, main_window.py, utils/app_paths.py, modules/blast_config.py, modules/blast_make_db_dialog.py, modules/blast_run_dialog.py, modules/iqtree_tab.py, modules/multiple_sequence_alignment_tab.py, modules/partition_concat_tab.py, modules/trimal_tab.py, modules/tree_visualization_tab.py, modules/favorites_manager.py
+applyTo: main.py, main_window.py, utils/app_paths.py, modules/blast_config.py, modules/blast_make_db_dialog.py, modules/blast_run_dialog.py, modules/iqtree_tab.py, modules/multiple_sequence_alignment_tab.py, modules/partition_concat_tab.py, modules/trimal_tab.py, modules/tree_visualization_toytree_tab.py, modules/favorites_manager.py
 ---
 
 # Runtime Paths And External Tools

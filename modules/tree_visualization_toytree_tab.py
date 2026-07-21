@@ -41,7 +41,7 @@ from PyQt6.QtWidgets import (
 
 from utils.app_paths import user_data_file
 from utils.common_components import BaseTabWidget
-from utils.example_data import stage_example
+from utils.example_data import stage_example, example_path
 
 
 # ---------------------------------------------------------------------------
@@ -80,10 +80,15 @@ class _DropLineEdit(QLineEdit):
 # Helper: build a toytree ToyTree with rooting applied
 # ---------------------------------------------------------------------------
 def _load_and_root(tree_file: str, params: dict):
-    """Load tree via toytree and apply rooting if requested."""
+    """Load tree via toytree, apply tip mapping, and apply rooting if requested."""
     import toytree
 
     tre = toytree.tree(tree_file)
+
+    # Apply tip name mapping if provided
+    mapping = params.get("tip_mapping", {})
+    if mapping:
+        tre = _apply_tip_mapping(tre, mapping)
 
     method = params.get("root_method", "none")
     if method == "midpoint":
@@ -95,6 +100,64 @@ def _load_and_root(tree_file: str, params: dict):
         tre = tre.root(outgroup)
 
     return tre
+
+
+def _apply_tip_mapping(tre, mapping: dict):
+    """Rename leaf nodes using a {old_name: new_name} mapping."""
+    for node in tre.treenode.traverse():
+        if node.is_leaf() and node.name in mapping:
+            node.name = mapping[node.name]
+    return tre
+
+
+def _parse_tip_mapping_file(file_path: str) -> dict:
+    """Parse a two-column CSV/TSV tip-mapping file into {old: new} dict.
+
+    Accepts CSV, TSV, TXT, or Excel files.  Expects two columns with no
+    header.  Returns an empty dict on failure (caller should show status).
+    """
+    import os
+
+    ext = os.path.splitext(file_path)[1].lower()
+    rows = []
+
+    try:
+        if ext in (".xlsx", ".xls"):
+            try:
+                import pandas as pd
+            except ImportError:
+                raise ValueError("Excel mapping requires pandas. Use CSV/TSV instead.")
+            df = pd.read_excel(file_path, header=None)
+            rows = df.values.tolist()
+        elif ext in (".csv", ".tsv", ".txt"):
+            delim = "\t" if ext in (".tsv", ".txt") else ","
+            with open(file_path, "r", encoding="utf-8-sig") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    parts = line.split(delim)
+                    if len(parts) >= 2:
+                        rows.append([parts[0].strip(), parts[1].strip()])
+        else:
+            raise ValueError(f"Unsupported format: {ext}. Use CSV, TSV, or Excel.")
+    except Exception as e:
+        raise ValueError(f"Failed to parse mapping file: {e}")
+
+    if not rows:
+        raise ValueError("Mapping file is empty.")
+
+    mapping = {}
+    for row in rows:
+        old_id = str(row[0]).strip() if row[0] is not None else ""
+        new_id = str(row[1]).strip() if row[1] is not None else ""
+        if old_id and new_id:
+            mapping[old_id] = new_id
+
+    if not mapping:
+        raise ValueError("No valid mappings found (need two non-empty columns per row).")
+
+    return mapping
 
 
 # ---------------------------------------------------------------------------
@@ -443,11 +506,22 @@ class ToytreeVisualizationTab(BaseTabWidget):
         self._file_edit.fileDropped.connect(self._on_file_selected)
         gl.addWidget(self._file_edit)
 
+        # Tip name mapping file (optional, drag & drop)
+        self._mapping_edit = _DropLineEdit()
+        self._mapping_edit.setPlaceholderText(
+            self.tr("Drop a mapping file (optional)")
+        )
+        self._mapping_edit.setToolTip(
+            self.tr("Two-column file: old_name,new_name — replaces tip labels in the tree (CSV/TSV, optional)")
+        )
+        self._mapping_edit.fileDropped.connect(self._on_mapping_selected)
+        self._mapping_edit.textChanged.connect(self._on_param_changed)
+        gl.addWidget(self._mapping_edit)
+
         btn_row = QHBoxLayout()
         browse_btn = QPushButton(self.tr("Browse"))
         browse_btn.clicked.connect(self._browse_file)
         file_example_btn = QPushButton(self.tr("Example"))
-        file_example_btn.setToolTip(self.tr("Load bundled example tree (csrA_pro_mafft_tree.nwk)"))
         file_example_btn.clicked.connect(self._load_example)
         btn_row.addWidget(browse_btn, 1)
         btn_row.addWidget(file_example_btn, 1)
@@ -701,6 +775,15 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
   <tr><td><b>PNG</b></td><td>&mdash; raster image (300 DPI)</td></tr>
 </table>
 
+<h3>Tip Name Mapping</h3>
+<p>You can replace tree tip labels with custom names by providing a two-column
+<b>mapping file</b> (CSV / TSV):</p>
+<table>
+  <tr><td><b>Format</b></td><td><code>old_name,new_name</code> — one pair per line</td></tr>
+  <tr><td><b>Drop zone</b></td><td>drag &amp; drop a mapping file, or use the Example button</td></tr>
+</table>
+<p>Only names listed in the mapping file are changed; others stay as-is.</p>
+
 <h3>Tips</h3>
 <ul>
   <li>Files can be <b>dragged &amp; dropped</b> directly into the input field.</li>
@@ -761,13 +844,14 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         self._edge_width_spin.setValue(1)
         self._support_size_spin.setValue(9)
         self._highlight_edit.clear()
+        self._mapping_edit.clear()
         self.show_status("")
 
     # ------------------------------------------------------------------
     # Slots
     # ------------------------------------------------------------------
     def _load_example(self):
-        """Load the bundled csrA tree example for visualization."""
+        """Load the bundled csrA tree example and a sample tip-mapping file."""
         path = stage_example("phylo", "csrA_pro_mafft_tree.nwk")
         if not path:
             QMessageBox.information(
@@ -777,6 +861,11 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             )
             return
         self._file_edit.setText(path)
+
+        # Point to the bundled tip-mapping file directly (read-only, source path)
+        mapping_path = example_path("phylo", "csrA_tip_mapping.csv")
+        self._mapping_edit.setText(mapping_path)
+
         self.show_status(self.tr("Example loaded: csrA_pro_mafft_tree.nwk"))
 
     def _browse_file(self):
@@ -791,6 +880,10 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         if path:
             self._file_edit.setText(path)
             self._on_file_selected(path)
+
+    def _on_mapping_selected(self, path: str):
+        """Handle mapping file dropped onto the mapping edit."""
+        pass  # path is already set in the line edit by _DropLineEdit; param change triggers redraw
 
     def _on_file_selected(self, path: str):
         """Handle leaf-name loading and tree statistics after file selection."""
@@ -822,10 +915,19 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self._draw()
 
     def _collect_params(self) -> dict:
+        mapping = {}
+        mapping_path = self._mapping_edit.text().strip()
+        if mapping_path and os.path.isfile(mapping_path):
+            try:
+                mapping = _parse_tip_mapping_file(mapping_path)
+            except Exception:
+                pass  # show_status will be called on draw failure
+
         return {
             "layout": self._layout_combo.currentText(),
             "root_method": self._root_method_combo.currentText().lower().split()[0],
             "outgroup_name": self._outgroup_combo.currentText().strip(),
+            "tip_mapping": mapping,
             "show_support": self._show_support_check.isChecked(),
             "show_scale": self._show_scale_check.isChecked(),
             "tip_labels_align": self._align_check.isChecked(),

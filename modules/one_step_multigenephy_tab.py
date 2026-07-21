@@ -615,17 +615,17 @@ and one or more <b>gene columns</b>.</p>
             self._worker = None
 
     def _open_tree_viewer(self) -> None:
-        """Open the resulting tree file in the Tree Visualization tab."""
+        """Open the resulting tree file in the Toytree Visualization tab."""
         if not self._last_treefile or not os.path.isfile(self._last_treefile):
             return
         main_win = self.window()
-        if main_win and hasattr(main_win, "open_tree_visualization_tab"):
-            main_win.open_tree_visualization_tab()
-            from modules.tree_visualization_tab import SimpleTreeVisualizationTab
+        if main_win and hasattr(main_win, "open_toytree_visualization_tab"):
+            main_win.open_toytree_visualization_tab()
+            from modules.tree_visualization_toytree_tab import ToytreeVisualizationTab
 
             for i in range(main_win.tabs.count()):
                 widget = main_win.tabs.widget(i)
-                if isinstance(widget, SimpleTreeVisualizationTab):
+                if isinstance(widget, ToytreeVisualizationTab):
                     widget._file_edit.setText(self._last_treefile)
                     main_win.tabs.setCurrentIndex(i)
                     break

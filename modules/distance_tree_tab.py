@@ -712,7 +712,7 @@ Newick tree. Recommended: 100 for quick checks, 500–1000 for publication.</p>
 <h3>Output</h3>
 <ul>
 <li><b>Tree file</b> &mdash; Newick format (.nwk), ready for visualization in
-Simple Tree Visualization or IQ-TREE.</li>
+Tree Visualization (Toytree) or IQ-TREE.</li>
 <li><b>Distance Matrix</b> &mdash; displayed in the table; export to CSV for
 heatmap plotting or external analysis.</li>
 </ul>

@@ -129,4 +129,3 @@ Core packages currently declared in [requirements.txt](requirements.txt):
 - `numpy`, `matplotlib`, `pandas`
 - `primer3-py`
 - `logomaker`
-- `phytreeviz`

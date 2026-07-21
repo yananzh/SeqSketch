@@ -29,8 +29,6 @@ datas = [
 
 # logomaker ships data files (font files, etc.)
 datas += collect_data_files('logomaker')
-# phytreeviz may include data files
-datas += collect_data_files('phytreeviz')
 # matplotlib needs its data (fonts, matplotlibrc, etc.)
 datas += collect_data_files('matplotlib')
 # Bio (biopython) data files
@@ -72,8 +70,6 @@ hiddenimports = [
     'Bio.Blast.NCBIXML',
     'Bio.Data',
     'Bio.Data.CodonTable',
-    # phytreeviz
-    'phytreeviz',
     # logomaker
     'logomaker',
 ]
