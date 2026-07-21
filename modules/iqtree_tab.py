@@ -37,7 +37,6 @@ def _resolve_iqtree_exe() -> str:
     return resource_path("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
 
 
-
 # ---------------------------------------------------------------------------
 # Background worker thread
 # ---------------------------------------------------------------------------

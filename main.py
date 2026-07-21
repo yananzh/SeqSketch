@@ -5,13 +5,14 @@ import traceback
 
 # ── 启动日志（在任何 import 之前写入，确保 Qt 初始化崩溃也能诊断） ────────────
 _STARTUP_LOG = os.path.join(
-    os.path.dirname(sys.executable) if getattr(sys, "frozen", False)
+    os.path.dirname(sys.executable)
+    if getattr(sys, "frozen", False)
     else os.path.dirname(os.path.abspath(__file__)),
     "startup.log",
 )
 try:
     with open(_STARTUP_LOG, "a", encoding="utf-8") as _log_f:
-        _log_f.write(f"\n{'='*60}\n")
+        _log_f.write(f"\n{'=' * 60}\n")
         _log_f.write(f"startup : {datetime.datetime.now()}\n")
         _log_f.write(f"python  : {sys.executable}\n")
         _log_f.write(f"frozen  : {getattr(sys, 'frozen', False)}\n")
@@ -77,14 +78,10 @@ def main():
         pixmap = QPixmap(logo_path)
         # 缩放logo到合适大小 - 最大宽度400像素，保持宽高比
         if pixmap.width() > 400:
-            pixmap = pixmap.scaledToWidth(
-                400, Qt.TransformationMode.SmoothTransformation
-            )
+            pixmap = pixmap.scaledToWidth(400, Qt.TransformationMode.SmoothTransformation)
         # 如果高度仍然过大，限制最大高度为300像素
         if pixmap.height() > 300:
-            pixmap = pixmap.scaledToHeight(
-                300, Qt.TransformationMode.SmoothTransformation
-            )
+            pixmap = pixmap.scaledToHeight(300, Qt.TransformationMode.SmoothTransformation)
 
         splash = QSplashScreen(pixmap)
         splash.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
@@ -99,4 +96,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
