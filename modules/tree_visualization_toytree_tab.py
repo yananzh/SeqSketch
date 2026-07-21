@@ -41,7 +41,7 @@ from PyQt6.QtWidgets import (
 
 from utils.app_paths import user_data_file
 from utils.common_components import BaseTabWidget
-from utils.example_data import stage_example, example_path
+from utils.example_data import stage_example
 
 
 # ---------------------------------------------------------------------------
@@ -862,9 +862,10 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             return
         self._file_edit.setText(path)
 
-        # Point to the bundled tip-mapping file directly (read-only, source path)
-        mapping_path = example_path("phylo", "csrA_tip_mapping.csv")
-        self._mapping_edit.setText(mapping_path)
+        # Stage the bundled tip-mapping file to the writable example_work directory
+        mapping_path = stage_example("phylo", "csrA_tip_mapping.csv")
+        if mapping_path:
+            self._mapping_edit.setText(mapping_path)
 
         self.show_status(self.tr("Example loaded: csrA_pro_mafft_tree.nwk"))
 

@@ -5331,3 +5331,91 @@ frozen  : False
 argv    : ['f:/ui/main.py']
 cwd     : F:\ui
 meipass : N/A
+
+============================================================
+startup : 2026-07-21 11:42:52.360186
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-21 11:49:43.459245
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-21 11:51:59.221474
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-21 16:50:23.050745
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-21 16:56:10.772559
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-21 16:58:08.588660
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-21 17:03:27.884378
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-21 17:22:03.680402
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-21 17:34:45.051609
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-21 17:36:23.836282
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
+
+============================================================
+startup : 2026-07-21 17:37:42.588583
+python  : F:\ui\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/ui/main.py']
+cwd     : F:\ui
+meipass : N/A
