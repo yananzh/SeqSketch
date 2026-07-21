@@ -384,7 +384,7 @@ class BookmarkManager(QWidget):
     def _display_bookmarks(self, category: str):
         self.bookmark_list.clear()
         for bm in self.bookmarks.get(category, []):
-            display = bm['name']
+            display = bm["name"]
             it = QListWidgetItem(display)
             it.setData(Qt.ItemDataRole.UserRole, bm)
             self.bookmark_list.addItem(it)
