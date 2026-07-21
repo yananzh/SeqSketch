@@ -1,311 +1,422 @@
-from PyQt6.QtWidgets import QMainWindow, QTabWidget, QStatusBar, QFileDialog, QMessageBox, QApplication
-from PyQt6.QtCore import Qt, QTranslator, QLocale
-from menus import create_menus
-import translations
-from modules import SequenceStatisticsTab, SimplifyIDsTab, ExtractByIDTab, ExtractByRegexTab, DownloadFromNCBITab, BatchRenameIDsTab
-from PyQt6.QtGui import QIcon, QPixmap
 import os
-# 新增DNA序列分析相关Tab
-from modules import RNATab, ComplementTab, ReverseComplementTab, TranslateTab, ORFTab, SangerTab
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QMainWindow,
+    QMessageBox,
+    QStatusBar,
+    QTabWidget,
+)
+
+from menus import create_menus
+from utils.app_paths import resource_path
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        # Initialize translator
-        self.translator = None
-        self.current_language = 'zh_CN'  # Default language
-        
-        self.setWindowTitle(translations.tr("BioSeq Analyzer 生物序列分析器"))
-        self.resize(1200, 700)  # Increased width to better accommodate English menus
-        self.setAcceptDrops(True)
-        # 设置窗口logo
-        icon_path = os.path.join(os.path.dirname(__file__), "Gemini_Generated_Image_ohhms3ohhms3ohhm1.png")
+        self.setWindowTitle(self.tr("SeqSketch"))
+        self.resize(920, 700)
+        self._init_width = 920
+        icon_path = resource_path("window_logo.png")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
+        self.child_windows = []
         self._init_ui()
         self._load_style()
 
     def _init_ui(self):
-        # Tab区域
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
         self.tabs.tabCloseRequested.connect(self.close_tab)
         self.setCentralWidget(self.tabs)
-        # 状态栏
         self.status = QStatusBar()
         self.setStatusBar(self.status)
-        # 菜单栏和工具栏
         create_menus(self)
 
     def _load_style(self, dark=False):
-        qss_path = os.path.join(os.path.dirname(__file__), 'styles.qss')
+        qss_path = os.path.join(os.path.dirname(__file__), "styles.qss")
         try:
-            with open(qss_path, 'r', encoding='utf-8') as f:
+            with open(qss_path, "r", encoding="utf-8") as f:
                 qss = f.read()
             self.setStyleSheet(qss)
         except Exception as e:
-            print("QSS加载失败:", e)
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.accept()
-        else:
-            event.ignore()
-
-    def dropEvent(self, event):
-        pass
-
-    def switch_language(self, lang):
-        """Switch interface language"""
-        # Map language codes
-        lang_map = {
-            'zh': 'zh_CN',
-            'en': 'en_US'
-        }
-        
-        # Get full language code
-        full_lang = lang_map.get(lang, lang)
-        
-        # Set language in translator
-        if translations.set_language(full_lang):
-            self.current_language = full_lang
-            # Update window title
-            self.setWindowTitle(translations.tr("BioSeq Analyzer 生物序列分析器"))
-            # Update existing tab titles
-            self._update_tab_titles()
-            # Update bookmark manager if it's open
-            if hasattr(self, '_bookmark_manager') and self._bookmark_manager is not None:
-                self._bookmark_manager.update_language()
-            # Adjust window size based on language
-            if full_lang == 'en_US':
-                # English needs more space for menu items
-                current_width = self.width()
-                if current_width < 1250:
-                    self.resize(1250, self.height())
-            # Recreate menus and UI
-            self._init_ui()
-            # Show status message
-            lang_name = "中文" if full_lang == 'zh_CN' else "English"
-            status_msg = f"界面语言已切换到{lang_name}" if full_lang == 'zh_CN' else f"Interface language switched to {lang_name}"
-            self.status.showMessage(status_msg, 3000)
-    
-    def _update_tab_titles(self):
-        """Update titles of all open tabs"""
-        for i in range(self.tabs.count()):
-            tab = self.tabs.widget(i)
-            tab_type = type(tab).__name__
-            
-            # Map tab types to their translated titles
-            tab_title_map = {
-                'SequenceStatisticsTab': '序列长度统计',
-                'SimplifyIDsTab': 'ID 简化',
-                'ExtractByIDTab': '序列提取 (按ID)',
-                'ExtractByRegexTab': '序列提取 (正则表达式)',
-                'DownloadFromNCBITab': '从NCBI下载序列',
-                'BatchRenameIDsTab': '批量重命名ID',
-                'RNATab': '转成RNA',
-                'ComplementTab': '互补序列',
-                'ReverseComplementTab': '反向互补序列',
-                'TranslateTab': '翻译序列',
-                'ORFTab': 'ORF Finder',
-                'SangerTab': '桑格测序数据处理',
-                'AminoAcidCompositionTab': '氨基酸组成',
-                'PhysicochemicalPropertiesTab': '物化性质计算'
-            }
-            
-            # Get the corresponding Chinese key and translate it
-            if tab_type in tab_title_map:
-                chinese_title = tab_title_map[tab_type]
-                translated_title = translations.tr(chinese_title)
-                self.tabs.setTabText(i, translated_title)
-                
-            # Update tab internal UI elements if the tab has an update_language method
-            if hasattr(tab, 'update_language'):
-                tab.update_language()
-
-    def switch_theme(self, dark):
-        self._load_style(dark=dark)
+            print("QSS load failed:", e)
 
     def show_message(self, text, error=False):
         if error:
-            QMessageBox.critical(self, translations.tr("错误"), text)
+            QMessageBox.critical(self, self.tr("Error"), text)
         else:
             self.status.showMessage(text, 5000)
 
-    def open_sequence_statistics_tab(self):
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), SequenceStatisticsTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = SequenceStatisticsTab()
-        self.tabs.addTab(tab, translations.tr("序列长度统计"))
-        self.tabs.setCurrentWidget(tab)
+    def _find_or_open(self, tab_class, title, factory=None, reuse=True):
+        """Reuse an existing tab of *tab_class*, or create a new one.
 
-    def open_simplify_ids_tab(self):
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), SimplifyIDsTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = SimplifyIDsTab()
-        self.tabs.addTab(tab, translations.tr("ID 简化"))
+        Args:
+            tab_class: tab class used for the isinstance reuse check.
+            title: tab title text (wrapped in self.tr()).
+            factory: callable returning a new tab; defaults to tab_class().
+            reuse: when True, focus an existing tab instead of creating a new one.
+        """
+        if reuse:
+            for i in range(self.tabs.count()):
+                if isinstance(self.tabs.widget(i), tab_class):
+                    self.tabs.setCurrentIndex(i)
+                    return None
+        tab = (factory or tab_class)()
+        self.tabs.addTab(tab, self.tr(title))
         self.tabs.setCurrentWidget(tab)
-
-    def open_extract_by_id_tab(self):
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), ExtractByIDTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = ExtractByIDTab()
-        self.tabs.addTab(tab, translations.tr("序列提取 (按ID)"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_extract_by_regex_tab(self):
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), ExtractByRegexTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = ExtractByRegexTab()
-        self.tabs.addTab(tab, translations.tr("序列提取 (正则表达式)"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_download_from_ncbi_tab(self):
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), DownloadFromNCBITab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = DownloadFromNCBITab()
-        self.tabs.addTab(tab, translations.tr("从NCBI下载序列"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_batch_rename_ids_tab(self):
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), BatchRenameIDsTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = BatchRenameIDsTab()
-        self.tabs.addTab(tab, translations.tr("批量重命名ID"))
-        self.tabs.setCurrentWidget(tab)
-
-    # DNA序列分析六大功能Tab
-    def open_rna_tab(self):
-        tab = RNATab()
-        self.tabs.addTab(tab, translations.tr("转成RNA"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_complement_tab(self):
-        tab = ComplementTab()
-        self.tabs.addTab(tab, translations.tr("互补序列"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_reverse_complement_tab(self):
-        tab = ReverseComplementTab()
-        self.tabs.addTab(tab, translations.tr("反向互补序列"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_translate_tab(self):
-        tab = TranslateTab()
-        self.tabs.addTab(tab, translations.tr("翻译序列"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_orf_tab(self):
-        tab = ORFTab()
-        self.tabs.addTab(tab, translations.tr("ORF Finder"))
-        self.tabs.setCurrentWidget(tab)
-
-    def open_sanger_tab(self):
-        tab = SangerTab()
-        self.tabs.addTab(tab, translations.tr("桑格测序数据处理"))
-        self.tabs.setCurrentWidget(tab)
+        # Prevent wider tabs from expanding the main window
+        if hasattr(self, "_init_width"):
+            self.resize(self._init_width, self.height())
+        return tab
 
     def close_tab(self, index):
         widget = self.tabs.widget(index)
+        # 停止正在运行的 worker 线程，避免关闭后回调已销毁的 widget
+        if hasattr(widget, "worker_thread") and widget.worker_thread:
+            if widget.worker_thread.isRunning():
+                widget.worker_thread.quit()
+                widget.worker_thread.wait(3000)
+        if hasattr(widget, "_thread") and widget._thread:
+            if hasattr(widget._thread, "stop"):
+                widget._thread.stop()
+            if widget._thread.isRunning():
+                widget._thread.wait(3000)
+        if hasattr(widget, "_batch_worker") and widget._batch_worker:
+            if hasattr(widget._batch_worker, "stop"):
+                widget._batch_worker.stop()
+            if widget._batch_worker.isRunning():
+                widget._batch_worker.wait(3000)
         self.tabs.removeTab(index)
-        widget.deleteLater() 
+        widget.deleteLater()
 
-    # 蛋白质序列分析相关槽函数
-    def open_amino_acid_composition_tab(self):
-        from modules import AminoAcidCompositionTab
+    # ── FASTA Tools ──────────────────────────────────────────────────────
+
+    def open_sequence_statistics_tab(self):
+        from modules.sequence_statistics_tab import SequenceStatisticsTab
+
+        self._find_or_open(SequenceStatisticsTab, "FASTA Statistics")
+
+    def open_simplify_ids_tab(self):
+        from modules.simplify_ids_tab import SimplifyIDsTab
+
+        self._find_or_open(SimplifyIDsTab, "Simplify Headers")
+
+    def open_extract_by_id_tab(self):
+        from modules.extract_by_id_tab import ExtractByIDTab
+
+        self._find_or_open(ExtractByIDTab, "Filter by IDs")
+
+    def open_extract_by_regex_tab(self):
+        from modules.extract_by_regex_tab import ExtractByRegexTab
+
+        self._find_or_open(ExtractByRegexTab, "Regex Filter")
+
+    def open_download_from_ncbi_tab(self):
+        from modules.download_from_ncbi_tab import DownloadFromNCBITab
+
+        self._find_or_open(DownloadFromNCBITab, "NCBI Download")
+
+    def open_batch_rename_ids_tab(self):
+        from modules.batch_rename_ids_tab import BatchRenameIDsTab
+
+        self._find_or_open(BatchRenameIDsTab, "Rename IDs")
+
+    def open_deduplicate_tab(self):
+        from modules.deduplicate_tab import DeduplicateTab
+
+        self._find_or_open(DeduplicateTab, "Deduplicate")
+
+    def open_filter_by_length_tab(self):
+        from modules.filter_by_length_tab import FilterByLengthTab
+
+        self._find_or_open(FilterByLengthTab, "Filter by Length")
+
+    def open_concat_fasta_tab(self):
+        from modules.concat_fasta_tab import ConcatFastaTab
+
+        self._find_or_open(ConcatFastaTab, "Concatenate FASTA")
+
+    # ── DNA Analysis ─────────────────────────────────────────────────────
+
+    def open_rna_tab(self):
+        from modules.rna_tab import RNATab
+
+        self._find_or_open(RNATab, "Convert to RNA", reuse=False)
+
+    def _open_complement_tools_tab(self, mode: str):
+        from modules.complement_tab import ComplementTab
+
         for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), AminoAcidCompositionTab):
+            widget = self.tabs.widget(i)
+            if isinstance(widget, ComplementTab):
+                widget.set_mode(mode)
                 self.tabs.setCurrentIndex(i)
                 return
-        tab = AminoAcidCompositionTab()
-        self.tabs.addTab(tab, translations.tr("氨基酸组成"))
+        tab = ComplementTab()
+        tab.set_mode(mode)
+        self.tabs.addTab(tab, self.tr("Complement/Reverse Complement"))
         self.tabs.setCurrentWidget(tab)
+
+    def open_complement_tab(self):
+        self._open_complement_tools_tab("Complement")
+
+    def open_reverse_complement_tab(self):
+        self._open_complement_tools_tab("Reverse Complement")
+
+    def open_translate_tab(self):
+        from modules.translate_tab import TranslateTab
+
+        self._find_or_open(TranslateTab, "Translate", reuse=False)
+
+    def open_orf_tab(self):
+        from modules.orf_tab import ORFTab
+
+        self._find_or_open(ORFTab, "ORF Finder", reuse=False)
+
+    def open_sanger_tab(self):
+        from modules.sanger_tab import SangerTab
+
+        self._find_or_open(SangerTab, "Sanger Sequence Assembly", reuse=False)
+
+    def open_sanger_viewer_tab(self):
+        from modules.sanger_viewer_tab import SangerViewerTab
+
+        self._find_or_open(SangerViewerTab, "Sanger Chromatogram Viewer", reuse=False)
+
+    def open_codon_usage_tab(self):
+        from modules.codon_usage_tab import CodonUsageTab
+
+        self._find_or_open(
+            CodonUsageTab,
+            "Codon Usage Analysis",
+            factory=lambda: CodonUsageTab(),
+        )
+
+    def open_restriction_enzyme_tab(self):
+        from modules.restriction_enzyme_tab import RestrictionEnzymeTab
+
+        self._find_or_open(RestrictionEnzymeTab, "Restriction Enzyme Analysis", reuse=False)
+
+    def open_gc_plot_tab(self):
+        from modules.gc_plot_tab import GCPlotTab
+
+        self._find_or_open(GCPlotTab, "GC Content / GC Skew Plot")
+
+    # ── Protein Analysis ─────────────────────────────────────────────────
+
+    def open_amino_acid_composition_tab(self):
+        from modules.amino_acid_composition_tab import AminoAcidCompositionTab
+
+        self._find_or_open(AminoAcidCompositionTab, "Amino Acid Composition")
 
     def open_physicochemical_properties_tab(self):
-        from modules import PhysicochemicalPropertiesTab
-        for i in range(self.tabs.count()):
-            if isinstance(self.tabs.widget(i), PhysicochemicalPropertiesTab):
-                self.tabs.setCurrentIndex(i)
-                return
-        tab = PhysicochemicalPropertiesTab()
-        self.tabs.addTab(tab, translations.tr("物化性质计算"))
-        self.tabs.setCurrentWidget(tab)
+        from modules.physicochemical_properties_tab import PhysicochemicalPropertiesTab
 
-    def open_url_in_browser(self, url):
-        from PyQt6.QtGui import QDesktopServices
-        from PyQt6.QtCore import QUrl
-        QDesktopServices.openUrl(QUrl(url)) 
+        self._find_or_open(PhysicochemicalPropertiesTab, "Physicochemical Properties")
 
-    # BLAST分析相关槽函数
+    def open_hydrophobicity_plot_tab(self):
+        from modules.hydrophobicity_plot_tab import HydrophobicityPlotTab
+
+        self._find_or_open(HydrophobicityPlotTab, "Hydrophobicity Plot")
+
+    def open_protease_cleavage_tab(self):
+        from modules.protease_cleavage_tab import ProteaseCleavageTab
+
+        self._find_or_open(ProteaseCleavageTab, "Protease Cleavage Map")
+
+    # ── Alignment ────────────────────────────────────────────────────────
+
+    def open_pairwise_alignment_tab(self):
+        from modules.pairwise_alignment_tab import PairwiseAlignmentTab
+
+        self._find_or_open(PairwiseAlignmentTab, "Pairwise Sequence Alignment")
+
+    def open_dotplot_tab(self):
+        from modules.dotplot_tab import DotPlotTab
+
+        self._find_or_open(DotPlotTab, "DotPlot")
+
+    def open_multiple_sequence_alignment_tab(self):
+        from modules.multiple_sequence_alignment_tab import MultipleSequenceAlignmentTab
+
+        self._find_or_open(MultipleSequenceAlignmentTab, "Multiple Sequence Alignment (Muscle5)")
+
+    def open_mafft_alignment_tab(self):
+        from modules.mafft_alignment_tab import MafftAlignmentTab
+
+        self._find_or_open(MafftAlignmentTab, "Multiple Sequence Alignment (MAFFT)")
+
+    def open_alignment_format_converter_tab(self):
+        from modules.alignment_format_converter_tab import AlignmentFormatConverterTab
+
+        self._find_or_open(AlignmentFormatConverterTab, "Alignment Format Converter")
+
+    def open_msa_visualization_tab(self):
+        from modules.msa_visualization_tab import MSAVisualizationTab
+
+        self._find_or_open(MSAVisualizationTab, "MSA Visualization (pyMSAviz)")
+
+    def open_sequence_logo_tab(self):
+        from modules.sequence_logo_tab import SequenceLogoTab
+
+        self._find_or_open(SequenceLogoTab, "Sequence Logo (Logomaker)")
+
+    # ── BLAST ────────────────────────────────────────────────────────────
+
     def open_ncbi_blast_web(self):
         import webbrowser
+
         webbrowser.open_new_tab("https://blast.ncbi.nlm.nih.gov/Blast.cgi")
 
+    def _open_blast_local_tab(self, sub_index: int = 0):
+        """Open (or focus) the Local BLAST tab and switch to sub_index."""
+        from modules.blast_local_tab import BlastLocalTab
+
+        for i in range(self.tabs.count()):
+            if isinstance(self.tabs.widget(i), BlastLocalTab):
+                self.tabs.setCurrentIndex(i)
+                self.tabs.widget(i).switch_to(sub_index)
+                return
+
+        tab = BlastLocalTab(
+            status_callback=self.status.showMessage,
+        )
+        self.tabs.addTab(tab, self.tr("Local BLAST"))
+        self.tabs.setCurrentWidget(tab)
+        tab.switch_to(sub_index)
+
+    def open_blast_local_tab(self):
+        self._open_blast_local_tab(sub_index=0)
+
     def open_blast_make_db_dialog(self):
-        from modules.blast_make_db_dialog import BlastMakeDbDialog
-        dlg = BlastMakeDbDialog(self, status_callback=self.status.showMessage)
-        dlg.exec()
+        self._open_blast_local_tab(sub_index=0)
 
     def open_blast_run_dialog(self):
-        from modules.blast_run_dialog import BlastRunDialog
-        from modules.blast_result_tab import BlastResultTab
-        def get_query_seq():
-            for i in range(self.tabs.count()):
-                tab = self.tabs.widget(i)
-                if hasattr(tab, 'input_text'):
-                    return tab.input_text.toPlainText()
-            return ''
-        def on_result(xml_path):
-            tab = BlastResultTab(xml_path)
-            self.tabs.addTab(tab, f"BLAST结果")
-            self.tabs.setCurrentWidget(tab)
-        dlg = BlastRunDialog(self, get_query_seq=get_query_seq, status_callback=self.status.showMessage, result_callback=on_result)
-        dlg.exec()
+        self._open_blast_local_tab(sub_index=1)
+
+    # ── Primer Design ────────────────────────────────────────────────────
+
+    def open_primer_design_tab(self):
+        from modules.primer3_gui import PrimerDesignTab
+
+        self._find_or_open(PrimerDesignTab, "qPCR Primer Design")
+
+    def open_primer_analysis_tab(self):
+        from modules.primer_analysis_tab import PrimerAnalysisTab
+
+        self._find_or_open(PrimerAnalysisTab, "Primer Analysis")
+
+    # ── Phylogenetic Tree ────────────────────────────────────────────────
+
+    def open_distance_tree_tab(self):
+        from modules.distance_tree_tab import DistanceTreeTab
+
+        self._find_or_open(DistanceTreeTab, "Distance Tree Construction")
+
+    def open_iqtree_tab(self):
+        from modules.iqtree_tab import IqTreeTab
+
+        self._find_or_open(
+            IqTreeTab,
+            "ML Tree Construction (IQ-TREE)",
+            factory=lambda: IqTreeTab(status_callback=self.status.showMessage),
+        )
+
+    def open_partition_concat_tab(self):
+        from modules.partition_concat_tab import PartitionConcatTab
+
+        self._find_or_open(
+            PartitionConcatTab,
+            "Sequence Concatenation",
+            factory=lambda: PartitionConcatTab(status_callback=self.status.showMessage),
+        )
+
+    def open_one_step_multigenephy_tab(self):
+        from modules.one_step_multigenephy_tab import OneStepMultiGenePhyTab
+
+        self._find_or_open(
+            OneStepMultiGenePhyTab,
+            "One Step MultiGenePhy",
+            factory=lambda: OneStepMultiGenePhyTab(status_callback=None),
+            reuse=False,
+        )
+
+    def open_toytree_visualization_tab(self):
+        from modules.tree_visualization_toytree_tab import ToytreeVisualizationTab
+
+        self._find_or_open(ToytreeVisualizationTab, "Tree Visualization (Toytree)")
+
+    def open_alignment_trimming_tab(self):
+        from modules.trimal_tab import AlignmentTrimmingTab
+
+        self._find_or_open(AlignmentTrimmingTab, "Alignment Trimming (trimAl)")
+
+    # ── Bookmarks ────────────────────────────────────────────────────────
+
+    def open_favorites_manager_tab(self):
+        from modules.favorites_manager import BookmarkManager
+
+        self._find_or_open(BookmarkManager, "Bookmarks")
+
+    # ── Misc ─────────────────────────────────────────────────────────────
+
+    def open_url_in_browser(self, url):
+        from PyQt6.QtCore import QUrl
+        from PyQt6.QtGui import QDesktopServices
+
+        QDesktopServices.openUrl(QUrl(url))
+
+    def _remove_child_window(self, window):
+        if window in self.child_windows:
+            self.child_windows.remove(window)
 
     def check_for_updates(self):
-        """检查更新功能"""
         QMessageBox.information(
-            self, 
-            translations.tr("检查更新"), 
-            translations.tr("当前版本: v1.0.0\n\n暂无可用更新。\n\n您可以访问项目主页获取最新信息：\nhttps://github.com/yananzh/BioSeq-Analyzer")
+            self,
+            self.tr("Check for Updates"),
+            self.tr(
+                "Current version: v1.0.0\n\nNo updates available.\n\n"
+                "Visit the project page for the latest info:\n"
+                "https://github.com/yananzh/SeqSketch"
+            ),
         )
 
     def show_about_dialog(self):
-        """显示关于对话框"""
         about_text = self.tr("""
-<h2>BioSeq Analyzer 生物序列分析器</h2>
-<p><b>版本:</b> v1.0.0</p>
-<p><b>开发者:</b> yananzh</p>
-<p><b>描述:</b> 一个功能强大的生物序列分析工具，提供FASTA处理、DNA/RNA分析、蛋白质分析、序列比对、BLAST分析、引物设计等功能。</p>
+<div style="text-align:center;">
+<h2 style="color:#2c7fb8; font-size:26px; margin-bottom:6px;">SeqSketch</h2>
+<p style="color:#888; font-size:14px; margin:0 0 16px 0;">Sequence Analysis &amp; Visualization Toolkit</p>
 
-<p><b>主要功能:</b></p>
-<ul>
-<li>FASTA工具：序列统计、ID简化、序列提取、NCBI下载等</li>
-<li>DNA序列分析：RNA转换、互补序列、翻译、ORF查找等</li>
-<li>蛋白质序列分析：氨基酸组成、物化性质、结构预测等</li>
-<li>序列比对：双序列比对、多序列比对、序列标识图</li>
-<li>BLAST分析：NCBI在线BLAST、本地BLAST</li>
-<li>引物设计：PCR引物设计助手</li>
-<li>进化树构建与可视化</li>
-</ul>
+<p style="font-size:14px; color:#555; margin:0; line-height:1.8;">
+<b>Version 1.0.0</b><br>
+yananzh &middot; MIT License
+</p>
 
-<p><b>技术栈:</b> Python 3, PyQt6</p>
-<p><b>许可证:</b> MIT License</p>
-<p><b>项目主页:</b> <a href="https://github.com/yananzh/BioSeq-Analyzer">https://github.com/yananzh/BioSeq-Analyzer</a></p>
+<p style="font-size:13px; color:#999; margin:12px 0 0 0;">
+Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
+</p>
 
-<p>感谢您使用 BioSeq Analyzer！</p>
+<p style="margin:16px 0 0 0; font-size:14px;">
+<a href="https://github.com/yananzh/SeqSketch" style="color:#2c7fb8; text-decoration:none;">github.com/yananzh/SeqSketch</a>
+</p>
+</div>
         """)
-        
-        QMessageBox.about(self, translations.tr("关于 BioSeq Analyzer"), about_text)
+        from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("About SeqSketch"))
+        dlg.setFixedSize(340, 240)
+        dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(28, 24, 28, 24)
+        label = QLabel(about_text)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        dlg.exec()

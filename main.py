@@ -1,14 +1,78 @@
-import sys
-from PyQt6.QtWidgets import QApplication, QSplashScreen
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt
-from main_window import MainWindow
+import datetime
 import os
+import sys
+import traceback
+
+# ── 启动日志（在任何 import 之前写入，确保 Qt 初始化崩溃也能诊断） ────────────
+_STARTUP_LOG = os.path.join(
+    os.path.dirname(sys.executable)
+    if getattr(sys, "frozen", False)
+    else os.path.dirname(os.path.abspath(__file__)),
+    "startup.log",
+)
+try:
+    with open(_STARTUP_LOG, "a", encoding="utf-8") as _log_f:
+        _log_f.write(f"\n{'=' * 60}\n")
+        _log_f.write(f"startup : {datetime.datetime.now()}\n")
+        _log_f.write(f"python  : {sys.executable}\n")
+        _log_f.write(f"frozen  : {getattr(sys, 'frozen', False)}\n")
+        _log_f.write(f"argv    : {sys.argv}\n")
+        _log_f.write(f"cwd     : {os.getcwd()}\n")
+        _log_f.write(f"meipass : {getattr(sys, '_MEIPASS', 'N/A')}\n")
+except OSError:
+    pass
+
+try:
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtGui import QPixmap
+    from PyQt6.QtWidgets import QApplication, QMessageBox, QSplashScreen
+except Exception as _e:
+    with open(_STARTUP_LOG, "a", encoding="utf-8") as _log_f:
+        _log_f.write(f"FATAL: PyQt6 import failed: {_e}\n")
+        traceback.print_exc(file=_log_f)
+    raise
+
+from main_window import MainWindow
+
+
+def _excepthook(exc_type, exc_value, exc_tb):
+    """Global exception hook to catch unhandled exceptions."""
+    tb_str = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    print(tb_str, file=sys.stderr)
+    try:
+        with open(_STARTUP_LOG, "a", encoding="utf-8") as _log_f:
+            _log_f.write(f"UNHANDLED: {exc_value}\n{tb_str}")
+    except OSError:
+        pass
+    try:
+        QMessageBox.critical(
+            None,
+            "Unhandled Error",
+            f"An unexpected error occurred:\n\n{exc_value}\n\nDetails:\n{tb_str}",
+        )
+    except Exception:
+        pass
+    sys.__excepthook__(exc_type, exc_value, exc_tb)
+
+
+sys.excepthook = _excepthook
+
 
 def main():
-    app = QApplication(sys.argv)
+    try:
+        QApplication.setHighDpiScaleFactorRoundingPolicy(
+            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+        )
+        app = QApplication(sys.argv)
+    except Exception as _e:
+        with open(_STARTUP_LOG, "a", encoding="utf-8") as _log_f:
+            _log_f.write(f"FATAL: QApplication init failed: {_e}\n")
+            traceback.print_exc(file=_log_f)
+        raise
     # 显示启动界面
-    logo_path = os.path.join(os.path.dirname(__file__), "Gemini_Generated_Image_ohhms3ohhms3ohhm.png")
+    from utils.app_paths import resource_path
+
+    logo_path = resource_path("start_logo.png")
     splash = None
     if os.path.exists(logo_path):
         pixmap = QPixmap(logo_path)
@@ -18,7 +82,7 @@ def main():
         # 如果高度仍然过大，限制最大高度为300像素
         if pixmap.height() > 300:
             pixmap = pixmap.scaledToHeight(300, Qt.TransformationMode.SmoothTransformation)
-        
+
         splash = QSplashScreen(pixmap)
         splash.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
         splash.show()
@@ -28,6 +92,7 @@ def main():
         splash.finish(window)
     window.show()
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()

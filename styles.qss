@@ -1,22 +1,80 @@
 /* 浅色主题 */
+
+/* 1. 全局字体 */
+* {
+    font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+}
+
 QMainWindow {
     background: #f7f7f7;
 }
+
+/* 3. 菜单栏 & 菜单 */
 QMenuBar, QToolBar {
     background: #eaeaea;
     border-bottom: 1px solid #cccccc;
+    min-height: 26px;
+    font-size: 15px;
 }
+QMenuBar::item {
+    padding: 4px 8px;
+}
+QMenuBar::item:selected {
+    background: #d0eaff;
+    border-radius: 3px;
+}
+QMenu {
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    background: #ffffff;
+}
+QMenu::item {
+    padding: 5px 24px 5px 16px;
+}
+QMenu::item:selected {
+    background: #d0eaff;
+    color: #1a1a1a;
+    border-radius: 3px;
+}
+
 QStatusBar {
     background: #eaeaea;
     border-top: 1px solid #cccccc;
 }
+
 QTabWidget::pane {
     border: 1px solid #cccccc;
     background: #ffffff;
 }
+
+/* Stat value labels in FASTA QC tab */
+QLabel[statValue="true"] {
+    font-weight: bold;
+    color: #2196F3;
+}
+
+/* 2. 标签页 */
+QTabBar::tab {
+    padding: 6px 16px;
+    margin-right: 2px;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    background: #e0e0e0;
+    color: #555555;
+}
 QTabBar::tab:selected {
     background: #d0eaff;
+    color: #1565c0;
+    font-weight: 600;
 }
+QTabBar::tab:hover:!selected {
+    background: #d6d6d6;
+}
+QTabBar::tab:!selected {
+    margin-top: 3px;
+}
+
 QPushButton {
     background: #4a90e2;
     color: #fff;
@@ -26,6 +84,133 @@ QPushButton {
 QPushButton:hover {
     background: #357ab8;
 }
+/* Secondary action button — same blue fill, consistent across all buttons */
+QPushButton[actionRole="secondary"] {
+    color: #ffffff;
+    background: #4a90e2;
+    border: 1px solid #4a90e2;
+}
+QPushButton[actionRole="secondary"]:hover {
+    background: #357ab8;
+    border-color: #357ab8;
+}
+QPushButton:disabled {
+    background: #cbd5e1;
+    border-color: #cbd5e1;
+    color: #f8fafc;
+}
+QPushButton[stopButton="true"] {
+    background: #d32f2f;
+    color: white;
+    border-radius: 4px;
+    font-weight: bold;
+}
+QPushButton[stopButton="true"]:hover {
+    background: #b71c1c;
+}
+
+/* 5. 输入控件 */
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QPlainTextEdit {
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    padding: 3px 6px;
+    background: #ffffff;
+    selection-background-color: #d0eaff;
+    selection-color: #1a1a1a;
+}
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus,
+QTextEdit:focus, QPlainTextEdit:focus {
+    border: 1.5px solid #4a90e2;
+}
+/* Sequence editor widgets keep their custom border on focus */
+QTextEdit[sequenceEditorStyled="true"],
+QTextEdit[sequenceEditorStyled="true"]:focus,
+QPlainTextEdit[sequenceEditorStyled="true"],
+QPlainTextEdit[sequenceEditorStyled="true"]:focus {
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: #ffffff;
+}
+QTextEdit[sequenceEditorStyled="true"][readOnly="true"],
+QTextEdit[sequenceEditorStyled="true"][readOnly="true"]:focus,
+QPlainTextEdit[sequenceEditorStyled="true"][readOnly="true"],
+QPlainTextEdit[sequenceEditorStyled="true"][readOnly="true"]:focus {
+    background: #f7f9fc;
+}
+QLabel[logSectionTitle="true"] {
+    color: #334155;
+    font-weight: 600;
+    padding-top: 2px;
+}
+QLabel[sectionTitle="true"] {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 600;
+}
+QLabel[mutedText="true"] {
+    color: #475569;
+}
+QTextEdit[logViewer="true"],
+QTextEdit[logViewer="true"]:focus {
+    border: none;
+    padding: 8px 10px;
+    background: #ffffff;
+    color: #1e293b;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+}
+QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
+    background: #f0f0f0;
+    color: #999999;
+}
+/* Preview panels (read-only QPlainTextEdit showing preview results) */
+QPlainTextEdit[previewPanel="true"],
+QPlainTextEdit[previewPanel="true"]:focus {
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: transparent;
+}
+/* List-style text editors (file-path / accession display, white background) */
+QPlainTextEdit[listDisplay="true"],
+QPlainTextEdit[listDisplay="true"]:focus {
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: #ffffff;
+}
+/* Hint / step-guide labels (small grey secondary text) */
+QLabel[hintLabel="true"] {
+    color: #888;
+    font-size: 13px;
+}
+
+/* 6. GroupBox */
+QGroupBox {
+    font-weight: 600;
+    border: 1px solid #c8c8c8;
+    border-radius: 6px;
+    margin-top: 8px;
+    padding-top: 6px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 10px;
+    padding: 0 4px;
+    color: #1976d2;
+}
+QGroupBox[logGroup="true"] {
+    margin-top: 4px;
+    padding-top: 8px;
+}
+QGroupBox[logGroup="true"]::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 8px;
+    padding: 0 2px;
+}
+
 /* 深色主题（可切换） */
 /*
 QMainWindow {
