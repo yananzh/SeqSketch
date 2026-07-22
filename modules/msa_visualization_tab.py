@@ -30,22 +30,13 @@ from PyQt6.QtWidgets import (
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 
-# All pyMSAviz color schemes
+# Commonly used pyMSAviz color schemes
 _COLOR_SCHEMES = [
     "Clustal",
     "Zappo",
     "Taylor",
-    "Flower",
-    "Blossom",
-    "Sunset",
-    "Ocean",
     "Hydrophobicity",
-    "HelixPropensity",
-    "StrandPropensity",
-    "TurnPropensity",
-    "BuriedIndex",
     "Nucleotide",
-    "Purine/Pyrimidine",
     "Identity",
     "None",
 ]
@@ -107,46 +98,67 @@ class MSAVisualizationTab(BaseTabWidget):
         pg_layout.setContentsMargins(12, 16, 0, 4)
         pg_layout.setSpacing(6)
 
-        # Row 1 — color scheme + wrap length
+        # Row 1 — color scheme, wrap length, font size, DPI
         row1 = QHBoxLayout()
-        row1.setSpacing(20)
+        row1.setSpacing(16)
 
         row1.addWidget(QLabel("Color Scheme:"))
         self.color_combo = QComboBox()
         self.color_combo.addItems(_COLOR_SCHEMES)
         self.color_combo.setCurrentText("Clustal")
-        self.color_combo.setMinimumWidth(200)
+        self.color_combo.setFixedWidth(100)
         self.color_combo.setToolTip(
             "Residue coloring scheme.\n"
-            "DNA: Nucleotide or Purine/Pyrimidine recommended.\n"
-            "Protein: Clustal, Taylor, Zappo, etc."
+            "DNA: Nucleotide recommended.\n"
+            "Protein: Clustal, Zappo, Taylor, Hydrophobicity."
         )
         row1.addWidget(self.color_combo)
 
-        row1.addSpacing(20)
+        row1.addSpacing(16)
         row1.addWidget(QLabel("Wrap Length:"))
         self.wrap_spin = QSpinBox()
         self.wrap_spin.setRange(0, 9999)
         self.wrap_spin.setValue(60)
-        self.wrap_spin.setFixedWidth(90)
+        self.wrap_spin.setFixedWidth(100)
         self.wrap_spin.setSpecialValueText("No wrap")  # 0 → None
         self.wrap_spin.setToolTip(
             "Number of residues per row before wrapping.\nSet to 0 for a single continuous row."
         )
         row1.addWidget(self.wrap_spin)
-        row1.addStretch()
 
-        # Row 2 — display toggles
+        row1.addSpacing(16)
+        row1.addWidget(QLabel("Font Size:"))
+        self.font_spin = QSpinBox()
+        self.font_spin.setRange(4, 24)
+        self.font_spin.setValue(10)
+        self.font_spin.setFixedWidth(100)
+        self.font_spin.setToolTip(
+            "Base font size for sequence characters and labels.\n"
+            "Default 10 gives a compact alignment view."
+        )
+        row1.addWidget(self.font_spin)
+
+        row1.addSpacing(16)
+        row1.addWidget(QLabel("DPI:"))
+        self.dpi_spin = QSpinBox()
+        self.dpi_spin.setRange(72, 600)
+        self.dpi_spin.setValue(150)
+        self.dpi_spin.setFixedWidth(100)
+        self.dpi_spin.setToolTip("Preview resolution. Export always uses ≥300 DPI.")
+        row1.addWidget(self.dpi_spin)
+
+        # Row 2 — display toggles + highlight threshold
         row2 = QHBoxLayout()
-        row2.setSpacing(24)
+        row2.setSpacing(18)
 
-        self.chk_seq_char = QCheckBox("Sequence Characters")
-        self.chk_grid = QCheckBox("Grid")
-        self.chk_count = QCheckBox("Position Count")
-        self.chk_consensus = QCheckBox("Consensus")
-        self.chk_sort = QCheckBox("Sort by Similarity")
+        self.chk_seq_char = QCheckBox("Seq Char")
+        self.chk_grid = QCheckBox("Show Grid")
+        self.chk_count = QCheckBox("Show Count")
+        self.chk_consensus = QCheckBox("Show Consensus")
+        self.chk_sort = QCheckBox("Auto Sort")
 
         self.chk_seq_char.setChecked(True)
+        self.chk_sort.setChecked(True)
         self.chk_consensus.setChecked(False)
 
         for chk in (
@@ -157,49 +169,23 @@ class MSAVisualizationTab(BaseTabWidget):
             self.chk_sort,
         ):
             row2.addWidget(chk)
-        row2.addStretch()
 
-        # Row 3 — highlight identity threshold + DPI
-        row3 = QHBoxLayout()
-        row3.setSpacing(20)
-
-        self.chk_highlight = QCheckBox("Highlight Conserved Columns (identity ≥")
+        row2.addSpacing(12)
+        self.chk_highlight = QCheckBox("Highlight Conserved")
         self.chk_highlight.setChecked(True)
         self.ident_spin = QSpinBox()
         self.ident_spin.setRange(0, 100)
         self.ident_spin.setValue(70)
-        self.ident_spin.setSuffix("%)")
+        self.ident_spin.setSuffix("%")
         self.ident_spin.setFixedWidth(100)
         self.ident_spin.setToolTip(
             "Columns where ≥ this % of residues are identical will be highlighted."
         )
-
-        row3.addWidget(self.chk_highlight)
-        row3.addWidget(self.ident_spin)
-        row3.addSpacing(30)
-        row3.addWidget(QLabel("Font Size:"))
-        self.font_spin = QSpinBox()
-        self.font_spin.setRange(4, 24)
-        self.font_spin.setValue(10)
-        self.font_spin.setFixedWidth(70)
-        self.font_spin.setToolTip(
-            "Base font size for sequence characters and labels.\n"
-            "Default 10 gives a compact alignment view."
-        )
-        row3.addWidget(self.font_spin)
-        row3.addSpacing(20)
-        row3.addWidget(QLabel("DPI:"))
-        self.dpi_spin = QSpinBox()
-        self.dpi_spin.setRange(72, 600)
-        self.dpi_spin.setValue(300)
-        self.dpi_spin.setFixedWidth(90)
-        self.dpi_spin.setToolTip("Resolution used when rendering and exporting the figure.")
-        row3.addWidget(self.dpi_spin)
-        row3.addStretch()
+        row2.addWidget(self.chk_highlight)
+        row2.addWidget(self.ident_spin)
 
         pg_layout.addLayout(row1)
         pg_layout.addLayout(row2)
-        pg_layout.addLayout(row3)
 
         self.content_area.insertWidget(1, param_group)
 
@@ -209,7 +195,7 @@ class MSAVisualizationTab(BaseTabWidget):
         # Do NOT use setWidgetResizable(True) — that squashes the figure to
         # fit the viewport, making long alignments blurry.
         self._canvas_container.setWidgetResizable(False)
-        self._canvas_container.setMinimumHeight(320)
+        self._canvas_container.setMinimumHeight(280)
 
         self._canvas_inner = QWidget()
         self._canvas_vbox = QVBoxLayout(self._canvas_inner)
@@ -309,7 +295,7 @@ class MSAVisualizationTab(BaseTabWidget):
             self._current_figure.savefig(
                 path,
                 format=fmt,
-                dpi=self.dpi_spin.value(),
+                dpi=max(self.dpi_spin.value(), 300),
             )
             self.status_label.setText(f"Saved: {path}")
         except Exception as e:
@@ -390,19 +376,37 @@ class MSAVisualizationTab(BaseTabWidget):
             color = self.color_combo.currentText()
             color_arg = None if color == "None" else color
             wrap = self.wrap_spin.value() or None  # 0 → None
+            do_sort = self.chk_sort.isChecked()
 
-            mv = MsaViz(
-                tmp_path,
-                format="fasta",
-                color_scheme=color_arg,
-                wrap_length=wrap,
-                show_label=True,
-                show_seq_char=self.chk_seq_char.isChecked(),
-                show_grid=self.chk_grid.isChecked(),
-                show_count=self.chk_count.isChecked(),
-                show_consensus=self.chk_consensus.isChecked(),
-                sort=self.chk_sort.isChecked(),
-            )
+            try:
+                mv = MsaViz(
+                    tmp_path,
+                    format="fasta",
+                    color_scheme=color_arg,
+                    wrap_length=wrap,
+                    show_label=True,
+                    show_seq_char=self.chk_seq_char.isChecked(),
+                    show_grid=self.chk_grid.isChecked(),
+                    show_count=self.chk_count.isChecked(),
+                    show_consensus=self.chk_consensus.isChecked(),
+                    sort=do_sort,
+                )
+            except Exception:
+                if do_sort:
+                    mv = MsaViz(
+                        tmp_path,
+                        format="fasta",
+                        color_scheme=color_arg,
+                        wrap_length=wrap,
+                        show_label=True,
+                        show_seq_char=self.chk_seq_char.isChecked(),
+                        show_grid=self.chk_grid.isChecked(),
+                        show_count=self.chk_count.isChecked(),
+                        show_consensus=self.chk_consensus.isChecked(),
+                        sort=False,
+                    )
+                else:
+                    raise
 
             if self.chk_highlight.isChecked():
                 mv.set_highlight_pos_by_ident_thr(
@@ -413,11 +417,13 @@ class MSAVisualizationTab(BaseTabWidget):
             fig = mv.plotfig(dpi=self.dpi_spin.value())
             self._reserve_label_space(fig, headers)
 
-            # Apply user-chosen font size to all text in the figure
+            # Apply user-chosen font size & unclip all texts so count labels
+            # (drawn outside axis xlim by pyMSAviz) are visible.
             target_size = self.font_spin.value()
             for ax in fig.axes:
                 for txt in ax.texts:
                     txt.set_fontsize(target_size)
+                    txt.set_clip_on(False)
                 ax.title.set_fontsize(target_size + 1)
                 ax.xaxis.label.set_fontsize(target_size)
                 ax.yaxis.label.set_fontsize(target_size)
@@ -484,9 +490,10 @@ MSA figures.</p>
 <h3>Color Schemes</h3>
 <table border="0" cellpadding="4" cellspacing="2">
 <tr><td><b>Clustal</b></td><td>→ classic Clustal-X colors (protein default)</td></tr>
+<tr><td><b>Zappo</b></td><td>→ colors by amino-acid physicochemical properties</td></tr>
+<tr><td><b>Taylor</b></td><td>→ Taylor residue coloring</td></tr>
+<tr><td><b>Hydrophobicity</b></td><td>→ colors by residue hydrophobicity</td></tr>
 <tr><td><b>Nucleotide</b></td><td>→ recommended for DNA alignments</td></tr>
-<tr><td><b>Purine/Pyrimidine</b></td><td>→ alternative DNA scheme</td></tr>
-<tr><td><b>Taylor, Zappo, Flower, …</b></td><td>→ alternative protein schemes</td></tr>
 <tr><td><b>Identity</b></td><td>→ colors by residue conservation level</td></tr>
 <tr><td><b>None</b></td><td>→ plain gray residues</td></tr>
 </table>

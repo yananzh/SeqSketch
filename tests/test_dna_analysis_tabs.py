@@ -793,7 +793,7 @@ def test_msa_visualization_keeps_sequence_labels_visible_with_default_dpi(qapp):
     tab.input_text.setPlainText(">seq_alpha\nATGCATGCATGCATGC\n>seq_beta\nATGCATGCATGCATGC\n")
 
     assert tab.title == "MSA Visualization (pyMSAviz)"
-    assert tab.dpi_spin.value() == 300
+    assert tab.dpi_spin.value() == 150
 
     tab.run()
 
