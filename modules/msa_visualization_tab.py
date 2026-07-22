@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSpinBox,
     QTextBrowser,
     QTextEdit,
@@ -94,13 +95,16 @@ class MSAVisualizationTab(BaseTabWidget):
     def _setup_parameters(self):
         param_group = QGroupBox("Visualization Options")
         param_group.setFlat(True)
+        param_group.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         pg_layout = QVBoxLayout(param_group)
-        pg_layout.setContentsMargins(12, 16, 0, 4)
+        pg_layout.setContentsMargins(8, 16, 8, 4)
         pg_layout.setSpacing(6)
 
         # Row 1 — color scheme, wrap length, font size, DPI
         row1 = QHBoxLayout()
-        row1.setSpacing(16)
+        row1.setSpacing(10)
 
         row1.addWidget(QLabel("Color Scheme:"))
         self.color_combo = QComboBox()
@@ -114,7 +118,7 @@ class MSAVisualizationTab(BaseTabWidget):
         )
         row1.addWidget(self.color_combo)
 
-        row1.addSpacing(16)
+        row1.addSpacing(10)
         row1.addWidget(QLabel("Wrap Length:"))
         self.wrap_spin = QSpinBox()
         self.wrap_spin.setRange(0, 9999)
@@ -126,7 +130,7 @@ class MSAVisualizationTab(BaseTabWidget):
         )
         row1.addWidget(self.wrap_spin)
 
-        row1.addSpacing(16)
+        row1.addSpacing(10)
         row1.addWidget(QLabel("Font Size:"))
         self.font_spin = QSpinBox()
         self.font_spin.setRange(4, 24)
@@ -138,7 +142,7 @@ class MSAVisualizationTab(BaseTabWidget):
         )
         row1.addWidget(self.font_spin)
 
-        row1.addSpacing(16)
+        row1.addSpacing(10)
         row1.addWidget(QLabel("DPI:"))
         self.dpi_spin = QSpinBox()
         self.dpi_spin.setRange(72, 600)
@@ -149,7 +153,7 @@ class MSAVisualizationTab(BaseTabWidget):
 
         # Row 2 — display toggles + highlight threshold
         row2 = QHBoxLayout()
-        row2.setSpacing(18)
+        row2.setSpacing(12)
 
         self.chk_seq_char = QCheckBox("Seq Char")
         self.chk_grid = QCheckBox("Show Grid")
@@ -192,6 +196,12 @@ class MSAVisualizationTab(BaseTabWidget):
     def _add_canvas(self):
         """Insert a scrollable matplotlib canvas below the parameters."""
         self._canvas_container = QScrollArea()
+        self._canvas_container.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        self._canvas_container.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         # Do NOT use setWidgetResizable(True) — that squashes the figure to
         # fit the viewport, making long alignments blurry.
         self._canvas_container.setWidgetResizable(False)

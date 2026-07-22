@@ -5903,3 +5903,27 @@ frozen  : False
 argv    : ['f:/SeqSketch/main.py']
 cwd     : F:\SeqSketch
 meipass : N/A
+
+============================================================
+startup : 2026-07-22 16:28:52.152643
+python  : F:\SeqSketch\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/SeqSketch/main.py']
+cwd     : F:\SeqSketch
+meipass : N/A
+
+============================================================
+startup : 2026-07-22 16:29:35.006287
+python  : F:\SeqSketch\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/SeqSketch/main.py']
+cwd     : F:\SeqSketch
+meipass : N/A
+
+============================================================
+startup : 2026-07-22 16:32:00.319400
+python  : F:\SeqSketch\.venv\Scripts\python.exe
+frozen  : False
+argv    : ['f:/SeqSketch/main.py']
+cwd     : F:\SeqSketch
+meipass : N/A
