@@ -95,9 +95,7 @@ class MSAVisualizationTab(BaseTabWidget):
     def _setup_parameters(self):
         param_group = QGroupBox("Visualization Options")
         param_group.setFlat(True)
-        param_group.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        param_group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         pg_layout = QVBoxLayout(param_group)
         pg_layout.setContentsMargins(8, 16, 8, 4)
         pg_layout.setSpacing(6)
@@ -199,9 +197,7 @@ class MSAVisualizationTab(BaseTabWidget):
         self._canvas_container.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
-        self._canvas_container.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
+        self._canvas_container.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # Do NOT use setWidgetResizable(True) — that squashes the figure to
         # fit the viewport, making long alignments blurry.
         self._canvas_container.setWidgetResizable(False)
