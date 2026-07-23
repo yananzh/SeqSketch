@@ -38,7 +38,7 @@ class MainWindow(QMainWindow):
         create_menus(self)
 
     def _load_style(self, dark=False):
-        qss_path = os.path.join(os.path.dirname(__file__), "styles.qss")
+        qss_path = resource_path("styles.qss")
         try:
             with open(qss_path, "r", encoding="utf-8") as f:
                 qss = f.read()
@@ -76,21 +76,26 @@ class MainWindow(QMainWindow):
 
     def close_tab(self, index):
         widget = self.tabs.widget(index)
-        # 停止正在运行的 worker 线程，避免关闭后回调已销毁的 widget
-        if hasattr(widget, "worker_thread") and widget.worker_thread:
-            if widget.worker_thread.isRunning():
-                widget.worker_thread.quit()
-                widget.worker_thread.wait(3000)
-        if hasattr(widget, "_thread") and widget._thread:
-            if hasattr(widget._thread, "stop"):
-                widget._thread.stop()
-            if widget._thread.isRunning():
-                widget._thread.wait(3000)
-        if hasattr(widget, "_batch_worker") and widget._batch_worker:
-            if hasattr(widget._batch_worker, "stop"):
-                widget._batch_worker.stop()
-            if widget._batch_worker.isRunning():
-                widget._batch_worker.wait(3000)
+        # 安全停止正在运行的 worker 线程，防止 C++ 对象已被销毁后访问崩溃
+        for attr_name in ("worker_thread", "_thread", "_batch_worker"):
+            if not hasattr(widget, attr_name):
+                continue
+            obj = getattr(widget, attr_name)
+            if obj is None:
+                continue
+            try:
+                if hasattr(obj, "stop"):
+                    obj.stop()
+            except RuntimeError:
+                pass
+            try:
+                if hasattr(obj, "isRunning") and obj.isRunning():
+                    if hasattr(obj, "quit"):
+                        obj.quit()
+                    if hasattr(obj, "wait"):
+                        obj.wait(3000)
+            except RuntimeError:
+                pass
         self.tabs.removeTab(index)
         widget.deleteLater()
 

@@ -6,7 +6,7 @@ from datetime import datetime
 
 from utils.app_paths import portable_root, resource_path, user_data_file
 
-_LEGACY_CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.ini")
+_LEGACY_CONFIG_FILE = os.path.join(portable_root(), "config.ini")
 
 if getattr(sys, "frozen", False):
     _writable = os.path.join(portable_root(), "config.ini")

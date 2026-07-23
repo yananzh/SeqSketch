@@ -23,3 +23,21 @@ _test_taxa.py
 
 # Ad-hoc alignment outputs produced while running the app
 *_alignment_*.fasta
+
+# PyInstaller spec backups
+*.spec.bak
+*.spec~
+*.spec.tmp
+
+# Generated icon metadata
+*.ico.meta
+
+# Frozen dependency export
+frozen-requirements.txt
+
+# Windows thumbnail cache
+Thumbs.db
+
+# Editor swap files
+*.swp
+*~

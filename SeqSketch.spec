@@ -14,9 +14,10 @@ root = os.path.abspath('.')
 datas = [
     # QSS stylesheet
     (os.path.join(root, 'styles.qss'),          '.'),
-    # Logos (splash + window icon)
+    # Logos (splash + window icons)
     (os.path.join(root, 'start_logo.png'),        '.'),
     (os.path.join(root, 'window_logo.png'),        '.'),
+    (os.path.join(root, 'window_logo.ico'),        '.'),
     # Resources directory (modern_theme.qss, etc.)
     (os.path.join(root, 'resources'),            'resources'),
     # External tools (BLAST, IQTree, MAFFT, TrimAl, MUSCLE)
@@ -100,7 +101,6 @@ excludes = [
     'Tcl',
     'Tk',
     'test',
-    'unittest',
     # Unused matplotlib backends
     'matplotlib.backends.backend_gtk3',
     'matplotlib.backends.backend_gtk3agg',
@@ -131,6 +131,9 @@ excludes = [
     'gi',
     # Test suites - not needed at runtime
     'Bio.tests',
+    # Build/packaging helpers (never needed at runtime)
+    'venv',
+    'ensurepip',
 ]
 
 a = Analysis(
@@ -139,7 +142,7 @@ a = Analysis(
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,
-    hookspath=[],
+    hookspath=[os.path.join(root, 'hooks')],
     hooksconfig={},
     runtime_hooks=[],
     excludes=excludes,
@@ -166,7 +169,9 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(root, 'window_logo.png') if os.path.exists(os.path.join(root, 'window_logo.png')) else None,
+    icon=os.path.join(root, 'window_logo.ico') if os.path.exists(os.path.join(root, 'window_logo.ico')) else None,
+    version=os.path.join(root, 'version_info.txt'),
+    manifest=os.path.join(root, 'manifest.xml'),
 )
 
 coll = COLLECT(
@@ -176,6 +181,6 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=True,
-    upx_exclude=['Qt6*.dll'],
+    upx_exclude=['Qt6*.dll', 'PyQt6*.pyd', 'python*.dll'],
     name='SeqSketch',
 )

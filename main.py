@@ -3,13 +3,16 @@ import os
 import sys
 import traceback
 
+
 # ── 启动日志（在任何 import 之前写入，确保 Qt 初始化崩溃也能诊断） ────────────
-_STARTUP_LOG = os.path.join(
-    os.path.dirname(sys.executable)
-    if getattr(sys, "frozen", False)
-    else os.path.dirname(os.path.abspath(__file__)),
-    "startup.log",
-)
+# ── Resolve writable root early (avoid __file__ in frozen mode) ───────────────
+def _startup_log_dir() -> str:
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+_STARTUP_LOG = os.path.join(_startup_log_dir(), "startup.log")
 try:
     with open(_STARTUP_LOG, "a", encoding="utf-8") as _log_f:
         _log_f.write(f"\n{'=' * 60}\n")
@@ -22,9 +25,18 @@ try:
 except OSError:
     pass
 
+# ── 无控制台时，stdout/stderr 重定向到启动日志，防止 print 丢失 ──────────────
+if getattr(sys, "frozen", False):
+    try:
+        _log_fh = open(_STARTUP_LOG, "a", encoding="utf-8")
+        sys.stdout = _log_fh
+        sys.stderr = _log_fh
+    except OSError:
+        pass
+
 try:
     from PyQt6.QtCore import Qt
-    from PyQt6.QtGui import QPixmap
+    from PyQt6.QtGui import QIcon, QPixmap
     from PyQt6.QtWidgets import QApplication, QMessageBox, QSplashScreen
 except Exception as _e:
     with open(_STARTUP_LOG, "a", encoding="utf-8") as _log_f:
@@ -64,13 +76,18 @@ def main():
             Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
         )
         app = QApplication(sys.argv)
+        # 应用程序级图标回退（任务栏 / Alt+Tab）
+        from utils.app_paths import resource_path
+
+        _icon = resource_path("window_logo.ico")
+        if os.path.exists(_icon):
+            app.setWindowIcon(QIcon(_icon))
     except Exception as _e:
         with open(_STARTUP_LOG, "a", encoding="utf-8") as _log_f:
             _log_f.write(f"FATAL: QApplication init failed: {_e}\n")
             traceback.print_exc(file=_log_f)
         raise
     # 显示启动界面
-    from utils.app_paths import resource_path
 
     logo_path = resource_path("start_logo.png")
     splash = None
