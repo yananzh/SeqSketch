@@ -7,6 +7,8 @@ import tempfile
 import time
 from typing import Any, Dict, List
 
+import sys
+
 from PyQt6.QtCore import QByteArray, QDataStream, QIODevice, QMimeData, Qt
 from PyQt6.QtGui import QAction, QColor, QDrag
 from PyQt6.QtWidgets import (
@@ -48,6 +50,31 @@ def _resolve_data_file() -> str:
 
 
 DATA_FILE = _resolve_data_file()
+
+
+# ── One-time migration: copy legacy %APPDATA% bookmarks to portable location ──
+def _migrate_legacy_bookmarks() -> None:
+    """In frozen (packaged) mode, copy bookmarks from the dev-mode
+    ``%APPDATA%/SeqSketch/bookmarks.json`` to the portable ``user_data/``
+    directory, so users don't lose bookmarks accumulated during development."""
+    if not getattr(sys, "frozen", False):
+        return
+    if os.path.exists(DATA_FILE):
+        return  # already migrated or user has bookmarks
+    legacy = os.path.join(os.environ.get("APPDATA", ""), "SeqSketch", "bookmarks.json")
+    if not os.path.isfile(legacy):
+        return
+    try:
+        os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+        import shutil
+
+        shutil.copy2(legacy, DATA_FILE)
+    except OSError:
+        pass  # migration is best-effort; fall through to sample data
+
+
+_migrate_legacy_bookmarks()
+
 MIME_TYPE = "application/x-bookmark-item"
 
 
