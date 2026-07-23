@@ -10,15 +10,19 @@ datas = []
 binaries = []
 hiddenimports = []
 
+
 # Only exclude translation data; keep everything else
 def _filter_translations(datas_list):
     """Remove entries under PyQt6/Qt6/translations/."""
     import os
+
     return [
-        (src, dest) for src, dest in datas_list
+        (src, dest)
+        for src, dest in datas_list
         if "translations" not in dest.replace(os.sep, "/")
         and "qtbase_" not in os.path.basename(src)
     ]
+
 
 # Use the hook's standard mechanism: override the default data collection
 try:
