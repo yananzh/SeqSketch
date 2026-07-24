@@ -386,7 +386,8 @@ sequence is used for MW calculation.</li>
         """
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Protease Cleavage Map")
-        dialog.setFixedSize(700, 500)
+        dialog.resize(580, 440)
+        dialog.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

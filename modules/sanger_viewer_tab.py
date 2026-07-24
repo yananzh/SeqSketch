@@ -551,7 +551,8 @@ class SangerViewerTab(QWidget):
 
         dialog = QDialog(self)
         dialog.setWindowTitle(self.tr("Help - Sanger Chromatogram Viewer"))
-        dialog.setFixedSize(800, 620)
+        dialog.resize(600, 480)
+        dialog.setMinimumSize(400, 300)
 
         layout = QVBoxLayout()
         scroll_area = QScrollArea()

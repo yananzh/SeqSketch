@@ -505,7 +505,8 @@ class RestrictionEnzymeTab(BaseTabWidget):
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Restriction Enzyme Analysis"))
-        dlg.setFixedSize(800, 600)
+        dlg.resize(600, 480)
+        dlg.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)

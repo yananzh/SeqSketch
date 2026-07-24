@@ -425,7 +425,8 @@ the Kyte-Doolittle or Engelman scale.</li>
         """
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Hydrophobicity Plot")
-        dialog.setFixedSize(700, 460)
+        dialog.resize(560, 420)
+        dialog.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

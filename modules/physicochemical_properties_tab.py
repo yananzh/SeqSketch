@@ -286,7 +286,8 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Physicochemical Properties"))
-        dlg.setFixedSize(800, 620)
+        dlg.resize(600, 480)
+        dlg.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -301,10 +302,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         layout.addWidget(scroll)
         ok = QPushButton("OK")
         ok.clicked.connect(dlg.accept)
-        btn_box = QHBoxLayout()
-        btn_box.addStretch()
-        btn_box.addWidget(ok)
-        layout.addLayout(btn_box)
+        layout.addWidget(ok)
         dlg.setLayout(layout)
         dlg.exec()
 

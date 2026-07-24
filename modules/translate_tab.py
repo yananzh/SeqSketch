@@ -312,7 +312,8 @@ Met-Lys-Phe-Gly-Stop
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Translate")
-        dialog.setFixedSize(820, 620)
+        dialog.resize(600, 480)
+        dialog.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

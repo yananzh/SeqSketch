@@ -70,12 +70,12 @@ class DeduplicateTab(BaseTabWidget):
             "records with identical sequences."
         )
         opts_layout.addWidget(self.keep_combo)
-        self.case_insensitive_checkbox = QCheckBox("Case-insensitive ID matching")
+        self.case_insensitive_checkbox = QCheckBox("Ignore case")
         self.case_insensitive_checkbox.setToolTip(
             "When checked, 'GeneA' and 'genea' are treated as the same ID"
         )
         opts_layout.addWidget(self.case_insensitive_checkbox)
-        self.export_removed_checkbox = QCheckBox("Export removed sequences")
+        self.export_removed_checkbox = QCheckBox("Export removed")
         self.export_removed_checkbox.setToolTip(
             "Save the sequences that were removed to a separate _removed.fasta file"
         )
@@ -106,7 +106,7 @@ class DeduplicateTab(BaseTabWidget):
         self.preview_btn = QPushButton("Preview")
         self.preview_btn.setToolTip("Preview duplicate statistics without saving")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.preview_btn)
-        self.run_btn = QPushButton("Start")
+        self.run_btn = QPushButton("Run")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
@@ -153,7 +153,8 @@ class DeduplicateTab(BaseTabWidget):
         path = stage_example("dna", "cytb_cds_deduplicate.fasta")
         if not path:
             QMessageBox.information(
-                self, self.tr("Example"),
+                self,
+                self.tr("Example"),
                 self.tr("示例数据加载失败，请检查安装是否完整。"),
             )
             return
@@ -379,7 +380,7 @@ by ID (same header name) or by sequence content (identical bases/residues).</p>
 <li>Choose <b>Deduplicate by</b> &mdash; Sequence ID or Sequence content.</li>
 <li>Optionally pick a <b>Keep strategy</b> for ID-mode deduplication.</li>
 <li>Click <b>Preview</b> to see how many duplicates will be removed.</li>
-<li>Choose an output file, then click <b>Start</b>.</li>
+<li>Choose an output file, then click <b>Run</b>.</li>
 </ol>
 
 <h3>Which mode to use?</h3>
@@ -423,4 +424,4 @@ will find in ID mode.</li>
 so you can verify nothing important was discarded.</li>
 </ul>
         """
-        self.show_help_dialog("Help - Deduplicate", help_text, 820, 580)
+        self.show_help_dialog("Help - Deduplicate", help_text, 600, 480)

@@ -76,7 +76,7 @@ class SangerTab(QWidget):
         grp_input = QGroupBox(self.tr("Input Sequences"))
         grp_input.setFlat(True)
         gi = QVBoxLayout(grp_input)
-        gi.setContentsMargins(0, 16, 0, 4)
+        gi.setContentsMargins(6, 16, 0, 4)
         gi.setSpacing(6)
 
         seqs_hbox = QHBoxLayout()
@@ -86,10 +86,6 @@ class SangerTab(QWidget):
         fwd_vbox.addWidget(QLabel(self.tr("Forward Sequence (5' \u2192 3'):")))
         self.fwd_edit = QTextEdit()
         apply_sequence_editor_style(self.fwd_edit)
-        # Strip CSS border — QGroupBox provides the visual container
-        _fs = self.fwd_edit.styleSheet()
-        _fs = _fs.replace("border: 1px solid #94a3b8;", "border: none;")
-        self.fwd_edit.setStyleSheet(_fs)
         self.fwd_edit.setPlaceholderText(
             self.tr(
                 "Paste forward read, drag-and-drop a FASTA file, or type raw sequence...\n"
@@ -107,10 +103,6 @@ class SangerTab(QWidget):
         rev_vbox.addWidget(QLabel(self.tr("Reverse Sequence (auto reverse-complemented):")))
         self.rev_edit = QTextEdit()
         apply_sequence_editor_style(self.rev_edit)
-        # Strip CSS border — QGroupBox provides the visual container
-        _rs = self.rev_edit.styleSheet()
-        _rs = _rs.replace("border: 1px solid #94a3b8;", "border: none;")
-        self.rev_edit.setStyleSheet(_rs)
         self.rev_edit.setPlaceholderText(
             self.tr(
                 "Paste reverse read (as-read), drag-and-drop a FASTA file, or type raw sequence...\n"
@@ -135,7 +127,7 @@ class SangerTab(QWidget):
         grp_params = QGroupBox(self.tr("Assembly Parameters"))
         grp_params.setFlat(True)
         gp = QVBoxLayout(grp_params)
-        gp.setContentsMargins(0, 16, 0, 4)
+        gp.setContentsMargins(6, 16, 0, 4)
 
         params_hbox = QHBoxLayout()
         params_hbox.addWidget(QLabel(self.tr("Min overlap:")))
@@ -667,7 +659,8 @@ class SangerTab(QWidget):
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Sanger Sequence Assembly"))
-        dlg.setFixedSize(820, 620)
+        dlg.resize(600, 480)
+        dlg.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)

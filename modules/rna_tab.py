@@ -171,7 +171,8 @@ UUAAGGCC
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Convert to RNA")
-        dialog.setFixedSize(780, 580)
+        dialog.resize(580, 460)
+        dialog.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

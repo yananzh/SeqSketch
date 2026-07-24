@@ -47,6 +47,35 @@ Get-ChildItem -Recurse -Filter '*.pyc' | Remove-Item -Force -ErrorAction Silentl
 # Remove runtime logs from previous runs
 Remove-Item 'startup.log' -Force -ErrorAction SilentlyContinue
 
+# ── 2.5 Prune bundled tools (keep only runtime-essential files) ─────────────
+Write-Host "[2.5/4] Pruning bundled tool binaries..."
+# BLAST: keep only the 6 tools used by SeqSketch; remove VDB variants, maskers, docs
+$blastBin = 'softwares\ncbi-blast-2.17.0+\bin'
+$blastKeep = @('blastn', 'blastp', 'blastx', 'tblastn', 'tblastx', 'makeblastdb')
+if (Test-Path $blastBin) {
+    $blastAll = Get-ChildItem $blastBin -File
+    foreach ($f in $blastAll) {
+        $keep = $false
+        foreach ($tool in $blastKeep) {
+            if ($f.BaseName -eq $tool -or $f.BaseName -eq "$tool.exe") { $keep = $true; break }
+        }
+        if (-not $keep) {
+            Remove-Item $f.FullName -Force -ErrorAction SilentlyContinue
+            Write-Host "  BLAST removed: $($f.Name)"
+        }
+    }
+    # Remove BLAST doc folder and metadata files
+    Remove-Item 'softwares\ncbi-blast-2.17.0+\doc' -Recurse -Force -ErrorAction SilentlyContinue
+    @('BLAST_PRIVACY', 'ChangeLog', 'LICENSE', 'ncbi_package_info', 'README') | ForEach-Object {
+        Remove-Item "softwares\ncbi-blast-2.17.0+\$_" -Force -ErrorAction SilentlyContinue
+    }
+}
+# IQ-TREE: remove example/model files (only bin/ + DLL are needed at runtime)
+$iqtreeRoot = 'softwares\iqtree-3.0.1-Windows'
+@('example.cf', 'example.nex', 'example.phy', 'models.nex') | ForEach-Object {
+    Remove-Item "$iqtreeRoot\$_" -Force -ErrorAction SilentlyContinue
+}
+
 # ── 3. Build ──────────────────────────────────────────────────────────────────
 Write-Host "[3/4] Building onedir (this takes a few minutes the first time)..."
 & $PythonExe -m PyInstaller SeqSketch.spec --noconfirm

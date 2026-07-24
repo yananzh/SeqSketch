@@ -270,7 +270,7 @@ class SimplifyIDsTab(BaseTabWidget):
         self.preview_btn = QPushButton("Preview")
         self.preview_btn.setToolTip("Preview the first 5 simplified IDs without saving")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.preview_btn)
-        self.run_btn = QPushButton("Start")
+        self.run_btn = QPushButton("Run")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
@@ -722,7 +722,7 @@ word count).</li>
 <li>Click <b>Preview</b> to check the first 5 IDs before processing the
 whole file.</li>
 <li>Tweak options (case, prefix/suffix, description preservation, etc.).</li>
-<li>Click <b>Start</b> to simplify every header and save the result.</li>
+<li>Click <b>Run</b> to simplify every header and save the result.</li>
 </ol>
 
 <h3>Modes in Detail</h3>
@@ -846,4 +846,4 @@ feeding them into case-sensitive pipelines.</li>
 </ul>
         """
 
-        self.show_help_dialog("Help - Simplify Headers", help_text, 920, 740)
+        self.show_help_dialog("Help - Simplify Headers", help_text, 640, 520)

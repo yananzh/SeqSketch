@@ -320,17 +320,6 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.acc_edit.viewport().setStyleSheet("background: transparent;")
         acc_layout.addWidget(self.acc_edit)
 
-        acc_action_layout = QHBoxLayout()
-        self.load_acc_btn = QPushButton("Load Accessions")
-        self.load_acc_btn.setToolTip("Import a text file with one accession per line")
-        self.example_btn = QPushButton(self.tr("Example"))
-        self.example_btn.setFixedWidth(90)
-        self.example_btn.clicked.connect(self._load_example)
-        acc_action_layout.addStretch()
-        acc_action_layout.addWidget(self.example_btn)
-        acc_action_layout.addWidget(self.load_acc_btn)
-        acc_layout.addLayout(acc_action_layout)
-
         # ── Output ──
         out_group = QGroupBox("Output")
         out_layout = QHBoxLayout(out_group)
@@ -346,8 +335,12 @@ class DownloadFromNCBITab(BaseTabWidget):
         out_layout.addWidget(self.output_btn)
 
         # ── Control buttons in status bar ──
-        self.run_btn = QPushButton("Start")
+        self.run_btn = QPushButton("Run")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.clicked.connect(self._load_example)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.example_btn)
         self.stop_btn = QPushButton("Stop")
         self.stop_btn.setVisible(False)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.stop_btn)
@@ -366,32 +359,17 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.run_btn.clicked.connect(self.run_download)
         self.stop_btn.clicked.connect(self.stop_download)
         self.clear_btn.clicked.connect(self.clear_all)
-        self.load_acc_btn.clicked.connect(self.load_accessions_from_file)
-
-    def load_accessions_from_file(self):
-        """Load accession numbers from a text file."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Load accessions from file",
-            "",
-            "Text Files (*.txt *.tsv *.csv);;All Files (*)",
-        )
-        if not file_path:
-            return
-        try:
-            with open(file_path, "r", encoding="utf-8") as fh:
-                content = fh.read()
-            self.acc_edit.setPlainText(content)
-            self.log_message(f"Loaded accessions from: {file_path}", "INFO")
-        except Exception as e:
-            self.log_message(f"Failed to load accessions: {e}", "ERROR")
 
     def _load_example(self):
         """Fill example NCBI accessions and a placeholder email (does not download)."""
         self.db_combo.setCurrentText("nucleotide")
         self.email_edit.setText("your_email@example.com")
         self.acc_edit.setPlainText("NM_001101.5\nXM_123456.1")
-        self.show_status(self.tr("Example loaded: NM_001101.5 etc. — remember to enter a real email before downloading"))
+        self.show_status(
+            self.tr(
+                "Example loaded: NM_001101.5 etc. — remember to enter a real email before downloading"
+            )
+        )
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -426,7 +404,6 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.batch_size_spin.setEnabled(not running)
         self.retry_count_spin.setEnabled(not running)
         self.export_report_checkbox.setEnabled(not running)
-        self.load_acc_btn.setEnabled(not running)
         self.example_btn.setEnabled(not running)
 
     def run_download(self):
@@ -585,9 +562,8 @@ search for your gene or protein of interest. Copy the <b>accession number</b>
 <li>In this tab, choose <b>nucleotide</b> for DNA/RNA or <b>protein</b> for
 amino acid sequences.</li>
 <li>Enter your email address (NCBI requires it, but it will not be shared).</li>
-<li>Paste your accession numbers — one per line — or click
-<b>Load Accessions from File</b>.</li>
-<li>Choose an output file and click <b>Start</b>.</li>
+<li>Paste your accession numbers — one per line.</li>
+<li>Choose an output file and click <b>Run</b>.</li>
 </ol>
 
 <h3>What is an accession number?</h3>
@@ -632,4 +608,4 @@ ensure the NCBI service is reachable.</li>
 </ul>
         """
 
-        self.show_help_dialog("Help - NCBI Download", help_text, 820, 580)
+        self.show_help_dialog("Help - NCBI Download", help_text, 600, 480)

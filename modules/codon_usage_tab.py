@@ -1401,7 +1401,8 @@ class CodonUsageTab(QWidget):
 
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Help - Codon Usage Analysis"))
-        dlg.setFixedSize(900, 680)
+        dlg.resize(640, 520)
+        dlg.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)

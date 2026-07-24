@@ -179,7 +179,7 @@ class ExtractByRegexTab(BaseTabWidget):
         self.preview_btn = QPushButton("Preview")
         self.preview_btn.setToolTip("Preview the first few matching IDs without saving")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.preview_btn)
-        self.run_btn = QPushButton("Start")
+        self.run_btn = QPushButton("Run")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
@@ -238,7 +238,8 @@ class ExtractByRegexTab(BaseTabWidget):
         path = stage_example("dna", "simple_header.fasta")
         if not path:
             QMessageBox.information(
-                self, self.tr("Example"),
+                self,
+                self.tr("Example"),
                 self.tr("示例数据加载失败，请检查安装是否完整。"),
             )
             return
@@ -456,7 +457,7 @@ keeps (or removes) the records that match. You control where the pattern looks
 <li>Enter a regular expression (or click <b>Example</b> to load a ready-to-use one)</li>
 <li>Choose match mode, scope, and case sensitivity</li>
 <li>Click <b>Preview</b> to check matches before saving</li>
-<li>Choose an output file, then click <b>Start</b></li>
+<li>Choose an output file, then click <b>Run</b></li>
 </ol>
 
 <h3>Match Scope &mdash; where does the pattern look?</h3>
@@ -503,4 +504,4 @@ FASTA header marker, not part of the searchable text.</li>
 </ul>
         """
 
-        self.show_help_dialog("Help - Regex Filter", help_text, 860, 620)
+        self.show_help_dialog("Help - Regex Filter", help_text, 620, 500)

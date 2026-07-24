@@ -314,7 +314,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.stats_layout.setVerticalSpacing(6)
 
         # ── Control buttons in status bar ──
-        self.run_btn = QPushButton("Start")
+        self.run_btn = QPushButton("Run")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
@@ -369,7 +369,8 @@ class SequenceStatisticsTab(BaseTabWidget):
         path = stage_example("phylo", "cytb_cds_raw.fasta")
         if not path:
             QMessageBox.information(
-                self, self.tr("Example"),
+                self,
+                self.tr("Example"),
                 self.tr("示例数据加载失败，请检查安装是否完整。"),
             )
             return
@@ -423,7 +424,7 @@ sequence data.</p>
 <ol>
 <li>Select a FASTA file (drag-and-drop is supported)</li>
 <li>Choose where to save the statistics report</li>
-<li>Click <b>Start</b></li>
+<li>Click <b>Run</b></li>
 <li>Review the summary panel and the saved TSV report</li>
 </ol>
 
@@ -494,7 +495,7 @@ or GC content.</li>
 </ul>
         """
 
-        self.show_help_dialog("Help - FASTA Statistics", help_text, 820, 600)
+        self.show_help_dialog("Help - FASTA Statistics", help_text, 600, 480)
 
     def run_statistics(self):
         input_path = self.input_edit.text().strip()

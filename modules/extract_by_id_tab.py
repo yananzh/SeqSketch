@@ -224,7 +224,7 @@ class ExtractByIDTab(BaseTabWidget):
             "Remove Listed IDs (exclude)",
         ])
         self.match_mode_combo.setToolTip(
-            'Exact Match: the ID must equal your query exactly\n'
+            "Exact Match: the ID must equal your query exactly\n"
             'Contains: the query is a substring of the ID (e.g. "kinase" matches "NM_kinase_1")\n'
             'Case-sensitive: "GeneA" will NOT match "genea"\n'
             'Case-insensitive: "GeneA" WILL match "genea"\n'
@@ -272,7 +272,7 @@ class ExtractByIDTab(BaseTabWidget):
         self.preview_btn = QPushButton("Preview")
         self.preview_btn.setToolTip("Preview the first 5 matched IDs without saving")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.preview_btn)
-        self.run_btn = QPushButton("Start")
+        self.run_btn = QPushButton("Run")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
@@ -321,14 +321,13 @@ class ExtractByIDTab(BaseTabWidget):
         path = stage_example("phylo", "cytb_cds_raw.fasta")
         if not path:
             QMessageBox.information(
-                self, self.tr("Example"),
+                self,
+                self.tr("Example"),
                 self.tr("示例数据加载失败，请检查安装是否完整。"),
             )
             return
         self.handle_input_file_selected(path)
-        self.id_edit.setPlainText(
-            "Homo_sapiens_cytb\nMus_musculus_cytb\nDanio_rerio_cytb"
-        )
+        self.id_edit.setPlainText("Homo_sapiens_cytb\nMus_musculus_cytb\nDanio_rerio_cytb")
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -578,7 +577,7 @@ records or removes them, depending on the match mode you choose.</p>
 <li>Enter or load your list of IDs (one per line)</li>
 <li>Choose a match mode and output order</li>
 <li>Click <b>Preview</b> to check the first few matches</li>
-<li>Choose where to save the result, then click <b>Start</b></li>
+<li>Choose where to save the result, then click <b>Run</b></li>
 </ol>
 
 <h3>Which match mode should I use?</h3>
@@ -635,4 +634,4 @@ FASTA header exactly, and try <b>Case-Insensitive</b> mode</li>
 </ul>
         """
 
-        self.show_help_dialog("Help - Filter by IDs", help_text, 820, 580)
+        self.show_help_dialog("Help - Filter by IDs", help_text, 600, 480)

@@ -576,7 +576,8 @@ Translation: MKPGFK*
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - ORF Finder")
-        dialog.setFixedSize(840, 640)
+        dialog.resize(620, 500)
+        dialog.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

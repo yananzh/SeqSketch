@@ -209,7 +209,8 @@ CGATCGCAT
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Help - Complement/Reverse Complement")
-        dialog.setFixedSize(800, 600)
+        dialog.resize(600, 480)
+        dialog.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

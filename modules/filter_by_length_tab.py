@@ -92,7 +92,7 @@ class FilterByLengthTab(BaseTabWidget):
         self.preview_btn = QPushButton("Preview")
         self.preview_btn.setToolTip("Preview filter statistics without saving")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.preview_btn)
-        self.run_btn = QPushButton("Start")
+        self.run_btn = QPushButton("Run")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
@@ -163,7 +163,8 @@ class FilterByLengthTab(BaseTabWidget):
         path = stage_example("phylo", "cytb_cds_raw.fasta")
         if not path:
             QMessageBox.information(
-                self, self.tr("Example"),
+                self,
+                self.tr("Example"),
                 self.tr("示例数据加载失败，请检查安装是否完整。"),
             )
             return
@@ -324,4 +325,4 @@ analyses).</li>
 of your file.</li>
 </ul>
         """
-        self.show_help_dialog("Help - Filter by Length", help_text, 720, 460)
+        self.show_help_dialog("Help - Filter by Length", help_text, 560, 420)

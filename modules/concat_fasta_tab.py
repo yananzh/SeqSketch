@@ -101,7 +101,7 @@ class ConcatFastaTab(BaseTabWidget):
         self.preview_btn = QPushButton("Preview")
         self.preview_btn.setToolTip("Preview file counts and total sequence count")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.preview_btn)
-        self.run_btn = QPushButton("Start")
+        self.run_btn = QPushButton("Run")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
@@ -350,7 +350,7 @@ class ConcatFastaTab(BaseTabWidget):
 
 <p><b>What does this tool do?</b><br>
 It combines multiple FASTA files into a single output file. Add files with
-<b>Add Files</b>, and click <b>Start</b>. The output order matches the file
+<b>Add Files</b>, and click <b>Run</b>. The output order matches the file
 list order.</p>
 
 <h3>Quick Start</h3>
@@ -360,7 +360,7 @@ list order.</p>
 <li>Each file shows its sequence count in the list once added.</li>
 <li>Click <b>Preview</b> to verify all files are readable and see
 the total sequence count.</li>
-<li>Choose an output file, then click <b>Start</b>.</li>
+<li>Choose an output file, then click <b>Run</b>.</li>
 </ol>
 
 <h3>Options</h3>
@@ -391,4 +391,4 @@ Useful when different files contain sequences with the same ID.</li>
 in the output.</li>
 </ul>
         """
-        self.show_help_dialog("Help - Concatenate FASTA", help_text, 820, 560)
+        self.show_help_dialog("Help - Concatenate FASTA", help_text, 600, 480)

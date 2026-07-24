@@ -399,17 +399,18 @@ class BaseTabWidget(QWidget):
         """Help method implemented by subclass"""
         pass
 
-    def show_help_dialog(self, title: str, help_text: str, width: int = 720, height: int = 460):
+    def show_help_dialog(self, title: str, help_text: str, width: int = 560, height: int = 460):
         """Display a scrollable rich-text help dialog with an OK button.
 
         Centralizes the help-popup behavior so subclass ``show_help`` methods
         only need to build ``help_text`` (HTML) and call::
 
-            self.show_help_dialog("Help - <Feature>", help_text, 820, 600)
+            self.show_help_dialog("Help - <Feature>", help_text, 600, 500)
         """
         dialog = QDialog(self)
         dialog.setWindowTitle(title)
-        dialog.setFixedSize(width, height)
+        dialog.resize(width, height)
+        dialog.setMinimumSize(400, 300)
         layout = QVBoxLayout()
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -430,7 +431,9 @@ class BaseTabWidget(QWidget):
 
     # ── Shared Example-data loader (file-mode tabs) ────────────────────────
 
-    def load_fasta_example(self, *example_parts: str, status_label: str | None = None) -> str | None:
+    def load_fasta_example(
+        self, *example_parts: str, status_label: str | None = None
+    ) -> str | None:
         """Stage a bundled FASTA example into this tab's file input.
 
         Copies the bundled example to a writable ``example_work`` dir via

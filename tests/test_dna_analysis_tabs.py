@@ -378,7 +378,7 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
     for editor in (sanger_tab.fwd_edit, sanger_tab.rev_edit):
         assert editor.property("sequenceEditorStyled") is True
         assert "border-radius" in editor.styleSheet()
-        assert "border: none;" in editor.styleSheet()
+        assert "border: 1px solid #94a3b8;" in editor.styleSheet()
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
     # PairwiseAlignmentTab: input_text / seq2_text use inline
