@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QTabWidget,
     QTextBrowser,
@@ -495,10 +496,11 @@ class MafftAlignmentTab(BaseTabWidget):
         param_group = QGroupBox("Alignment Parameters")
         param_group.setFlat(True)
         pg_layout = QGridLayout(param_group)
-        pg_layout.setContentsMargins(12, 16, 0, 4)
+        pg_layout.setContentsMargins(6, 16, 0, 4)
         pg_layout.setVerticalSpacing(6)
         pg_layout.setHorizontalSpacing(10)
         pg_layout.setColumnMinimumWidth(0, 110)
+        pg_layout.setColumnMinimumWidth(2, 100)
         pg_layout.setColumnStretch(1, 1)
 
         # Row 0: alignment strategy  |  sequence order  |  threads
@@ -615,10 +617,11 @@ class MafftAlignmentTab(BaseTabWidget):
         batch_param_group = QGroupBox("Batch Parameters")
         batch_param_group.setFlat(True)
         bpg_layout = QGridLayout(batch_param_group)
-        bpg_layout.setContentsMargins(12, 16, 0, 4)
+        bpg_layout.setContentsMargins(6, 16, 0, 4)
         bpg_layout.setVerticalSpacing(6)
         bpg_layout.setHorizontalSpacing(10)
         bpg_layout.setColumnMinimumWidth(0, 110)
+        bpg_layout.setColumnMinimumWidth(2, 100)
         bpg_layout.setColumnStretch(1, 1)
 
         # Row 0: Output Directory
@@ -714,7 +717,9 @@ class MafftAlignmentTab(BaseTabWidget):
         bl.addStretch()
 
         outer_tabs.addTab(batch_page, "Batch Multi-file")
-        outer_tabs.setMaximumWidth(880)
+        outer_tabs.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
         self.content_area.addWidget(outer_tabs)
 
     def _setup_drag_drop(self):

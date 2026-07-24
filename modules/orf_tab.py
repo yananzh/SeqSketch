@@ -103,7 +103,7 @@ class ORFTab(BaseTabWidget):
         grp = QGroupBox(self.tr("Parameters"))
         grp.setFlat(True)
         grid = QGridLayout(grp)
-        grid.setContentsMargins(0, 16, 0, 4)
+        grid.setContentsMargins(6, 16, 0, 4)
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(8)
 
@@ -112,8 +112,7 @@ class ORFTab(BaseTabWidget):
         self.min_len_box.setRange(30, 10000)
         self.min_len_box.setValue(75)
         self.min_len_box.setSuffix(" nt")
-        self.min_len_box.setMinimumWidth(100)
-        grid.addWidget(self.min_len_box, 0, 1, Qt.AlignmentFlag.AlignLeft)
+        grid.addWidget(self.min_len_box, 0, 1)
 
         grid.addWidget(QLabel(self.tr("Search Strand:")), 0, 2)
         self.chain_box = QComboBox()
@@ -123,8 +122,7 @@ class ORFTab(BaseTabWidget):
             "Both strands",
         ])
         self.chain_box.setCurrentIndex(2)
-        self.chain_box.setMinimumWidth(200)
-        grid.addWidget(self.chain_box, 0, 3, Qt.AlignmentFlag.AlignLeft)
+        grid.addWidget(self.chain_box, 0, 3)
 
         grid.addWidget(QLabel(self.tr("Start Codons:")), 1, 0)
         self.start_codon_box = QComboBox()
@@ -132,13 +130,11 @@ class ORFTab(BaseTabWidget):
             "ATG only (standard)",
             "ATG, GTG, TTG (alternative)",
         ])
-        self.start_codon_box.setMinimumWidth(240)
-        grid.addWidget(self.start_codon_box, 1, 1, Qt.AlignmentFlag.AlignLeft)
+        grid.addWidget(self.start_codon_box, 1, 1)
 
         grid.addWidget(QLabel(self.tr("Genetic Code:")), 1, 2)
         self.genetic_code_box = QComboBox()
         self.genetic_code_box.addItems(list(GENETIC_CODES.keys()))
-        self.genetic_code_box.setMinimumWidth(280)
         self.genetic_code_box.setToolTip(
             self.tr(
                 "NCBI genetic code table used to detect stop codons and "
@@ -146,8 +142,10 @@ class ORFTab(BaseTabWidget):
                 "code if your sequence doesn't use the standard code."
             )
         )
-        grid.addWidget(self.genetic_code_box, 1, 3, Qt.AlignmentFlag.AlignLeft)
+        grid.addWidget(self.genetic_code_box, 1, 3)
 
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(3, 1)
         grid.setColumnStretch(4, 1)
 
         self.add_content_widget(grp)
