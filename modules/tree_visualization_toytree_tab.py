@@ -228,7 +228,6 @@ def _render_svg_bytes(tree_file: str, params: dict) -> bytes:
     tre = _load_and_root(tree_file, params)
 
     draw_kwargs = _build_draw_kwargs(params, tre)
-    _apply_highlight(params, tre, draw_kwargs)
     canvas, _axes, _mark = tre.draw(**draw_kwargs)
 
     buf = io.BytesIO()
@@ -252,7 +251,6 @@ def _render_pdf_bytes(tree_file: str, params: dict) -> bytes:
     tre = _load_and_root(tree_file, params)
 
     draw_kwargs = _build_draw_kwargs(params, tre)
-    _apply_highlight(params, tre, draw_kwargs)
     canvas, _axes, _mark = tre.draw(**draw_kwargs)
 
     buf = io.BytesIO()
@@ -338,32 +336,6 @@ def _get_support_labels(tre) -> list:
 
 
 # ---------------------------------------------------------------------------
-# Helper: highlight tips by pattern (modify tip_labels_colors)
-# ---------------------------------------------------------------------------
-def _apply_highlight(params: dict, tre, draw_kwargs: dict):
-    """Apply tip highlighting by name pattern via tip_labels_colors."""
-    import re
-
-    pattern = params.get("highlight_query", "").strip()
-    if not pattern:
-        return
-    hl_color = params.get("highlight_color", "#e41a1c")
-    try:
-        regex = re.compile(pattern, re.IGNORECASE)
-    except re.error:
-        return
-
-    tip_labels = tre.get_tip_labels()
-    colors = []
-    for name in tip_labels:
-        if regex.search(name):
-            colors.append(hl_color)
-        else:
-            colors.append("#262626")
-    draw_kwargs["tip_labels_colors"] = colors
-
-
-# ---------------------------------------------------------------------------
 # Worker: render tree to PDF bytes for preview
 # ---------------------------------------------------------------------------
 class _RenderThread(QThread):
@@ -414,7 +386,6 @@ class _ExportThread(QThread):
 
         tre = _load_and_root(self.tree_file, self.params)
         draw_kwargs = _build_draw_kwargs(self.params, tre)
-        _apply_highlight(self.params, tre, draw_kwargs)
         canvas, _, _ = tre.draw(**draw_kwargs)
         buf = io.BytesIO()
         toyplot.svg.render(canvas, buf)
@@ -427,7 +398,6 @@ class _ExportThread(QThread):
 
         tre = _load_and_root(self.tree_file, self.params)
         draw_kwargs = _build_draw_kwargs(self.params, tre)
-        _apply_highlight(self.params, tre, draw_kwargs)
         canvas, _, _ = tre.draw(**draw_kwargs)
         toyplot.pdf.render(canvas, self.out_path)
 
@@ -641,15 +611,6 @@ class ToytreeVisualizationTab(BaseTabWidget):
         sv_row.addWidget(self._support_size_spin)
         sl.addLayout(sv_row)
 
-        # highlight
-        hl_row = QHBoxLayout()
-        hl_row.addWidget(QLabel(self.tr("Highlight:")))
-        self._highlight_edit = QLineEdit()
-        self._highlight_edit.setPlaceholderText(self.tr("Regex pattern for tip names"))
-        self._highlight_edit.setMaximumWidth(140)
-        hl_row.addWidget(self._highlight_edit)
-        sl.addLayout(hl_row)
-
         ctrl_vbox.addWidget(grp_style)
         ctrl_vbox.addStretch()
 
@@ -759,7 +720,6 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
   <tr><td><b>Node size</b></td><td>&mdash; dot size for internal nodes (0 = hidden)</td></tr>
   <tr><td><b>Edge width</b></td><td>&mdash; branch line thickness (1&ndash;10 px)</td></tr>
   <tr><td><b>Support font</b></td><td>&mdash; font size for support-value labels (6&ndash;24 px)</td></tr>
-  <tr><td><b>Highlight</b></td><td>&mdash; regex pattern to colour matching tip labels red</td></tr>
 </table>
 
 <h3>Canvas Controls</h3>
@@ -788,7 +748,6 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 <ul>
   <li>Files can be <b>dragged &amp; dropped</b> directly into the input field.</li>
   <li>Tree format (Newick / Nexus) is <b>auto-detected</b> from the file extension.</li>
-  <li>Use <b>Highlight</b> with a regex pattern to emphasize specific clades.</li>
   <li>For large trees, the <b>Circular</b> layout uses space more efficiently.</li>
   <li>Exported SVG files can be further edited in Inkscape or Illustrator.</li>
 </ul>
@@ -843,7 +802,6 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         self._node_size_spin.setValue(0)
         self._edge_width_spin.setValue(1)
         self._support_size_spin.setValue(9)
-        self._highlight_edit.clear()
         self._mapping_edit.clear()
         self.show_status("")
 
@@ -884,7 +842,8 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 
     def _on_mapping_selected(self, path: str):
         """Handle mapping file dropped onto the mapping edit."""
-        pass  # path is already set in the line edit by _DropLineEdit; param change triggers redraw
+        if self._root_method_combo.currentText() == "Outgroup":
+            self._load_leaf_names()
 
     def _on_file_selected(self, path: str):
         """Handle leaf-name loading and tree statistics after file selection."""
@@ -937,8 +896,6 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             "node_size": self._node_size_spin.value(),
             "edge_width": float(self._edge_width_spin.value()),
             "support_label_size": self._support_size_spin.value(),
-            "highlight_query": self._highlight_edit.text().strip(),
-            "highlight_color": "#e41a1c",
             "dpi": 300,
         }
 
@@ -953,6 +910,17 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 
             tre = toytree.tree(tree_file)
             names = sorted(tre.get_tip_labels())
+
+            # Apply tip name mapping so the outgroup combo shows mapped names
+            mapping_path = self._mapping_edit.text().strip()
+            if mapping_path and os.path.isfile(mapping_path):
+                try:
+                    mapping = _parse_tip_mapping_file(mapping_path)
+                    names = [mapping.get(name, name) for name in names]
+                    names.sort()
+                except Exception:
+                    pass  # keep original names if mapping parse fails
+
             # Block signals so populating the combo doesn't trigger auto-redraw
             self._outgroup_combo.blockSignals(True)
             self._outgroup_combo.clear()

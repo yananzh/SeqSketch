@@ -667,7 +667,7 @@ class _RunQueryWidget(QWidget):
         root.addWidget(grp2)
 
         # ── Group 3: BLAST Parameters & Output ──
-        grp3 = QGroupBox(self.tr("Set BLAST Parameters"))
+        grp3 = QGroupBox(self.tr("BLAST Parameters"))
         grp3_layout = QVBoxLayout(grp3)
         grp3_layout.setSpacing(6)
 
@@ -675,7 +675,10 @@ class _RunQueryWidget(QWidget):
         grid.setSpacing(2)
         grid.setVerticalSpacing(6)
         grid.setContentsMargins(0, 0, 0, 0)
-        grid.setColumnMinimumWidth(0, lbl_width)
+        grid.setColumnMinimumWidth(0, max(
+            QLabel(self.tr("Program")).sizeHint().width(),
+            QLabel(self.tr("Output File")).sizeHint().width(),
+        ))
         self.prog_combo = QComboBox()
         self.prog_combo.addItems(list(_PROG_TIPS.keys()))
         self.prog_combo.setFixedWidth(110)
