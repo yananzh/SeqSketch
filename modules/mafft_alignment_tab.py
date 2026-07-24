@@ -717,9 +717,7 @@ class MafftAlignmentTab(BaseTabWidget):
         bl.addStretch()
 
         outer_tabs.addTab(batch_page, "Batch Multi-file")
-        outer_tabs.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
-        )
+        outer_tabs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.content_area.addWidget(outer_tabs)
 
     def _setup_drag_drop(self):
