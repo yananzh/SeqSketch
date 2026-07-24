@@ -675,10 +675,13 @@ class _RunQueryWidget(QWidget):
         grid.setSpacing(2)
         grid.setVerticalSpacing(6)
         grid.setContentsMargins(0, 0, 0, 0)
-        grid.setColumnMinimumWidth(0, max(
-            QLabel(self.tr("Program")).sizeHint().width(),
-            QLabel(self.tr("Output File")).sizeHint().width(),
-        ))
+        grid.setColumnMinimumWidth(
+            0,
+            max(
+                QLabel(self.tr("Program")).sizeHint().width(),
+                QLabel(self.tr("Output File")).sizeHint().width(),
+            ),
+        )
         self.prog_combo = QComboBox()
         self.prog_combo.addItems(list(_PROG_TIPS.keys()))
         self.prog_combo.setFixedWidth(110)
