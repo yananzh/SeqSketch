@@ -104,9 +104,11 @@ def test_fasta_tools_tabs_share_a_clear_labeled_log_area(qapp, tab_class):
     assert tab.log_group.property("logGroup") is True
     assert tab.log_area.isReadOnly()
     assert tab.log_area.property("logViewer") is True
-    assert tab.log_area.placeholderText() == ("Run a FASTA tool to see progress and results here...")
+    assert tab.log_area.placeholderText() == (
+        "Run a FASTA tool to see progress and results here..."
+    )
     assert tab.log_area.minimumHeight() >= 120
-    assert tab.log_area.lineWrapMode() == tab.log_area.LineWrapMode.WidgetWidth
+    assert tab.log_area.lineWrapMode() == tab.log_area.LineWrapMode.NoWrap
 
 
 def test_fasta_tools_log_viewer_uses_borderless_inner_style(qapp):

@@ -329,7 +329,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the downloaded FASTA...")
         self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.output_btn = QPushButton("Save As")
+        self.output_btn = QPushButton("Browse")
         self.output_btn.setFixedWidth(90)
         out_layout.addWidget(self.output_edit)
         out_layout.addWidget(self.output_btn)
@@ -346,6 +346,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.stop_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
+        self.add_open_output_dir_button()
 
         # ── Assemble ──
         self.add_content_widget(conn_group)

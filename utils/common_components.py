@@ -5,9 +5,11 @@ Reduce duplication and provide unified error handling and signals
 
 import logging
 import os
+import re
 from typing import Any, Dict, Optional
 
-from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
+from PyQt6.QtCore import QObject, Qt, QThread, QUrl, pyqtSignal
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -74,7 +76,7 @@ class FileDropLineEdit(QLineEdit):
         for url in mime_data.urls():
             local = url.toLocalFile()
             if local:
-                return local
+                return os.path.normpath(local)
         return None
 
     def _is_valid(self, path: str) -> bool:
@@ -245,7 +247,7 @@ class BaseTabWidget(QWidget):
             apply_log_viewer_style(self.log_area)
             self.log_area.setMinimumHeight(120)
             self.log_area.setMaximumHeight(160)
-            self.log_area.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+            self.log_area.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
             self.log_area.setPlaceholderText(
                 self.tr("Run a FASTA tool to see progress and results here...")
             )
@@ -451,12 +453,12 @@ class BaseTabWidget(QWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. The installation may be incomplete."),
             )
             return None
         if hasattr(self, "handle_input_file_selected"):
             self.handle_input_file_selected(path)
-        self.show_status(self.tr(f"已载入示例数据: {status_label or os.path.basename(path)}"))
+        self.show_status(self.tr(f"Example loaded: {status_label or os.path.basename(path)}"))
         return path
 
     # ── Drag-and-drop helpers (sequence mode) ────────────────────────────
@@ -517,6 +519,29 @@ class BaseTabWidget(QWidget):
         self.status_label.setText(message)
         self.logger.info(message)
 
+    def add_open_output_dir_button(self):
+        """Add an 'Open Folder' button to the right of Run/Clear in the
+        status bar (before Help). It opens the folder containing the current
+        output file.
+        """
+        self.open_output_btn = QPushButton(self.tr("Open Folder"))
+        self.open_output_btn.clicked.connect(self._open_output_folder)
+        # Insert right before the Help button (always the last status widget)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self.open_output_btn)
+
+    def _open_output_folder(self):
+        """Open the folder containing the current output file."""
+        output_edit = getattr(self, "output_edit", None)
+        output_path = output_edit.text().strip() if output_edit is not None else ""
+        if not output_path:
+            self.show_status(self.tr("No output file selected yet."))
+            return
+        out_dir = os.path.dirname(os.path.abspath(output_path))
+        if not os.path.isdir(out_dir):
+            self.show_status(self.tr("Output directory does not exist yet."))
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(out_dir))
+
     def log_message(self, message: str, level: str = "INFO"):
         """Append log message (file mode only)"""
         if not hasattr(self, "log_area"):
@@ -524,7 +549,10 @@ class BaseTabWidget(QWidget):
 
         prefix = {"INFO": "[Info]", "ERROR": "[Error]", "WARNING": "[Warning]"}.get(level, "[Info]")
 
-        self.log_area.append(f"{prefix} {message}")
+        # 文件输出地址单独一行显示
+        display = re.sub(r"(?<=to: )(?=[A-Za-z]:[\\\\/]|\\\\|/)", "\n", message)
+
+        self.log_area.append(f"{prefix} {display}")
 
         if level == "ERROR":
             self.logger.error(message)

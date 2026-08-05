@@ -184,7 +184,7 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         self.output_edit.setPlaceholderText("Choose where to save the converted alignment...")
         self.output_edit.setMinimumWidth(320)
         self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.output_btn = QPushButton("Save As")
+        self.output_btn = QPushButton("Browse")
         self.output_btn.setFixedWidth(90)
         output_row.addWidget(self.output_edit)
         output_row.addWidget(self.output_btn)

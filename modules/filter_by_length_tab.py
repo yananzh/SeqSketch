@@ -83,7 +83,7 @@ class FilterByLengthTab(BaseTabWidget):
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the filtered file...")
         self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.output_btn = QPushButton("Save As")
+        self.output_btn = QPushButton("Browse")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
@@ -96,6 +96,7 @@ class FilterByLengthTab(BaseTabWidget):
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
+        self.add_open_output_dir_button()
 
         # ── Assemble ──
         self.add_content_layout(input_layout)
@@ -126,7 +127,9 @@ class FilterByLengthTab(BaseTabWidget):
     def handle_input_file_selected(self, file_path: str):
         self.input_edit.setText(file_path)
         base = os.path.splitext(os.path.basename(file_path))[0]
-        suggested = os.path.join(os.path.dirname(file_path), base + "_filtered.fasta")
+        suggested = os.path.join(os.path.dirname(file_path), base + "_filtered.fasta").replace(
+            "/", "\\"
+        )
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
@@ -165,7 +168,7 @@ class FilterByLengthTab(BaseTabWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. The installation may be incomplete."),
             )
             return
         self.handle_input_file_selected(path)

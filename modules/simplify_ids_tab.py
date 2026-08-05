@@ -135,28 +135,33 @@ class SimplifyIDsTab(BaseTabWidget):
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the simplified file...")
         self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.output_btn = QPushButton("Save As")
+        self.output_btn = QPushButton("Browse")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         output_layout.setSpacing(8)
 
         # ── Mode selector with dynamic hint ──
-        mode_layout = QHBoxLayout()
+        mode_group = QGroupBox(self.tr("Simplification Mode"))
+        mode_group.setFlat(True)
+        mode_layout = QVBoxLayout(mode_group)
+        mode_layout.setContentsMargins(6, 16, 0, 4)
+
+        mode_row = QHBoxLayout()
         mode_label = QLabel("Simplify mode:")
         mode_label.setFixedWidth(_label_width)
-        mode_layout.addWidget(mode_label)
+        mode_row.addWidget(mode_label)
         self.mode_combo = QComboBox()
-        self.mode_combo.setMinimumWidth(200)
+        self.mode_combo.setFixedWidth(160)
         self.mode_combo.addItem("First word", SIMPLIFY_MODE_FIRST_TOKEN)
         self.mode_combo.addItem("Delimiter field", SIMPLIFY_MODE_DELIMITER_FIELD)
         self.mode_combo.addItem("Keep first N words", SIMPLIFY_MODE_KEEP_TOKENS)
         self.mode_combo.addItem("Regex capture", SIMPLIFY_MODE_REGEX_CAPTURE)
-        self.mode_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        mode_layout.addWidget(self.mode_combo)
+        mode_row.addWidget(self.mode_combo)
         self.mode_hint_label = QLabel("")
         self.mode_hint_label.setProperty("hintLabel", True)
-        mode_layout.addWidget(self.mode_hint_label)
+        mode_row.addWidget(self.mode_hint_label)
+        mode_layout.addLayout(mode_row)
 
         # ── Parameter panels (QStackedWidget, one per mode) ──
         self.param_stack = QStackedWidget()
@@ -216,6 +221,8 @@ class SimplifyIDsTab(BaseTabWidget):
         pg3l.addWidget(self.regex_edit)
         self.param_stack.addWidget(pg3)
 
+        mode_layout.addWidget(self.param_stack)
+
         # ── Preview panel ──
         self.preview_panel = QPlainTextEdit()
         self.preview_panel.setReadOnly(True)
@@ -274,12 +281,12 @@ class SimplifyIDsTab(BaseTabWidget):
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
+        self.add_open_output_dir_button()
 
         # ── Assemble ──
         self.add_content_layout(input_layout)
         self.add_content_layout(output_layout)
-        self.add_content_layout(mode_layout)
-        self.add_content_widget(self.param_stack)
+        self.add_content_widget(mode_group)
         self.add_content_widget(self.preview_panel)
         self.add_content_widget(options_group)
         self.add_content_widget(transform_group)
@@ -295,10 +302,10 @@ class SimplifyIDsTab(BaseTabWidget):
     def update_mode_controls(self):
         mode = self.current_mode()
         _mode_hints = {
-            SIMPLIFY_MODE_FIRST_TOKEN: "Keeps the first whitespace-separated word as the new ID",
-            SIMPLIFY_MODE_DELIMITER_FIELD: "Splits the header by a delimiter and picks one field",
-            SIMPLIFY_MODE_REGEX_CAPTURE: "Uses a regex capturing group (or full match) as the new ID",
-            SIMPLIFY_MODE_KEEP_TOKENS: "Keeps the first N words, joined with underscores",
+            SIMPLIFY_MODE_FIRST_TOKEN: "Keeps the first word — >NM_001101.5 Homo sapiens → NM_001101.5",
+            SIMPLIFY_MODE_DELIMITER_FIELD: "Picks one field after splitting by a delimiter — a|b|c with |, field 2 → b",
+            SIMPLIFY_MODE_KEEP_TOKENS: "Keeps the first N words, joined with underscores — keep 2 of 'alpha beta gamma' → alpha_beta",
+            SIMPLIFY_MODE_REGEX_CAPTURE: "Extracts part of the header with a regex — GN=(\\w+) finds the gene name",
         }
         self.mode_hint_label.setText(_mode_hints.get(mode, ""))
 
@@ -418,7 +425,9 @@ class SimplifyIDsTab(BaseTabWidget):
     def handle_input_file_selected(self, file_path: str):
         self.input_edit.setText(file_path)
         base = os.path.splitext(os.path.basename(file_path))[0]
-        suggested = os.path.join(os.path.dirname(file_path), base + "_simplified.fasta")
+        suggested = os.path.join(os.path.dirname(file_path), base + "_simplified.fasta").replace(
+            "/", "\\"
+        )
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
@@ -679,19 +688,42 @@ class SimplifyIDsTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h2>Simplify Headers &mdash; Clean Up FASTA Sequence IDs</h2>
+<h2>Simplify Headers &mdash; Generate Clean Sequence IDs</h2>
 
-<p><b>What does this tool do?</b><br>
-FASTA files from databases like NCBI or UniProt often have long, complex
+<h3>What does this tool do?</h3>
+<p>FASTA files from databases like NCBI or UniProt often have long, complex
 header lines full of annotations. This tool shortens them into clean,
 predictable IDs so downstream tools (aligners, phylogenetic software,
 visualisation) don't choke on or misinterpret them.</p>
+
+<h3>What is a &quot;Header&quot;?</h3>
+<p>FASTA headers are split at the first whitespace character after the
+<code>&gt;</code>. Everything before the first space is the <b>ID</b>
+(what this tool simplifies); everything after is the <b>Description</b>.
+For example:</p>
+<pre>&gt;NM_001101.5 Homo sapiens protein kinase
+ |----ID----| |-------Description--------|</pre>
+<p>Unless you enable <b>Preserve description</b>, the description is
+removed from the output. Some modes only look at the ID, while others
+scan the full header (ID + description).</p>
 
 <h3>Try It With the Example Data</h3>
 <p>Click the <b>Example</b> button next to the file input. It loads
 <code>simple_header.fasta</code> — real UniProt/TrEMBL headers with the
 <code>tr|acc|entry</code> format. This file is perfect for testing every
 simplification mode.</p>
+
+<h3>Examples Using the Bundled Data</h3>
+<p>Open the <b>Example</b> file. Try these settings on the header<br>
+<code>&gt;tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC Pyruvate dehydrogenase ...</code>:</p>
+<pre>
+First word                   &rarr;  tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC
+Delimiter "|" field 2        &rarr;  A0AAI7ZCJ9
+Delimiter "|" field 3        &rarr;  A0AAI7ZCJ9_XANAC
+Keep 2 words                 &rarr;  tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC_Pyruvate
+Regex  tr\\|([^|]+)\\|         &rarr;  A0AAI7ZCJ9
+Regex  ([A-Z0-9]{10}_[A-Z]+) &rarr;  A0AAI7ZCJ9_XANAC
+</pre>
 
 <h3>Which mode should I choose?</h3>
 <p>Look at your header format and pick the matching rule:</p>
@@ -715,8 +747,8 @@ simplification mode.</p>
 <ol>
 <li>Click <b>Example</b> to load the bundled <code>simple_header.fasta</code>,
 or browse to your own FASTA file.</li>
-<li>Choose a simplification mode from the dropdown &mdash; a hint explaining
-the mode appears below.</li>
+<li>Choose a simplification mode from the dropdown &mdash; a hint with an
+example appears next to the dropdown.</li>
 <li>Fill in any required parameters (delimiter, field index, regex, or
 word count).</li>
 <li>Click <b>Preview</b> to check the first 5 IDs before processing the
@@ -768,8 +800,8 @@ and a warning is logged.</p>
     <td>UniProt Swiss-Prot accession</td></tr>
 <tr><td><code>ref\\|([^|]+)\\|</code></td>
     <td>NCBI RefSeq accession from a <code>gi|...|ref|...</code> header</td></tr>
-<tr><td><code>^([A-Z0-9]{6}_[A-Z]+)</code></td>
-    <td>UniProt entry name (e.g. <code>A0AAI7ZCJ9_XANAC</code>)</td></tr>
+<tr><td><code>([A-Z0-9]{10}_[A-Z]+)</code></td>
+    <td>UniProt TrEMBL entry name (e.g. <code>A0AAI7ZCJ9_XANAC</code>)</td></tr>
 <tr><td><code>GN=(\\w+)</code></td>
     <td>Gene name from the annotation portion</td></tr>
 </table>
@@ -805,29 +837,6 @@ error, so you can fix the problem manually.</p>
 Saves a TSV file alongside your output listing every old ID, its new ID,
 whether it was changed, and which mode produced it. This is essential for
 audit trails and for re-linking annotations stored under the old IDs.</p>
-
-<h3>What is a &quot;Description&quot;?</h3>
-<p>FASTA headers are split at the first whitespace character after the
-<code>&gt;</code>. Everything before the first space is the <b>ID</b>
-(what this tool simplifies); everything after is the <b>Description</b>.
-For example:</p>
-<pre>&gt;NM_001101.5 Homo sapiens protein kinase
- |----ID----| |-------Description--------|</pre>
-<p>Unless you enable <b>Preserve description</b>, the description is
-removed from the output. Some modes only look at the ID, while others
-scan the full header (ID + description).</p>
-
-<h3>Examples Using the Bundled Data</h3>
-<p>Open the <b>Example</b> file. Try these settings on the header<br>
-<code>&gt;tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC Pyruvate dehydrogenase ...</code>:</p>
-<pre>
-First word                    &rarr;  tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC
-Delimiter "|" field 2         &rarr;  A0AAI7ZCJ9
-Delimiter "|" field 3         &rarr;  A0AAI7ZCJ9_XANAC
-Keep 2 words                  &rarr;  tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC_Pyruvate
-Regex  tr\\|([^|]+)\\|        &rarr;  A0AAI7ZCJ9
-Regex  ^([A-Z0-9]{6}_[A-Z]+)  &rarr;  A0AAI7ZCJ9_XANAC
-</pre>
 
 <h3>Tips</h3>
 <ul>

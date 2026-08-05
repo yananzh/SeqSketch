@@ -169,7 +169,7 @@ class ExtractByRegexTab(BaseTabWidget):
         self.output_edit = QLineEdit()
         self.output_edit.setPlaceholderText("Choose where to save the results...")
         self.output_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.output_btn = QPushButton("Save As")
+        self.output_btn = QPushButton("Browse")
         self.output_btn.setFixedWidth(90)
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
@@ -183,6 +183,7 @@ class ExtractByRegexTab(BaseTabWidget):
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.clear_btn = QPushButton("Clear")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
+        self.add_open_output_dir_button()
 
         # ── Assemble ──
         self.add_content_layout(input_layout)
@@ -224,7 +225,9 @@ class ExtractByRegexTab(BaseTabWidget):
     def handle_input_file_selected(self, file_path: str):
         self.input_edit.setText(file_path)
         base = os.path.splitext(os.path.basename(file_path))[0]
-        suggested = os.path.join(os.path.dirname(file_path), base + "_regex_extracted.fasta")
+        suggested = os.path.join(
+            os.path.dirname(file_path), base + "_regex_extracted.fasta"
+        ).replace("/", "\\")
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
@@ -240,7 +243,7 @@ class ExtractByRegexTab(BaseTabWidget):
             QMessageBox.information(
                 self,
                 self.tr("Example"),
-                self.tr("示例数据加载失败，请检查安装是否完整。"),
+                self.tr("Failed to load example data. The installation may be incomplete."),
             )
             return
         self.handle_input_file_selected(path)
@@ -249,7 +252,7 @@ class ExtractByRegexTab(BaseTabWidget):
         # since the accession lives in the ID part.
         self.regex_edit.setText(r"tr\|[^|]+\|A0AAI7Z")
         self.match_scope_combo.setCurrentText("Sequence ID Only")
-        self.show_status(self.tr("已载入示例数据: simple_header.fasta + 示例正则"))
+        self.show_status(self.tr("Example loaded: simple_header.fasta + sample regex"))
 
     def clear_all(self):
         self.input_edit.clear()
@@ -472,7 +475,7 @@ description text instead (e.g. <code>^NM_</code>, <code>kinase</code>).</p>
 <tr><td><b>Scope</b></td><td><b>What is scanned</b></td><td><b>Example of what "^NM_" matches</b></td></tr>
 <tr><td><b>Full Header</b></td><td>ID + description (without <code>&gt;</code>)</td><td>NM_001101.5 Homo sapiens protein kinase</td></tr>
 <tr><td><b>Sequence ID Only</b></td><td>text before first space (without <code>&gt;</code>)</td><td>NM_001101.5</td></tr>
-<tr><td><b>Description Only</b></td><td>text after first space</td><td>Homo sapiens protein kinase</td></tr>
+<tr><td><b>Description Only</b></td><td>text after first space</td><td>(no match)</td></tr>
 </table>
 
 <h3>Regex Quick Reference</h3>

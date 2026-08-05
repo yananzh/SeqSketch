@@ -580,7 +580,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         # Input files row
         row_files = QHBoxLayout()
-        row_files.addWidget(QLabel("Input FASTA Files:"))
+        row_files.addWidget(QLabel("Input FASTA:"))
         self.batch_files_edit = QLineEdit()
         self.batch_files_edit.setPlaceholderText("Select multiple FASTA files")
         self.batch_files_edit.setReadOnly(True)
