@@ -26,6 +26,9 @@ class DeduplicateTab(BaseTabWidget):
 
     def __init__(self):
         super().__init__("Deduplicate", "file")
+        # 适当减小共享日志区高度，为预览区腾出空间
+        self.log_area.setMinimumHeight(80)
+        self.log_area.setMaximumHeight(100)
         self.init_ui()
         self.connect_signals()
 
@@ -33,7 +36,8 @@ class DeduplicateTab(BaseTabWidget):
         _label_width = 130
 
         # ── Input ──
-        input_layout = QHBoxLayout()
+        input_group = QGroupBox("Input FASTA")
+        input_layout = QHBoxLayout(input_group)
         input_label = QLabel("Input FASTA file:")
         input_label.setFixedWidth(_label_width)
         input_layout.addWidget(input_label)
@@ -86,7 +90,7 @@ class DeduplicateTab(BaseTabWidget):
         self.preview_panel = QPlainTextEdit()
         self.preview_panel.setReadOnly(True)
         self.preview_panel.setPlaceholderText("Click Preview to see duplicate statistics...")
-        self.preview_panel.setMaximumHeight(110)
+        self.preview_panel.setMaximumHeight(150)
         self.preview_panel.setProperty("previewPanel", True)
 
         # ── Output ──
@@ -113,7 +117,7 @@ class DeduplicateTab(BaseTabWidget):
         self.add_open_output_dir_button()
 
         # ── Assemble ──
-        self.add_content_layout(input_layout)
+        self.add_content_widget(input_group)
         self.add_content_widget(opts_group)
         self.add_content_widget(self.preview_panel)
         self.add_content_layout(output_layout)

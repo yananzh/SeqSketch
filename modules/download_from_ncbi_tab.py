@@ -239,6 +239,9 @@ class DownloadFromNCBITab(BaseTabWidget):
         super().__init__("NCBI Download", "file")
         self._thread: QThread | None = None
         self._worker: _NcbiDownloadWorker | None = None
+        # 适当减小共享日志区高度，使标签页内容适配默认窗口高度
+        self.log_area.setMinimumHeight(80)
+        self.log_area.setMaximumHeight(100)
         self.init_ui()
         self.connect_signals()
 
@@ -247,12 +250,11 @@ class DownloadFromNCBITab(BaseTabWidget):
 
         # ── Connection ──
         conn_group = QGroupBox("Connection")
-        conn_layout = QVBoxLayout(conn_group)
+        conn_layout = QHBoxLayout(conn_group)
 
-        db_layout = QHBoxLayout()
         db_label = QLabel("Database:")
-        db_label.setFixedWidth(_label_width)
-        db_layout.addWidget(db_label)
+        db_label.setFixedWidth(70)
+        conn_layout.addWidget(db_label)
         self.db_combo = QComboBox()
         self.db_combo.addItems(["nucleotide", "protein"])
         self.db_combo.setCurrentText("nucleotide")
@@ -261,12 +263,11 @@ class DownloadFromNCBITab(BaseTabWidget):
             "nucleotide: for DNA/RNA accessions (NM_, XM_, AF...)\n"
             "protein: for amino acid accessions (NP_, XP_, AAA...)"
         )
-        db_layout.addWidget(self.db_combo)
+        conn_layout.addWidget(self.db_combo)
 
-        email_layout = QHBoxLayout()
         email_label = QLabel("Email:")
-        email_label.setFixedWidth(_label_width)
-        email_layout.addWidget(email_label)
+        email_label.setFixedWidth(70)
+        conn_layout.addWidget(email_label)
         self.email_edit = QLineEdit()
         self.email_edit.setPlaceholderText("NCBI requires an email address")
         self.email_edit.setToolTip(
@@ -274,10 +275,7 @@ class DownloadFromNCBITab(BaseTabWidget):
             "It will not be shared or used for spam."
         )
         self.email_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        email_layout.addWidget(self.email_edit)
-
-        conn_layout.addLayout(db_layout)
-        conn_layout.addLayout(email_layout)
+        conn_layout.addWidget(self.email_edit)
 
         # ── Download Options ──
         opts_group = QGroupBox("Download Options")
@@ -310,7 +308,7 @@ class DownloadFromNCBITab(BaseTabWidget):
             "XM_123456.1\n"
             "NP_001092.1"
         )
-        self.acc_edit.setMinimumHeight(150)
+        self.acc_edit.setMinimumHeight(100)
         self.acc_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.acc_edit.setProperty("listDisplay", True)
         self.acc_edit.setStyleSheet(
@@ -366,11 +364,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.db_combo.setCurrentText("nucleotide")
         self.email_edit.setText("your_email@example.com")
         self.acc_edit.setPlainText("NM_001101.5\nXM_123456.1")
-        self.show_status(
-            self.tr(
-                "Example loaded: NM_001101.5 etc. — remember to enter a real email before downloading"
-            )
-        )
+        self.show_status(self.tr("Example loaded: NM_001101.5, XM_123456.1"))
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -557,7 +551,7 @@ retries if a request fails.</p>
 
 <h3>Quick Start for Beginners</h3>
 <ol>
-<li>Go to <a href="https://www.ncbi.nlm.nih.gov/">ncbi.nlm.nih.gov</a> and
+<li>Go to ncbi.nlm.nih.gov and
 search for your gene or protein of interest. Copy the <b>accession number</b>
 — it looks like <code>NM_001101.5</code> or <code>NP_001092.1</code>.</li>
 <li>In this tab, choose <b>nucleotide</b> for DNA/RNA or <b>protein</b> for

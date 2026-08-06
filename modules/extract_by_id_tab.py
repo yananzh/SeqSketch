@@ -169,6 +169,9 @@ class ExtractByIDTab(BaseTabWidget):
 
     def __init__(self):
         super().__init__("Filter by IDs", "file")
+        # 适当减小共享日志区高度，使标签页内容适配默认窗口高度
+        self.log_area.setMinimumHeight(80)
+        self.log_area.setMaximumHeight(100)
         self.init_ui()
         self.connect_signals()
 
@@ -176,7 +179,8 @@ class ExtractByIDTab(BaseTabWidget):
         _label_width = 130
 
         # ── Input file ──
-        input_layout = QHBoxLayout()
+        input_group = QGroupBox("Input FASTA")
+        input_layout = QHBoxLayout(input_group)
         input_label = QLabel("Input FASTA file:")
         input_label.setFixedWidth(_label_width)
         input_layout.addWidget(input_label)
@@ -200,7 +204,7 @@ class ExtractByIDTab(BaseTabWidget):
         self.id_edit.setPlaceholderText(
             "Enter sequence IDs, one per line\nExamples:\nseq1\nseq2\nseq3"
         )
-        self.id_edit.setMinimumHeight(120)
+        self.id_edit.setMinimumHeight(90)
         self.id_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.id_edit.setProperty("listDisplay", True)
         self.id_edit.setStyleSheet(
@@ -251,7 +255,7 @@ class ExtractByIDTab(BaseTabWidget):
         self.preview_panel.setPlaceholderText(
             "Click Preview to see the first few matched IDs here..."
         )
-        self.preview_panel.setMaximumHeight(120)
+        self.preview_panel.setMaximumHeight(100)
         self.preview_panel.setProperty("previewPanel", True)
 
         # ── Output file ──
@@ -278,7 +282,7 @@ class ExtractByIDTab(BaseTabWidget):
         self.add_open_output_dir_button()
 
         # ── Assemble ──
-        self.add_content_layout(input_layout)
+        self.add_content_widget(input_group)
         self.add_content_widget(id_group)
         self.add_content_widget(options_group)
         self.add_content_widget(self.preview_panel)

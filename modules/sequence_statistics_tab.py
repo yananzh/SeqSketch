@@ -241,7 +241,12 @@ class SequenceStatisticsTab(BaseTabWidget):
         # 固定标签宽度使两行对齐
         _label_width = 130
 
-        # 输入文件选择
+        # 输入 / 输出文件
+        io_group = QGroupBox("Input / Output")
+        io_layout = QVBoxLayout(io_group)
+        io_layout.setContentsMargins(6, 16, 6, 4)
+        io_layout.setSpacing(6)
+
         input_layout = QHBoxLayout()
         input_label = QLabel("Input FASTA file:")
         input_label.setFixedWidth(_label_width)
@@ -258,8 +263,8 @@ class SequenceStatisticsTab(BaseTabWidget):
         input_layout.addWidget(self.input_btn)
         input_layout.addWidget(self.example_btn)
         input_layout.setSpacing(8)
+        io_layout.addLayout(input_layout)
 
-        # 输出文件选择
         output_layout = QHBoxLayout()
         output_label = QLabel("Output stats file:")
         output_label.setFixedWidth(_label_width)
@@ -272,6 +277,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         output_layout.setSpacing(8)
+        io_layout.addLayout(output_layout)
 
         # 全局统计信息显示区
         self.stats_group = QGroupBox(self.tr("Summary Statistics"))
@@ -321,8 +327,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.add_open_output_dir_button()
 
         # 添加到内容区域
-        self.add_content_layout(input_layout)
-        self.add_content_layout(output_layout)
+        self.add_content_widget(io_group)
         self.add_content_widget(self.stats_group)
         self.content_area.addStretch()
 

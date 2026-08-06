@@ -107,7 +107,7 @@ def test_fasta_tools_tabs_share_a_clear_labeled_log_area(qapp, tab_class):
     assert tab.log_area.placeholderText() == (
         "Run a FASTA tool to see progress and results here..."
     )
-    assert tab.log_area.minimumHeight() >= 120
+    assert tab.log_area.minimumHeight() >= 80
     assert tab.log_area.lineWrapMode() == tab.log_area.LineWrapMode.NoWrap
 
 

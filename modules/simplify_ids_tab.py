@@ -102,6 +102,9 @@ class SimplifyIDsTab(BaseTabWidget):
 
     def __init__(self):
         super().__init__("Simplify Headers", "file")
+        # 适当减小共享日志区高度，使标签页内容适配默认窗口高度
+        self.log_area.setMinimumHeight(80)
+        self.log_area.setMaximumHeight(100)
         self.init_ui()
         self.connect_signals()
         self.update_mode_controls()
@@ -109,7 +112,12 @@ class SimplifyIDsTab(BaseTabWidget):
     def init_ui(self):
         _label_width = 130
 
-        # ── Input file ──
+        # ── Input / Output files ──
+        io_group = QGroupBox("Input / Output")
+        io_layout = QVBoxLayout(io_group)
+        io_layout.setContentsMargins(6, 16, 6, 4)
+        io_layout.setSpacing(6)
+
         input_layout = QHBoxLayout()
         input_label = QLabel("Input FASTA file:")
         input_label.setFixedWidth(_label_width)
@@ -126,8 +134,8 @@ class SimplifyIDsTab(BaseTabWidget):
         input_layout.addWidget(self.input_btn)
         input_layout.addWidget(self.example_btn)
         input_layout.setSpacing(8)
+        io_layout.addLayout(input_layout)
 
-        # ── Output file ──
         output_layout = QHBoxLayout()
         output_label = QLabel("Output file:")
         output_label.setFixedWidth(_label_width)
@@ -140,6 +148,7 @@ class SimplifyIDsTab(BaseTabWidget):
         output_layout.addWidget(self.output_edit)
         output_layout.addWidget(self.output_btn)
         output_layout.setSpacing(8)
+        io_layout.addLayout(output_layout)
 
         # ── Mode selector with dynamic hint ──
         mode_group = QGroupBox(self.tr("Simplification Mode"))
@@ -229,12 +238,16 @@ class SimplifyIDsTab(BaseTabWidget):
         self.preview_panel.setPlaceholderText(
             "Click Preview to see the first few simplified IDs here..."
         )
-        self.preview_panel.setMaximumHeight(130)
+        self.preview_panel.setMaximumHeight(100)
         self.preview_panel.setProperty("previewPanel", True)
 
-        # ── Options group ──
+        # ── Options & transformations group ──
         options_group = QGroupBox(self.tr("Options"))
-        options_layout = QHBoxLayout(options_group)
+        options_layout = QVBoxLayout(options_group)
+        options_layout.setContentsMargins(6, 16, 0, 4)
+        options_layout.setSpacing(6)
+
+        check_row = QHBoxLayout()
         self.preserve_description_checkbox = QCheckBox("Preserve description")
         self.preserve_description_checkbox.setToolTip(
             "Keep the text after the first space in the FASTA header"
@@ -247,31 +260,31 @@ class SimplifyIDsTab(BaseTabWidget):
         self.auto_number_checkbox.setToolTip(
             "If simplification produces duplicate IDs, append _2, _3, etc. instead of stopping"
         )
-        options_layout.addWidget(self.preserve_description_checkbox)
-        options_layout.addWidget(self.export_mapping_checkbox)
-        options_layout.addWidget(self.auto_number_checkbox)
-        options_layout.addStretch(1)
+        check_row.addWidget(self.preserve_description_checkbox)
+        check_row.addWidget(self.export_mapping_checkbox)
+        check_row.addWidget(self.auto_number_checkbox)
+        check_row.addStretch(1)
+        options_layout.addLayout(check_row)
 
-        # ── Case / prefix / suffix group ──
-        transform_group = QGroupBox(self.tr("Case / Prefix / Suffix"))
-        transform_layout = QHBoxLayout(transform_group)
-        transform_layout.addWidget(QLabel("Case:"))
+        transform_row = QHBoxLayout()
+        transform_row.addWidget(QLabel("Case:"))
         self.case_combo = QComboBox()
         self.case_combo.addItem("As-is", "as_is")
         self.case_combo.addItem("UPPERCASE", "upper")
         self.case_combo.addItem("lowercase", "lower")
-        transform_layout.addWidget(self.case_combo)
-        transform_layout.addWidget(QLabel("Prefix:"))
+        transform_row.addWidget(self.case_combo)
+        transform_row.addWidget(QLabel("Prefix:"))
         self.prefix_edit = QLineEdit()
         self.prefix_edit.setPlaceholderText("Optional...")
         self.prefix_edit.setFixedWidth(110)
-        transform_layout.addWidget(self.prefix_edit)
-        transform_layout.addWidget(QLabel("Suffix:"))
+        transform_row.addWidget(self.prefix_edit)
+        transform_row.addWidget(QLabel("Suffix:"))
         self.suffix_edit = QLineEdit()
         self.suffix_edit.setPlaceholderText("Optional...")
         self.suffix_edit.setFixedWidth(110)
-        transform_layout.addWidget(self.suffix_edit)
-        transform_layout.addStretch(1)
+        transform_row.addWidget(self.suffix_edit)
+        transform_row.addStretch(1)
+        options_layout.addLayout(transform_row)
 
         # ── Control buttons in status bar ──
         self.preview_btn = QPushButton("Preview")
@@ -284,12 +297,10 @@ class SimplifyIDsTab(BaseTabWidget):
         self.add_open_output_dir_button()
 
         # ── Assemble ──
-        self.add_content_layout(input_layout)
-        self.add_content_layout(output_layout)
+        self.add_content_widget(io_group)
         self.add_content_widget(mode_group)
         self.add_content_widget(self.preview_panel)
         self.add_content_widget(options_group)
-        self.add_content_widget(transform_group)
         self.content_area.addStretch()
 
     def current_mode(self) -> str:

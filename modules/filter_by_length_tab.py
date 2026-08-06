@@ -29,7 +29,8 @@ class FilterByLengthTab(BaseTabWidget):
         _label_width = 130
 
         # ── Input ──
-        input_layout = QHBoxLayout()
+        input_group = QGroupBox("Input FASTA")
+        input_layout = QHBoxLayout(input_group)
         input_label = QLabel("Input FASTA file:")
         input_label.setFixedWidth(_label_width)
         input_layout.addWidget(input_label)
@@ -99,7 +100,7 @@ class FilterByLengthTab(BaseTabWidget):
         self.add_open_output_dir_button()
 
         # ── Assemble ──
-        self.add_content_layout(input_layout)
+        self.add_content_widget(input_group)
         self.add_content_widget(len_group)
         self.add_content_widget(self.preview_panel)
         self.add_content_layout(output_layout)
