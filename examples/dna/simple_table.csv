@@ -1,0 +1,4 @@
+id,description,sequence
+seq1,alpha subunit,ATGCATGC
+seq2,beta subunit,AAAATTTT
+gene_alpha,product x,GGGCCC

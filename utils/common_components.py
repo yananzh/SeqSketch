@@ -530,17 +530,24 @@ class BaseTabWidget(QWidget):
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.open_output_btn)
 
     def _open_output_folder(self):
-        """Open the folder containing the current output file."""
+        """Open the folder containing the current output file.
+
+        If the output path is itself an existing directory (e.g. the Split
+        FASTA tab writes to a directory), that directory is opened directly.
+        """
         output_edit = getattr(self, "output_edit", None)
         output_path = output_edit.text().strip() if output_edit is not None else ""
         if not output_path:
             self.show_status(self.tr("No output file selected yet."))
             return
-        out_dir = os.path.dirname(os.path.abspath(output_path))
-        if not os.path.isdir(out_dir):
+        if os.path.isdir(output_path):
+            target_dir = output_path
+        else:
+            target_dir = os.path.dirname(os.path.abspath(output_path))
+        if not os.path.isdir(target_dir):
             self.show_status(self.tr("Output directory does not exist yet."))
             return
-        QDesktopServices.openUrl(QUrl.fromLocalFile(out_dir))
+        QDesktopServices.openUrl(QUrl.fromLocalFile(target_dir))
 
     def log_message(self, message: str, level: str = "INFO"):
         """Append log message (file mode only)"""
@@ -703,15 +710,15 @@ def validate_input_path(path: str, file_types: list | None = None) -> tuple[bool
     import os
 
     if not path or not path.strip():
-        return False, "文件路径不能为空"
+        return False, "Input path is empty"
 
     if not os.path.isfile(path):
-        return False, "文件不存在或不是有效文件"
+        return False, "Input file does not exist"
 
     if file_types:
         ext = os.path.splitext(path)[1].lower()
         if ext not in file_types:
-            return False, f"不支持的文件类型，请选择: {', '.join(file_types)}"
+            return False, f"Unsupported file type. Please choose: {', '.join(file_types)}"
 
     return True, ""
 
@@ -726,13 +733,13 @@ def validate_output_path(path: str) -> tuple[bool, str]:
     import os
 
     if not path or not path.strip():
-        return False, "输出路径不能为空"
+        return False, "Output path is empty"
 
     output_dir = os.path.dirname(path)
     if output_dir and not os.path.exists(output_dir):
         try:
             os.makedirs(output_dir)
         except Exception as e:
-            return False, f"无法创建输出目录: {e}"
+            return False, f"Cannot create output directory: {e}"
 
     return True, ""

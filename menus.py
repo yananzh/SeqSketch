@@ -44,6 +44,18 @@ def create_menus(window):
     concat_action = QAction(window.tr("Concatenate FASTA"), window)
     concat_action.triggered.connect(window.open_concat_fasta_tab)
     fasta_menu.addAction(concat_action)
+    # 新增：拆分FASTA
+    split_action = QAction(window.tr("Split FASTA"), window)
+    split_action.triggered.connect(window.open_split_fasta_tab)
+    fasta_menu.addAction(split_action)
+    # 新增：排序FASTA
+    sort_action = QAction(window.tr("Sort FASTA"), window)
+    sort_action.triggered.connect(window.open_sort_fasta_tab)
+    fasta_menu.addAction(sort_action)
+    # 新增：FASTA与表格互转
+    table_action = QAction(window.tr("FASTA \u2194 Table"), window)
+    table_action.triggered.connect(window.open_fasta_table_converter_tab)
+    fasta_menu.addAction(table_action)
     # 2. DNA Analysis
     dna_menu = menubar.addMenu(window.tr("DNA Analysis"))
     rna_action = QAction(window.tr("Convert to RNA"), window)

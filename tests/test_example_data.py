@@ -329,3 +329,51 @@ def test_concat_fasta_example_fills_file_list(qapp):
     assert tab.file_list.count() >= 2
     path = tab.file_list.item(0).data(Qt.ItemDataRole.UserRole)
     assert os.path.isfile(path)
+
+
+def test_split_fasta_example_fills_input_edit(qapp):
+    from modules.split_fasta_tab import SplitFastaTab
+
+    tab = SplitFastaTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Split FASTA tab has no Example button"
+    btn.click()
+    assert tab.input_edit.text().strip() != ""
+    assert os.path.isfile(tab.input_edit.text().strip())
+
+
+def test_sort_fasta_example_fills_input_edit(qapp):
+    from modules.sort_fasta_tab import SortFastaTab
+
+    tab = SortFastaTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Sort FASTA tab has no Example button"
+    btn.click()
+    assert tab.input_edit.text().strip() != ""
+    assert os.path.isfile(tab.input_edit.text().strip())
+
+
+def test_fasta_to_table_example_fills_input_edit(qapp):
+    from modules.fasta_table_converter_tab import FastaTableConverterTab
+
+    tab = FastaTableConverterTab()
+    tab.direction_combo.setCurrentIndex(0)  # FASTA → Table
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "FASTA ↔ Table tab has no Example button"
+    btn.click()
+    assert tab.input_edit.text().strip() != ""
+    assert os.path.isfile(tab.input_edit.text().strip())
+
+
+def test_table_to_fasta_example_fills_input_edit(qapp):
+    from modules.fasta_table_converter_tab import FastaTableConverterTab
+
+    tab = FastaTableConverterTab()
+    tab.direction_combo.setCurrentIndex(1)  # Table → FASTA
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "FASTA ↔ Table tab has no Example button"
+    btn.click()
+    path = tab.input_edit.text().strip()
+    assert path != ""
+    assert os.path.isfile(path)
+    assert path.endswith(".csv")

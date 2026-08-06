@@ -146,6 +146,21 @@ class MainWindow(QMainWindow):
 
         self._find_or_open(ConcatFastaTab, "Concatenate FASTA")
 
+    def open_split_fasta_tab(self):
+        from modules.split_fasta_tab import SplitFastaTab
+
+        self._find_or_open(SplitFastaTab, "Split FASTA")
+
+    def open_sort_fasta_tab(self):
+        from modules.sort_fasta_tab import SortFastaTab
+
+        self._find_or_open(SortFastaTab, "Sort FASTA")
+
+    def open_fasta_table_converter_tab(self):
+        from modules.fasta_table_converter_tab import FastaTableConverterTab
+
+        self._find_or_open(FastaTableConverterTab, "FASTA \u2194 Table")
+
     # ── DNA Analysis ─────────────────────────────────────────────────────
 
     def open_rna_tab(self):

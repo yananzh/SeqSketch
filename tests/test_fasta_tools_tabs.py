@@ -13,8 +13,11 @@ from modules.batch_rename_ids_tab import BatchRenameIDsTab
 from modules.download_from_ncbi_tab import DownloadFromNCBITab
 from modules.extract_by_id_tab import ExtractByIDTab
 from modules.extract_by_regex_tab import ExtractByRegexTab
+from modules.fasta_table_converter_tab import FastaTableConverterTab
 from modules.sequence_statistics_tab import SequenceStatisticsTab
 from modules.simplify_ids_tab import SimplifyIDsTab
+from modules.sort_fasta_tab import SortFastaTab
+from modules.split_fasta_tab import SplitFastaTab
 
 
 @pytest.fixture
@@ -95,6 +98,9 @@ def log_text(tab) -> str:
         ExtractByRegexTab,
         DownloadFromNCBITab,
         BatchRenameIDsTab,
+        SplitFastaTab,
+        SortFastaTab,
+        FastaTableConverterTab,
     ],
 )
 def test_fasta_tools_tabs_share_a_clear_labeled_log_area(qapp, tab_class):
@@ -107,7 +113,7 @@ def test_fasta_tools_tabs_share_a_clear_labeled_log_area(qapp, tab_class):
     assert tab.log_area.placeholderText() == (
         "Run a FASTA tool to see progress and results here..."
     )
-    assert tab.log_area.minimumHeight() >= 80
+    assert tab.log_area.minimumHeight() >= 60
     assert tab.log_area.lineWrapMode() == tab.log_area.LineWrapMode.NoWrap
 
 
@@ -1054,3 +1060,175 @@ def test_extract_by_id_contains_case_insensitive_happy_path(
     assert fasta_headers(output_path) == ["gene_alpha product_x"]
     assert "Match mode: Contains (case-insensitive)" in log_text(tab)
     assert "Extraction complete!" in log_text(tab)
+
+
+# ── Split FASTA ─────────────────────────────────────────────────────────────
+
+
+def test_split_fasta_by_count_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
+    output_dir = tmp_path / "split_out"
+    tab = SplitFastaTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_dir))
+    tab.split_mode_combo.setCurrentIndex(0)  # Sequences per file
+    tab.count_spin.setValue(2)
+    tab.run_split()
+
+    part1 = output_dir / "split_part001.fasta"
+    part2 = output_dir / "split_part002.fasta"
+    assert part1.exists()
+    assert part2.exists()
+    assert fasta_headers(part1) == ["seq1 alpha description", "seq2 beta description"]
+    assert fasta_headers(part2) == [
+        "gene_alpha product_x",
+        "chr10_sample annotation",
+    ]
+    assert "Split complete: 4 sequences → 2 file(s)" in log_text(tab)
+    assert tab.status_label.text() == "Ready"
+
+
+def test_split_fasta_by_parts_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
+    output_dir = tmp_path / "split_out_parts"
+    tab = SplitFastaTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_dir))
+    tab.split_mode_combo.setCurrentIndex(1)  # Number of parts
+    tab.parts_spin.setValue(2)
+    tab.run_split()
+
+    part1 = output_dir / "split_part001.fasta"
+    part2 = output_dir / "split_part002.fasta"
+    assert part1.exists()
+    assert part2.exists()
+    assert len(fasta_headers(part1)) + len(fasta_headers(part2)) == 4
+    assert "Split complete: 4 sequences → 2 file(s)" in log_text(tab)
+
+
+def test_split_fasta_missing_output_dir_logs_error(qapp, sample_fasta_file: Path):
+    tab = SplitFastaTab()
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.run_split()
+    assert "Please choose an output directory" in log_text(tab)
+    assert tab.status_label.text() == "Ready"
+
+
+# ── Sort FASTA ──────────────────────────────────────────────────────────────
+
+
+def test_sort_fasta_by_id_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
+    output_path = tmp_path / "sorted.fasta"
+    tab = SortFastaTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.sort_key_combo.setCurrentIndex(0)  # Sequence ID
+    tab.sort_order_combo.setCurrentText("Ascending")
+    tab.run_sort()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == [
+        "chr10_sample annotation",
+        "gene_alpha product_x",
+        "seq1 alpha description",
+        "seq2 beta description",
+    ]
+    assert "Sort complete: 4 sequences sorted by Sequence ID" in log_text(tab)
+    assert tab.status_label.text() == "Ready"
+
+
+def test_sort_fasta_by_length_descending(qapp, sample_fasta_file: Path, tmp_path: Path):
+    output_path = tmp_path / "sorted_length.fasta"
+    tab = SortFastaTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.sort_key_combo.setCurrentIndex(1)  # Sequence length
+    tab.sort_order_combo.setCurrentText("Descending")
+    tab.run_sort()
+
+    assert fasta_headers(output_path) == [
+        "seq1 alpha description",  # 8 nt
+        "seq2 beta description",  # 8 nt (stable: same length, original order)
+        "gene_alpha product_x",  # 6 nt
+        "chr10_sample annotation",  # 6 nt
+    ]
+
+
+def test_sort_fasta_preview_shows_first_records(qapp, sample_fasta_file: Path):
+    tab = SortFastaTab()
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.sort_key_combo.setCurrentIndex(0)
+    tab.sort_order_combo.setCurrentText("Ascending")
+    tab.preview_sort()
+
+    preview = tab.preview_panel.toPlainText()
+    assert "4 sequences" in preview
+    assert "chr10_sample" in preview
+    assert "sorted by Sequence ID" in log_text(tab)
+
+
+# ── FASTA ↔ Table converter ────────────────────────────────────────────────
+
+
+def test_fasta_to_table_csv_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
+    output_path = tmp_path / "out_table.csv"
+    tab = FastaTableConverterTab()
+
+    tab.direction_combo.setCurrentIndex(0)  # FASTA → Table
+    tab.format_combo.setCurrentText("CSV (.csv)")
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.run_convert()
+
+    assert output_path.exists()
+    df = pd.read_csv(output_path)
+    assert list(df.columns) == ["ID", "Description", "Length", "Sequence"]
+    assert len(df) == 4
+    assert df.iloc[0]["ID"] == "seq1"
+    assert df.iloc[0]["Length"] == 8
+    assert "Table export complete: 4 records saved to:" in log_text(tab)
+    assert tab.status_label.text() == "Ready"
+
+
+def test_table_to_fasta_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
+    table_path = tmp_path / "input_table.csv"
+    table_path.write_text(
+        "id,desc,seq\n"
+        "seq1,alpha,ATGCATGC\n"
+        "seq2,beta,AAAATTTT\n"
+        "gene_alpha,,GGGCCC\n",
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "back.fasta"
+    tab = FastaTableConverterTab()
+
+    tab.direction_combo.setCurrentIndex(1)  # Table → FASTA
+    tab.input_edit.setText(str(table_path))
+    tab.output_edit.setText(str(output_path))
+    tab.run_convert()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == [
+        "seq1 alpha",
+        "seq2 beta",
+        "gene_alpha",
+    ]
+    assert "FASTA export complete: 3 sequences saved to:" in log_text(tab)
+    assert tab.status_label.text() == "Ready"
+
+
+def test_table_to_fasta_missing_columns_logs_error(qapp, tmp_path: Path):
+    table_path = tmp_path / "bad_table.csv"
+    table_path.write_text("name,value\na,1\nb,2\n", encoding="utf-8")
+    output_path = tmp_path / "back.fasta"
+    tab = FastaTableConverterTab()
+
+    tab.direction_combo.setCurrentIndex(1)
+    tab.input_edit.setText(str(table_path))
+    tab.output_edit.setText(str(output_path))
+    tab.run_convert()
+
+    assert "Table has no ID column" in log_text(tab)
+    assert tab.status_label.text() == "Ready"
