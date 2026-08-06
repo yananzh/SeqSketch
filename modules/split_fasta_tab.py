@@ -259,9 +259,7 @@ class SplitFastaTab(BaseTabWidget):
                 return
             self.log_message(f"Saved {len(chunk)} sequences to: {output_path}")
             saved += 1
-        self.log_message(
-            f"Split complete: {len(records)} sequences \u2192 {saved} file(s)", "INFO"
-        )
+        self.log_message(f"Split complete: {len(records)} sequences \u2192 {saved} file(s)", "INFO")
         self.set_running_state(False)
 
     def show_help(self):

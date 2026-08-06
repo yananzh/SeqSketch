@@ -32,14 +32,12 @@ DESCRIPTION_COLUMN_ALIASES = {"description", "desc", "annotation"}
 
 def records_to_table(records) -> pd.DataFrame:
     """Build an [ID, Description, Length, Sequence] table from FASTA records."""
-    return pd.DataFrame(
-        {
-            "ID": [record.header for record in records],
-            "Description": [record.description or "" for record in records],
-            "Length": [record.length for record in records],
-            "Sequence": [record.sequence for record in records],
-        }
-    )
+    return pd.DataFrame({
+        "ID": [record.header for record in records],
+        "Description": [record.description or "" for record in records],
+        "Length": [record.length for record in records],
+        "Sequence": [record.sequence for record in records],
+    })
 
 
 def _find_column(df: pd.DataFrame, aliases: set[str]) -> str | None:
@@ -54,10 +52,16 @@ def table_to_records(df: pd.DataFrame) -> tuple[list[FASTARecord], str | None]:
     """Build FASTA records from a table; returns (records, error_message)."""
     id_col = _find_column(df, ID_COLUMN_ALIASES)
     if id_col is None:
-        return [], "Table has no ID column (expected one of: id, sequence_id, seqid, accession, header)"
+        return (
+            [],
+            "Table has no ID column (expected one of: id, sequence_id, seqid, accession, header)",
+        )
     seq_col = _find_column(df, SEQUENCE_COLUMN_ALIASES)
     if seq_col is None:
-        return [], "Table has no Sequence column (expected one of: sequence, seq, dna, rna, protein, aa)"
+        return (
+            [],
+            "Table has no Sequence column (expected one of: sequence, seq, dna, rna, protein, aa)",
+        )
     desc_col = _find_column(df, DESCRIPTION_COLUMN_ALIASES)
 
     records = []
@@ -132,9 +136,7 @@ class FastaTableConverterTab(BaseTabWidget):
         input_label.setFixedWidth(80)
         input_layout.addWidget(input_label)
         self.input_edit = FileDropLineEdit(set(_INPUT_EXTENSIONS))
-        self.input_edit.setPlaceholderText(
-            "Select or drop a FASTA / CSV / TSV / Excel file..."
-        )
+        self.input_edit.setPlaceholderText("Select or drop a FASTA / CSV / TSV / Excel file...")
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
@@ -196,7 +198,9 @@ class FastaTableConverterTab(BaseTabWidget):
         to_table = self.direction_combo.currentData() == DIRECTION_FASTA_TO_TABLE
         self.format_combo.setEnabled(to_table)
         self.input_edit.setPlaceholderText(
-            "Select or drop a FASTA file..." if to_table else "Select or drop a CSV / TSV / Excel table..."
+            "Select or drop a FASTA file..."
+            if to_table
+            else "Select or drop a CSV / TSV / Excel table..."
         )
 
     def select_input_file(self):
@@ -217,13 +221,13 @@ class FastaTableConverterTab(BaseTabWidget):
             base = os.path.splitext(os.path.basename(file_path))[0]
             if to_table:
                 ext = self._table_extension()
-                suggested = os.path.join(
-                    os.path.dirname(file_path), base + "_table" + ext
-                ).replace("/", "\\")
+                suggested = os.path.join(os.path.dirname(file_path), base + "_table" + ext).replace(
+                    "/", "\\"
+                )
             else:
-                suggested = os.path.join(
-                    os.path.dirname(file_path), base + ".fasta"
-                ).replace("/", "\\")
+                suggested = os.path.join(os.path.dirname(file_path), base + ".fasta").replace(
+                    "/", "\\"
+                )
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
 
@@ -253,11 +257,7 @@ class FastaTableConverterTab(BaseTabWidget):
         from utils.example_data import stage_example
 
         to_table = self.direction_combo.currentData() == DIRECTION_FASTA_TO_TABLE
-        parts = (
-            ("protein", "B.subtilis_pro.fasta")
-            if to_table
-            else ("dna", "simple_table.csv")
-        )
+        parts = ("protein", "B.subtilis_pro.fasta") if to_table else ("dna", "simple_table.csv")
         path = stage_example(*parts)
         if not path:
             QMessageBox.information(
@@ -267,9 +267,7 @@ class FastaTableConverterTab(BaseTabWidget):
             )
             return
         self.handle_input_file_selected(path)
-        self.show_status(
-            self.tr(f"Example loaded: {os.path.basename(path)}")
-        )
+        self.show_status(self.tr(f"Example loaded: {os.path.basename(path)}"))
 
     def clear_all(self):
         self.input_edit.clear()
@@ -317,16 +315,13 @@ class FastaTableConverterTab(BaseTabWidget):
                 return
             df = records_to_table(processor.records)
             lines = [
-                f"FASTA \u2192 Table: {len(df)} records, "
-                f"columns: {', '.join(df.columns)}",
+                f"FASTA \u2192 Table: {len(df)} records, columns: {', '.join(df.columns)}",
                 "",
                 "First rows:",
             ]
             lines.extend(df.head(5).to_string(index=False).splitlines())
             self.preview_panel.setPlainText("\n".join(lines))
-            self.log_message(
-                f"Preview: {len(df)} records ready for table export", "INFO"
-            )
+            self.log_message(f"Preview: {len(df)} records ready for table export", "INFO")
         else:
             df = self._read_table()
             if df is None:
@@ -345,9 +340,7 @@ class FastaTableConverterTab(BaseTabWidget):
             if len(records) > 8:
                 lines.append(f"  ... and {len(records) - 8} more")
             self.preview_panel.setPlainText("\n".join(lines))
-            self.log_message(
-                f"Preview: {len(records)} sequences ready for FASTA export", "INFO"
-            )
+            self.log_message(f"Preview: {len(records)} sequences ready for FASTA export", "INFO")
 
     def run_convert(self):
         to_table, input_path = self._load_input()

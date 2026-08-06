@@ -1195,10 +1195,7 @@ def test_fasta_to_table_csv_happy_path(qapp, sample_fasta_file: Path, tmp_path: 
 def test_table_to_fasta_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
     table_path = tmp_path / "input_table.csv"
     table_path.write_text(
-        "id,desc,seq\n"
-        "seq1,alpha,ATGCATGC\n"
-        "seq2,beta,AAAATTTT\n"
-        "gene_alpha,,GGGCCC\n",
+        "id,desc,seq\nseq1,alpha,ATGCATGC\nseq2,beta,AAAATTTT\ngene_alpha,,GGGCCC\n",
         encoding="utf-8",
     )
     output_path = tmp_path / "back.fasta"
