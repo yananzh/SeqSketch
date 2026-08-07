@@ -248,9 +248,7 @@ class ORFTab(BaseTabWidget):
             if not seq:
                 continue
             if not re.fullmatch(r"[ACGTN]+", seq):
-                self.show_status(
-                    f'Invalid characters in "{rec_header}". Only A/T/G/C/N allowed.'
-                )
+                self.show_status(f'Invalid characters in "{rec_header}". Only A/T/G/C/N allowed.')
                 return
 
             # Tag with origin header so multi-record output is readable
