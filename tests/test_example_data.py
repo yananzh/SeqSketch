@@ -213,11 +213,17 @@ def test_sanger_assembly_example_fills_both_inputs(qapp):
     btn = _find_button(tab, "Example")
     assert btn is not None, "Sanger Assembly tab has no Example button"
     btn.click()
-    fwd = tab.fwd_edit.toPlainText()
-    rev = tab.rev_edit.toPlainText()
-    assert fwd.startswith(">sanger_read_f"), "forward read not filled"
-    assert rev.startswith(">sanger_read_r"), "reverse read not filled"
+    fwd = tab.fwd_edit.text().strip()
+    rev = tab.rev_edit.text().strip()
+    assert fwd, "forward file path not filled"
+    assert rev, "reverse file path not filled"
     assert fwd != rev
+    assert os.path.isfile(fwd), f"staged forward file does not exist: {fwd}"
+    assert os.path.isfile(rev), f"staged reverse file does not exist: {rev}"
+    with open(fwd, encoding="utf-8") as fh:
+        assert fh.read().startswith(">sanger_read_f"), "forward record missing"
+    with open(rev, encoding="utf-8") as fh:
+        assert fh.read().startswith(">sanger_read_r"), "reverse record missing"
 
 
 def test_sanger_viewer_example_fills_file_edit(qapp):

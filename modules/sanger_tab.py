@@ -1,4 +1,5 @@
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+import os
+
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt6.QtCore import Qt
@@ -18,35 +19,15 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from utils.app_paths import user_data_dir
 from utils.common_components import (
+    FileDropLineEdit,
     apply_sequence_editor_style,
     apply_transparent_text_edit_background,
 )
 from utils.example_data import load_example_text
 
 _BASE_COLOR = {"A": "#007700", "T": "#BB0000", "G": "#111111", "C": "#0044AA", "N": "#888888"}
-
-
-# ── Shared drag-drop helpers (SangerTab has two independent editors) ──
-
-
-def _can_accept_drop(mime_data) -> bool:
-    if not mime_data or not mime_data.hasUrls():
-        return False
-    for url in mime_data.urls():
-        if url.toLocalFile():
-            return True
-    return False
-
-
-def _load_dropped_file(mime_data) -> str | None:
-    if not mime_data or not mime_data.hasUrls():
-        return None
-    path = mime_data.urls()[0].toLocalFile()
-    if not path:
-        return None
-    with open(path, "r", encoding="utf-8") as fh:
-        return fh.read()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -79,48 +60,45 @@ class SangerTab(QWidget):
         gi.setContentsMargins(6, 16, 0, 4)
         gi.setSpacing(6)
 
-        seqs_hbox = QHBoxLayout()
-        seqs_hbox.setSpacing(12)
+        fwd_label = QLabel(self.tr("Forward Sequence (5' \u2192 3'):"))
+        rev_label = QLabel(self.tr("Reverse Sequence (5' \u2192 3'):"))
+        label_w = max(fwd_label.sizeHint().width(), rev_label.sizeHint().width())
+        fwd_label.setMinimumWidth(label_w)
+        rev_label.setMinimumWidth(label_w)
 
-        fwd_vbox = QVBoxLayout()
-        fwd_vbox.addWidget(QLabel(self.tr("Forward Sequence (5' \u2192 3'):")))
-        self.fwd_edit = QTextEdit()
-        apply_sequence_editor_style(self.fwd_edit)
+        fwd_row = QHBoxLayout()
+        fwd_row.addWidget(fwd_label)
+        self.fwd_edit = FileDropLineEdit()
+        self.fwd_edit.setReadOnly(True)
         self.fwd_edit.setPlaceholderText(
-            self.tr(
-                "Paste forward read, drag-and-drop a FASTA file, or type raw sequence...\n"
-                "Example:\n>forward_read\nATGCGATCGATCG..."
-            )
+            self.tr("Select a FASTA file or drag & drop it here...")
         )
-        self.fwd_edit.setMinimumHeight(90)
         self.fwd_edit.setToolTip(
-            self.tr("Forward Sanger read (5'\u21923').  Paste raw sequence or drop a FASTA file.")
+            self.tr("Forward Sanger read (5'\u21923') as a FASTA file")
         )
-        self._enable_drop(self.fwd_edit)
-        fwd_vbox.addWidget(self.fwd_edit)
+        fwd_row.addWidget(self.fwd_edit, 1)
+        self._btn_browse_fwd = QPushButton(self.tr("Browse"))
+        self._btn_browse_fwd.clicked.connect(lambda: self._browse_input_file(self.fwd_edit))
+        fwd_row.addWidget(self._btn_browse_fwd)
+        gi.addLayout(fwd_row)
 
-        rev_vbox = QVBoxLayout()
-        rev_vbox.addWidget(QLabel(self.tr("Reverse Sequence (auto reverse-complemented):")))
-        self.rev_edit = QTextEdit()
-        apply_sequence_editor_style(self.rev_edit)
+        rev_row = QHBoxLayout()
+        rev_row.addWidget(rev_label)
+        self.rev_edit = FileDropLineEdit()
+        self.rev_edit.setReadOnly(True)
         self.rev_edit.setPlaceholderText(
             self.tr(
-                "Paste reverse read (as-read), drag-and-drop a FASTA file, or type raw sequence...\n"
-                "Example:\n>reverse_read\nCGACCGATCGCAT..."
+                "Auto reverse-complemented \u2014 select a FASTA file or drag & drop it here..."
             )
         )
-        self.rev_edit.setMinimumHeight(90)
         self.rev_edit.setToolTip(
-            self.tr(
-                "Reverse Sanger read (as-read; will be auto reverse-complemented).  Paste raw sequence or drop a FASTA file."
-            )
+            self.tr("Reverse Sanger read (as-read; auto reverse-complemented) as a FASTA file")
         )
-        self._enable_drop(self.rev_edit)
-        rev_vbox.addWidget(self.rev_edit)
-
-        seqs_hbox.addLayout(fwd_vbox)
-        seqs_hbox.addLayout(rev_vbox)
-        gi.addLayout(seqs_hbox)
+        rev_row.addWidget(self.rev_edit, 1)
+        self._btn_browse_rev = QPushButton(self.tr("Browse"))
+        self._btn_browse_rev.clicked.connect(lambda: self._browse_input_file(self.rev_edit))
+        rev_row.addWidget(self._btn_browse_rev)
+        gi.addLayout(rev_row)
         outer.addWidget(grp_input)
 
         # ── 2. Parameters QGroupBox ───────────────────────────────────
@@ -169,8 +147,6 @@ class SangerTab(QWidget):
         self._overlap_canvas = FigureCanvas(self._overlap_fig)
         self._overlap_canvas.setMinimumHeight(100)
         self._overlap_canvas.setMaximumHeight(140)
-        self._overlap_toolbar = NavigationToolbar(self._overlap_canvas, grp_overlap)
-        gv.addWidget(self._overlap_toolbar)
         gv.addWidget(self._overlap_canvas)
         outer.addWidget(grp_overlap)
 
@@ -178,7 +154,7 @@ class SangerTab(QWidget):
         grp_out = QGroupBox(self.tr("Assembly Result"))
         grp_out.setFlat(True)
         go = QVBoxLayout(grp_out)
-        go.setContentsMargins(0, 16, 0, 4)
+        go.setContentsMargins(6, 16, 6, 4)
         go.setSpacing(6)
 
         self.assembly_result = QTextEdit()
@@ -206,15 +182,14 @@ class SangerTab(QWidget):
         go.addLayout(export_hbox)
         outer.addWidget(grp_out)
 
-        # ── Status row: Run / Clear / Help ────────────────────────────
+        # ── Status row: Run / Clear / Example / Help ──────────────────
         status_layout = QHBoxLayout()
         self.status_label = QLabel(self.tr("Ready"))
-        self.status_label.setStyleSheet("color:#555;font-size:12px;")
         status_layout.addWidget(self.status_label)
         status_layout.addStretch()
 
         self.run_btn = QPushButton(self.tr("Run"))
-        self.run_btn.setFixedWidth(120)
+        self.run_btn.setFixedWidth(90)
         self.run_btn.clicked.connect(self.run_assembly)
         status_layout.addWidget(self.run_btn)
 
@@ -235,41 +210,32 @@ class SangerTab(QWidget):
 
         outer.addLayout(status_layout)
 
-    # ── Drag-and-drop ──────────────────────────────────────────────────
-
-    @staticmethod
-    def _enable_drop(editor: QTextEdit) -> None:
-        """Enable drag-and-drop file loading on a QTextEdit."""
-        editor.setAcceptDrops(True)
-
-        def _drag_enter(event):
-            if _can_accept_drop(event.mimeData()):
-                event.acceptProposedAction()
-            else:
-                event.ignore()
-
-        def _drop(event):
-            content = _load_dropped_file(event.mimeData())
-            if content is not None:
-                editor.setPlainText(content)
-                event.acceptProposedAction()
-            else:
-                event.ignore()
-
-        editor.dragEnterEvent = _drag_enter  # type: ignore[assignment]
-        editor.dropEvent = _drop  # type: ignore[assignment]
-
     # ── Assembly logic ─────────────────────────────────────────────────
 
     def run_assembly(self):
-        fwd = self._sequence_from_input(self.fwd_edit.toPlainText())
-        rev = self._sequence_from_input(self.rev_edit.toPlainText())
-        if not fwd or not rev:
+        fwd_path = self.fwd_edit.text().strip()
+        rev_path = self.rev_edit.text().strip()
+        if not fwd_path or not rev_path:
             self.status_label.setText(
-                self.tr("Error: Please paste both forward and reverse sequences")
+                self.tr("Error: Select both forward and reverse sequence files")
             )
             QMessageBox.warning(
-                self, self.tr("Input Error"), self.tr("Paste both forward and reverse sequences")
+                self,
+                self.tr("Input Error"),
+                self.tr("Select both forward and reverse sequence files"),
+            )
+            return
+        try:
+            fwd = self._sequence_from_input(self._load_input_file(fwd_path))
+            rev = self._sequence_from_input(self._load_input_file(rev_path))
+        except OSError as exc:
+            self.status_label.setText(self.tr("Error: Cannot read input file"))
+            QMessageBox.warning(self, self.tr("Input Error"), str(exc))
+            return
+        if not fwd or not rev:
+            self.status_label.setText(self.tr("Error: No sequence found in the input files"))
+            QMessageBox.warning(
+                self, self.tr("Input Error"), self.tr("No sequence found in the input files")
             )
             return
 
@@ -330,11 +296,30 @@ class SangerTab(QWidget):
         ]
         return "".join(sequence_lines).upper().replace("U", "T")
 
+    @staticmethod
+    def _load_input_file(path: str) -> str:
+        """Read a sequence file (UTF-8 with Latin-1 fallback)."""
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                return fh.read()
+        except UnicodeDecodeError:
+            with open(path, "r", encoding="latin-1") as fh:
+                return fh.read()
+
+    def _browse_input_file(self, edit: FileDropLineEdit) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Open FASTA File"),
+            "",
+            self.tr("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
+        )
+        if path:
+            edit.setText(os.path.normpath(path))
+
     # ── Overlap visualisation ──────────────────────────────────────────
 
     def _draw_overlap_alignment(self):
         overlap = self._last_overlap
-        identity = self._last_identity
         fwd = self._last_fwd
         rev_rc = self._last_rev_rc
 
@@ -357,7 +342,6 @@ class SangerTab(QWidget):
         C_OVERLAP_BG = "#c8e6c9"  # overlap background tint
         C_MATCH = "#43a047"  # match segment
         C_MISMATCH = "#e53935"  # mismatch segment
-        C_TEXT = "#333333"
 
         ax = self._overlap_fig.add_subplot(111)
         ax.set_facecolor("#fcfcfc")
@@ -499,15 +483,11 @@ class SangerTab(QWidget):
 
         self._overlap_fig.tight_layout(pad=0.3)
         self._overlap_canvas.draw_idle()
-        ax.axis("off")
-
-        self._overlap_fig.tight_layout(pad=0.3)
-        self._overlap_canvas.draw_idle()
 
     # ── Helpers ────────────────────────────────────────────────────────
 
     def _load_example(self):
-        """Load the bundled Sanger assembly example (forward + reverse-as-read records)."""
+        """Stage the bundled example as two files and fill both input fields."""
         text = load_example_text("dna", "sanger_assembly_example.fasta")
         if not text:
             QMessageBox.information(
@@ -529,8 +509,24 @@ class SangerTab(QWidget):
         if not fwd.startswith(">"):
             fwd = ">" + fwd
         rev = ">" + rev
-        self.fwd_edit.setPlainText(fwd)
-        self.rev_edit.setPlainText(rev)
+        work_dir = os.path.join(user_data_dir(), "example_work")
+        try:
+            os.makedirs(work_dir, exist_ok=True)
+            fwd_path = os.path.join(work_dir, "sanger_example_forward.fasta")
+            rev_path = os.path.join(work_dir, "sanger_example_reverse.fasta")
+            with open(fwd_path, "w", encoding="utf-8") as fh:
+                fh.write(fwd + "\n")
+            with open(rev_path, "w", encoding="utf-8") as fh:
+                fh.write(rev + "\n")
+        except OSError:
+            QMessageBox.information(
+                self,
+                self.tr("Example"),
+                self.tr("Failed to load example data. Please check your installation."),
+            )
+            return
+        self.fwd_edit.setText(fwd_path)
+        self.rev_edit.setText(rev_path)
         self.status_label.setText(self.tr("Loaded example data: sanger_assembly_example.fasta"))
 
     def _clear_all(self):
@@ -616,7 +612,7 @@ class SangerTab(QWidget):
             "and the overlap quality is visualised in real time.</p>"
             "<h3>Quick Start</h3>"
             "<ol>"
-            "<li>Paste or drag-and-drop your forward and reverse sequences</li>"
+            "<li>Select the forward and reverse FASTA files (via <b>Browse</b> or drag-and-drop)</li>"
             "<li>Set <b>Min overlap</b> (bp) and <b>Min identity</b> (%)</li>"
             "<li>Click <b>Run</b></li>"
             "<li>Inspect the overlap alignment chart and copy or save the result</li>"
@@ -637,8 +633,8 @@ class SangerTab(QWidget):
             "</ul>"
             "<h3>Input Formats</h3>"
             "<ul>"
-            "<li><b>Raw sequence</b> &mdash; plain text (e.g. <code>ATGCGATCG...</code>)</li>"
-            "<li><b>FASTA</b> &mdash; drag-and-drop a .fasta file onto either input box</li>"
+            "<li><b>FASTA files</b> &mdash; select with <b>Browse</b> or drag-and-drop onto either input box (forward and reverse)</li>"
+            "<li>Provide the reverse read <b>as-read</b> &mdash; it is automatically reverse-complemented before assembly</li>"
             "<li>Non-ACGT characters and whitespace are automatically stripped; U is treated as T</li>"
             "</ul>"
             "<h3>Tips</h3>"

@@ -30,6 +30,7 @@ from modules.trimal_tab import (
     _BatchTrimThread,
     _prepare_trimal_input,
 )
+from utils.common_components import FileDropLineEdit
 
 
 def test_complement_tools_switches_between_modes(qapp):
@@ -375,11 +376,9 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
     sanger_tab = SangerTab()
-    for editor in (sanger_tab.fwd_edit, sanger_tab.rev_edit):
-        assert editor.property("sequenceEditorStyled") is True
-        assert "border-radius" in editor.styleSheet()
-        assert "border: 1px solid #94a3b8;" in editor.styleSheet()
-        assert not editor.styleSheet().lstrip().startswith("QTextEdit")
+    for edit in (sanger_tab.fwd_edit, sanger_tab.rev_edit):
+        assert isinstance(edit, FileDropLineEdit)
+        assert edit.isReadOnly()
 
     # PairwiseAlignmentTab: input_text / seq2_text use inline
     # stylesheets (direct declarations) for a single visible border;
@@ -399,10 +398,16 @@ def test_dna_analysis_sequence_editors_use_shared_border_style(qapp):
         assert not editor.styleSheet().lstrip().startswith("QTextEdit")
 
 
-def test_sanger_assembly_outputs_merged_fasta_contig_without_input_headers(qapp, monkeypatch):
+def test_sanger_assembly_outputs_merged_fasta_contig_without_input_headers(
+    qapp, monkeypatch, tmp_path
+):
     tab = SangerTab()
-    tab.fwd_edit.setPlainText(">forward_read\nAAAGGGCCC")
-    tab.rev_edit.setPlainText(">reverse_read\nAAAGGGCCC")
+    fwd_file = tmp_path / "fwd.fasta"
+    rev_file = tmp_path / "rev.fasta"
+    fwd_file.write_text(">forward_read\nAAAGGGCCC", encoding="utf-8")
+    rev_file.write_text(">reverse_read\nAAAGGGCCC", encoding="utf-8")
+    tab.fwd_edit.setText(str(fwd_file))
+    tab.rev_edit.setText(str(rev_file))
     tab.min_overlap_spin.setValue(6)
     monkeypatch.setattr(QMessageBox, "information", lambda *args: None)
     monkeypatch.setattr(QMessageBox, "warning", lambda *args: None)
