@@ -214,9 +214,7 @@ class SangerViewerTab(QWidget):
         status_row.addStretch()
         self._btn_export_plot = QPushButton(self.tr("Export Plot"))
         self._btn_export_plot.setFixedWidth(110)
-        self._btn_export_plot.setToolTip(
-            self.tr("Save the current chromatogram as an image file")
-        )
+        self._btn_export_plot.setToolTip(self.tr("Save the current chromatogram as an image file"))
         self._btn_export_plot.setEnabled(False)
         status_row.addWidget(self._btn_export_plot)
         self._btn_clear = QPushButton(self.tr("Clear"))
@@ -515,9 +513,7 @@ class SangerViewerTab(QWidget):
     def _export_plot(self) -> None:
         """Save the current chromatogram figure as an image file."""
         if self._abi_data is None:
-            QMessageBox.warning(
-                self, self.tr("Export Error"), self.tr("Load an AB1 file first.")
-            )
+            QMessageBox.warning(self, self.tr("Export Error"), self.tr("Load an AB1 file first."))
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
