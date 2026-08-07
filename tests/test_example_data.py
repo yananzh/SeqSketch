@@ -189,9 +189,12 @@ def test_restriction_enzyme_example_fills_input_text(qapp):
     btn = _find_button(tab, "Example")
     assert btn is not None, "Restriction Enzyme tab has no Example button"
     btn.click()
-    text = tab.input_text.toPlainText()
-    assert text.startswith(">")
-    assert "pBR322" in text
+    path = tab.input_path_edit.text().strip()
+    assert path, "file path not filled"
+    assert os.path.isfile(path), f"staged file does not exist: {path}"
+    assert os.path.basename(path).lower() == "pbr322.fasta"
+    with open(path, encoding="utf-8") as fh:
+        assert fh.read().startswith(">")
 
 
 def test_gc_plot_example_fills_input_text(qapp):
@@ -201,9 +204,12 @@ def test_gc_plot_example_fills_input_text(qapp):
     btn = _find_button(tab, "Example")
     assert btn is not None, "GC Plot tab has no Example button"
     btn.click()
-    text = tab.input_text.toPlainText()
-    assert text.startswith(">")
-    assert "NC_000913" in text or "complete genome" in text
+    path = tab.input_path_edit.text().strip()
+    assert path, "file path not filled"
+    assert os.path.isfile(path), f"staged file does not exist: {path}"
+    assert os.path.basename(path).lower() == "pbr322.fasta"
+    with open(path, encoding="utf-8") as fh:
+        assert fh.read().startswith(">pBR322")
 
 
 def test_sanger_assembly_example_fills_both_inputs(qapp):

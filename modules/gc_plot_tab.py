@@ -1,10 +1,13 @@
 """GC Content / GC Skew Plot Tab — sliding-window analysis for DNA sequences."""
 
+import os
+
 import matplotlib
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -17,8 +20,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import BaseTabWidget
-from utils.example_data import load_example_text
+from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.example_data import stage_example
 
 matplotlib.use("Qt5Agg")
 import math
@@ -47,13 +50,7 @@ class GCPlotTab(BaseTabWidget):
         self.output_label.hide()
         self.input_hint.hide()
 
-        self.input_text.setPlaceholderText(
-            self.tr(
-                "Paste a DNA sequence in FASTA format or drag-and-drop a file...\n\n"
-                "Example:\n>my_sequence\nATGCGATCGATCGTAGCTAGCTAGCTAGC\n"
-            )
-        )
-        self.input_text.setMaximumHeight(100)
+        self._setup_file_input()
 
         # Add Save Figure button in the status row after Plot
         self._save_fig_btn = QPushButton(self.tr("Save Figure"))
@@ -64,20 +61,49 @@ class GCPlotTab(BaseTabWidget):
 
         self._setup_parameters()
         self._add_plot_canvas()
-        self._setup_drag_drop()
-
-        # Place Example button horizontally with upload_btn
-        self.example_btn = QPushButton(self.tr("Example"))
-        self.example_btn.clicked.connect(self._load_example)
-        ig_layout = self.input_group.layout()
-        ig_layout.removeWidget(self.upload_btn)
-        btn_row = QHBoxLayout()
-        btn_row.addWidget(self.upload_btn, 1)
-        btn_row.addWidget(self.example_btn, 1)
-        ig_layout.insertLayout(1, btn_row)
 
         # Keep step default in sync with window changes
         self.window_spin.valueChanged.connect(self._sync_step_to_window)
+
+    def _setup_file_input(self):
+        """Replace the paste editor with a file-only input (Browse + drag & drop)."""
+        self.input_text.hide()
+        self.upload_btn.hide()
+
+        self.input_path_edit = FileDropLineEdit()
+        self.input_path_edit.setReadOnly(True)
+        self.input_path_edit.setPlaceholderText(
+            self.tr("Select a FASTA file or drag & drop it here...")
+        )
+        self.input_path_edit.setToolTip(
+            self.tr("DNA sequence (FASTA format) for GC content / GC skew analysis")
+        )
+
+        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.clicked.connect(self._load_example)
+
+        ig_layout = self.input_group.layout()
+        ig_layout.setContentsMargins(6, 16, 6, 4)
+        ig_layout.removeWidget(self.upload_btn)
+        row = QHBoxLayout()
+        row.addWidget(QLabel(self.tr("Sequence File:")))
+        row.addWidget(self.input_path_edit, 1)
+        self.browse_btn = QPushButton(self.tr("Browse"))
+        self.browse_btn.clicked.connect(self._browse_input_file)
+        row.addWidget(self.browse_btn)
+        row.addWidget(self.example_btn)
+        ig_layout.insertLayout(1, row)
+
+    def _browse_input_file(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Open FASTA File"),
+            "",
+            self.tr("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
+        )
+        if path:
+            self.input_path_edit.setText(os.path.normpath(path))
+            self._auto_adjust_window()
 
     def _sync_step_to_window(self, val):
         """When window changes, update step default to match (non-overlapping)."""
@@ -85,23 +111,28 @@ class GCPlotTab(BaseTabWidget):
             self.step_spin.setValue(val)
 
     def _load_example(self):
-        """Load the bundled E. coli K-12 genome example for GC skew analysis."""
-        text = load_example_text("dna", "Escherichia coli_K-12.fasta")
-        if not text:
+        """Stage the bundled pBR322 plasmid example and fill the file field."""
+        path = stage_example("dna", "pBR322.fasta")
+        if not path:
             QMessageBox.information(
                 self,
                 self.tr("Example"),
                 self.tr("Failed to load example data. Please check your installation."),
             )
             return
-        self.input_text.setPlainText(text)
+        self.input_path_edit.setText(path)
         self._auto_adjust_window()
-        self.show_status(self.tr("Loaded example data: Escherichia coli_K-12.fasta"))
+        self.show_status(self.tr("Loaded example data: pBR322.fasta"))
 
     def _auto_adjust_window(self):
-        """Set window size automatically based on the current input sequence length."""
-        text = self.input_text.toPlainText().strip()
-        if not text:
+        """Set window size automatically based on the current input file length."""
+        path = self.input_path_edit.text().strip()
+        if not path:
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError:
             return
         records = self._parse_fasta(text)
         if not records:
@@ -268,12 +299,19 @@ class GCPlotTab(BaseTabWidget):
 
     def run(self):
         self.status_label.setText("")
-        text = self.input_text.toPlainText().strip()
-        if not text:
+        path = self.input_path_edit.text().strip()
+        if not path:
             QMessageBox.warning(
-                self, self.tr("Input Error"), self.tr("Please input a DNA sequence.")
+                self, self.tr("Input Error"), self.tr("Please select a DNA sequence file.")
             )
             return
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError as exc:
+            QMessageBox.warning(self, self.tr("Input Error"), str(exc))
+            return
+        text = text.strip()
 
         records = self._parse_fasta(text)
         if not records:
@@ -355,11 +393,7 @@ class GCPlotTab(BaseTabWidget):
         self._draw_gc_skew(clean, gc_skew, window, header)
         self._draw_cumul_skew(clean, cumul_skew, window, header)
         mean_gc = np.nanmean(gc_content)
-        self.status_label.setText(
-            self.tr(
-                f"Plotted GC content / GC skew (window={window}) — {n} bp, mean GC = {mean_gc:.1f}%"
-            )
-        )
+        self.status_label.setText(self.tr(f"Plotted \u2014 {n:,} bp, mean GC = {mean_gc:.1f}%"))
 
         if not self._logo_generated:
             self._logo_generated = True
@@ -528,7 +562,7 @@ class GCPlotTab(BaseTabWidget):
         self._canvases[2].draw()
 
     def clear(self):
-        self.input_text.clear()
+        self.input_path_edit.clear()
         self._draw_placeholder_plot()
         self._logo_generated = False
         self.status_label.setText(self.tr("Cleared"))
@@ -551,7 +585,7 @@ class GCPlotTab(BaseTabWidget):
         if file_path:
             try:
                 fig.savefig(file_path, dpi=300, bbox_inches="tight")
-                self.status_label.setText(self.tr(f"Figure saved: {file_path}"))
+                self.status_label.setText(self.tr("Figure saved"))
             except Exception as e:
                 QMessageBox.warning(
                     self, self.tr("Export Error"), self.tr(f"Failed to save figure:\n{str(e)}")
@@ -579,7 +613,7 @@ in bacterial genomes (Lobry 1996, Grigoriev 1998).</p>
 
 <h3>Quick Start</h3>
 <ol>
-<li>Paste a DNA sequence or click <b>Example</b> to load the E.&nbsp;coli K-12 genome</li>
+<li>Select a FASTA file (via <b>Browse</b> or drag-and-drop), or click <b>Example</b> to load the pBR322 plasmid</li>
 <li>Adjust <b>Window</b> size for the desired smoothing level</li>
 <li>Click <b>Plot</b> — use the three buttons (GC Content / GC Skew / Cumulative GC Skew) above the plot to switch views</li>
 </ol>
@@ -641,12 +675,11 @@ sharply from the genome mean often indicate recently acquired DNA</li>
 
 <h3>Tips</h3>
 <ul>
-<li>Use the <b>Example</b> button to load the E.&nbsp;coli K-12 genome (~4.6 Mb) —
-a well-characterised chromosome where oriC (~3.92 Mb) is reliably detected</li>
-<li>The <b>Matplotlib toolbar</b> above the plot provides zoom, pan, home, and save
-(PNG/PDF/SVG) — no separate Save button needed</li>
+<li>Use the <b>Example</b> button to load the pBR322 plasmid (4,361 bp) — a compact
+circular replicon where the leading/lagging strand bias is clearly visible</li>
+<li>Use <b>Save Figure</b> to export the current view as PNG/PDF/SVG</li>
 <li>For multi-contig assemblies, run the tool on each contig separately</li>
-<li>Paste FASTA or raw sequence; the first record is used if multiple are present</li>
+<li>The first FASTA record in the selected file is used if multiple are present</li>
 <li>N bases are ignored in GC calculations within each window</li>
 </ul>
 """)
@@ -670,34 +703,7 @@ a well-characterised chromosome where oriC (~3.92 Mb) is reliably detected</li>
         dialog.setLayout(layout)
         dialog.exec()
 
-    # ── Drag & drop + FASTA parsing ─────────────────────────────────────────
-
-    def _setup_drag_drop(self):
-        self.input_text.setAcceptDrops(True)
-
-        def drag_enter(e):
-            md = e.mimeData()
-            if md.hasUrls():
-                urls = md.urls()
-                if urls and urls[0].toLocalFile():
-                    e.acceptProposedAction()
-                    return
-            e.ignore()
-
-        def drop(e):
-            urls = e.mimeData().urls()
-            if urls:
-                file_path = urls[0].toLocalFile()
-                try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    self.input_text.setPlainText(content)
-                    self._auto_adjust_window()
-                except Exception as ex:
-                    QMessageBox.warning(self, self.tr("File Read Error"), str(ex))
-
-        self.input_text.dragEnterEvent = drag_enter
-        self.input_text.dropEvent = drop
+    # ── FASTA parsing ───────────────────────────────────────────────────────
 
     def _parse_fasta(self, text):
         records = []

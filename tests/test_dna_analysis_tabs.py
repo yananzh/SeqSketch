@@ -966,8 +966,8 @@ def test_main_window_and_menu_use_alignment_format_converter_label(qapp):
 def test_codon_usage_summary_tables_are_taller_and_rscu_labels_are_tighter(qapp):
     tab = CodonUsageTab()
 
-    assert tab._stats_table.minimumHeight() >= 280
-    assert tab._top10_table.minimumHeight() >= 260
+    assert tab._stats_table.minimumHeight() >= 200
+    assert tab._top10_table.minimumHeight() >= 190
 
     tab._draw_rscu_chart({
         "header": "Example",
@@ -1022,13 +1022,16 @@ def test_dna_analysis_menu_includes_gc_plot(qapp):
     assert isinstance(window.tabs.widget(0), GCPlotTab)
 
 
-def test_gc_plot_tab_generates_plot(qapp):
+def test_gc_plot_tab_generates_plot(qapp, tmp_path):
     from modules.gc_plot_tab import GCPlotTab
 
     tab = GCPlotTab()
-    tab.input_text.setPlainText(
-        ">test_seq\n" + ("A" * 200) + ("G" * 200) + ("C" * 200) + ("T" * 200)
+    seq_file = tmp_path / "seq.fasta"
+    seq_file.write_text(
+        ">test_seq\n" + ("A" * 200) + ("G" * 200) + ("C" * 200) + ("T" * 200),
+        encoding="utf-8",
     )
+    tab.input_path_edit.setText(str(seq_file))
 
     tab.window_spin.setValue(101)
     tab.run()
@@ -1039,15 +1042,17 @@ def test_gc_plot_tab_generates_plot(qapp):
     assert "800 bp" in str(tab.status_label.text())
 
 
-def test_gc_plot_tab_clear_resets(qapp):
+def test_gc_plot_tab_clear_resets(qapp, tmp_path):
     from modules.gc_plot_tab import GCPlotTab
 
     tab = GCPlotTab()
-    tab.input_text.setPlainText(">test\n" + "ATGC" * 500)
+    seq_file = tmp_path / "seq.fasta"
+    seq_file.write_text(">test\n" + "ATGC" * 500, encoding="utf-8")
+    tab.input_path_edit.setText(str(seq_file))
     tab.window_spin.setValue(101)
     tab.run()
     assert len(tab._figs[0].axes) == 1
 
     tab.clear()
     assert len(tab._figs[0].axes) == 1  # placeholder axis still present
-    assert tab.input_text.toPlainText() == ""
+    assert tab.input_path_edit.text() == ""

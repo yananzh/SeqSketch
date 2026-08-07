@@ -5,20 +5,18 @@ from __future__ import annotations
 import collections
 import csv
 import math
+import os
 import re
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib
 import matplotlib.patches as mpatches
 import numpy as np
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
-    QApplication,
-    QButtonGroup,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -31,7 +29,6 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
-    QRadioButton,
     QSizePolicy,
     QSplitter,
     QTableWidget,
@@ -253,6 +250,195 @@ _CAI_REFERENCES: Dict[str, Dict[str, float]] = {
         "GGA": 0.89,
         "GGG": 0.32,
     },
+    "C. elegans": {
+        "TTT": 0.39,
+        "TTC": 1.61,
+        "TTA": 0.20,
+        "TTG": 0.69,
+        "CTT": 0.84,
+        "CTC": 0.93,
+        "CTA": 0.26,
+        "CTG": 2.28,
+        "ATT": 1.21,
+        "ATC": 1.39,
+        "ATA": 0.40,
+        "ATG": 1.0,
+        "GTT": 1.27,
+        "GTC": 1.27,
+        "GTA": 0.24,
+        "GTG": 1.22,
+        "TCT": 1.50,
+        "TCC": 1.29,
+        "TCA": 0.75,
+        "TCG": 0.35,
+        "AGT": 0.63,
+        "AGC": 1.48,
+        "CCT": 1.37,
+        "CCC": 0.72,
+        "CCA": 1.10,
+        "CCG": 0.81,
+        "ACT": 1.41,
+        "ACC": 1.43,
+        "ACA": 0.61,
+        "ACG": 0.55,
+        "GCT": 1.99,
+        "GCC": 1.10,
+        "GCA": 0.43,
+        "GCG": 0.48,
+        "TAT": 0.26,
+        "TAC": 1.74,
+        "CAT": 0.62,
+        "CAC": 1.38,
+        "CAA": 0.50,
+        "CAG": 1.50,
+        "AAT": 0.39,
+        "AAC": 1.61,
+        "AAA": 0.46,
+        "AAG": 1.54,
+        "GAT": 0.63,
+        "GAC": 1.37,
+        "GAA": 0.85,
+        "GAG": 1.15,
+        "TGT": 0.62,
+        "TGC": 1.38,
+        "TGG": 1.0,
+        "CGT": 0.46,
+        "CGC": 1.30,
+        "CGA": 0.41,
+        "CGG": 0.60,
+        "AGA": 0.70,
+        "AGG": 0.49,
+        "GGT": 1.77,
+        "GGC": 1.23,
+        "GGA": 0.57,
+        "GGG": 0.43,
+    },
+    "A. thaliana": {
+        "TTT": 0.80,
+        "TTC": 1.20,
+        "TTA": 0.30,
+        "TTG": 0.90,
+        "CTT": 1.00,
+        "CTC": 0.80,
+        "CTA": 0.30,
+        "CTG": 1.00,
+        "ATT": 1.10,
+        "ATC": 1.00,
+        "ATA": 0.30,
+        "ATG": 1.0,
+        "GTT": 1.30,
+        "GTC": 0.90,
+        "GTA": 0.30,
+        "GTG": 1.10,
+        "TCT": 1.30,
+        "TCC": 1.00,
+        "TCA": 0.70,
+        "TCG": 0.40,
+        "AGT": 0.60,
+        "AGC": 1.00,
+        "CCT": 1.30,
+        "CCC": 0.70,
+        "CCA": 1.00,
+        "CCG": 0.60,
+        "ACT": 1.30,
+        "ACC": 1.20,
+        "ACA": 0.60,
+        "ACG": 0.50,
+        "GCT": 1.80,
+        "GCC": 1.10,
+        "GCA": 0.60,
+        "GCG": 0.50,
+        "TAT": 0.40,
+        "TAC": 1.60,
+        "CAT": 0.60,
+        "CAC": 1.40,
+        "CAA": 0.80,
+        "CAG": 1.20,
+        "AAT": 0.50,
+        "AAC": 1.50,
+        "AAA": 0.60,
+        "AAG": 1.40,
+        "GAT": 0.70,
+        "GAC": 1.30,
+        "GAA": 0.90,
+        "GAG": 1.10,
+        "TGT": 0.50,
+        "TGC": 1.50,
+        "TGG": 1.0,
+        "CGT": 0.60,
+        "CGC": 1.00,
+        "CGA": 0.40,
+        "CGG": 0.40,
+        "AGA": 0.50,
+        "AGG": 0.40,
+        "GGT": 1.60,
+        "GGC": 1.20,
+        "GGA": 0.70,
+        "GGG": 0.50,
+    },
+    "M. musculus": {
+        "TTT": 0.48,
+        "TTC": 1.52,
+        "TTA": 0.10,
+        "TTG": 0.16,
+        "CTT": 0.15,
+        "CTC": 0.22,
+        "CTA": 0.08,
+        "CTG": 1.90,
+        "ATT": 0.40,
+        "ATC": 1.42,
+        "ATA": 0.18,
+        "ATG": 1.0,
+        "GTT": 0.22,
+        "GTC": 0.28,
+        "GTA": 0.12,
+        "GTG": 1.38,
+        "TCT": 0.18,
+        "TCC": 0.26,
+        "TCA": 0.16,
+        "TCG": 0.07,
+        "AGT": 0.16,
+        "AGC": 0.30,
+        "CCT": 0.32,
+        "CCC": 0.36,
+        "CCA": 0.30,
+        "CCG": 0.13,
+        "ACT": 0.30,
+        "ACC": 0.40,
+        "ACA": 0.32,
+        "ACG": 0.12,
+        "GCT": 0.30,
+        "GCC": 0.44,
+        "GCA": 0.26,
+        "GCG": 0.12,
+        "TAT": 0.44,
+        "TAC": 1.56,
+        "CAT": 0.46,
+        "CAC": 1.54,
+        "CAA": 0.30,
+        "CAG": 1.70,
+        "AAT": 0.50,
+        "AAC": 1.50,
+        "AAA": 0.46,
+        "AAG": 1.54,
+        "GAT": 0.50,
+        "GAC": 1.50,
+        "GAA": 0.44,
+        "GAG": 1.56,
+        "TGT": 0.50,
+        "TGC": 1.50,
+        "TGG": 1.0,
+        "CGT": 0.10,
+        "CGC": 0.22,
+        "CGA": 0.12,
+        "CGG": 0.24,
+        "AGA": 0.20,
+        "AGG": 0.24,
+        "GGT": 0.18,
+        "GGC": 0.38,
+        "GGA": 0.26,
+        "GGG": 0.28,
+    },
 }
 
 
@@ -398,6 +584,35 @@ def _normalize_cai_reference(ref: Dict[str, float]) -> Dict[str, float]:
     return w_map
 
 
+# Three-letter amino acid codes for the AA filter (three-letter input support).
+_AA_3_TO_1 = {
+    "ALA": "A",
+    "ARG": "R",
+    "ASN": "N",
+    "ASP": "D",
+    "CYS": "C",
+    "GLN": "Q",
+    "GLU": "E",
+    "GLY": "G",
+    "HIS": "H",
+    "ILE": "I",
+    "LEU": "L",
+    "LYS": "K",
+    "MET": "M",
+    "PHE": "F",
+    "PRO": "P",
+    "SER": "S",
+    "THR": "T",
+    "TRP": "W",
+    "TYR": "Y",
+    "VAL": "V",
+}
+
+# Codons with RSCU below this threshold are reported as "rare" (common
+# cut-off used for heterologous expression analysis).
+_RARE_RSCU_THRESHOLD = 0.3
+
+
 def _parse_fasta(text: str) -> List[Tuple[str, str]]:
     records: List[Tuple[str, str]] = []
     header = ""
@@ -420,9 +635,9 @@ def _parse_fasta(text: str) -> List[Tuple[str, str]]:
 
 class _Worker(QObject):
     finished = pyqtSignal(list)
-    cancelled = pyqtSignal()
     error = pyqtSignal(str)
     progress = pyqtSignal(int, int)
+    skipped = pyqtSignal(int)
 
     def __init__(self, text: str, table_id: int, cai_ref: str, frame_offset: int = 0, parent=None):
         super().__init__(parent)
@@ -430,10 +645,6 @@ class _Worker(QObject):
         self._table_id = table_id
         self._cai_ref = cai_ref
         self._frame_offset = frame_offset
-        self._cancel = False
-
-    def cancel(self):
-        self._cancel = True
 
     def run(self):
         try:
@@ -442,16 +653,14 @@ class _Worker(QObject):
                 records = [("Sequence", self._text.strip())]
             total = len(records)
             results = []
+            skipped_count = 0
             for idx, (header, seq) in enumerate(records):
-                if self._cancel:
-                    self.cancelled.emit()
-                    return
                 self.progress.emit(idx + 1, total)
                 seq_clean = seq.upper().replace("U", "T")
                 # Reject ambiguous sequences instead of silently deleting
                 # non-ACGT characters (which would shift the reading frame).
                 if not re.fullmatch(r"[ACGT]+", seq_clean):
-                    # Skip this record; its absence from results serves as a signal.
+                    skipped_count += 1
                     continue
                 if self._frame_offset:
                     seq_clean = seq_clean[self._frame_offset :]
@@ -479,6 +688,12 @@ class _Worker(QObject):
                         "rscu": rscu.get(codon, 0.0),
                     })
 
+                rare_codons = sum(
+                    1
+                    for row in rows
+                    if row["aa"] != "*" and row["count"] > 0 and row["rscu"] < _RARE_RSCU_THRESHOLD
+                )
+
                 results.append({
                     "header": header,
                     "seq_len": len(seq_clean),
@@ -490,9 +705,11 @@ class _Worker(QObject):
                     "gc12": gc12,
                     "enc": enc,
                     "cai": cai,
+                    "rare_codons": rare_codons,
                     "rows": rows,
                     "counts": counts,
                 })
+            self.skipped.emit(skipped_count)
             self.finished.emit(results)
         except Exception as exc:
             self.error.emit(str(exc))
@@ -518,6 +735,7 @@ class CodonUsageTab(QWidget):
         self._thread: Optional[QThread] = None
         self._worker: Optional[_Worker] = None
         self._current_seq_idx: int = 0
+        self._skipped_count: int = 0
         self._build_ui()
 
     def _build_ui(self):
@@ -529,12 +747,32 @@ class CodonUsageTab(QWidget):
         splitter.setChildrenCollapsible(False)
         root.addWidget(splitter, 1)
 
-        splitter.addWidget(self._build_left_panel())
-        splitter.addWidget(self._build_right_panel())
-        splitter.setSizes([360, 840])
+        left_panel = self._build_left_panel()
+        right_panel = self._build_right_panel()
+        left_panel.setMinimumWidth(280)
+        right_panel.setMinimumWidth(520)
+        splitter.addWidget(left_panel)
+        splitter.addWidget(right_panel)
+        splitter.setSizes([320, 560])
 
         self._status_label = QLabel("Ready")
-        self._status_label.setStyleSheet("color:#555;font-size:15px;")
+
+        self._btn_run = QPushButton("Run")
+        self._btn_run.setFixedWidth(90)
+        self._btn_run.clicked.connect(self._run_analysis)
+
+        self._btn_export_csv = QPushButton("Export CSV")
+        self._btn_export_csv.setFixedWidth(110)
+        self._btn_export_csv.setEnabled(False)
+        self._btn_export_csv.clicked.connect(self._export_csv)
+
+        self._btn_export_plot = QPushButton("Export Plot")
+        self._btn_export_plot.setFixedWidth(110)
+        self._btn_export_plot.setToolTip(
+            "Save the current chart (RSCU / GC / Comparison) as an image file"
+        )
+        self._btn_export_plot.setEnabled(False)
+        self._btn_export_plot.clicked.connect(self._export_plot)
 
         self._btn_help = QPushButton("Help")
         self._btn_help.setFixedWidth(80)
@@ -543,8 +781,13 @@ class CodonUsageTab(QWidget):
         status_row = QHBoxLayout()
         status_row.addWidget(self._status_label)
         status_row.addStretch()
+        status_row.addWidget(self._btn_run)
+        status_row.addWidget(self._btn_export_csv)
+        status_row.addWidget(self._btn_export_plot)
         status_row.addWidget(self._btn_help)
         root.addLayout(status_row)
+
+        self._result_tabs.currentChanged.connect(self._update_export_plot_state)
 
     def _build_left_panel(self) -> QWidget:
         w = QWidget()
@@ -554,13 +797,17 @@ class CodonUsageTab(QWidget):
 
         grp_input = QGroupBox(self.tr("Input Sequence"))
         gi = QVBoxLayout(grp_input)
+        gi.setContentsMargins(6, 16, 6, 4)
         gi.setSpacing(6)
 
         self._input_text = QTextEdit()
         self._input_text.setPlaceholderText(
-            ">gene1\nATGAAAGGGTTTCCCAAATAG\n\n>gene2\nATGGCATTTCGATGA"
+            "Paste one or more DNA coding sequences in FASTA format, "
+            "or drag & drop a file...\n\n"
+            ">gene1\nATGAAAGGGTTTCCCAAATAG\n"
+            ">gene2\nATGGCATTTCGATGA"
         )
-        self._input_text.setMinimumHeight(200)
+        self._input_text.setMinimumHeight(150)
         self._input_text.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._input_text.setAcceptDrops(True)
         self._input_text.dragEnterEvent = self._drag_enter
@@ -579,6 +826,7 @@ class CodonUsageTab(QWidget):
 
         grp_opt = QGroupBox(self.tr("Options"))
         go = QVBoxLayout(grp_opt)
+        go.setContentsMargins(6, 16, 6, 4)
 
         go.addWidget(QLabel("Genetic Code:"))
         self._code_combo = QComboBox()
@@ -603,49 +851,9 @@ class CodonUsageTab(QWidget):
         go.addWidget(self._frame_combo)
         lay.addWidget(grp_opt)
 
-        run_row = QHBoxLayout()
-        self._btn_run = QPushButton("Analyze")
-        self._btn_run.setFixedHeight(38)
-        self._btn_run.setStyleSheet(
-            "QPushButton{background:#1976d2;color:white;border-radius:5px;font-weight:600;}"
-            "QPushButton:hover{background:#1565c0;}"
-            "QPushButton:disabled{background:#aaa;}"
-        )
-        self._btn_cancel = QPushButton("Cancel")
-        self._btn_cancel.setFixedHeight(38)
-        self._btn_cancel.setEnabled(False)
-        run_row.addWidget(self._btn_run)
-        run_row.addWidget(self._btn_cancel)
-        lay.addLayout(run_row)
-
-        grp_exp = QGroupBox(self.tr("Export"))
-        ge = QVBoxLayout(grp_exp)
-        scope = QHBoxLayout()
-        self._rb_all = QRadioButton("All sequences")
-        self._rb_cur = QRadioButton("Current sequence")
-        self._rb_all.setChecked(True)
-        self._scope_group = QButtonGroup()
-        self._scope_group.addButton(self._rb_all, 0)
-        self._scope_group.addButton(self._rb_cur, 1)
-        scope.addWidget(self._rb_all)
-        scope.addWidget(self._rb_cur)
-        ge.addLayout(scope)
-
-        self._btn_export_csv = QPushButton("Export CSV")
-        self._btn_export_csv.setEnabled(False)
-        self._btn_copy = QPushButton("Copy Table")
-        self._btn_copy.setEnabled(False)
-        ge.addWidget(self._btn_export_csv)
-        ge.addWidget(self._btn_copy)
-        lay.addWidget(grp_exp)
-
         self._btn_load.clicked.connect(self._load_file)
         self._btn_example.clicked.connect(self._insert_example)
-        self._btn_clear.clicked.connect(self._input_text.clear)
-        self._btn_run.clicked.connect(self._run_analysis)
-        self._btn_cancel.clicked.connect(self._cancel_analysis)
-        self._btn_export_csv.clicked.connect(self._export_csv)
-        self._btn_copy.clicked.connect(self._copy_table)
+        self._btn_clear.clicked.connect(self._clear_all)
         return w
 
     def _build_right_panel(self) -> QWidget:
@@ -675,8 +883,8 @@ class CodonUsageTab(QWidget):
         self._stats_table.setHorizontalHeaderLabels(["Metric", "Value"])
         self._stats_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._stats_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self._stats_table.setMinimumHeight(280)
-        self._stats_table.setMaximumHeight(320)
+        self._stats_table.setMinimumHeight(200)
+        self._stats_table.setMaximumHeight(240)
         sv.addWidget(self._stats_table)
 
         sv.addSpacing(14)
@@ -691,8 +899,8 @@ class CodonUsageTab(QWidget):
         ])
         self._top10_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._top10_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self._top10_table.setMinimumHeight(260)
-        self._top10_table.setMaximumHeight(300)
+        self._top10_table.setMinimumHeight(190)
+        self._top10_table.setMaximumHeight(220)
         sv.addWidget(self._top10_table)
         sv.addStretch()
         self._result_tabs.addTab(self._summary_widget, "Summary")
@@ -700,64 +908,59 @@ class CodonUsageTab(QWidget):
         codon_container = QWidget()
         cv = QVBoxLayout(codon_container)
         fr = QHBoxLayout()
-        fr.addWidget(QLabel("Filter by amino acid (one-letter):"))
+        fr.addWidget(QLabel("Filter by amino acid:"))
         self._aa_filter = QLineEdit()
-        self._aa_filter.setPlaceholderText("e.g. L")
-        self._aa_filter.setMaximumWidth(80)
+        self._aa_filter.setPlaceholderText("e.g. L, M or Leu")
+        self._aa_filter.setMaximumWidth(110)
+        self._aa_filter.setToolTip(
+            "One-letter or three-letter codes, comma-separated (e.g. L, Leu)"
+        )
         self._aa_filter.setClearButtonEnabled(True)
         fr.addWidget(self._aa_filter)
         fr.addStretch()
+        self._chk_hide_zero = QCheckBox("Hide zero-count codons")
+        self._chk_hide_zero.setChecked(True)
+        self._chk_hide_zero.setToolTip("Hide codons that do not appear in the current sequence")
+        fr.addWidget(self._chk_hide_zero)
         self._chk_show_stop = QCheckBox("Show stop codons")
         self._chk_show_stop.setChecked(False)
         fr.addWidget(self._chk_show_stop)
         cv.addLayout(fr)
 
         self._codon_table = QTableWidget()
-        self._codon_table.setColumnCount(6)
+        self._codon_table.setColumnCount(5)
         self._codon_table.setHorizontalHeaderLabels([
             "Codon",
-            "Amino Acid",
+            "AA",
             "Count",
             "Freq(/1000)",
             "RSCU",
-            "RSCU Bar",
         ])
-        self._codon_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        self._codon_table.setColumnWidth(0, 60)
-        self._codon_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        self._codon_table.setColumnWidth(1, 80)
-        self._codon_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self._codon_table.setColumnWidth(2, 60)
-        self._codon_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        self._codon_table.setColumnWidth(3, 80)
-        self._codon_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
-        self._codon_table.setColumnWidth(4, 60)
-        self._codon_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        header = self._codon_table.horizontalHeader()
+        for col in range(4):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
         self._codon_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._codon_table.setAlternatingRowColors(True)
         self._codon_table.setSortingEnabled(True)
         cv.addWidget(self._codon_table)
-        self._result_tabs.addTab(codon_container, "Codon Table")
+        self._result_tabs.addTab(codon_container, "Codons")
 
         rscu_container = QWidget()
         rv = QVBoxLayout(rscu_container)
-        self._rscu_fig = Figure(tight_layout=True)
+        self._rscu_fig = Figure(figsize=(8, 3.0), tight_layout=True)
         self._rscu_canvas = FigureCanvas(self._rscu_fig)
-        self._rscu_canvas.setMinimumHeight(350)
-        self._rscu_toolbar = NavigationToolbar(self._rscu_canvas, rscu_container)
-        rv.addWidget(self._rscu_toolbar)
+        self._rscu_canvas.setMinimumHeight(300)
         rv.addWidget(self._rscu_canvas)
-        self._result_tabs.addTab(rscu_container, "RSCU Chart")
+        self._result_tabs.addTab(rscu_container, "RSCU")
 
         gc_container = QWidget()
         gv = QVBoxLayout(gc_container)
-        self._gc_fig = Figure(tight_layout=True)
+        self._gc_fig = Figure(figsize=(8, 2.6), tight_layout=True)
         self._gc_canvas = FigureCanvas(self._gc_fig)
-        self._gc_canvas.setMinimumHeight(300)
-        self._gc_toolbar = NavigationToolbar(self._gc_canvas, gc_container)
-        gv.addWidget(self._gc_toolbar)
+        self._gc_canvas.setMinimumHeight(260)
         gv.addWidget(self._gc_canvas)
-        self._result_tabs.addTab(gc_container, "GC / Neutrality")
+        self._result_tabs.addTab(gc_container, "GC/Neutrality")
 
         cmp_container = QWidget()
         mv = QVBoxLayout(cmp_container)
@@ -773,23 +976,29 @@ class CodonUsageTab(QWidget):
             "GC%",
             "GC3%",
         ])
-        self._cmp_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self._cmp_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
         self._cmp_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._cmp_table.setSortingEnabled(True)
-        self._cmp_table.setMaximumHeight(220)
+        self._cmp_table.setMaximumHeight(200)
         mv.addWidget(self._cmp_table)
 
-        self._nc_fig = Figure(tight_layout=True)
+        self._nc_fig = Figure(figsize=(8, 2.4), tight_layout=True)
         self._nc_canvas = FigureCanvas(self._nc_fig)
-        self._nc_canvas.setMinimumHeight(280)
-        self._nc_toolbar = NavigationToolbar(self._nc_canvas, cmp_container)
-        mv.addWidget(self._nc_toolbar)
+        self._nc_canvas.setMinimumHeight(240)
         mv.addWidget(self._nc_canvas)
-        self._result_tabs.addTab(cmp_container, "Comparison")
+        self._result_tabs.addTab(cmp_container, "Compare")
 
         self._seq_combo.currentIndexChanged.connect(self._on_seq_changed)
         self._aa_filter.textChanged.connect(self._apply_aa_filter)
+        self._codon_table.horizontalHeader().sectionClicked.connect(
+            lambda _: self._apply_aa_filter(self._aa_filter.text())
+        )
         self._chk_show_stop.stateChanged.connect(
+            lambda _: self._apply_aa_filter(self._aa_filter.text())
+        )
+        self._chk_hide_zero.stateChanged.connect(
             lambda _: self._apply_aa_filter(self._aa_filter.text())
         )
 
@@ -804,7 +1013,7 @@ class CodonUsageTab(QWidget):
     def _drop_event(self, event):
         urls = event.mimeData().urls()
         if urls:
-            path = urls[0].toLocalFile()
+            path = os.path.normpath(urls[0].toLocalFile())
             try:
                 with open(path, "r", encoding="utf-8", errors="replace") as f:
                     self._input_text.setPlainText(f.read())
@@ -840,10 +1049,60 @@ class CodonUsageTab(QWidget):
             return
         self._input_text.setPlainText(text)
 
+    def _clear_all(self):
+        """Clear the input and reset all result views."""
+        self._input_text.clear()
+        self._results = []
+        self._skipped_count = 0
+        self._current_seq_idx = 0
+        self._seq_combo.blockSignals(True)
+        self._seq_combo.clear()
+        self._seq_combo.blockSignals(False)
+        self._seq_selector_row.setVisible(False)
+        self._stats_table.setRowCount(0)
+        self._top10_table.setRowCount(0)
+        self._codon_table.setRowCount(0)
+        self._cmp_table.setRowCount(0)
+        for fig, canvas in (
+            (self._rscu_fig, self._rscu_canvas),
+            (self._gc_fig, self._gc_canvas),
+            (self._nc_fig, self._nc_canvas),
+        ):
+            fig.clear()
+            canvas.draw_idle()
+        self._btn_export_csv.setEnabled(False)
+        self._btn_export_plot.setEnabled(False)
+        self._set_status("Cleared")
+
     def _set_status(self, msg: str):
         self._status_label.setText(msg)
         if self._status_cb:
             self._status_cb(msg, 4000)
+
+    def _update_export_plot_state(self, *_args):
+        """Enable Export Plot only when a chart tab is active with results."""
+        self._btn_export_plot.setEnabled(
+            bool(self._results) and self._result_tabs.currentIndex() >= 2
+        )
+
+    def _export_plot(self):
+        """Save the currently visible chart (RSCU / GC / Comparison) as an image."""
+        figs = {2: self._rscu_fig, 3: self._gc_fig, 4: self._nc_fig}
+        fig = figs.get(self._result_tabs.currentIndex())
+        if fig is None:
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Plot",
+            "codon_usage.png",
+            "PNG Images (*.png);;PDF Files (*.pdf);;SVG Files (*.svg)",
+        )
+        if path:
+            try:
+                fig.savefig(path, dpi=150, bbox_inches="tight", pad_inches=0.15)
+                self._set_status(f"Plot saved: {path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", str(e))
 
     def _run_analysis(self):
         text = self._input_text.toPlainText().strip()
@@ -872,9 +1131,7 @@ class CodonUsageTab(QWidget):
         frame_offset = self._frame_combo.currentIndex()
 
         self._btn_run.setEnabled(False)
-        self._btn_cancel.setEnabled(True)
         self._btn_export_csv.setEnabled(False)
-        self._btn_copy.setEnabled(False)
         self._set_status("Analyzing...")
 
         self._thread = QThread(self)
@@ -882,11 +1139,10 @@ class CodonUsageTab(QWidget):
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.progress.connect(self._on_progress)
+        self._worker.skipped.connect(self._on_skipped)
         self._worker.finished.connect(self._on_analysis_done)
-        self._worker.cancelled.connect(self._on_analysis_cancelled)
         self._worker.error.connect(self._on_analysis_error)
         self._worker.finished.connect(self._thread.quit)
-        self._worker.cancelled.connect(self._thread.quit)
         self._worker.error.connect(self._thread.quit)
         self._thread.finished.connect(self._thread.deleteLater)
         self._thread.finished.connect(self._cleanup_worker)
@@ -899,19 +1155,9 @@ class CodonUsageTab(QWidget):
         self._results = results
 
         short = [r["header"] for r in results if r["total_codons"] < 100]
-        if short:
-            names = "\n".join(f"  • {h[:60]}" for h in short[:5])
-            QMessageBox.warning(
-                self,
-                "Short Sequences",
-                "The following sequence(s) have fewer than 100 codons.\n"
-                "RSCU and ENC may be unreliable:\n\n" + names,
-            )
 
         self._btn_run.setEnabled(True)
-        self._btn_cancel.setEnabled(False)
         self._btn_export_csv.setEnabled(True)
-        self._btn_copy.setEnabled(True)
 
         self._seq_combo.blockSignals(True)
         self._seq_combo.clear()
@@ -925,28 +1171,25 @@ class CodonUsageTab(QWidget):
 
         self._display_results(0)
         self._fill_comparison()
-        self._set_status(f"Done — {len(results)} sequence(s) analyzed.")
+        parts = [f"{len(results)} sequence(s) analyzed"]
+        if self._skipped_count:
+            parts.append(f"{self._skipped_count} skipped (ambiguous bases)")
+        if short:
+            parts.append(f"{len(short)} with <100 codons (RSCU/ENC may be unreliable)")
+        self._set_status("Done — " + "; ".join(parts) + ".")
+        self._update_export_plot_state()
+
+    def _on_skipped(self, count: int):
+        self._skipped_count = count
 
     def _on_analysis_error(self, msg: str):
         self._btn_run.setEnabled(True)
-        self._btn_cancel.setEnabled(False)
         QMessageBox.critical(self, "Analysis Error", msg)
         self._set_status("Error: " + msg[:80])
 
     def _cleanup_worker(self):
         self._worker = None
         self._thread = None
-
-    def _cancel_analysis(self):
-        if self._worker is not None:
-            self._worker.cancel()
-        self._btn_cancel.setEnabled(False)
-        self._set_status("Cancelling...")
-
-    def _on_analysis_cancelled(self):
-        self._btn_run.setEnabled(True)
-        self._btn_cancel.setEnabled(False)
-        self._set_status("Analysis cancelled.")
 
     def _on_seq_changed(self, idx: int):
         if 0 <= idx < len(self._results):
@@ -988,6 +1231,14 @@ class CodonUsageTab(QWidget):
             ("ENC", f"{enc:.2f}"),
             ("Codon Bias Strength", bias),
             ("CAI", cai_str),
+            (
+                "Rare Codons (RSCU < 0.3)",
+                (
+                    f"{r['rare_codons']} ({r['rare_codons'] / r['total_codons'] * 100:.1f}%)"
+                    if r["total_codons"]
+                    else "0 (0.0%)"
+                ),
+            ),
         ]
         self._stats_table.setRowCount(len(metrics))
         for i, (k, v) in enumerate(metrics):
@@ -1019,24 +1270,13 @@ class CodonUsageTab(QWidget):
             self._codon_table.setItem(i, 3, _NumItem(row["freq_per1000"], "{:.2f}"))
             self._codon_table.setItem(i, 4, _NumItem(rscu, "{:.3f}"))
 
-            bar_len = int(min(rscu / 3.0, 1.0) * 20)
-            bar_item = QTableWidgetItem("█" * bar_len)
-            bar_item.setForeground(QColor(self._rscu_color(rscu)))
-            self._codon_table.setItem(i, 5, bar_item)
-
-            if row["aa"] != "*":
-                bg = QColor(self._rscu_color(rscu) + "28")
-                for col in range(2, 5):
-                    item = self._codon_table.item(i, col)
-                    if item:
-                        item.setBackground(bg)
-
         self._codon_table.setSortingEnabled(True)
         self._apply_aa_filter(self._aa_filter.text())
 
     def _apply_aa_filter(self, text: str):
-        q = text.strip().upper()
+        q = self._parse_aa_query(text)
         show_stop = self._chk_show_stop.isChecked()
+        hide_zero = self._chk_hide_zero.isChecked()
         for row in range(self._codon_table.rowCount()):
             aa_item = self._codon_table.item(row, 1)
             if not aa_item:
@@ -1045,8 +1285,30 @@ class CodonUsageTab(QWidget):
             if aa == "STOP" and not show_stop:
                 self._codon_table.setRowHidden(row, True)
                 continue
-            hide = bool(q) and not aa.startswith(q)
+            hide = bool(q) and aa not in q
+            if not hide and hide_zero:
+                count_item = self._codon_table.item(row, 2)
+                hide = count_item is not None and count_item.text() == "0"
             self._codon_table.setRowHidden(row, hide)
+
+    def _parse_aa_query(self, text: str) -> set:
+        """Parse the AA filter into a set of one-letter codes.
+
+        Accepts one-letter codes, three-letter codes and comma/space separated
+        lists, e.g. 'L', 'Leu', 'L,M' or 'leu, met'.
+        """
+        codes: set = set()
+        for token in re.split(r"[,;\s]+", text.strip()):
+            token = token.upper()
+            if not token:
+                continue
+            if token == "STOP":
+                codes.add("STOP")
+            elif len(token) == 3 and token in _AA_3_TO_1:
+                codes.add(_AA_3_TO_1[token])
+            else:
+                codes.add(token)
+        return codes
 
     def _draw_rscu_chart(self, r: dict):
         from Bio.Data import CodonTable
@@ -1065,7 +1327,6 @@ class CodonUsageTab(QWidget):
         aa_order = sorted(aa_to_codons.keys(), key=lambda x: (x == "*", x))
         rscu_map = {row["codon"]: row["rscu"] for row in r["rows"]}
 
-        n_total_codons = sum(len(c) for c in aa_to_codons.values())
         self._rscu_fig.clear()
         self._rscu_fig.set_facecolor("#f9f9f9")
         ax = self._rscu_fig.add_subplot(111)
@@ -1266,11 +1527,48 @@ class CodonUsageTab(QWidget):
         if not path:
             return
 
-        export_all = self._rb_all.isChecked()
-        rows = self._results if export_all else [self._results[self._current_seq_idx]]
+        rows = self._results
         try:
             with open(path, "w", newline="", encoding="utf-8-sig") as f:
                 writer = csv.writer(f)
+                writer.writerow(["== Summary =="])
+                writer.writerow([
+                    "Sequence",
+                    "Length_nt",
+                    "Codons",
+                    "ENC",
+                    "CAI",
+                    "GC_pct",
+                    "GC1_pct",
+                    "GC2_pct",
+                    "GC3_pct",
+                    "GC12_pct",
+                    "Rare_Codons",
+                    "Rare_Codons_pct",
+                ])
+                for r in rows:
+                    cai = f"{r['cai']:.4f}" if r.get("cai") is not None else "N/A"
+                    rare_pct = (
+                        f"{r['rare_codons'] / r['total_codons'] * 100:.2f}"
+                        if r["total_codons"]
+                        else "0.00"
+                    )
+                    writer.writerow([
+                        r["header"],
+                        r["seq_len"],
+                        r["total_codons"],
+                        f"{r['enc']:.2f}",
+                        cai,
+                        f"{r['gc_all']:.2f}",
+                        f"{r['gc1']:.2f}",
+                        f"{r['gc2']:.2f}",
+                        f"{r['gc3']:.2f}",
+                        f"{r['gc12']:.2f}",
+                        r["rare_codons"],
+                        rare_pct,
+                    ])
+                writer.writerow([])
+                writer.writerow(["== Codon Usage =="])
                 writer.writerow([
                     "Sequence",
                     "Codon",
@@ -1289,41 +1587,9 @@ class CodonUsageTab(QWidget):
                             f"{row['freq_per1000']:.4f}",
                             f"{row['rscu']:.4f}",
                         ])
-            scope = "all sequences" if export_all else "current sequence"
-            self._set_status(f"Exported ({scope}): {path}")
+            self._set_status(f"Exported: {path}")
         except Exception as e:
             QMessageBox.critical(self, "Export Error", str(e))
-
-    def _copy_table(self):
-        if not self._results:
-            return
-        export_all = self._rb_all.isChecked()
-        rows = self._results if export_all else [self._results[self._current_seq_idx]]
-
-        lines = ["Sequence\tCodon\tAmino Acid\tCount\tFreq/1000\tRSCU"]
-        for r in rows:
-            for row in r["rows"]:
-                lines.append(
-                    f"{r['header']}\t{row['codon']}\t{row['aa']}\t"
-                    f"{row['count']}\t{row['freq_per1000']:.4f}\t{row['rscu']:.4f}"
-                )
-        QApplication.clipboard().setText("\n".join(lines))
-        scope = "all sequences" if export_all else "current sequence"
-        self._set_status(f"Copied ({scope}) to clipboard.")
-
-    @staticmethod
-    def _rscu_color(val: float) -> str:
-        if val == 0:
-            return "#cccccc"
-        if val < 0.6:
-            return "#ef5350"  # strongly underused
-        if val < 0.9:
-            return "#ff9800"  # moderately underused
-        if val <= 1.1:
-            return "#66bb6a"  # near-equal usage (0.9–1.1)
-        if val < 2.0:
-            return "#42a5f5"  # preferred
-        return "#7e57c2"  # highly preferred
 
     def _show_help(self):
         help_text = self.tr(
@@ -1333,7 +1599,7 @@ class CodonUsageTab(QWidget):
             "The tool computes key metrics including <b>RSCU</b> (Relative Synonymous Codon Usage), "
             "<b>ENC</b> (Effective Number of Codons), <b>CAI</b> (Codon Adaptation Index), "
             "and GC-content at each codon position. Results are presented across five "
-            "interactive tabs with sortable tables, color-coded RSCU bars, and publication-ready "
+            "interactive tabs with sortable tables and publication-ready "
             "Matplotlib charts.</p>"
             "<h3>Quick Start</h3>"
             "<ol>"
@@ -1341,7 +1607,7 @@ class CodonUsageTab(QWidget):
             "<li>Select the appropriate <b>Genetic Code</b> for your organism (default: Standard)</li>"
             "<li>Optionally choose a <b>CAI Reference Organism</b> to compute the Codon Adaptation Index</li>"
             "<li>Select a <b>Reading Frame</b> (default +1 works for most CDS inputs)</li>"
-            "<li>Click <b>Analyze</b> and browse the five result tabs</li>"
+            "<li>Click <b>Run</b> (bottom right) and browse the five result tabs</li>"
             "</ol>"
             "<h3>Key Metrics Explained</h3>"
             "<table border='0' cellpadding='4' cellspacing='2'>"
@@ -1349,15 +1615,16 @@ class CodonUsageTab(QWidget):
             "<tr><td>RSCU</td><td>Relative Synonymous Codon Usage</td><td>Values &gt; 1 = over-represented, &lt; 1 = under-represented; ideal = 1.0 (no bias)</td></tr>"
             "<tr><td>ENC</td><td>Effective Number of Codons</td><td>Ranges 20 (extreme bias) to 61 (no bias); values ≤ 35 indicate strong codon bias</td></tr>"
             "<tr><td>CAI</td><td>Codon Adaptation Index</td><td>Ranges 0–1; higher values mean better translation-adaptation to the reference organism</td></tr>"
+            "<tr><td>Rare codons</td><td>Codons with RSCU &lt; 0.3</td><td>Many rare codons can bottleneck protein expression in heterologous hosts</td></tr>"
             "<tr><td>GC / GC3</td><td>Overall GC% and GC% at 3rd codon position</td><td>GC3 is a sensitive indicator of mutational bias; low GC3 often correlates with translational selection</td></tr>"
             "</table>"
             "<h3>Result Tabs</h3>"
             "<ul>"
             "<li><b>Summary</b> — key statistics for the current sequence, plus a top-10 most-used codons table</li>"
-            "<li><b>Codon Table</b> — full 64-codon table with counts, frequency per 1000, RSCU, and a visual RSCU bar (green = enriched, red = depleted). Filter by amino acid or toggle stop codons</li>"
-            "<li><b>RSCU Chart</b> — grouped bar chart of RSCU values per amino acid, with one bar per synonymous codon</li>"
-            "<li><b>GC / Neutrality</b> — stacked GC1/GC2/GC3 bars for each sequence, plus a GC12 vs GC3 neutrality plot (slope ≈ 1 = neutral evolution; slope &lt; 1 = selective constraint)</li>"
-            "<li><b>Comparison</b> — per-sequence table (ENC, CAI, GC%, GC3%) and the Nc plot (ENC vs GC3) to detect mutational vs selective pressure</li>"
+            "<li><b>Codons</b> — full 64-codon table with counts, frequency per 1000 and RSCU. Filter by amino acid (one- or three-letter, e.g. L or Leu), hide zero-count codons, or toggle stop codons</li>"
+            "<li><b>RSCU</b> — grouped bar chart of RSCU values per amino acid, with one bar per synonymous codon</li>"
+            "<li><b>GC/Neutrality</b> — stacked GC1/GC2/GC3 bars for each sequence, plus a GC12 vs GC3 neutrality plot (slope ≈ 1 = neutral evolution; slope &lt; 1 = selective constraint)</li>"
+            "<li><b>Compare</b> — per-sequence table (ENC, CAI, GC%, GC3%) and the Nc plot (ENC vs GC3) to detect mutational vs selective pressure</li>"
             "</ul>"
             "<h3>Genetic Codes</h3>"
             "<p>The tool supports 11 NCBI genetic code tables. The most frequently used alternatives are:</p>"
@@ -1369,18 +1636,21 @@ class CodonUsageTab(QWidget):
             "</ul>"
             "<h3>CAI Reference Tables</h3>"
             "<p>The Codon Adaptation Index compares your sequence's codon usage to that of highly-expressed genes "
-            "in a reference organism. Built-in references: <b>Human</b> and <b>E. coli K-12</b> (based on ribosomal "
-            "protein genes). CAI values &gt; 0.8 suggest good adaptation to the reference.</p>"
+            "in a reference organism. Built-in references: <b>Human</b>, <b>E. coli K-12</b>, <b>S. cerevisiae</b>, "
+            "<b>C. elegans</b>, <b>A. thaliana</b> and <b>M. musculus</b> (RSCU tables derived from genome-wide codon "
+            "usage data). CAI values &gt; 0.8 suggest good adaptation to the reference.</p>"
             "<h3>Reading Frames</h3>"
             "<p>The tool translates your sequence in one of three forward reading frames. Use <b>Frame +1</b> for "
             "canonical CDS input; try frames +2 and +3 if the sequence may be misaligned or contains alternative start sites.</p>"
             "<h3>Tips</h3>"
             "<ul>"
             "<li>Click <b>Example</b> to load a real bacterial spoT CDS for a quick trial</li>"
-            "<li>The <b>Codon Table</b> supports sorting — click any column header to reorder rows</li>"
-            "<li>Use the amino acid filter (e.g. &quot;L&quot; for leucine) to focus on specific codon families</li>"
-            "<li>Multi-sequence input enables the <b>Comparison</b> tab with per-sequence summaries and the Nc plot</li>"
-            "<li>Export data as CSV or use <b>Copy Table</b> to transfer the current view to your clipboard</li>"
+            "<li>The <b>Codons</b> table supports sorting — click any column header to reorder rows</li>"
+            "<li>Use the amino acid filter (e.g. &quot;L&quot;, &quot;Leu&quot; or &quot;L,M&quot;) to focus on specific codon families; <b>Hide zero-count codons</b> is on by default</li>"
+            "<li>Multi-sequence input enables the <b>Compare</b> tab with per-sequence summaries and the Nc plot</li>"
+            "<li>Use <b>Export Plot</b> to save the current chart (RSCU / GC/Neutrality / Compare) as PNG, PDF or SVG</li>"
+            "<li><b>Clear</b> resets the input and all result views</li>"
+            "<li>Export data as CSV &mdash; the file contains a per-sequence summary and the full codon usage table</li>"
             "<li>For whole-genome codon usage analysis, concatenate CDS sequences from the same genome into a single FASTA file</li>"
             "</ul>"
             "<h3>Related Tools in SeqSketch</h3>"

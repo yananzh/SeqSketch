@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import re
 from typing import Dict, List, Optional
 
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
@@ -25,8 +25,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget
-from utils.example_data import load_example_text
+from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.example_data import stage_example
 
 
 class _AnalysisWorker(QObject):
@@ -97,18 +97,10 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self._worker: Optional[_AnalysisWorker] = None
         self._setup_enzyme_ui()
         self._setup_results_area()
-        self.input_text.setPlaceholderText(
-            self.tr(
-                "Paste DNA sequence in FASTA format or raw sequence...\n"
-                "Example:\n"
-                ">plasmid\n"
-                "ATGCGATCGATCGAAGCTTCGATCG..."
-            )
-        )
+        self._setup_file_input()
         self.output_text.setPlaceholderText(
             self.tr("Restriction enzyme results will appear here...")
         )
-        self.input_text.setMinimumHeight(100)
         self.output_text.setMinimumHeight(80)
         # Hide the plain-text output panel; results are shown in a QTableWidget
         self.output_group.hide()
@@ -125,30 +117,58 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self.export_xlsx_btn.clicked.connect(self._export_excel)
         _idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(_idx + 1, self.export_xlsx_btn)
-        # Move Upload File button down slightly
-        self.upload_btn.setStyleSheet("margin-top: 4px;")
 
-        # Place Example button horizontally with upload_btn
+    def _setup_file_input(self):
+        """Replace the paste editor with a file-only input (Browse + drag & drop)."""
+        self.input_text.hide()
+        self.upload_btn.hide()
+        self.input_hint.hide()
+
+        self.input_path_edit = FileDropLineEdit()
+        self.input_path_edit.setReadOnly(True)
+        self.input_path_edit.setPlaceholderText(
+            self.tr("Select a FASTA file or drag & drop it here...")
+        )
+        self.input_path_edit.setToolTip(
+            self.tr("DNA sequence (FASTA format) to analyse for restriction sites")
+        )
+
         self.example_btn = QPushButton(self.tr("Example"))
         self.example_btn.clicked.connect(self._load_example)
+
         ig_layout = self.input_group.layout()
+        ig_layout.setContentsMargins(6, 16, 6, 4)
         ig_layout.removeWidget(self.upload_btn)
-        btn_row = QHBoxLayout()
-        btn_row.addWidget(self.upload_btn, 1)
-        btn_row.addWidget(self.example_btn, 1)
-        ig_layout.insertLayout(1, btn_row)
+        row = QHBoxLayout()
+        row.addWidget(QLabel(self.tr("Sequence File:")))
+        row.addWidget(self.input_path_edit, 1)
+        self.browse_btn = QPushButton(self.tr("Browse"))
+        self.browse_btn.clicked.connect(self._browse_input_file)
+        row.addWidget(self.browse_btn)
+        row.addWidget(self.example_btn)
+        ig_layout.insertLayout(1, row)
+
+    def _browse_input_file(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Open FASTA File"),
+            "",
+            self.tr("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
+        )
+        if path:
+            self.input_path_edit.setText(os.path.normpath(path))
 
     def _load_example(self):
-        """Load the bundled pBR322 plasmid example for restriction analysis."""
-        text = load_example_text("dna", "pBR322.fasta")
-        if not text:
+        """Stage the bundled pBR322 plasmid example and fill the file field."""
+        path = stage_example("dna", "pBR322.fasta")
+        if not path:
             QMessageBox.information(
                 self,
                 self.tr("Example"),
                 self.tr("Failed to load example data. Please check your installation."),
             )
             return
-        self.input_text.setPlainText(text)
+        self.input_path_edit.setText(path)
         self.show_status(self.tr("Loaded example data: pBR322.fasta"))
 
     def _setup_enzyme_ui(self):
@@ -219,7 +239,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
-        self._results_table.setMinimumHeight(160)
+        self._results_table.setMinimumHeight(90)
         self._results_table.setAlternatingRowColors(True)
         tl.addWidget(self._results_table)
         self.add_content_widget(table_grp)
@@ -231,22 +251,39 @@ class RestrictionEnzymeTab(BaseTabWidget):
         gl.setContentsMargins(0, 16, 0, 4)
         gl.setSpacing(2)
 
-        self._map_fig = Figure(figsize=(8, 3), dpi=100)
+        self._map_fig = Figure(figsize=(8, 1.6), dpi=100)
         self._map_canvas = FigureCanvas(self._map_fig)
-        self._map_canvas.setMinimumHeight(180)
-        self._map_toolbar = NavigationToolbar(self._map_canvas, grp)
-        gl.addWidget(self._map_toolbar)
+        self._map_canvas.setMinimumHeight(130)
         gl.addWidget(self._map_canvas)
 
         self.add_content_widget(grp)
 
+    def clear(self):
+        """Clear the selected file, results table and restriction map."""
+        self.input_path_edit.clear()
+        self._results = []
+        self._results_table.setRowCount(0)
+        self._map_fig.clear()
+        self._map_canvas.draw_idle()
+        super().clear()
+
     # ── Run ────────────────────────────────────────────────────────────
 
     def run(self):
-        raw = self.input_text.toPlainText().strip()
-        if not raw:
-            self.show_status(self.tr("Please enter a DNA sequence."))
+        path = self.input_path_edit.text().strip()
+        if not path:
+            self.show_status(self.tr("Please select a DNA sequence file."))
             return
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                raw = fh.read()
+        except UnicodeDecodeError:
+            with open(path, "r", encoding="latin-1") as fh:
+                raw = fh.read()
+        except OSError as exc:
+            self.show_status(self.tr(f"Error: Cannot read file \u2014 {exc}"))
+            return
+        raw = raw.strip()
 
         # Parse FASTA
         seq = raw
