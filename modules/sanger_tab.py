@@ -70,12 +70,8 @@ class SangerTab(QWidget):
         fwd_row.addWidget(fwd_label)
         self.fwd_edit = FileDropLineEdit()
         self.fwd_edit.setReadOnly(True)
-        self.fwd_edit.setPlaceholderText(
-            self.tr("Select a FASTA file or drag & drop it here...")
-        )
-        self.fwd_edit.setToolTip(
-            self.tr("Forward Sanger read (5'\u21923') as a FASTA file")
-        )
+        self.fwd_edit.setPlaceholderText(self.tr("Select a FASTA file or drag & drop it here..."))
+        self.fwd_edit.setToolTip(self.tr("Forward Sanger read (5'\u21923') as a FASTA file"))
         fwd_row.addWidget(self.fwd_edit, 1)
         self._btn_browse_fwd = QPushButton(self.tr("Browse"))
         self._btn_browse_fwd.clicked.connect(lambda: self._browse_input_file(self.fwd_edit))
