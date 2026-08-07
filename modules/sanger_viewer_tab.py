@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
@@ -21,6 +20,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSpinBox,
+    QStackedWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -133,7 +133,6 @@ class SangerViewerTab(QWidget):
         # --- Matplotlib canvas inside a horizontal scroll area ---
         self._fig = Figure()
         self._canvas = FigureCanvas(self._fig)
-        self._toolbar = NavigationToolbar(self._canvas, self)
 
         # Give the canvas a predictable initial size so the scroll area
         # does not end up with an arbitrary Matplotlib default extent.
@@ -145,8 +144,29 @@ class SangerViewerTab(QWidget):
         self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self._scroll_area.setMinimumHeight(200)
-        outer.addWidget(self._toolbar)
-        outer.addWidget(self._scroll_area, 1)
+
+        # Empty-state hint shown centered in the plot area
+        self._hint_page = QWidget()
+        self._hint_page.setMinimumHeight(200)
+        hint_layout = QVBoxLayout(self._hint_page)
+        self._hint_label = QLabel(
+            self.tr("No chromatogram loaded.\nSelect an AB1 file or drag & drop one here.")
+        )
+        self._hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._hint_label.setStyleSheet("color: #888;")
+        hint_layout.addWidget(self._hint_label)
+
+        self._plot_stack = QStackedWidget()
+        self._plot_stack.addWidget(self._hint_page)
+        self._plot_stack.addWidget(self._scroll_area)
+
+        # --- Plot area wrapped in a QGroupBox ---
+        plot_group = QGroupBox(self.tr("Chromatogram"))
+        plot_group.setFlat(True)
+        plot_vbox = QVBoxLayout(plot_group)
+        plot_vbox.setContentsMargins(0, 16, 0, 4)
+        plot_vbox.addWidget(self._plot_stack)
+        outer.addWidget(plot_group, 1)
 
         # --- Called sequence display + range copy ---
         seq_group = QGroupBox(self.tr("Called Sequence (5\u2019 to 3\u2019)"))
@@ -187,12 +207,18 @@ class SangerViewerTab(QWidget):
         seq_vbox.addLayout(range_row)
         outer.addWidget(seq_group)
 
-        # --- Status bar + Clear / Help ---
+        # --- Status bar + Export Plot / Clear / Help ---
         status_row = QHBoxLayout()
         self._status_label = QLabel(self.tr("Load an AB1 file to begin."))
-        self._status_label.setStyleSheet("color:#555;font-size:12px;")
         status_row.addWidget(self._status_label)
         status_row.addStretch()
+        self._btn_export_plot = QPushButton(self.tr("Export Plot"))
+        self._btn_export_plot.setFixedWidth(110)
+        self._btn_export_plot.setToolTip(
+            self.tr("Save the current chromatogram as an image file")
+        )
+        self._btn_export_plot.setEnabled(False)
+        status_row.addWidget(self._btn_export_plot)
         self._btn_clear = QPushButton(self.tr("Clear"))
         self._btn_clear.setFixedWidth(90)
         self._btn_clear.setToolTip(self.tr("Clear the loaded chromatogram and reset the view"))
@@ -206,6 +232,7 @@ class SangerViewerTab(QWidget):
         # --- Signal connections ---
         self._btn_browse.clicked.connect(self._browse)
         self._btn_example.clicked.connect(self._load_example)
+        self._btn_export_plot.clicked.connect(self._export_plot)
         self._btn_clear.clicked.connect(self._clear_all)
         self._btn_export_fasta.clicked.connect(self._export_fasta)
         self._btn_copy.clicked.connect(self._copy_range)
@@ -269,6 +296,7 @@ class SangerViewerTab(QWidget):
             return
         self._btn_browse.setEnabled(False)
         self._btn_copy.setEnabled(False)
+        self._btn_export_plot.setEnabled(False)
         self._set_status(self.tr("Loading\u2026"))
 
         self._thread = QThread(self)
@@ -299,6 +327,7 @@ class SangerViewerTab(QWidget):
         self._spin_end.setValue(n)
         self._btn_copy.setEnabled(True)
         self._btn_export_fasta.setEnabled(True)
+        self._btn_export_plot.setEnabled(True)
 
         lines: List[str] = []
         for s in range(0, n, 60):
@@ -307,7 +336,8 @@ class SangerViewerTab(QWidget):
         self._seq_edit.setPlainText("\n".join(lines))
 
         self._draw_chromatogram()
-        self._set_status(self.tr(f"Loaded \u2014 {n} bases  |  use the toolbar to zoom / pan"))
+        self._plot_stack.setCurrentIndex(1)  # show the chromatogram
+        self._set_status(self.tr(f"Loaded \u2014 {n} bases"))
 
     def _on_error(self, msg: str) -> None:
         QMessageBox.critical(self, self.tr("Load Error"), msg)
@@ -342,7 +372,14 @@ class SangerViewerTab(QWidget):
         # Set the figure dimensions first, then force the canvas widget
         # to the matching pixel size so they stay in sync.
         dpi = self._fig.get_dpi()
-        canvas_w = max(_MIN_CANVAS_W, int(x_max - x_min) * _PX_PER_SCAN)
+        # Fixed pixel gutters on the left and right of the data; the axes
+        # span the canvas between the two gutters.
+        left_gutter_px = 200
+        right_gutter_px = 200
+        canvas_w = max(
+            _MIN_CANVAS_W,
+            int(x_max - x_min) * _PX_PER_SCAN + left_gutter_px + right_gutter_px,
+        )
         canvas_h = (_TRACE_H_PX + _QUAL_H_PX) if show_quality else _TRACE_H_PX
         self._fig.set_size_inches(canvas_w / dpi, canvas_h / dpi)
         self._canvas.setFixedSize(canvas_w, canvas_h)
@@ -430,9 +467,11 @@ class SangerViewerTab(QWidget):
                 ax_qual.set_facecolor("#fafafa")
             ax_trace.tick_params(labelbottom=False)
 
+        # The canvas is sized to the data range plus fixed gutters on both
+        # sides, so the axes span from the left gutter to the right gutter.
         self._fig.subplots_adjust(
-            left=0.05,
-            right=0.95,
+            left=left_gutter_px / canvas_w,
+            right=(canvas_w - right_gutter_px) / canvas_w,
             top=0.92,
             bottom=0.10,
         )
@@ -473,6 +512,26 @@ class SangerViewerTab(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, self.tr("Export Error"), str(e))
 
+    def _export_plot(self) -> None:
+        """Save the current chromatogram figure as an image file."""
+        if self._abi_data is None:
+            QMessageBox.warning(
+                self, self.tr("Export Error"), self.tr("Load an AB1 file first.")
+            )
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            self.tr("Export Plot"),
+            "chromatogram.png",
+            self.tr("PNG Images (*.png);;PDF Files (*.pdf);;SVG Files (*.svg)"),
+        )
+        if path:
+            try:
+                self._fig.savefig(path, dpi=150, bbox_inches="tight", pad_inches=0.15)
+                self._set_status(self.tr(f"Plot saved: {path}"))
+            except Exception as e:
+                QMessageBox.warning(self, self.tr("Export Error"), str(e))
+
     def _clear_all(self) -> None:
         """Reset the viewer to its initial empty state."""
         self._abi_data = None
@@ -482,10 +541,12 @@ class SangerViewerTab(QWidget):
         self._seq_edit.clear()
         self._btn_copy.setEnabled(False)
         self._btn_export_fasta.setEnabled(False)
+        self._btn_export_plot.setEnabled(False)
         self._spin_start.setValue(1)
         self._spin_end.setValue(1)
         self._fig.clear()
         self._canvas.draw_idle()
+        self._plot_stack.setCurrentIndex(0)  # back to the empty-state hint
         self._set_status(self.tr("Load an AB1 file to begin."))
 
     # ------------------------------------------------------------------
@@ -513,7 +574,7 @@ class SangerViewerTab(QWidget):
             "<ol>"
             "<li>Click <b>Browse...</b> or drag-and-drop an AB1 file onto the window</li>"
             "<li>The chromatogram loads automatically with base calls and quality data</li>"
-            "<li>Use the Matplotlib toolbar to <b>zoom</b>, <b>pan</b>, or <b>save</b> the figure</li>"
+            "<li>Click <b>Export Plot</b> to save the chromatogram as an image file</li>"
             "<li>Toggle the <b>Phred quality track</b> to show or hide quality bars</li>"
             "<li>Set Start / End positions and click <b>Copy to Clipboard</b> to extract a subsequence</li>"
             "</ol>"
@@ -542,7 +603,7 @@ class SangerViewerTab(QWidget):
             "</ul>"
             "<h3>Tips</h3>"
             "<ul>"
-            "<li>Use the Matplotlib <b>zoom-to-rectangle</b> tool to inspect a region of interest in detail</li>"
+            "<li>Use <b>Export Plot</b> to save the current view as a PNG / PDF / SVG for reports or papers</li>"
             "<li>If base calls mismatch the peaks, the sequencing may have mixed templates or poor quality</li>"
             "<li>Supported format: AB1 (Applied Biosystems). SCF and ZTR are not currently supported.</li>"
             "<li>Browse or drag-and-drop a different file to reload; <b>Clear</b> resets the viewer</li>"
