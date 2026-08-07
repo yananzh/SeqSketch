@@ -3,11 +3,11 @@ import re
 from Bio.Data import CodonTable
 from PyQt6.QtWidgets import (
     QComboBox,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QVBoxLayout,
 )
 
 from utils.common_components import BaseTabWidget
@@ -80,18 +80,20 @@ class TranslateTab(BaseTabWidget):
         self.input_text.setMinimumHeight(150)
         self.output_text.setMinimumHeight(150)
 
+        # Hint label is unused here — hide it so the buttons sit at the
+        # bottom of the Input Sequence group
+        self.input_hint.hide()
+
     def _setup_parameters(self):
         """Setup parameter controls in a QGroupBox."""
         grp = QGroupBox(self.tr("Parameters"))
         grp.setFlat(True)
-        params_layout = QVBoxLayout(grp)
-        params_layout.setContentsMargins(0, 16, 0, 4)
-        params_layout.setSpacing(8)
+        grid = QGridLayout(grp)
+        grid.setContentsMargins(6, 16, 6, 4)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(8)
 
-        row1 = QHBoxLayout()
-        frame_label = QLabel(self.tr("Reading Frame:"))
-        frame_label.setMinimumWidth(130)
-        row1.addWidget(frame_label)
+        grid.addWidget(QLabel(self.tr("Reading Frame:")), 0, 0)
         self.frame_box = QComboBox()
         self.frame_box.addItems([
             "+1 (forward, from position 1)",
@@ -102,24 +104,18 @@ class TranslateTab(BaseTabWidget):
             "-3 (reverse complement, from position 3)",
         ])
         self.frame_box.setMinimumWidth(320)
-        row1.addWidget(self.frame_box)
-        row1.addSpacing(20)
+        grid.addWidget(self.frame_box, 0, 1)
 
-        row1.addWidget(QLabel(self.tr("Amino Acid Format:")))
+        grid.addWidget(QLabel(self.tr("Amino Acid Format:")), 0, 2)
         self.aa_mode_box = QComboBox()
         self.aa_mode_box.addItems([
             "1-letter (e.g., MKTF)",
             "3-letter (e.g., Met-Lys-Thr-Phe)",
         ])
         self.aa_mode_box.setMinimumWidth(200)
-        row1.addWidget(self.aa_mode_box)
-        row1.addStretch()
-        params_layout.addLayout(row1)
+        grid.addWidget(self.aa_mode_box, 0, 3)
 
-        row2 = QHBoxLayout()
-        genetic_code_label = QLabel(self.tr("Genetic Code:"))
-        genetic_code_label.setMinimumWidth(130)
-        row2.addWidget(genetic_code_label)
+        grid.addWidget(QLabel(self.tr("Genetic Code:")), 1, 0)
         self.genetic_code_box = QComboBox()
         self.genetic_code_box.addItems(list(GENETIC_CODES.keys()))
         self.genetic_code_box.setMinimumWidth(320)
@@ -130,11 +126,13 @@ class TranslateTab(BaseTabWidget):
                 "sequence doesn't use the standard code."
             )
         )
-        row2.addWidget(self.genetic_code_box)
-        row2.addStretch()
-        params_layout.addLayout(row2)
+        grid.addWidget(self.genetic_code_box, 1, 1)
 
-        self.add_content_widget(grp)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(3, 1)
+
+        # Place the Parameters group between the input and output sections
+        self._param_layout.addWidget(grp)
 
         # Place Example button horizontally with upload_btn (unified pattern)
         self.example_btn = QPushButton(self.tr("Example"))

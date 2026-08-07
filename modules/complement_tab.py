@@ -28,6 +28,10 @@ class ComplementTab(BaseTabWidget):
         self.input_text.setMinimumHeight(150)
         self.output_text.setMinimumHeight(150)
 
+        # Hint label is unused here — hide it so the buttons sit at the
+        # bottom of the Input Sequence group
+        self.input_hint.hide()
+
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton(self.tr("Example"))
         self.example_btn.clicked.connect(self._load_example)
@@ -55,7 +59,7 @@ class ComplementTab(BaseTabWidget):
         grp = QGroupBox(self.tr("Mode"))
         grp.setFlat(True)
         mode_layout = QHBoxLayout(grp)
-        mode_layout.setContentsMargins(0, 16, 0, 4)
+        mode_layout.setContentsMargins(6, 16, 6, 4)
         mode_layout.addWidget(QLabel(self.tr("Mode:")))
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["Complement", "Reverse Complement"])
@@ -63,7 +67,8 @@ class ComplementTab(BaseTabWidget):
         self.mode_combo.currentTextChanged.connect(self._update_output_placeholder)
         mode_layout.addWidget(self.mode_combo)
         mode_layout.addStretch()
-        self.add_content_widget(grp)
+        # Place the Mode group between the input and output sections
+        self._param_layout.addWidget(grp)
 
     def _update_output_placeholder(self):
         if self.mode_combo.currentText() == "Reverse Complement":

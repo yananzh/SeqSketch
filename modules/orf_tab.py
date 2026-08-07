@@ -63,6 +63,11 @@ class ORFTab(BaseTabWidget):
         )
         self.output_text.setPlaceholderText("ORF results will appear here...")
         self.input_text.setMinimumHeight(100)
+
+        # Hint label is unused here — hide it so the buttons sit at the
+        # bottom of the Input Sequence group
+        self.input_hint.hide()
+
         self._build_results_area()
         self._results: list = []
 
@@ -103,7 +108,7 @@ class ORFTab(BaseTabWidget):
         grp = QGroupBox(self.tr("Parameters"))
         grp.setFlat(True)
         grid = QGridLayout(grp)
-        grid.setContentsMargins(6, 16, 0, 4)
+        grid.setContentsMargins(6, 16, 6, 4)
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(8)
 
@@ -146,7 +151,6 @@ class ORFTab(BaseTabWidget):
 
         grid.setColumnStretch(1, 1)
         grid.setColumnStretch(3, 1)
-        grid.setColumnStretch(4, 1)
 
         self.add_content_widget(grp)
 
@@ -173,7 +177,7 @@ class ORFTab(BaseTabWidget):
             "Length (aa)",
         ])
         self._orf_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch,
+            QHeaderView.ResizeMode.ResizeToContents,
         )
         self._orf_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._orf_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -195,7 +199,7 @@ class ORFTab(BaseTabWidget):
         map_layout.addWidget(self._orf_canvas)
         splitter.addWidget(map_container)
 
-        splitter.setSizes([500, 400])
+        splitter.setSizes([420, 500])  # map pane slightly wider than the table
         gr_layout.addWidget(splitter)
         self.add_content_widget(grp_results)
 
@@ -211,7 +215,6 @@ class ORFTab(BaseTabWidget):
             return
 
         # Parse FASTA records (support single raw sequence and multi-FASTA)
-        header = None
         records: list[tuple[str, str]] = []  # (header_or_label, clean_seq)
         if ">" in raw:
             lines = raw.split("\n")
@@ -246,7 +249,7 @@ class ORFTab(BaseTabWidget):
                 continue
             if not re.fullmatch(r"[ACGTN]+", seq):
                 self.show_status(
-                    f'Invalid characters in record "{rec_header}". Only A/T/G/C/N allowed.'
+                    f'Invalid characters in "{rec_header}". Only A/T/G/C/N allowed.'
                 )
                 return
 
@@ -293,7 +296,7 @@ class ORFTab(BaseTabWidget):
                 f"Sequence: {o['seq']}\nTranslation: {o['aa']}\n"
             )
         self.output_text.setPlainText("\n".join(out_lines))
-        self.show_status(f"Found {len(all_results)} ORFs  (sorted by length)")
+        self.show_status(f"Found {len(all_results)} ORFs")
 
     def find_orfs(
         self,
@@ -367,13 +370,17 @@ class ORFTab(BaseTabWidget):
             end_disp = o["end"]
             if o["frame"].startswith("-") and start_disp < end_disp:
                 start_disp, end_disp = end_disp, start_disp
+            # Stop codons do not code for amino acids — exclude a trailing "*"
+            aa_len = len(o["aa"])
+            if o["aa"].endswith("*"):
+                aa_len -= 1
             items = [
                 QTableWidgetItem(str(row + 1)),
                 QTableWidgetItem(o["frame"]),
                 QTableWidgetItem(str(start_disp)),
                 QTableWidgetItem(str(end_disp)),
                 QTableWidgetItem(str(o["length"])),
-                QTableWidgetItem(str(len(o["aa"]))),
+                QTableWidgetItem(str(aa_len)),
             ]
             for ci in (0, 2, 3, 4, 5):
                 items[ci].setTextAlignment(
@@ -476,7 +483,7 @@ class ORFTab(BaseTabWidget):
                         f"Pos:{o['start']}-{o['end']} | "
                         f"Len:{o['length']}nt\n{o['seq']}\n"
                     )
-            self.show_status(f"Exported {len(sorted_results)} ORFs to {path}")
+            self.show_status(f"Exported {len(sorted_results)} ORFs")
 
     def copy_result(self):
         """Copy selected ORF sequences to clipboard."""
@@ -490,11 +497,20 @@ class ORFTab(BaseTabWidget):
             if not self._results:
                 return
             QApplication.clipboard().setText("\n".join(o["aa"] for o in self._results))
-            self.show_status("Copied all ORFs to clipboard")
+            self.show_status("Copied all ORFs")
             return
         selected = [self._results[r] for r in sorted(rows)]
         QApplication.clipboard().setText("\n".join(o["aa"] for o in selected))
-        self.show_status(f"Copied {len(selected)} ORF(s) to clipboard")
+        n = len(selected)
+        self.show_status(f"Copied {n} ORF{'s' if n != 1 else ''}")
+
+    def clear(self):
+        """Clear input, output, the ORF table and the ORF map."""
+        self._orf_table.setRowCount(0)
+        self._results = []
+        self._orf_fig.clear()
+        self._orf_canvas.draw_idle()
+        super().clear()
 
     # ── Help ───────────────────────────────────────────────────────────
 
