@@ -45,6 +45,17 @@ class MainWindow(QMainWindow):
             self.setStyleSheet(qss)
         except Exception as e:
             print("QSS load failed:", e)
+            return
+        # Applying a stylesheet resets the PlaceholderText palette role to
+        # black (indistinguishable from real input). Restore a muted gray so
+        # placeholder hints stay visually distinct — must run after setStyleSheet.
+        from PyQt6.QtGui import QColor, QPalette
+
+        app = QApplication.instance()
+        if app is not None:
+            pal = app.palette()
+            pal.setColor(QPalette.ColorRole.PlaceholderText, QColor("#888888"))
+            app.setPalette(pal)
 
     def show_message(self, text, error=False):
         if error:
@@ -226,6 +237,16 @@ class MainWindow(QMainWindow):
         from modules.gc_plot_tab import GCPlotTab
 
         self._find_or_open(GCPlotTab, "GC Content / GC Skew Plot")
+
+    def open_cpg_island_tab(self):
+        from modules.cpg_island_tab import CpGIslandTab
+
+        self._find_or_open(CpGIslandTab, "CpG Island Finder", reuse=False)
+
+    def open_ssr_finder_tab(self):
+        from modules.ssr_finder_tab import SsrFinderTab
+
+        self._find_or_open(SsrFinderTab, "SSR / Microsatellite Finder", reuse=False)
 
     # ── Protein Analysis ─────────────────────────────────────────────────
 

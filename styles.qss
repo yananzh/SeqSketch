@@ -99,6 +99,13 @@ QPushButton:disabled {
     border-color: #cbd5e1;
     color: #f8fafc;
 }
+/* Accent buttons keep their blue fill even when disabled (e.g. Export CSV
+   before any results exist) so they read as primary actions. */
+QPushButton[accentButton="true"]:disabled {
+    background: #4a90e2;
+    border-color: #4a90e2;
+    color: #ffffff;
+}
 QPushButton[stopButton="true"] {
     background: #d32f2f;
     color: white;

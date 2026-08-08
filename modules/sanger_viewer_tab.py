@@ -45,6 +45,23 @@ _BASE_COLOR = {
 }
 
 
+class _LoadThread(QThread):
+    """QThread that stops itself before C++ destruction.
+
+    Plain QThread instances abort the process with "QThread: Destroyed while
+    thread is still running" if they are garbage-collected (e.g. when a tab
+    is closed or a test ends) while the worker is still starting up.
+    """
+
+    def __del__(self):
+        try:
+            self.quit()
+            self.wait(3000)
+        except RuntimeError:
+            pass
+        super().__del__()
+
+
 class _LoadWorker(QObject):
     finished = pyqtSignal(dict, str, list)
     error = pyqtSignal(str)
@@ -297,14 +314,20 @@ class SangerViewerTab(QWidget):
         self._btn_export_plot.setEnabled(False)
         self._set_status(self.tr("Loading\u2026"))
 
-        self._thread = QThread(self)
+        self._thread = _LoadThread(self)
         self._worker = _LoadWorker(path)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.finished.connect(self._on_loaded)
         self._worker.error.connect(self._on_error)
-        self._worker.finished.connect(self._thread.quit)
-        self._worker.error.connect(self._thread.quit)
+        # Quit the thread directly from the worker so it stops even if the
+        # main thread stops pumping events (e.g. app teardown in tests).
+        self._worker.finished.connect(
+            self._thread.quit, Qt.ConnectionType.DirectConnection
+        )
+        self._worker.error.connect(
+            self._thread.quit, Qt.ConnectionType.DirectConnection
+        )
         self._thread.finished.connect(self._thread.deleteLater)
         self._thread.finished.connect(self._cleanup_thread)
         self._thread.start()

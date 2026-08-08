@@ -389,3 +389,73 @@ def test_table_to_fasta_example_fills_input_edit(qapp):
     assert path != ""
     assert os.path.isfile(path)
     assert path.endswith(".csv")
+
+
+# ── New DNA tabs: CpG Island Finder / SSR Finder ───────────────────────────
+
+
+def test_cpg_island_example_fills_file_edit(qapp):
+    from modules.cpg_island_tab import CpGIslandTab
+
+    tab = CpGIslandTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "CpG Island Finder tab has no Example button"
+    btn.click()
+    path = tab.input_path_edit.text().strip()
+    assert path != ""
+    assert os.path.isfile(path)
+    assert os.path.basename(path) == "cpg_island_example.fasta"
+
+
+def test_cpg_island_example_detects_island(qapp):
+    from modules.cpg_island_tab import CpGIslandTab
+
+    tab = CpGIslandTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None
+    btn.click()
+    tab.run()
+    assert tab._island_table.rowCount() >= 1
+    assert "CpG island" in str(tab.status_label.text())
+
+
+def test_ssr_finder_example_fills_file_edit(qapp):
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    tab = SsrFinderTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "SSR Finder tab has no Example button"
+    btn.click()
+    path = tab.input_path_edit.text().strip()
+    assert path != ""
+    assert os.path.isfile(path)
+    assert os.path.basename(path) == "ssr_example.fasta"
+
+
+def test_ssr_finder_example_detects_embedded_repeats(qapp):
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    tab = SsrFinderTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None
+    btn.click()
+    tab.run()
+    # The example file contains two records -> all-records mode with Record column.
+    assert tab._all_records_mode
+    assert tab._ssr_table.columnCount() == 9
+    assert "across 2 sequences" in str(tab.status_label.text())
+
+    rows = tab._ssr_table.rowCount()
+    assert rows >= 5
+    motifs = [tab._ssr_table.item(r, 2).text() for r in range(rows)]
+    # The AAT repeat may be reported in either phase: (AAT) or (TAA)
+    assert any(m.startswith("(AT)") for m in motifs), "missing (AT) SSR"
+    assert any(m.startswith("(AAT)") or m.startswith("(TAA)") for m in motifs), "missing tri SSR"
+    assert any(m.startswith("(GT)") for m in motifs), "missing (GT) SSR"
+    assert any(m.startswith("(CTTA)") for m in motifs), "missing (CTTA) SSR"
+    assert any(m.startswith("(CGG)") for m in motifs), "missing (CGG) SSR"
+    # Record 2 contributes its own SSRs and a compound SSR.
+    assert any(m.startswith("(CA)") for m in motifs), "missing (CA) SSR"
+    assert any(m.startswith("(CAG)") for m in motifs), "missing (CAG) SSR"
+    assert any(tab._ssr_table.item(r, 1).text() == "Compound" for r in range(rows))
+    assert "perfect SSR" in str(tab.status_label.text())

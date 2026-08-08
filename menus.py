@@ -85,6 +85,12 @@ def create_menus(window):
     gc_plot_action = QAction(window.tr("GC Content / GC Skew Plot"), window)
     gc_plot_action.triggered.connect(window.open_gc_plot_tab)
     dna_menu.addAction(gc_plot_action)
+    cpg_island_action = QAction(window.tr("CpG Island Finder"), window)
+    cpg_island_action.triggered.connect(window.open_cpg_island_tab)
+    dna_menu.addAction(cpg_island_action)
+    ssr_finder_action = QAction(window.tr("SSR / Microsatellite Finder"), window)
+    ssr_finder_action.triggered.connect(window.open_ssr_finder_tab)
+    dna_menu.addAction(ssr_finder_action)
     # 3. Protein Analysis
     protein_menu = menubar.addMenu(window.tr("Protein Analysis"))
 

@@ -4,6 +4,8 @@ from types import SimpleNamespace
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPalette
 from PyQt6.QtWidgets import QFrame, QLabel, QMessageBox, QPushButton
 
 from main_window import MainWindow
@@ -62,6 +64,13 @@ def test_main_window_reuses_single_complement_tools_tab(qapp):
     assert window.tabs.count() == 1
     assert window.tabs.currentWidget() is first_tab
     assert first_tab.mode_combo.currentText() == "Reverse Complement"
+
+
+def test_stylesheet_keeps_placeholder_text_gray(qapp):
+    """QSS resets the PlaceholderText role to black; the app must restore gray."""
+    MainWindow()  # constructor applies QSS then restores the gray placeholder role
+    color = qapp.palette().color(QPalette.ColorRole.PlaceholderText)
+    assert color.name() == "#888888", f"placeholder color is {color.name()}"
 
 
 def test_dna_analysis_menu_uses_single_complement_tools_entry(qapp):
@@ -1056,3 +1065,305 @@ def test_gc_plot_tab_clear_resets(qapp, tmp_path):
     tab.clear()
     assert len(tab._figs[0].axes) == 1  # placeholder axis still present
     assert tab.input_path_edit.text() == ""
+
+
+# ── CpG Island Finder / SSR Finder (new DNA tabs) ──────────────────────────
+
+
+def test_dna_analysis_menu_includes_cpg_island_and_ssr(qapp):
+    window = MainWindow()
+    menu_bar = window.menuBar()
+    dna_menu = next(
+        action.menu() for action in menu_bar.actions() if action.text() == "DNA Analysis"
+    )
+    action_texts = [action.text() for action in dna_menu.actions() if action.text()]
+
+    assert "CpG Island Finder" in action_texts
+    assert "SSR / Microsatellite Finder" in action_texts
+
+
+def test_main_window_opens_cpg_island_and_ssr_tabs(qapp):
+    from modules.cpg_island_tab import CpGIslandTab
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    window = MainWindow()
+    window.open_cpg_island_tab()
+    assert isinstance(window.tabs.widget(0), CpGIslandTab)
+    window.open_ssr_finder_tab()
+    assert isinstance(window.tabs.widget(1), SsrFinderTab)
+
+
+def test_cpg_island_finder_detects_embedded_island(qapp, tmp_path):
+    from modules.cpg_island_tab import CpGIslandTab, find_cpg_islands
+
+    # 400 bp AT-rich flank + 260 bp pure-CG island + 400 bp AT-rich flank.
+    # Windows partially overlapping the flanks still qualify, so the merged
+    # island extends a bit beyond the pure-CG region (verified: 351-710).
+    seq = "AT" * 200 + "CG" * 130 + "AT" * 200
+    islands = find_cpg_islands(seq)
+    assert len(islands) == 1
+    island = islands[0]
+    assert island["start"] == 351
+    assert island["end"] == 710
+    assert island["length"] == 360
+
+    tab = CpGIslandTab()
+    seq_file = tmp_path / "island.fasta"
+    seq_file.write_text(">test\n" + seq, encoding="utf-8")
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+    assert tab._island_table.rowCount() == 1
+    assert tab._island_table.item(0, 1).text() == "351"
+    assert "Found 1 CpG island(s), total 360 bp" in str(tab.status_label.text())
+
+
+def test_cpg_island_tab_clear_resets(qapp, tmp_path):
+    from modules.cpg_island_tab import CpGIslandTab
+
+    tab = CpGIslandTab()
+    seq_file = tmp_path / "seq.fasta"
+    seq_file.write_text(
+        ">test\n" + "AT" * 200 + "CG" * 130 + "AT" * 200, encoding="utf-8"
+    )
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+    assert tab._island_table.rowCount() == 1
+
+    tab.clear()
+    assert tab._island_table.rowCount() == 0
+    assert tab.input_path_edit.text() == ""
+
+
+def test_ssr_finder_detects_known_repeats(qapp, tmp_path):
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    seq = (
+        "A" * 5
+        + "AT" * 9
+        + "C" * 5
+        + "AAT" * 6
+        + "G" * 5
+        + "GT" * 8
+        + "C" * 5
+        + "CTTA" * 5
+        + "A" * 5
+    )
+    tab = SsrFinderTab()
+    seq_file = tmp_path / "ssr.fasta"
+    seq_file.write_text(">test\n" + seq, encoding="utf-8")
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+
+    rows = tab._ssr_table.rowCount()
+    motifs = [tab._ssr_table.item(r, 2).text() for r in range(rows)]
+    types = [tab._ssr_table.item(r, 1).text() for r in range(rows)]
+    assert "(AT)9" in motifs
+    assert "(AAT)6" in motifs
+    assert "(GT)8" in motifs
+    assert "(CTTA)5" in motifs
+    assert types.count("Perfect") == 4
+    assert "Compound" in types
+    assert "Found 4 perfect SSR(s), 1 compound" in str(tab.status_label.text())
+
+
+def test_ssr_finder_tab_clear_resets(qapp, tmp_path):
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    tab = SsrFinderTab()
+    seq_file = tmp_path / "ssr.fasta"
+    seq_file.write_text(">test\n" + "AT" * 12, encoding="utf-8")
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+    assert tab._ssr_table.rowCount() == 1
+
+    tab.clear()
+    assert tab._ssr_table.rowCount() == 0
+    assert tab.input_path_edit.text() == ""
+
+
+def test_ssr_finder_threshold_presets(qapp):
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    tab = SsrFinderTab()
+    assert tab._preset_combo.currentText() == "MISA default"
+
+    # All six threshold spin boxes share one uniform width.
+    widths = {sp.minimumWidth() for sp in tab._thresh_spins.values()}
+    assert len(widths) == 1
+    assert widths.pop() == 80
+
+    # Preset selection applies values to all six spin boxes.
+    tab._preset_combo.setCurrentText("Stringent")
+    assert tab._thresh_spins[1].value() == 12
+    assert tab._thresh_spins[2].value() == 8
+    assert tab._thresh_spins[6].value() == 6
+
+    # Manual spin edit switches the preset to Custom.
+    tab._thresh_spins[3].setValue(3)
+    assert tab._preset_combo.currentText() == "Custom"
+
+    # Re-selecting a preset re-applies its values without tripping the guard.
+    tab._preset_combo.setCurrentText("Relaxed")
+    assert tab._thresh_spins[1].value() == 8
+    assert tab._thresh_spins[4].value() == 4
+    assert tab._preset_combo.currentText() == "Relaxed"
+
+
+def test_ssr_finder_table_sorts_numerically_by_start(qapp, tmp_path):
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    seq = (
+        "A" * 5
+        + "AT" * 9
+        + "C" * 5
+        + "AAT" * 6
+        + "G" * 5
+        + "GT" * 8
+        + "C" * 5
+        + "CTTA" * 5
+        + "A" * 5
+    )
+    tab = SsrFinderTab()
+    seq_file = tmp_path / "ssr.fasta"
+    seq_file.write_text(">test\n" + seq, encoding="utf-8")
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+
+    assert tab._ssr_table.isSortingEnabled()
+    starts = [int(tab._ssr_table.item(r, 5).text()) for r in range(tab._ssr_table.rowCount())]
+    assert starts == sorted(starts), f"rows not sorted by start: {starts}"
+
+    # Sorting by a different numeric column also compares values, not text.
+    tab._ssr_table.sortItems(4, Qt.SortOrder.DescendingOrder)
+    repeats = [int(tab._ssr_table.item(r, 4).text()) for r in range(tab._ssr_table.rowCount())]
+    assert repeats == sorted(repeats, reverse=True), f"repeats not sorted: {repeats}"
+
+
+def test_ssr_finder_multirecord_all_and_single_modes(qapp, tmp_path):
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    seq_file = tmp_path / "multi.fasta"
+    seq_file.write_text(
+        ">rec_one\n" + "A" * 5 + "AT" * 8 + "A" * 5 + "\n"
+        ">rec_two\n" + "C" * 5 + "GT" * 7 + "C" * 5 + "\n",
+        encoding="utf-8",
+    )
+    tab = SsrFinderTab()
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+
+    # Default: all-records mode -> Record column.
+    assert tab._record_combo.count() == 3
+    assert tab._all_records_mode
+    assert tab._ssr_table.columnCount() == 9
+    assert tab._ssr_table.rowCount() == 2
+    assert "across 2 sequences" in str(tab.status_label.text())
+    records = {tab._ssr_table.item(r, 8).text() for r in range(2)}
+    assert records == {"rec_one", "rec_two"}
+
+    # Switch to a single record -> no Record column, per-record status.
+    tab._record_combo.setCurrentIndex(2)  # rec_two
+    assert not tab._all_records_mode
+    assert tab._ssr_table.columnCount() == 8
+    assert tab._ssr_table.rowCount() == 1
+    assert "rec_two" in str(tab.status_label.text())
+    assert tab._ssr_table.item(0, 2).text() == "(GT)7"
+
+    # Switch back to all records.
+    tab._record_combo.setCurrentIndex(0)
+    assert tab._all_records_mode
+    assert tab._ssr_table.columnCount() == 9
+
+
+
+def test_ssr_finder_single_record_combo_has_one_option(qapp, tmp_path):
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    tab = SsrFinderTab()
+    # Empty combo shows a placeholder hint before any file is loaded.
+    assert tab._record_combo.count() == 0
+    assert tab._record_combo.placeholderText() == (
+        "Run first, then select a record to view (multi-record files)"
+    )
+
+    seq_file = tmp_path / "single.fasta"
+    seq_file.write_text(
+        ">only_one\n" + "A" * 5 + "AT" * 8 + "A" * 5 + "\n", encoding="utf-8"
+    )
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+
+    # A single-record file must not offer the redundant "All records (1)" entry.
+    assert tab._record_combo.count() == 1
+    assert tab._record_combo.itemText(0) == "only_one"
+    assert not tab._all_records_mode
+    assert tab._ssr_table.columnCount() == 8
+    assert tab._ssr_table.rowCount() == 1
+    assert "only_one" in str(tab.status_label.text())
+
+    tab.clear()
+    assert tab._record_combo.count() == 0
+    assert tab._record_combo.placeholderText() == (
+        "Run first, then select a record to view (multi-record files)"
+    )
+
+
+def test_ssr_finder_export_csv(qapp, tmp_path, monkeypatch):
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    seq = "A" * 5 + "AT" * 9 + "C" * 5 + "AAT" * 6 + "G" * 5 + "GT" * 8 + "C" * 5 + "CTTA" * 5 + "A" * 5
+    tab = SsrFinderTab()
+    seq_file = tmp_path / "ssr.fasta"
+    seq_file.write_text(">test\n" + seq, encoding="utf-8")
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+    assert tab._export_btn.isEnabled()
+
+    out = tmp_path / "out.csv"
+    monkeypatch.setattr(
+        "modules.ssr_finder_tab.QFileDialog.getSaveFileName",
+        staticmethod(lambda *a, **k: (str(out), "CSV Files (*.csv)")),
+    )
+    tab._export_csv()
+    assert out.is_file()
+    lines = out.read_text(encoding="utf-8-sig").strip().splitlines()
+    assert lines[0] == "== Statistics =="
+    header_idx = next(i for i, ln in enumerate(lines) if ln.startswith("#,Type,Motif"))
+    assert any(ln.startswith("Perfect_SSRs,4") for ln in lines[:header_idx])
+    assert any(ln.startswith("Compound_SSRs,1") for ln in lines[:header_idx])
+    assert any(ln.startswith("SSR_density_per_Mb,") for ln in lines[:header_idx])
+    assert any(ln.startswith("SSRs_Di,") for ln in lines[:header_idx])
+    data = lines[header_idx + 1 :]
+    assert sum(1 for ln in data if "Perfect" in ln) == 4
+    assert any("(CTTA)5" in ln for ln in data)
+    assert "Exported" in str(tab.status_label.text())
+
+    tab.clear()
+    assert not tab._export_btn.isEnabled()
+
+
+def test_ssr_finder_export_csv_includes_record_column(qapp, tmp_path, monkeypatch):
+    from modules.ssr_finder_tab import SsrFinderTab
+
+    seq_file = tmp_path / "multi.fasta"
+    seq_file.write_text(
+        ">rec_one\n" + "A" * 5 + "AT" * 8 + "A" * 5 + "\n"
+        ">rec_two\n" + "C" * 5 + "GT" * 7 + "C" * 5 + "\n",
+        encoding="utf-8",
+    )
+    tab = SsrFinderTab()
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+
+    out = tmp_path / "out.csv"
+    monkeypatch.setattr(
+        "modules.ssr_finder_tab.QFileDialog.getSaveFileName",
+        staticmethod(lambda *a, **k: (str(out), "CSV Files (*.csv)")),
+    )
+    tab._export_csv()
+    lines = out.read_text(encoding="utf-8-sig").strip().splitlines()
+    header_idx = next(i for i, ln in enumerate(lines) if ln.startswith("#,Type,Motif"))
+    assert lines[header_idx].endswith("Record")
+    assert any(ln.startswith("Sequences,2") for ln in lines[:header_idx])
+    data = [ln for ln in lines[header_idx + 1 :] if ln]
+    assert all(ln.endswith("rec_one") or ln.endswith("rec_two") for ln in data)
