@@ -9,8 +9,9 @@ import re
 from typing import Any, Dict, Optional
 
 from PyQt6.QtCore import QObject, Qt, QThread, QUrl, pyqtSignal
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QColor, QDesktopServices, QPainter
 from PyQt6.QtWidgets import (
+    QComboBox,
     QDialog,
     QFileDialog,
     QFrame,
@@ -21,10 +22,53 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QStyle,
+    QStyleOptionComboBox,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
+
+# ── Shared placeholder combo box ────────────────────────────────────────────
+
+
+class PlaceholderComboBox(QComboBox):
+    """QComboBox that paints its placeholder text in a muted gray.
+
+    Under a stylesheet (styles.qss), Qt renders QComboBox placeholder text
+    with the widget's regular text color (black) instead of the
+    PlaceholderText palette role, so palette fixes do not apply. This
+    subclass draws the placeholder itself whenever the combo is empty.
+    """
+
+    def paintEvent(self, event):
+        if self.currentIndex() == -1 and self.placeholderText():
+            painter = QPainter(self)
+            opt = QStyleOptionComboBox()
+            self.initStyleOption(opt)
+            self.style().drawComplexControl(
+                QStyle.ComplexControl.CC_ComboBox, opt, painter, self
+            )
+            rect = self.style().subControlRect(
+                QStyle.ComplexControl.CC_ComboBox,
+                opt,
+                QStyle.SubControl.SC_ComboBoxEditField,
+                self,
+            )
+            painter.setPen(QColor("#888888"))
+            painter.drawText(
+                rect.adjusted(3, 0, -3, 0),
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                self.fontMetrics().elidedText(
+                    self.placeholderText(),
+                    Qt.TextElideMode.ElideRight,
+                    max(rect.width() - 6, 0),
+                ),
+            )
+            painter.end()
+        else:
+            super().paintEvent(event)
+
 
 # ── Shared file-drop line edit ──────────────────────────────────────────────
 

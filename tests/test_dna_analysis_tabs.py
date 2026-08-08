@@ -1132,6 +1132,122 @@ def test_cpg_island_tab_clear_resets(qapp, tmp_path):
     assert tab.input_path_edit.text() == ""
 
 
+def test_cpg_island_criteria_presets(qapp):
+    from modules.cpg_island_tab import CpGIslandTab
+
+    tab = CpGIslandTab()
+    assert tab._criteria_combo.currentText() == "Gardiner-Garden & Frommer 1987"
+    assert tab.window_spin.value() == 100
+    assert tab.min_len_spin.value() == 200
+    assert tab.gc_spin.value() == 50.0
+    assert tab.oe_spin.value() == 0.6
+
+    # Takai & Jones 2002 applies the stricter human-genome criteria.
+    tab._criteria_combo.setCurrentText("Takai & Jones 2002")
+    assert tab.min_len_spin.value() == 500
+    assert tab.gc_spin.value() == 55.0
+    assert tab.oe_spin.value() == 0.65
+
+    # Manual spin edit switches the preset to Custom.
+    tab.gc_spin.setValue(60.0)
+    assert tab._criteria_combo.currentText() == "Custom"
+
+    # Re-selecting a preset re-applies its values without tripping the guard.
+    tab._criteria_combo.setCurrentText("Relaxed")
+    assert tab.min_len_spin.value() == 100
+    assert tab._criteria_combo.currentText() == "Relaxed"
+
+
+def test_cpg_island_multirecord_all_and_single_modes(qapp, tmp_path):
+    from modules.cpg_island_tab import CpGIslandTab
+
+    seq_file = tmp_path / "multi.fasta"
+    seq_file.write_text(
+        ">island_rec\n" + "AT" * 200 + "CG" * 130 + "AT" * 200 + "\n"
+        ">no_island\n" + "AT" * 300 + "\n",
+        encoding="utf-8",
+    )
+    tab = CpGIslandTab()
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+
+    # Default: all-records mode -> Record column.
+    assert tab._record_combo.count() == 3
+    assert tab._all_records_mode
+    assert tab._island_table.columnCount() == 9
+    assert tab._island_table.rowCount() == 1
+    assert tab._island_table.item(0, 8).text() == "island_rec"
+    assert "across 2 sequences" in str(tab.status_label.text())
+
+    # Switch to the no-island record -> empty result with 8 columns.
+    tab._record_combo.setCurrentIndex(2)  # no_island
+    assert not tab._all_records_mode
+    assert tab._island_table.columnCount() == 8
+    assert tab._island_table.rowCount() == 0
+    assert "No CpG islands found" in str(tab.status_label.text())
+    assert not tab._export_btn.isEnabled()
+
+    # Back to the island record -> per-record status text.
+    tab._record_combo.setCurrentIndex(1)  # island_rec
+    assert tab._island_table.rowCount() == 1
+    assert "island_rec" in str(tab.status_label.text())
+    assert "Found 1 CpG island(s)" in str(tab.status_label.text())
+
+
+def test_cpg_island_table_sorts_numerically_by_start(qapp, tmp_path):
+    from modules.cpg_island_tab import CpGIslandTab
+
+    # Two islands of different sizes at different positions.
+    seq = "AT" * 50 + "CG" * 130 + "AT" * 50 + "AT" * 50 + "CG" * 200 + "AT" * 50
+    tab = CpGIslandTab()
+    seq_file = tmp_path / "seq.fasta"
+    seq_file.write_text(">test\n" + seq, encoding="utf-8")
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+
+    assert tab._island_table.isSortingEnabled()
+    assert tab._island_table.rowCount() == 2
+    starts = [int(tab._island_table.item(r, 1).text()) for r in range(2)]
+    assert starts == sorted(starts), f"rows not sorted by start: {starts}"
+
+    # Sorting by a different numeric column compares values, not text.
+    tab._island_table.sortItems(3, Qt.SortOrder.DescendingOrder)
+    lengths = [int(tab._island_table.item(r, 3).text()) for r in range(2)]
+    assert lengths == sorted(lengths, reverse=True), f"lengths not sorted: {lengths}"
+
+
+def test_cpg_island_export_csv_with_statistics(qapp, tmp_path, monkeypatch):
+    from modules.cpg_island_tab import CpGIslandTab
+
+    seq_file = tmp_path / "seq.fasta"
+    seq_file.write_text(
+        ">test\n" + "AT" * 200 + "CG" * 130 + "AT" * 200, encoding="utf-8"
+    )
+    tab = CpGIslandTab()
+    tab.input_path_edit.setText(str(seq_file))
+    tab.run()
+    assert tab._export_btn.isEnabled()
+
+    out = tmp_path / "out.csv"
+    monkeypatch.setattr(
+        "modules.cpg_island_tab.QFileDialog.getSaveFileName",
+        staticmethod(lambda *a, **k: (str(out), "CSV Files (*.csv)")),
+    )
+    tab._export_csv()
+    lines = out.read_text(encoding="utf-8-sig").strip().splitlines()
+    assert lines[0] == "== Statistics =="
+    header_idx = next(i for i, ln in enumerate(lines) if ln.startswith("#,Start"))
+    assert any(ln.startswith("CpG_islands,1") for ln in lines[:header_idx])
+    assert any(ln.startswith("Island_coverage_pct,") for ln in lines[:header_idx])
+    assert any(ln.startswith("Genome_CpG_o/e,") for ln in lines[:header_idx])
+    data = [ln for ln in lines[header_idx + 1 :] if ln]
+    assert len(data) == 1
+    assert data[0].startswith("1,351,")
+
+    tab.clear()
+    assert not tab._export_btn.isEnabled()
+
+
 def test_ssr_finder_detects_known_repeats(qapp, tmp_path):
     from modules.ssr_finder_tab import SsrFinderTab
 

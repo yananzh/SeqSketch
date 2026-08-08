@@ -7,7 +7,6 @@ import os
 from typing import Dict, List, Tuple
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -20,56 +19,17 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSpinBox,
-    QStyle,
-    QStyleOptionComboBox,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.common_components import BaseTabWidget, FileDropLineEdit, PlaceholderComboBox
 from utils.example_data import stage_example
 
 # MISA default thresholds: minimum repeat count per unit length (1-6).
 DEFAULT_THRESHOLDS: Dict[int, int] = {1: 10, 2: 6, 3: 5, 4: 5, 5: 5, 6: 5}
 DEFAULT_COMPOUND_DIST = 100  # bp
-
-
-class _PlaceholderComboBox(QComboBox):
-    """QComboBox that paints its placeholder text in a muted gray.
-
-    Under a stylesheet (styles.qss), Qt renders QComboBox placeholder text
-    with the widget's regular text color (black) instead of the
-    PlaceholderText palette role, so palette fixes do not apply. This
-    subclass draws the placeholder itself whenever the combo is empty.
-    """
-
-    def paintEvent(self, event):
-        if self.currentIndex() == -1 and self.placeholderText():
-            painter = QPainter(self)
-            opt = QStyleOptionComboBox()
-            self.initStyleOption(opt)
-            self.style().drawComplexControl(QStyle.ComplexControl.CC_ComboBox, opt, painter, self)
-            rect = self.style().subControlRect(
-                QStyle.ComplexControl.CC_ComboBox,
-                opt,
-                QStyle.SubControl.SC_ComboBoxEditField,
-                self,
-            )
-            painter.setPen(QColor("#888888"))
-            painter.drawText(
-                rect.adjusted(3, 0, -3, 0),
-                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                self.fontMetrics().elidedText(
-                    self.placeholderText(),
-                    Qt.TextElideMode.ElideRight,
-                    max(rect.width() - 6, 0),
-                ),
-            )
-            painter.end()
-        else:
-            super().paintEvent(event)
-
 
 THRESHOLD_PRESETS: Dict[str, Dict[int, int]] = {
     "MISA default": dict(DEFAULT_THRESHOLDS),
@@ -230,7 +190,7 @@ class SsrFinderTab(BaseTabWidget):
 
         # Record selector: analyze all FASTA records or a single one.
         form.addWidget(QLabel(self.tr("Sequence:")), 1, 0)
-        self._record_combo = _PlaceholderComboBox()
+        self._record_combo = PlaceholderComboBox()
         self._record_combo.setPlaceholderText(
             self.tr("Run first, then select a record to view (multi-record files)")
         )
