@@ -1122,9 +1122,7 @@ def test_cpg_island_tab_clear_resets(qapp, tmp_path):
 
     tab = CpGIslandTab()
     seq_file = tmp_path / "seq.fasta"
-    seq_file.write_text(
-        ">test\n" + "AT" * 200 + "CG" * 130 + "AT" * 200, encoding="utf-8"
-    )
+    seq_file.write_text(">test\n" + "AT" * 200 + "CG" * 130 + "AT" * 200, encoding="utf-8")
     tab.input_path_edit.setText(str(seq_file))
     tab.run()
     assert tab._island_table.rowCount() == 1
@@ -1275,7 +1273,6 @@ def test_ssr_finder_multirecord_all_and_single_modes(qapp, tmp_path):
     assert tab._ssr_table.columnCount() == 9
 
 
-
 def test_ssr_finder_single_record_combo_has_one_option(qapp, tmp_path):
     from modules.ssr_finder_tab import SsrFinderTab
 
@@ -1287,9 +1284,7 @@ def test_ssr_finder_single_record_combo_has_one_option(qapp, tmp_path):
     )
 
     seq_file = tmp_path / "single.fasta"
-    seq_file.write_text(
-        ">only_one\n" + "A" * 5 + "AT" * 8 + "A" * 5 + "\n", encoding="utf-8"
-    )
+    seq_file.write_text(">only_one\n" + "A" * 5 + "AT" * 8 + "A" * 5 + "\n", encoding="utf-8")
     tab.input_path_edit.setText(str(seq_file))
     tab.run()
 
@@ -1311,7 +1306,17 @@ def test_ssr_finder_single_record_combo_has_one_option(qapp, tmp_path):
 def test_ssr_finder_export_csv(qapp, tmp_path, monkeypatch):
     from modules.ssr_finder_tab import SsrFinderTab
 
-    seq = "A" * 5 + "AT" * 9 + "C" * 5 + "AAT" * 6 + "G" * 5 + "GT" * 8 + "C" * 5 + "CTTA" * 5 + "A" * 5
+    seq = (
+        "A" * 5
+        + "AT" * 9
+        + "C" * 5
+        + "AAT" * 6
+        + "G" * 5
+        + "GT" * 8
+        + "C" * 5
+        + "CTTA" * 5
+        + "A" * 5
+    )
     tab = SsrFinderTab()
     seq_file = tmp_path / "ssr.fasta"
     seq_file.write_text(">test\n" + seq, encoding="utf-8")

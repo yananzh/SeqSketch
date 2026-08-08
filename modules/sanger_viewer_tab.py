@@ -322,12 +322,8 @@ class SangerViewerTab(QWidget):
         self._worker.error.connect(self._on_error)
         # Quit the thread directly from the worker so it stops even if the
         # main thread stops pumping events (e.g. app teardown in tests).
-        self._worker.finished.connect(
-            self._thread.quit, Qt.ConnectionType.DirectConnection
-        )
-        self._worker.error.connect(
-            self._thread.quit, Qt.ConnectionType.DirectConnection
-        )
+        self._worker.finished.connect(self._thread.quit, Qt.ConnectionType.DirectConnection)
+        self._worker.error.connect(self._thread.quit, Qt.ConnectionType.DirectConnection)
         self._thread.finished.connect(self._thread.deleteLater)
         self._thread.finished.connect(self._cleanup_thread)
         self._thread.start()

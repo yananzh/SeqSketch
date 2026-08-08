@@ -49,9 +49,7 @@ class _PlaceholderComboBox(QComboBox):
             painter = QPainter(self)
             opt = QStyleOptionComboBox()
             self.initStyleOption(opt)
-            self.style().drawComplexControl(
-                QStyle.ComplexControl.CC_ComboBox, opt, painter, self
-            )
+            self.style().drawComplexControl(QStyle.ComplexControl.CC_ComboBox, opt, painter, self)
             rect = self.style().subControlRect(
                 QStyle.ComplexControl.CC_ComboBox,
                 opt,
@@ -71,6 +69,7 @@ class _PlaceholderComboBox(QComboBox):
             painter.end()
         else:
             super().paintEvent(event)
+
 
 THRESHOLD_PRESETS: Dict[str, Dict[int, int]] = {
     "MISA default": dict(DEFAULT_THRESHOLDS),
@@ -311,8 +310,7 @@ class SsrFinderTab(BaseTabWidget):
         self._compound_dist_spin.setFixedWidth(120)
         self._compound_dist_spin.setToolTip(
             self.tr(
-                "Max gap (bp) between two SSRs to merge them into a compound SSR "
-                "(MISA default 100)"
+                "Max gap (bp) between two SSRs to merge them into a compound SSR (MISA default 100)"
             )
         )
         row2.addWidget(self._compound_dist_spin)
@@ -475,20 +473,21 @@ class SsrFinderTab(BaseTabWidget):
                 8, QHeaderView.ResizeMode.ResizeToContents
             )
 
-        flat_perfect = [
-            (r, rec["name"]) for rec in self._record_results for r in rec["perfect"]
-        ]
-        flat_compound = [
-            (r, rec["name"]) for rec in self._record_results for r in rec["compound"]
-        ]
+        flat_perfect = [(r, rec["name"]) for rec in self._record_results for r in rec["perfect"]]
+        flat_compound = [(r, rec["name"]) for rec in self._record_results for r in rec["compound"]]
 
         self._ssr_table.setSortingEnabled(False)
         self._ssr_table.setRowCount(len(flat_perfect) + len(flat_compound))
         for i, (r, name) in enumerate(flat_perfect):
             values = [
-                str(i + 1), "Perfect", f"({r['motif']}){r['repeats']}",
-                str(r["unit_len"]), str(r["repeats"]), str(r["start"] + 1),
-                str(r["end"]), str(r["end"] - r["start"]),
+                str(i + 1),
+                "Perfect",
+                f"({r['motif']}){r['repeats']}",
+                str(r["unit_len"]),
+                str(r["repeats"]),
+                str(r["start"] + 1),
+                str(r["end"]),
+                str(r["end"] - r["start"]),
             ]
             if record_col:
                 values.append(name)
@@ -496,8 +495,14 @@ class SsrFinderTab(BaseTabWidget):
         for j, (r, name) in enumerate(flat_compound):
             row_idx = len(flat_perfect) + j
             values = [
-                f"c{j + 1}", "Compound", r["motif"], "-", str(r["n"]),
-                str(r["start"]), str(r["end"]), str(r["size"]),
+                f"c{j + 1}",
+                "Compound",
+                r["motif"],
+                "-",
+                str(r["n"]),
+                str(r["start"]),
+                str(r["end"]),
+                str(r["size"]),
             ]
             if record_col:
                 values.append(name)
@@ -515,9 +520,11 @@ class SsrFinderTab(BaseTabWidget):
         else:
             rec = self._record_results[0]
             scope = self.tr(f" ({rec['name']}, {len(rec['seq']):,} bp)")
-        msg = self.tr(f"Found {len(self._perfect)} perfect SSR(s)") + (
-            self.tr(f", {len(self._compound)} compound") if self._compound else ""
-        ) + scope
+        msg = (
+            self.tr(f"Found {len(self._perfect)} perfect SSR(s)")
+            + (self.tr(f", {len(self._compound)} compound") if self._compound else "")
+            + scope
+        )
         self.show_status(msg)
 
     def _fill_row(self, row_idx: int, values: List[str]):
@@ -594,12 +601,13 @@ class SsrFinderTab(BaseTabWidget):
         for r in self._perfect:
             by_len[r["unit_len"]] += 1
             motif_counts[r["motif"]] = motif_counts.get(r["motif"], 0) + 1
-        top_motifs = ", ".join(
-            f"({motif}) x{count}"
-            for motif, count in sorted(
-                motif_counts.items(), key=lambda kv: (-kv[1], kv[0])
-            )[:3]
-        ) or "-"
+        top_motifs = (
+            ", ".join(
+                f"({motif}) x{count}"
+                for motif, count in sorted(motif_counts.items(), key=lambda kv: (-kv[1], kv[0]))[:3]
+            )
+            or "-"
+        )
 
         rows: List[Tuple[str, str]] = [
             ("Sequences", str(len(self._record_results))),
@@ -609,9 +617,7 @@ class SsrFinderTab(BaseTabWidget):
             ("SSR_density_per_Mb", f"{density:.2f}"),
             ("SSR_coverage_pct", f"{coverage:.2f}"),
         ]
-        for unit_len, label in enumerate(
-            ("Mono", "Di", "Tri", "Tetra", "Penta", "Hexa"), 1
-        ):
+        for unit_len, label in enumerate(("Mono", "Di", "Tri", "Tetra", "Penta", "Hexa"), 1):
             rows.append((f"SSRs_{label}", str(by_len[unit_len])))
         rows.append(("Top_motifs", top_motifs))
         return rows
