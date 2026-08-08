@@ -46,9 +46,7 @@ class PlaceholderComboBox(QComboBox):
             painter = QPainter(self)
             opt = QStyleOptionComboBox()
             self.initStyleOption(opt)
-            self.style().drawComplexControl(
-                QStyle.ComplexControl.CC_ComboBox, opt, painter, self
-            )
+            self.style().drawComplexControl(QStyle.ComplexControl.CC_ComboBox, opt, painter, self)
             rect = self.style().subControlRect(
                 QStyle.ComplexControl.CC_ComboBox,
                 opt,

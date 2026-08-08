@@ -453,11 +453,7 @@ class CpGIslandTab(BaseTabWidget):
             return
         combo_idx = self._record_combo.currentIndex()
         self._all_records_mode = combo_idx <= 0 and len(self._records) > 1
-        indexes = (
-            range(len(self._records))
-            if self._all_records_mode
-            else [max(combo_idx - 1, 0)]
-        )
+        indexes = range(len(self._records)) if self._all_records_mode else [max(combo_idx - 1, 0)]
 
         self._record_results = []
         for i in indexes:
@@ -495,8 +491,14 @@ class CpGIslandTab(BaseTabWidget):
         self._island_table.setRowCount(len(flat))
         for i, (r, name) in enumerate(flat):
             values = [
-                str(i + 1), str(r["start"]), str(r["end"]), str(r["length"]),
-                f"{r['gc']:.1f}", f"{r['oe']:.2f}", str(r["cpg"]), str(r["cg"]),
+                str(i + 1),
+                str(r["start"]),
+                str(r["end"]),
+                str(r["length"]),
+                f"{r['gc']:.1f}",
+                f"{r['oe']:.2f}",
+                str(r["cpg"]),
+                str(r["cg"]),
             ]
             if record_col:
                 values.append(name)
@@ -591,11 +593,7 @@ class CpGIslandTab(BaseTabWidget):
             cpg_total += seq.count("CG")
         island_bp = sum(r["length"] for r in self._results)
         coverage = island_bp / total_bp * 100 if total_bp else 0.0
-        genome_oe = (
-            (cpg_total * total_bp) / (c_total * g_total)
-            if c_total and g_total
-            else 0.0
-        )
+        genome_oe = (cpg_total * total_bp) / (c_total * g_total) if c_total and g_total else 0.0
         ge_500 = sum(1 for r in self._results if r["length"] >= 500)
         lt_500 = len(self._results) - ge_500
 

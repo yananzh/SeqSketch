@@ -1220,9 +1220,7 @@ def test_cpg_island_export_csv_with_statistics(qapp, tmp_path, monkeypatch):
     from modules.cpg_island_tab import CpGIslandTab
 
     seq_file = tmp_path / "seq.fasta"
-    seq_file.write_text(
-        ">test\n" + "AT" * 200 + "CG" * 130 + "AT" * 200, encoding="utf-8"
-    )
+    seq_file.write_text(">test\n" + "AT" * 200 + "CG" * 130 + "AT" * 200, encoding="utf-8")
     tab = CpGIslandTab()
     tab.input_path_edit.setText(str(seq_file))
     tab.run()
