@@ -27,6 +27,8 @@ def select_match_target(record, match_scope: str) -> str:
         return record.header
     if match_scope == "Description Only":
         return record.description
+    if match_scope == "Sequence":
+        return record.sequence
     return full_header_text(record)
 
 
@@ -136,11 +138,13 @@ class ExtractByRegexTab(BaseTabWidget):
             "Full Header",
             "Sequence ID Only",
             "Description Only",
+            "Sequence",
         ])
         self.match_scope_combo.setToolTip(
             "Full Header: match against the entire header line (ID + description)\n"
             "Sequence ID Only: match against the ID part before the first space\n"
-            "Description Only: match against the text after the first space"
+            "Description Only: match against the text after the first space\n"
+            "Sequence: match against the sequence letters themselves"
         )
         options_layout.addWidget(self.match_scope_combo)
         self.case_insensitive_checkbox = QCheckBox("Case insensitive")
