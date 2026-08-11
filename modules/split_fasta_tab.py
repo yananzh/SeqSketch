@@ -313,7 +313,7 @@ the value.</li>
 <li>Pick an output directory and, optionally, a new file prefix.</li>
 <li>Click <b>Preview</b> &mdash; the split plan shows how many files will
 be created and how many sequences each one will hold.</li>
-<li>Click <b>Run</b>, then use <b>Open Folder</b> to jump straight to the
+<li>Click <b>Run</b>, then use <b>Result Folder</b> to jump straight to the
 output directory.</li>
 </ol>
 

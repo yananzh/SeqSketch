@@ -1,11 +1,20 @@
 import csv
+import os
 import re
 
-from Bio.SeqUtils.ProtParam import ProteinAnalysis
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QMessageBox, QPushButton
+from PyQt6.QtCore import QUrl
+from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+)
 
-from utils.common_components import BaseTabWidget, apply_transparent_text_edit_background
+from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 
 AMINO_ACIDS = [
@@ -32,6 +41,20 @@ AMINO_ACIDS = [
 ]
 
 
+class _NumItem(QTableWidgetItem):
+    """QTableWidgetItem that sorts numerically instead of lexicographically."""
+
+    def __init__(self, value: float, text: str):
+        super().__init__(text)
+        self._val = value
+
+    def __lt__(self, other):
+        try:
+            return self._val < other._val
+        except Exception:
+            return super().__lt__(other)
+
+
 class AminoAcidCompositionTab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("Amino Acid Composition", "sequence")
@@ -46,9 +69,23 @@ class AminoAcidCompositionTab(BaseTabWidget):
         # Add Export CSV button to status row after Analyze
         self.export_csv_btn = QPushButton(self.tr("Export CSV"))
         self.export_csv_btn.setFixedWidth(110)
+        self.export_csv_btn.setProperty("accentButton", True)
+        self.export_csv_btn.setEnabled(False)
         self.export_csv_btn.clicked.connect(self.export_csv)
+        self.export_csv_btn.style().unpolish(self.export_csv_btn)
+        self.export_csv_btn.style().polish(self.export_csv_btn)
         _idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(_idx + 1, self.export_csv_btn)
+        # Add Result Folder button after Export CSV
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.style().unpolish(self.open_folder_btn)
+        self.open_folder_btn.style().polish(self.open_folder_btn)
+        self.status_layout.insertWidget(_idx + 2, self.open_folder_btn)
+        self._last_export_dir = ""
         # storage for current results
         self.current_results = []
         # Update placeholders for protein sequences
@@ -56,13 +93,9 @@ class AminoAcidCompositionTab(BaseTabWidget):
             "Paste protein sequence(s) in FASTA format or drag-and-drop a file...\n"
             "Examples:\n>prot1\nMKTFFVAGLMAGIS\n>prot2\nMVLSEGEWQLVLHVWAKVEADVAGHGQDIL"
         )
-        self.output_text.setPlaceholderText(
-            "Amino acid composition (counts and percentages) will appear here..."
-        )
-        apply_transparent_text_edit_background(self.output_text)
-        _s = self.output_text.styleSheet()
-        _s = _s.replace("border: 1px solid #94a3b8;", "border: none;")
-        self.output_text.setStyleSheet(_s)
+        self.input_hint.hide()
+        # Results are shown in per-sequence tables
+        self._setup_results_area()
         # Enable drag-and-drop
         self._setup_drag_drop()
 
@@ -75,6 +108,30 @@ class AminoAcidCompositionTab(BaseTabWidget):
         btn_row.addWidget(self.upload_btn, 1)
         btn_row.addWidget(self.example_btn, 1)
         ig_layout.insertLayout(1, btn_row)
+
+    def _setup_results_area(self):
+        """Replace the plain-text output with one long-format AA table."""
+        og_layout = self.output_group.layout()
+        og_layout.removeWidget(self.output_text)
+        self.output_text.hide()
+
+        self._aa_table = QTableWidget(0, 4)
+        self._aa_table.setHorizontalHeaderLabels(["Sequence ID", "AA", "Count", "Percent"])
+        header = self._aa_table.horizontalHeader()
+        header.setMinimumSectionSize(70)
+        for col in range(4):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        self._aa_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._aa_table.setSortingEnabled(True)
+        self._aa_table.setMinimumHeight(200)
+        og_layout.insertWidget(0, self._aa_table)
+
+    @staticmethod
+    def _short_header(header: str) -> str:
+        """Short tab title for a FASTA record (first token, max 20 chars)."""
+        name = header.split()[0].strip() if header.strip() else ""
+        name = name or "sequence"
+        return name if len(name) <= 20 else name[:17] + "..."
 
     def _load_example(self):
         """Load the bundled protein example."""
@@ -105,8 +162,10 @@ class AminoAcidCompositionTab(BaseTabWidget):
         if not records:
             QMessageBox.warning(self, "Input Error", "No valid FASTA sequences detected.")
             return
-        output_lines = []
+        self._aa_table.setSortingEnabled(False)
+        self._aa_table.setRowCount(len(records) * len(AMINO_ACIDS))
         self.current_results = []
+        row_idx = 0
         for header, seq in records:
             seq = seq.upper()
             if not all(c in AMINO_ACIDS for c in seq):
@@ -116,26 +175,40 @@ class AminoAcidCompositionTab(BaseTabWidget):
                     f"Sequence {header} contains non-standard amino acids.",
                 )
                 return
-            analysis = ProteinAnalysis(seq)
-            freq = analysis.get_amino_acids_percent()  # fraction per amino acid
             total_len = len(seq)
-            output_lines.append(f">{header} | Length: {total_len} aa")
-            # Column header
-            output_lines.append("AA  Count  Percent")
-            for aa in AMINO_ACIDS:
-                count = seq.count(aa)
-                percent = freq.get(aa, 0) * 100
-                output_lines.append(f"{aa:<2}  {count:<5}  {percent:>6.2f}%")
+            counts = {aa: seq.count(aa) for aa in AMINO_ACIDS}
+            # Percent is computed directly (count / length * 100); Biopython's
+            # amino_acids_percent reports per-1000 frequencies, not percents.
+            percents = {aa: counts[aa] / total_len * 100 for aa in AMINO_ACIDS}
             # store structured result for CSV export
             self.current_results.append({
                 "header": header,
                 "length": total_len,
-                "counts": {aa: seq.count(aa) for aa in AMINO_ACIDS},
-                "percents": {aa: freq.get(aa, 0) * 100 for aa in AMINO_ACIDS},
+                "counts": counts,
+                "percents": percents,
             })
-            output_lines.append("")
-        self.output_text.setPlainText("\n".join(output_lines))
+            seq_id = self._short_header(header)
+            for aa in AMINO_ACIDS:
+                self._aa_table.setItem(row_idx, 0, QTableWidgetItem(seq_id))
+                self._aa_table.setItem(row_idx, 1, QTableWidgetItem(aa))
+                self._aa_table.setItem(row_idx, 2, _NumItem(float(counts[aa]), str(counts[aa])))
+                self._aa_table.setItem(row_idx, 3, _NumItem(percents[aa], f"{percents[aa]:.2f}"))
+                row_idx += 1
+        self._aa_table.setSortingEnabled(True)
+        self.export_csv_btn.setEnabled(True)
         self.status_label.setText(f"Analyzed {len(records)} sequences.")
+
+    def clear(self):
+        self._aa_table.setRowCount(0)
+        self.current_results = []
+        self.export_csv_btn.setEnabled(False)
+        self.open_folder_btn.setEnabled(False)
+        super().clear()
+
+    def _open_output_folder(self):
+        """Open the folder of the most recently exported CSV file."""
+        if self._last_export_dir:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
     def _setup_drag_drop(self):
         self.input_text.setAcceptDrops(True)
@@ -238,7 +311,7 @@ class AminoAcidCompositionTab(BaseTabWidget):
         scroll.setHorizontalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setVerticalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAsNeeded)
         label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setTextFormat(QtCore.TextFormat.RichText)
         label.setWordWrap(True)
         label.setAlignment(QtCore.AlignmentFlag.AlignTop | QtCore.AlignmentFlag.AlignLeft)
         label.setMargin(20)
@@ -262,21 +335,21 @@ class AminoAcidCompositionTab(BaseTabWidget):
         )
         if not file_path:
             return
-        # Prepare header: header,length, then per AA count and percent
-        header_cols = ["Sequence_ID", "Length"]
-        for aa in AMINO_ACIDS:
-            header_cols.append(f"{aa}_count")
-            header_cols.append(f"{aa}_percent")
         try:
             with open(file_path, "w", encoding="utf-8", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow(header_cols)
+                # Long format, one row per amino acid — same 4 columns as the table.
+                writer.writerow(["Sequence_ID", "AA", "Count", "Percent"])
                 for rec in self.current_results:
-                    row = [rec["header"], rec["length"]]
                     for aa in AMINO_ACIDS:
-                        row.append(rec["counts"][aa])
-                        row.append(f"{rec['percents'][aa]:.2f}")
-                    writer.writerow(row)
-            self.status_label.setText(f"Exported CSV: {file_path}")
+                        writer.writerow([
+                            rec["header"],
+                            aa,
+                            rec["counts"][aa],
+                            f"{rec['percents'][aa]:.2f}",
+                        ])
+            self._last_export_dir = os.path.dirname(file_path)
+            self.open_folder_btn.setEnabled(True)
+            self.status_label.setText(f"Exported: {os.path.basename(file_path)}")
         except Exception as e:
             QMessageBox.critical(self, "Export Error", str(e))

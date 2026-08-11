@@ -1,7 +1,12 @@
 """Hydrophobicity Plot Tab — sliding-window hydrophobicity analysis for protein sequences."""
 
-import matplotlib
-from PyQt6.QtCore import Qt
+import os
+
+import numpy as np
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QComboBox,
     QGroupBox,
@@ -17,12 +22,6 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
-
-matplotlib.use("Qt5Agg")
-import numpy as np
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 
 # ── Hydrophobicity scales ───────────────────────────────────────────────────
 # Values for the 20 standard amino acids (A R N D C Q E G H I L K M F P S T W Y V)
@@ -124,7 +123,6 @@ class HydrophobicityPlotTab(BaseTabWidget):
 
     def __init__(self, parent=None):
         super().__init__("Hydrophobicity Plot", "sequence")
-        self._logo_generated = False
 
         self.run_btn.setText("Plot")
         self.run_btn.setFixedWidth(100)
@@ -158,8 +156,29 @@ class HydrophobicityPlotTab(BaseTabWidget):
         btn_row.addWidget(self.example_btn, 1)
         ig_layout.insertLayout(1, btn_row)
 
+        # Export Plot button between Plot and Clear in the status row.
+        self.export_plot_btn = QPushButton(self.tr("Export Plot"))
+        self.export_plot_btn.setFixedWidth(110)
+        self.export_plot_btn.setProperty("accentButton", True)
+        self.export_plot_btn.setEnabled(False)
+        self.export_plot_btn.clicked.connect(self.export_result)
+        self.export_plot_btn.style().unpolish(self.export_plot_btn)
+        self.export_plot_btn.style().polish(self.export_plot_btn)
+        _idx = self.status_layout.indexOf(self.run_btn)
+        self.status_layout.insertWidget(_idx + 1, self.export_plot_btn)
+        # Add Result Folder button after Export Plot
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.style().unpolish(self.open_folder_btn)
+        self.open_folder_btn.style().polish(self.open_folder_btn)
+        self.status_layout.insertWidget(_idx + 2, self.open_folder_btn)
+        self._last_export_dir = ""
+
     def _load_example(self):
-        """Load the bundled protein example."""
+        """Load the bundled protein example (only the first record is shown)."""
         text = load_example_text("protein", "protein_example.fasta")
         if not text:
             QMessageBox.information(
@@ -168,6 +187,13 @@ class HydrophobicityPlotTab(BaseTabWidget):
                 self.tr("Failed to load example data. Please check your installation."),
             )
             return
+        try:
+            records = self.parse_fasta(text)
+        except Exception:
+            records = []
+        if records:
+            header, seq = records[0]
+            text = f">{header}\n{seq}\n"
         self.input_text.setPlainText(text)
         self.show_status(self.tr("Loaded example data: protein_example.fasta"))
 
@@ -216,20 +242,16 @@ class HydrophobicityPlotTab(BaseTabWidget):
     def _add_plot_canvas(self):
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(False)
-        self._scroll_area.setMinimumHeight(280)
+        self._scroll_area.setMinimumHeight(210)
 
         self.figure = Figure(figsize=(10, 3.5))
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setMinimumHeight(250)
         self._scroll_area.setWidget(self.canvas)
 
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.toolbar.hide()
-
         plot_label = QLabel("Hydrophobicity Profile:")
         plot_layout = QVBoxLayout()
         plot_layout.addWidget(plot_label)
-        plot_layout.addWidget(self.toolbar)
         plot_layout.addWidget(self._scroll_area)
         self.content_area.insertLayout(self.content_area.count() - 1, plot_layout)
         self._draw_placeholder_plot()
@@ -271,7 +293,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
             QMessageBox.warning(self, "Input Error", "No valid FASTA sequences detected.")
             return
 
-        # Use the first sequence
+        # Only the first sequence is analysed.
         header, seq = records[0]
         seq = "".join(c for c in seq.upper() if c.isalpha())
         if not seq:
@@ -294,22 +316,27 @@ class HydrophobicityPlotTab(BaseTabWidget):
             )
             return
 
-        # Sliding window average
+        averaged = self._window_average(scores, window)
+        self._draw_plot(seq, averaged, scale_name, window, header)
+        self.export_plot_btn.setEnabled(True)
+        self.status_label.setText(
+            f"Plotted {scale_name} (window={window}) — {len(seq)} residues"
+        )
+
+    @staticmethod
+    def _window_average(scores: np.ndarray, window: int) -> np.ndarray:
+        """Sliding-window mean; positions with < half a window are NaN."""
         half = window // 2
         averaged = np.full_like(scores, np.nan)
         for i in range(len(scores)):
             start = max(0, i - half)
             end = min(len(scores), i + half + 1)
-            w = end - start
-            if w >= window // 2 + 1:  # at least half the window
+            if end - start >= window // 2 + 1:  # at least half the window
                 averaged[i] = np.mean(scores[start:end])
+        return averaged
 
-        self._draw_plot(seq, averaged, scale_name, window, header)
-        self.status_label.setText(
-            f"Plotted {scale_name} hydrophobicity (window={window}) — {len(seq)} residues"
-        )
-
-    def _draw_plot(self, seq, scores, scale_name, window, header):
+    def _draw_plot(self, seq, scores, scale_name: str, window: int, header: str):
+        """Draw the single-sequence hydrophobicity profile."""
         self.figure.clear()
         ax = self.figure.add_subplot(111)
 
@@ -317,22 +344,10 @@ class HydrophobicityPlotTab(BaseTabWidget):
 
         # Fill above/below zero differently
         ax.fill_between(
-            x,
-            0,
-            scores,
-            where=(scores > 0),
-            color="#d9534f",
-            alpha=0.35,
-            label="Hydrophobic",
+            x, 0, scores, where=(scores > 0), color="#d9534f", alpha=0.35, label="Hydrophobic"
         )
         ax.fill_between(
-            x,
-            0,
-            scores,
-            where=(scores < 0),
-            color="#5bc0de",
-            alpha=0.35,
-            label="Hydrophilic",
+            x, 0, scores, where=(scores < 0), color="#5bc0de", alpha=0.35, label="Hydrophilic"
         )
         ax.plot(x, scores, color="#333", linewidth=1.2)
         ax.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
@@ -349,20 +364,20 @@ class HydrophobicityPlotTab(BaseTabWidget):
 
         self.figure.tight_layout()
         self.current_figure = self.figure
-
-        if not self._logo_generated:
-            self.toolbar.show()
-            self._logo_generated = True
-
         self.canvas.draw()
 
     def clear(self):
         self.input_text.clear()
         self._draw_placeholder_plot()
-        self.toolbar.hide()
-        self._logo_generated = False
         self.current_figure = None
+        self.export_plot_btn.setEnabled(False)
+        self.open_folder_btn.setEnabled(False)
         self.status_label.setText("Cleared")
+
+    def _open_output_folder(self):
+        """Open the folder of the most recently exported figure."""
+        if self._last_export_dir:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
     def export_result(self):
         if self.current_figure is None:
@@ -380,6 +395,8 @@ class HydrophobicityPlotTab(BaseTabWidget):
             try:
                 self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight")
                 self.status_label.setText(f"Figure saved: {file_path}")
+                self._last_export_dir = os.path.dirname(file_path)
+                self.open_folder_btn.setEnabled(True)
             except Exception as e:
                 QMessageBox.warning(self, "Export Error", f"Failed to save figure:\n{str(e)}")
 
@@ -420,7 +437,9 @@ the Kyte-Doolittle or Engelman scale.</li>
 <li>Use <b>window = 7&ndash;9</b> for general hydropathy profiling.</li>
 <li>Stretches where the score stays above ~1.6 (Kyte-Doolittle) for
 20+ residues suggest a transmembrane helix.</li>
-<li>The plot is interactive &mdash; use the toolbar to zoom, pan, or save.</li>
+<li>Only the first FASTA record is analysed &mdash; multi-record files
+should be split before use</li>
+<li>Click <b>Export Plot</b> to save the figure as PNG / PDF / SVG</li>
 </ul>
         """
         dialog = QDialog(self)

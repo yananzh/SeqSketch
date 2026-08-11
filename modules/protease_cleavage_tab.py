@@ -1,25 +1,30 @@
 """Protease Cleavage Map Tab — predict proteolytic digestion fragments."""
 
 import csv
+import os
 import re
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QMessageBox,
     QPushButton,
     QScrollArea,
     QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
     QTextEdit,
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget, apply_sequence_editor_style
+from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 
 # ── Protease definitions ─────────────────────────────────────────────────────
@@ -121,6 +126,20 @@ PROTEASES = {
 }
 
 
+class _NumItem(QTableWidgetItem):
+    """QTableWidgetItem that sorts numerically instead of lexicographically."""
+
+    def __init__(self, value: float, text: str):
+        super().__init__(text)
+        self._val = value
+
+    def __lt__(self, other):
+        try:
+            return self._val < other._val
+        except Exception:
+            return super().__lt__(other)
+
+
 class ProteaseCleavageTab(BaseTabWidget):
     """Protease Cleavage Map — predict fragment patterns from protease digestion."""
 
@@ -132,8 +151,6 @@ class ProteaseCleavageTab(BaseTabWidget):
             self.copy_btn.hide()
         if hasattr(self, "export_btn"):
             self.export_btn.hide()
-        self.output_text.setReadOnly(True)
-        self.output_text.setPlaceholderText("Predicted fragments will appear here...")
 
         self.input_hint.hide()
         self.input_text.setPlaceholderText(
@@ -143,15 +160,30 @@ class ProteaseCleavageTab(BaseTabWidget):
         self.input_text.setMaximumHeight(100)
 
         self._setup_parameters()
+        self._setup_results_area()
         self._setup_drag_drop()
         self.current_results = []
 
         # Add Export CSV button to status row after Digest
         self.export_csv_btn = QPushButton(self.tr("Export CSV"))
         self.export_csv_btn.setFixedWidth(110)
+        self.export_csv_btn.setProperty("accentButton", True)
+        self.export_csv_btn.setEnabled(False)
         self.export_csv_btn.clicked.connect(self.export_csv)
+        self.export_csv_btn.style().unpolish(self.export_csv_btn)
+        self.export_csv_btn.style().polish(self.export_csv_btn)
         _idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(_idx + 1, self.export_csv_btn)
+        # Add Result Folder button after Export CSV
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.style().unpolish(self.open_folder_btn)
+        self.open_folder_btn.style().polish(self.open_folder_btn)
+        self.status_layout.insertWidget(_idx + 2, self.open_folder_btn)
+        self._last_export_dir = ""
 
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton(self.tr("Example"))
@@ -162,6 +194,32 @@ class ProteaseCleavageTab(BaseTabWidget):
         btn_row.addWidget(self.upload_btn, 1)
         btn_row.addWidget(self.example_btn, 1)
         ig_layout.insertLayout(1, btn_row)
+
+    def _setup_results_area(self):
+        """Replace the plain-text output with a sortable fragment table."""
+        og_layout = self.output_group.layout()
+        og_layout.removeWidget(self.output_text)
+        self.output_text.hide()
+
+        self._frag_table = QTableWidget(0, 7)
+        self._frag_table.setHorizontalHeaderLabels([
+            "Sequence",
+            "#",
+            "Start",
+            "End",
+            "Length",
+            "MW (Da)",
+            "Fragment",
+        ])
+        header = self._frag_table.horizontalHeader()
+        header.setMinimumSectionSize(70)
+        for col in range(6):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(6, QHeaderView.ResizeMode.Stretch)
+        self._frag_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._frag_table.setSortingEnabled(True)
+        self._frag_table.setMinimumHeight(160)
+        og_layout.insertWidget(0, self._frag_table)
 
     def _load_example(self):
         """Load the bundled protein example."""
@@ -238,17 +296,65 @@ class ProteaseCleavageTab(BaseTabWidget):
             QMessageBox.warning(self, "Input Error", "No valid FASTA sequences detected.")
             return
 
-        header, seq = records[0]
-        seq = "".join(c for c in seq.upper() if c in AA)
-        if not seq:
-            QMessageBox.warning(self, "Input Error", "Sequence is empty after cleaning.")
-            return
-
         protease_name = self.protease_combo.currentText()
         protease = PROTEASES[protease_name]
         missed = self.missed_spin.value()
 
-        # Get all cut positions
+        # Digest every FASTA record and collect all fragments.
+        all_fragments = []
+        for rec_header, rec_seq in records:
+            rec_seq = "".join(c for c in rec_seq.upper() if c in AA)
+            if not rec_seq:
+                continue
+            fragments = self._digest(rec_seq, protease, missed)
+            seq_name = self._short_header(rec_header)
+            for frag in fragments:
+                frag["seq_name"] = seq_name
+            all_fragments.extend(fragments)
+
+        if not all_fragments:
+            QMessageBox.warning(self, "No Fragments", "No cleavage sites found for this protease.")
+            return
+
+        # Display results in the fragment table (one row per fragment)
+        self._frag_table.setSortingEnabled(False)
+        self._frag_table.setRowCount(len(all_fragments))
+        for row, frag in enumerate(all_fragments):
+            values = [
+                frag["seq_name"],
+                str(frag["index"]),
+                str(frag["start"]),
+                str(frag["end"]),
+                str(frag["length"]),
+                f"{frag['mw']:.2f}",
+                frag["sequence"],
+            ]
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                if col in (1, 2, 3, 4, 5):
+                    item = _NumItem(float(value.replace(",", "")), value)
+                self._frag_table.setItem(row, col, item)
+        self._frag_table.setSortingEnabled(True)
+
+        self.current_results = all_fragments
+        self.export_csv_btn.setEnabled(True)
+        total = len(all_fragments)
+        if len(records) > 1:
+            self.status_label.setText(
+                f"Digested: {total} fragments ({protease_name}, {len(records)} seq)"
+            )
+        else:
+            self.status_label.setText(f"Digested: {total} fragments ({protease_name})")
+
+    @staticmethod
+    def _short_header(header: str) -> str:
+        """Short tab title for a FASTA record (first token, max 20 chars)."""
+        name = header.split()[0].strip() if header.strip() else ""
+        name = name or "sequence"
+        return name if len(name) <= 20 else name[:17] + "..."
+
+    def _digest(self, seq, protease, missed):
+        """Digest one sequence and return fragment dicts (index restarts per sequence)."""
         cut_rule = protease["rule"]
         cuts = cut_rule(seq)  # list of cut positions (0-based, after cut)
 
@@ -266,6 +372,7 @@ class ProteaseCleavageTab(BaseTabWidget):
             if frag_seq:
                 mw = sum(AA_MASS.get(aa, 0) for aa in frag_seq) + H2O
                 fragments.append({
+                    "index": len(fragments) + 1,
                     "start": start + 1,
                     "end": end,
                     "length": len(frag_seq),
@@ -273,38 +380,20 @@ class ProteaseCleavageTab(BaseTabWidget):
                     "mw": round(mw, 2),
                     "full_seq": frag_seq,
                 })
-
-        if not fragments:
-            QMessageBox.warning(self, "No Fragments", "No cleavage sites found for this protease.")
-            return
-
-        # Display results
-        out_lines = []
-        out_lines.append(f"Protease: {protease_name}  |  Missed cleavages: {missed}")
-        out_lines.append(f"Sequence: {header}  |  Length: {len(seq)} aa")
-        out_lines.append("")
-        out_lines.append(f"{'#':>4}  {'Start':>6} {'End':>6} {'Len':>5}  {'MW (Da)':>10}  Sequence")
-        out_lines.append(f"{'─' * 4}  {'─' * 6} {'─' * 6} {'─' * 5}  {'─' * 10}  {'─' * 8}")
-
-        for idx, frag in enumerate(fragments, 1):
-            out_lines.append(
-                f"{idx:>4}  {frag['start']:>6} {frag['end']:>6} {frag['length']:>5}"
-                f"  {frag['mw']:>10.2f}  {frag['sequence']}"
-            )
-        out_lines.append("")
-        out_lines.append(f"Total fragments: {len(fragments)}")
-        total_mw = sum(f["mw"] for f in fragments)
-        out_lines.append(f"Sum of fragment MW: {total_mw:.2f} Da")
-
-        self.output_text.setPlainText("\n".join(out_lines))
-        self.current_results = fragments
-        self.status_label.setText(f"Digested with {protease_name} — {len(fragments)} fragments")
+        return fragments
 
     def clear(self):
         self.input_text.clear()
-        self.output_text.clear()
+        self._frag_table.setRowCount(0)
         self.current_results = []
+        self.export_csv_btn.setEnabled(False)
+        self.open_folder_btn.setEnabled(False)
         self.status_label.setText("Cleared")
+
+    def _open_output_folder(self):
+        """Open the folder of the most recently exported CSV file."""
+        if self._last_export_dir:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
     def export_csv(self):
         """Export digestion fragments to a CSV file."""
@@ -326,19 +415,22 @@ class ProteaseCleavageTab(BaseTabWidget):
         try:
             with open(path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow(["#", "Start", "End", "Length", "MW (Da)", "Sequence"])
+                writer.writerow([
+                    "Sequence_ID", "#", "Start", "End", "Length", "MW (Da)", "Fragment"
+                ])
                 for frag in self.current_results:
                     writer.writerow([
-                        self.current_results.index(frag) + 1,
+                        frag["seq_name"],
+                        frag["index"],
                         frag["start"],
                         frag["end"],
                         frag["length"],
                         f"{frag['mw']:.2f}",
                         frag["sequence"],
                     ])
-            self.status_label.setText(
-                self.tr(f"Exported {len(self.current_results)} fragments to {path}")
-            )
+            self.status_label.setText(f"Exported: {os.path.basename(path)}")
+            self._last_export_dir = os.path.dirname(path)
+            self.open_folder_btn.setEnabled(True)
         except Exception as e:
             QMessageBox.warning(self, self.tr("Export Error"), str(e))
 
@@ -382,6 +474,8 @@ proteomics.</li>
 at termini). Average masses can differ ~0.06%.</li>
 <li>Long fragments are truncated in the display column; the full
 sequence is used for MW calculation.</li>
+<li>Multi-FASTA input is supported &mdash; every record is digested
+and its fragments are listed under its sequence name.</li>
 </ul>
         """
         dialog = QDialog(self)

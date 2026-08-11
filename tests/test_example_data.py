@@ -94,7 +94,7 @@ def test_physicochemical_example_fills_input_text(qapp):
     btn.click()
     text = tab.input_text.toPlainText()
     assert text.startswith(">")
-    assert "P02931" in text
+    assert "P00370" in text
 
 
 def test_mafft_example_fills_input_text(qapp):

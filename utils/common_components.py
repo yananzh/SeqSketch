@@ -562,11 +562,11 @@ class BaseTabWidget(QWidget):
         self.logger.info(message)
 
     def add_open_output_dir_button(self):
-        """Add an 'Open Folder' button to the right of Run/Clear in the
+        """Add a 'Result Folder' button to the right of Run/Clear in the
         status bar (before Help). It opens the folder containing the current
         output file.
         """
-        self.open_output_btn = QPushButton(self.tr("Open Folder"))
+        self.open_output_btn = QPushButton(self.tr("Result Folder"))
         self.open_output_btn.clicked.connect(self._open_output_folder)
         # Insert right before the Help button (always the last status widget)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.open_output_btn)

@@ -1,11 +1,21 @@
 import csv
+import os
 import re
 
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QMessageBox, QPushButton
+from PyQt6.QtCore import QUrl
+from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+)
 
-from utils.common_components import BaseTabWidget, apply_transparent_text_edit_background
+from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 
 PROPERTIES = [
@@ -41,6 +51,20 @@ AMINO_ACIDS = [
 ]
 
 
+class _NumItem(QTableWidgetItem):
+    """QTableWidgetItem that sorts numerically instead of lexicographically."""
+
+    def __init__(self, value: float, text: str):
+        super().__init__(text)
+        self._val = value
+
+    def __lt__(self, other):
+        try:
+            return self._val < other._val
+        except Exception:
+            return super().__lt__(other)
+
+
 class PhysicochemicalPropertiesTab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("Physicochemical Properties", "sequence")
@@ -53,9 +77,23 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         # Add Export CSV button to status row after Analyze
         self.export_csv_btn = QPushButton(self.tr("Export CSV"))
         self.export_csv_btn.setFixedWidth(110)
+        self.export_csv_btn.setProperty("accentButton", True)
+        self.export_csv_btn.setEnabled(False)
         self.export_csv_btn.clicked.connect(self.export_csv)
+        self.export_csv_btn.style().unpolish(self.export_csv_btn)
+        self.export_csv_btn.style().polish(self.export_csv_btn)
         _idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(_idx + 1, self.export_csv_btn)
+        # Add Result Folder button after Export CSV
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.style().unpolish(self.open_folder_btn)
+        self.open_folder_btn.style().polish(self.open_folder_btn)
+        self.status_layout.insertWidget(_idx + 2, self.open_folder_btn)
+        self._last_export_dir = ""
         # Rename run/help buttons
         self.run_btn.setText("Analyze")
         self.help_btn.setText("Help")
@@ -64,13 +102,9 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
             "Paste protein sequence(s) in FASTA format or drag-and-drop a file...\n"
             ">seq1\nMKTFFVAGLMAGIS...\n>seq2\nMVLSEGEWQLVLHVWAKVEADVAGHGQDIL..."
         )
-        self.output_text.setPlaceholderText(
-            "Computed physicochemical properties will appear here..."
-        )
-        apply_transparent_text_edit_background(self.output_text)
-        _s = self.output_text.styleSheet()
-        _s = _s.replace("border: 1px solid #94a3b8;", "border: none;")
-        self.output_text.setStyleSheet(_s)
+        self.input_hint.hide()
+        # Results are shown in per-sequence tables
+        self._setup_results_area()
         # Enable drag & drop
         self._setup_drag_drop()
 
@@ -86,6 +120,41 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
 
         # Storage for results
         self.current_results = []
+
+    def _setup_results_area(self):
+        """Replace the plain-text output with one wide per-sequence table."""
+        og_layout = self.output_group.layout()
+        og_layout.removeWidget(self.output_text)
+        self.output_text.hide()
+
+        self._prop_table = QTableWidget(0, 9)
+        self._prop_table.setHorizontalHeaderLabels([
+            "Sequence ID",
+            "Length (aa)",
+            "MW (Da)",
+            "pI",
+            "Ext. Coeff. (280nm)",
+            "Half-life",
+            "Instability",
+            "Aliphatic",
+            "GRAVY",
+        ])
+        header = self._prop_table.horizontalHeader()
+        header.setMinimumSectionSize(70)
+        for col in range(8):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(8, QHeaderView.ResizeMode.Stretch)
+        self._prop_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._prop_table.setSortingEnabled(True)
+        self._prop_table.setMinimumHeight(160)
+        og_layout.insertWidget(0, self._prop_table)
+
+    @staticmethod
+    def _short_header(header: str) -> str:
+        """Short tab title for a FASTA record (first token, max 20 chars)."""
+        name = header.split()[0].strip() if header.strip() else ""
+        name = name or "sequence"
+        return name if len(name) <= 20 else name[:17] + "..."
 
     def _load_example(self):
         """Load the bundled protein example for property analysis."""
@@ -116,9 +185,10 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         if not records:
             QMessageBox.warning(self, "Input Error", "No valid FASTA sequences detected.")
             return
+        self._prop_table.setSortingEnabled(False)
+        self._prop_table.setRowCount(len(records))
         self.current_results = []
-        out_lines = []
-        for header, seq in records:
+        for row_idx, (header, seq) in enumerate(records):
             seq = seq.upper()
             if not all(c in AMINO_ACIDS for c in seq):
                 QMessageBox.warning(
@@ -133,25 +203,12 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
             pi = round(analysis.isoelectric_point(), 2)
             instab = round(analysis.instability_index(), 2)
             gravy = round(analysis.gravy(), 3)
-            instab_str = f"{instab} (unstable)" if instab > 40 else f"{instab}"
             # Extinction coefficient (reduced / oxidized) at 280 nm (M^-1 cm^-1)
             ec_reduced, ec_oxidized = self.extinction_coefficient(seq)
             # Aliphatic index
             aliphatic_idx = round(self.aliphatic_index(seq), 2)
             # Estimated half-life (mammalian reticulocytes, in vitro)
             half_life = self.estimated_half_life_mammalian(seq)
-            out_lines.append(f">{header} | Length: {length} aa")
-            out_lines.append("Property                Value")
-            out_lines.append(f"Molecular Weight (Da):  {mw}")
-            out_lines.append(f"Theoretical pI:         {pi}")
-            out_lines.append(
-                f"Extinction Coeff. (280nm): reduced={ec_reduced} | oxidized={ec_oxidized}"
-            )
-            out_lines.append(f"Estimated Half-life (mammalian): {half_life}")
-            out_lines.append(f"Instability Index:      {instab_str}")
-            out_lines.append(f"Aliphatic Index:        {aliphatic_idx}")
-            out_lines.append(f"GRAVY:                  {gravy}")
-            out_lines.append("")
             self.current_results.append({
                 "header": header,
                 "length": length,
@@ -165,10 +222,39 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
                 "aliphatic_index": aliphatic_idx,
                 "gravy": gravy,
             })
-        self.output_text.setPlainText("\n".join(out_lines))
+            # One row per sequence; numeric columns sort by value.
+            self._prop_table.setItem(row_idx, 0, QTableWidgetItem(self._short_header(header)))
+            self._prop_table.setItem(row_idx, 1, _NumItem(float(length), str(length)))
+            self._prop_table.setItem(row_idx, 2, _NumItem(mw, f"{mw:.2f}"))
+            self._prop_table.setItem(row_idx, 3, _NumItem(pi, f"{pi:.2f}"))
+            self._prop_table.setItem(
+                row_idx,
+                4,
+                QTableWidgetItem(f"reduced={ec_reduced} | oxidized={ec_oxidized}"),
+            )
+            self._prop_table.setItem(row_idx, 5, QTableWidgetItem(half_life))
+            self._prop_table.setItem(
+                row_idx,
+                6,
+                _NumItem(instab, f"{instab} (unstable)" if instab > 40 else f"{instab}"),
+            )
+            self._prop_table.setItem(row_idx, 7, _NumItem(aliphatic_idx, f"{aliphatic_idx:.2f}"))
+            self._prop_table.setItem(row_idx, 8, _NumItem(gravy, f"{gravy:.3f}"))
+        self._prop_table.setSortingEnabled(True)
+        self.export_csv_btn.setEnabled(True)
         self.status_label.setText(f"Analyzed {len(records)} sequences.")
 
-    # Table-based display removed (output now in text box)
+    def clear(self):
+        self._prop_table.setRowCount(0)
+        self.current_results = []
+        self.export_csv_btn.setEnabled(False)
+        self.open_folder_btn.setEnabled(False)
+        super().clear()
+
+    def _open_output_folder(self):
+        """Open the folder of the most recently exported CSV file."""
+        if self._last_export_dir:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
     def export_csv(self):
         if not self.current_results:
@@ -212,7 +298,9 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
                         rec["aliphatic_index"],
                         rec["gravy"],
                     ])
-            self.status_label.setText(f"Exported CSV: {file_path}")
+            self._last_export_dir = os.path.dirname(file_path)
+            self.open_folder_btn.setEnabled(True)
+            self.status_label.setText(f"Exported: {os.path.basename(file_path)}")
         except Exception as e:
             QMessageBox.critical(self, "Export Error", str(e))
 
@@ -294,7 +382,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         scroll.setHorizontalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setVerticalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAsNeeded)
         label = QLabel(help_text)
-        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setTextFormat(QtCore.TextFormat.RichText)
         label.setWordWrap(True)
         label.setAlignment(QtCore.AlignmentFlag.AlignTop | QtCore.AlignmentFlag.AlignLeft)
         label.setMargin(20)
