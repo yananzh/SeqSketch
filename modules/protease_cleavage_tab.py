@@ -416,7 +416,13 @@ class ProteaseCleavageTab(BaseTabWidget):
             with open(path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
                 writer.writerow([
-                    "Sequence_ID", "#", "Start", "End", "Length", "MW (Da)", "Fragment"
+                    "Sequence_ID",
+                    "#",
+                    "Start",
+                    "End",
+                    "Length",
+                    "MW (Da)",
+                    "Fragment",
                 ])
                 for frag in self.current_results:
                     writer.writerow([

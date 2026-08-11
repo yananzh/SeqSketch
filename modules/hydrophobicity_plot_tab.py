@@ -319,9 +319,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
         averaged = self._window_average(scores, window)
         self._draw_plot(seq, averaged, scale_name, window, header)
         self.export_plot_btn.setEnabled(True)
-        self.status_label.setText(
-            f"Plotted {scale_name} (window={window}) — {len(seq)} residues"
-        )
+        self.status_label.setText(f"Plotted {scale_name} (window={window}) — {len(seq)} residues")
 
     @staticmethod
     def _window_average(scores: np.ndarray, window: int) -> np.ndarray:
