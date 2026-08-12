@@ -153,7 +153,12 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setFixedWidth(90)
+        self.example_btn.setToolTip(self.tr("Load example alignment file"))
+        self.example_btn.clicked.connect(self._load_example)
         input_row.addWidget(self.input_edit)
+        input_row.addWidget(self.example_btn)
         input_row.addWidget(self.input_btn)
 
         fmt_row = QHBoxLayout()
@@ -203,19 +208,20 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         og_layout.addLayout(out_fmt_row)
         self.add_content_widget(output_group)
 
-        # ── Buttons: Convert / Example / Clear in status_layout next to Help ──
-        self.run_btn = QPushButton("Convert")
-        self.example_btn = QPushButton("Example")
-        self.example_btn.setToolTip(self.tr("Load example alignment file"))
-        self.example_btn.clicked.connect(self._load_example)
+        # ── Buttons: Run / Clear / Result Folder in status_layout ──
+        self.run_btn = QPushButton("Run")
         self.clear_btn = QPushButton("Clear")
-        self.run_btn.setFixedWidth(90)
-        self.example_btn.setFixedWidth(90)
-        self.clear_btn.setFixedWidth(90)
-        # Insert before the Help button (last widget in status_layout)
+        self.run_btn.setFixedWidth(75)
+        self.clear_btn.setFixedWidth(75)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self.example_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
+        self.add_open_output_dir_button()
+        self.open_output_btn.setFixedWidth(110)
+        # Order: Run | Result Folder | Clear | Help
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.clear_btn), self.open_output_btn
+        )
+        self.help_btn.setFixedWidth(75)
 
         self.content_area.addStretch()
 
@@ -224,7 +230,7 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         if not staged:
             QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
             return
-        self.input_edit.setText(staged)
+        self.handle_input_file_selected(staged)
         self.show_status(self.tr("Example loaded"))
 
     def connect_signals(self):
@@ -268,11 +274,9 @@ class AlignmentFormatConverterTab(BaseTabWidget):
             self.input_format_combo.setCurrentText("PHYLIP")
         elif ext in {".nex", ".nexus"}:
             self.input_format_combo.setCurrentText("NEXUS")
-        if not self.output_edit.text().strip():
-            base, _ = os.path.splitext(file_path)
-            self.output_edit.setText(
-                base + FORMAT_EXTENSIONS[self.output_format_combo.currentText()]
-            )
+        # Auto-fill the output path from the input file (always follows input)
+        base, _ = os.path.splitext(file_path)
+        self.output_edit.setText(base + FORMAT_EXTENSIONS[self.output_format_combo.currentText()])
 
     def _update_output_extension(self):
         output_path = self.output_edit.text().strip()

@@ -472,7 +472,7 @@ def test_dotplot_tab_hides_output_panel_and_removes_reverse_complement_option(qa
     tab = DotPlotTab()
 
     assert tab.output_group.isHidden()
-    assert tab.run_btn.text() == "Start"
+    assert tab.run_btn.text() == "Run"
     assert not hasattr(tab, "rc_check")
 
 
@@ -504,6 +504,9 @@ def test_dotplot_tab_loads_files_without_showing_loaded_file_hint(qapp, monkeypa
         def __init__(self, path):
             self._path = path
 
+        def hasUrls(self):
+            return True
+
         def urls(self):
             return [_DummyUrl(self._path)]
 
@@ -524,7 +527,7 @@ def test_dotplot_tab_loads_files_without_showing_loaded_file_hint(qapp, monkeypa
     tab.input_hint.setText("stale")
     event = _DummyEvent(str(sample_file))
 
-    tab._drop_event(event)
+    tab.path_edit.dropEvent(event)
 
     assert event._accepted is True
     assert tab.input_text.toPlainText() == sample_text
@@ -772,6 +775,9 @@ def test_msa_visualization_tab_loads_input_without_showing_loaded_hint(qapp, mon
         def __init__(self, path):
             self._path = path
 
+        def hasUrls(self):
+            return True
+
         def urls(self):
             return [_DummyUrl(self._path)]
 
@@ -793,7 +799,7 @@ def test_msa_visualization_tab_loads_input_without_showing_loaded_hint(qapp, mon
     event = _DummyEvent(str(sample_file))
 
     tab.input_text.clear()
-    tab.input_text.dropEvent(event)
+    tab.path_edit.dropEvent(event)
 
     assert event._accepted is True
     assert tab.input_text.toPlainText() == sample_text
@@ -869,7 +875,7 @@ def test_sequence_logo_tab_loads_input_without_showing_loaded_hint(qapp, monkeyp
     sample_file.write_text(sample_text, encoding="utf-8")
 
     monkeypatch.setattr(
-        "utils.common_components.QFileDialog.getOpenFileName",
+        "modules.sequence_logo_tab.QFileDialog.getOpenFileName",
         lambda *args, **kwargs: (str(sample_file), "FASTA files (*.fasta)"),
     )
 
@@ -889,6 +895,9 @@ def test_sequence_logo_tab_loads_input_without_showing_loaded_hint(qapp, monkeyp
     class _DummyMimeData:
         def __init__(self, path):
             self._path = path
+
+        def hasUrls(self):
+            return True
 
         def urls(self):
             return [_DummyUrl(self._path)]
@@ -911,7 +920,7 @@ def test_sequence_logo_tab_loads_input_without_showing_loaded_hint(qapp, monkeyp
     event = _DummyEvent(str(sample_file))
 
     tab.input_text.clear()
-    tab.input_text.dropEvent(event)
+    tab.path_edit.dropEvent(event)
 
     assert tab.input_text.toPlainText() == sample_text
     assert tab.input_hint.isHidden()
@@ -933,6 +942,51 @@ def test_main_window_and_menu_use_sequence_logo_logomaker_label(qapp):
 
     assert "Sequence Logo (Logomaker)" in action_texts
     assert "Sequence Logo" not in action_texts
+
+
+# ── Sequence Logo core logic ──────────────────────────────────────────────
+
+
+def test_sequence_logo_pfm_probability_columns_sum_to_one(qapp):
+    tab = SequenceLogoTab()
+    pfm = tab.create_pfm(["ATGC", "ATGC", "ATGT"], "DNA")
+    for idx in pfm.index:
+        assert abs(float(pfm.loc[idx].sum()) - 1.0) < 1e-9
+
+
+def test_sequence_logo_gap_only_column_contributes_zero(qapp):
+    tab = SequenceLogoTab()
+    # Column 3 is all gaps -> counts empty -> zero contribution
+    pfm = tab.create_pfm(["ATG-", "ATG-", "ATG-"], "DNA")
+    info = tab.pfm_to_information(pfm, "DNA")
+    assert float(info.loc[3].sum()) == 0.0
+
+
+def test_sequence_logo_conserved_column_near_max_information(qapp):
+    tab = SequenceLogoTab()
+    # Column 0 is all-A: entropy 0 -> information = 2 bits (DNA)
+    pfm = tab.create_pfm(["AAAA", "AAAT"], "DNA")
+    info = tab.pfm_to_information(pfm, "DNA")
+    assert float(info.loc[0, "A"]) > 1.99
+
+
+def test_sequence_logo_figure_widens_for_long_sequences(qapp):
+    tab = SequenceLogoTab()
+    seq = "ATGC" * 20  # 80 positions -> 80*0.35=28 -> capped at 15
+    pfm = tab.create_pfm([seq, seq], "DNA")
+    tab.generate_logo(pfm, "DNA", 2, "Probability")
+    assert tab.figure.get_figwidth() == 15.0
+
+
+def test_sequence_logo_title_contains_type_mode_and_counts(qapp):
+    tab = SequenceLogoTab()
+    pfm = tab.create_pfm(["ATGC", "ATGC"], "DNA")
+    tab.generate_logo(pfm, "DNA", 2, "Information")
+    title = tab.figure.axes[0].get_title()
+    assert "DNA" in title
+    assert "Information" in title
+    assert "2 seqs" in title
+    assert "4 pos" in title
 
 
 def test_alignment_format_converter_happy_path(qapp, tmp_path):

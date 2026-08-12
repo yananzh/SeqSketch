@@ -1,5 +1,8 @@
+import os
+
 import matplotlib
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -7,17 +10,19 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
+    QVBoxLayout,
+    QWidget,
 )
 
-from utils.common_components import BaseTabWidget
-from utils.example_data import load_example_text
+from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.example_data import load_example_text, stage_example
 
-matplotlib.use("Qt5Agg")
+matplotlib.use("QtAgg")
 import re
 
 import numpy as np
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -28,43 +33,104 @@ class DotPlotTab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("DotPlot", "sequence")
 
-        self.run_btn.setText("Start")
+        self.run_btn.setText("Run")
         self._matrix = None
         self._seq_a_name = "Sequence A"
         self._seq_b_name = "Sequence B"
 
+        # Accent Save Figure button right after Run
+        self.export_plot_btn = QPushButton(self.tr("Save Figure"))
+        self.export_plot_btn.setFixedWidth(110)
+        self.export_plot_btn.setProperty("accentButton", True)
+        self.export_plot_btn.setEnabled(False)
+        self.export_plot_btn.clicked.connect(self.export_result)
+        self.export_plot_btn.style().unpolish(self.export_plot_btn)
+        self.export_plot_btn.style().polish(self.export_plot_btn)
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.run_btn) + 1, self.export_plot_btn
+        )
+
+        # Result Folder button (before Clear; enabled after export)
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.style().unpolish(self.open_folder_btn)
+        self.open_folder_btn.style().polish(self.open_folder_btn)
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.clear_btn), self.open_folder_btn
+        )
+        self._last_export_dir = ""
+
+        self.help_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
+        self.clear_btn.setFixedWidth(75)
+
         self._update_ui_layout()
         self._setup_parameters()
         self._setup_plot_canvas()
-        self._setup_drag_drop()
 
     def _update_ui_layout(self):
-        self.input_text.setPlaceholderText(
-            "Paste one or two sequences in FASTA format, or drag-and-drop a file..."
-        )
-        self.input_text.setMinimumHeight(130)
+        # File-only input: the text editor stays hidden as the content
+        # store; a FileDropLineEdit shows the selected file path.
+        self.input_text.hide()
         self.input_hint.hide()
         self.output_group.hide()
 
-        # Place Example button next to Upload File in a horizontal row
         ig = self.input_group.layout()
-        # Remove upload_btn from its current position in the QVBoxLayout
+        ig.setContentsMargins(12, 10, 12, 2)
+        ig.removeWidget(self.input_text)
         ig.removeWidget(self.upload_btn)
-        # Create horizontal row for the two buttons — both stretch to fill
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(8)
-        btn_row.addWidget(self.upload_btn, 1)
+
+        self.input_group.setTitle(self.tr("Input Sequence and Mode Selection"))
+
+        self.input_label.setText("Input FASTA file:")
+        self.input_label.setFixedWidth(120)
+
+        self.path_edit = FileDropLineEdit()
+        self.path_edit.setPlaceholderText("Select or drop a FASTA file (one or two sequences)...")
+        self.path_edit.file_dropped.connect(self._load_file_path)
+
+        # One row: label + path field + Example + Browse
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(self.input_label)
+        row.addWidget(self.path_edit, 1)
+
         self.example_btn = QPushButton("Example")
+        self.example_btn.setFixedWidth(90)
         self.example_btn.setToolTip(self.tr("Load example sequences for DotPlot"))
         self.example_btn.clicked.connect(self._load_example)
-        btn_row.addWidget(self.example_btn, 1)
-        # Insert the button row after input_text (index 0)
-        ig.insertLayout(1, btn_row)
+        row.addWidget(self.example_btn)
+
+        self.upload_btn.setText("Browse")
+        self.upload_btn.setFixedWidth(90)
+        row.addWidget(self.upload_btn)
+
+        ig.insertLayout(1, row)
+
+    def _load_file_path(self, file_path):
+        """Read the file into the hidden content store and show its path."""
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception as e:
+            QMessageBox.warning(self, "File Read Error", str(e))
+            return
+        self.input_text.setPlainText(content)
+        self.input_hint.clear()
+        self.path_edit.setText(file_path)
+        self.show_status(f"Loaded file: {os.path.basename(file_path)}")
 
     def _setup_parameters(self):
-        # Comparison mode
-        mode_row = QHBoxLayout()
-        mode_lbl = QLabel("Comparison Mode:")
+        row = QHBoxLayout()
+        row.setSpacing(8)  # match the file row's spacing for aligned controls
+
+        # Fixed-width label so the controls align with the file row above
+        mode_lbl = QLabel("Compare Mode:")
+        mode_lbl.setFixedWidth(120)
+        row.addWidget(mode_lbl)
         self.mode_box = QComboBox()
         self.mode_box.addItems([
             "Auto (2 FASTA records -> pairwise; 1 record -> self)",
@@ -72,63 +138,57 @@ class DotPlotTab(BaseTabWidget):
             "Force pairwise (use first two sequences)",
         ])
         self.mode_box.setMinimumWidth(350)
-        mode_row.addWidget(mode_lbl)
-        mode_row.addWidget(self.mode_box)
-        mode_row.addStretch()
+        row.addWidget(self.mode_box)
 
-        # Word size
-        word_row = QHBoxLayout()
-        word_lbl = QLabel("Word Size (k-mer):")
+        row.addWidget(QLabel("Word Size (k-mer):"))
         self.word_size_box = QSpinBox()
         self.word_size_box.setRange(1, 20)
         self.word_size_box.setValue(1)
-        self.word_size_box.setMinimumWidth(90)
-        word_hint = QLabel("(1 = most sensitive; larger values reduce noise)")
-        word_hint.setStyleSheet("color: #777;")
-        word_row.addWidget(word_lbl)
-        word_row.addWidget(self.word_size_box)
-        word_row.addWidget(word_hint)
-        word_row.addStretch()
+        self.word_size_box.setFixedWidth(80)
+        self.word_size_box.setToolTip(
+            "Exact k-mer window size.\n"
+            "DNA: 1-5 recommended\n"
+            "Protein: 1-2 recommended\n"
+            "1 = most sensitive; larger values reduce noise."
+        )
+        row.addWidget(self.word_size_box)
 
-        self.add_content_layout(mode_row)
-        self.add_content_layout(word_row)
+        row.addStretch()
+        # Parameters live inside the input group, below the file row
+        self.input_group.layout().addLayout(row)
 
     def _setup_plot_canvas(self):
-        self.figure = Figure(figsize=(7.5, 3.8), tight_layout=True)
+        """Add a scrollable matplotlib canvas (same form as Sequence Logo)."""
+        self._scroll_area = QScrollArea()
+        self._scroll_area.setWidgetResizable(False)
+        self._scroll_area.setMinimumHeight(240)
+        # Center the figure when the viewport is larger than the canvas
+        self._scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Inner wrapper widget isolates canvas sizing from scroll-area layout
+        self._canvas_inner = QWidget()
+        self._canvas_vbox = QVBoxLayout(self._canvas_inner)
+        self._canvas_vbox.setContentsMargins(0, 0, 0, 0)
+        self._canvas_vbox.setSpacing(0)
+        self._scroll_area.setWidget(self._canvas_inner)
+
+        # Near-square figure: dotplots are square-ish (len_a x len_b matrix)
+        self.figure = Figure(figsize=(6, 6), tight_layout=True)
         self.canvas = FigureCanvas(self.figure)
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.canvas.setMinimumHeight(240)
-        self.add_content_widget(self.toolbar)
-        self.add_content_widget(self.canvas)
+        self.canvas.setMinimumHeight(220)
+
+        self._canvas_vbox.addWidget(self.canvas)
+
+        # Set initial inner widget size to match the figure so the
+        # placeholder is visible from the start.
+        dpi = self.figure.dpi
+        self._canvas_inner.setFixedSize(
+            int(self.figure.get_figwidth() * dpi),
+            int(self.figure.get_figheight() * dpi),
+        )
+
+        self.add_content_widget(self._scroll_area)
         self._draw_placeholder_plot()
-
-    def _setup_drag_drop(self):
-        self.input_text.setAcceptDrops(True)
-        self.input_text.dragEnterEvent = self._drag_enter_event
-        self.input_text.dropEvent = self._drop_event
-
-    def _drag_enter_event(self, event):
-        md = event.mimeData()
-        if md.hasUrls():
-            urls = md.urls()
-            if urls and urls[0].toLocalFile():
-                event.acceptProposedAction()
-                return
-        event.ignore()
-
-    def _drop_event(self, event):
-        urls = event.mimeData().urls()
-        if urls:
-            file_path = urls[0].toLocalFile()
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                self.input_text.setPlainText(content)
-                self.input_hint.clear()
-                event.acceptProposedAction()
-            except Exception as e:
-                self.status_label.setText(f"Error loading file: {e}")
-                event.ignore()
 
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -138,20 +198,20 @@ class DotPlotTab(BaseTabWidget):
             "FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)",
         )
         if file_path:
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                self.input_text.setPlainText(content)
-                self.input_hint.clear()
-            except Exception as e:
-                QMessageBox.warning(self, "File Read Error", str(e))
+            self._load_file_path(file_path)
 
     def _load_example(self):
-        text = load_example_text("protein", "pairwise_pro.fasta")
-        if not text:
+        staged = stage_example("protein", "pairwise_pro.fasta")
+        if not staged:
             QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
             return
-        self.input_text.setPlainText(text)
+        try:
+            with open(staged, "r", encoding="utf-8") as f:
+                self.input_text.setPlainText(f.read())
+        except Exception as e:
+            QMessageBox.warning(self, "File Read Error", str(e))
+            return
+        self.path_edit.setText(staged)
         self.show_status(self.tr("Example loaded"))
 
     def _parse_fasta_records(self, text: str):
@@ -245,7 +305,7 @@ class DotPlotTab(BaseTabWidget):
     def run(self):
         text = self.input_text.toPlainText().strip()
         if not text:
-            self.status_label.setText("Please input one or two sequences.")
+            QMessageBox.warning(self, "Input Error", "Please input one or two sequences.")
             return
 
         # Parse FASTA. If not FASTA, treat as a single raw sequence.
@@ -256,7 +316,7 @@ class DotPlotTab(BaseTabWidget):
 
         records = [(h, self._sanitize_seq(s)) for h, s in records if self._sanitize_seq(s)]
         if not records:
-            self.status_label.setText("No valid sequence found.")
+            QMessageBox.warning(self, "Input Error", "No valid sequence found.")
             return
 
         mode = self.mode_box.currentIndex()
@@ -266,8 +326,10 @@ class DotPlotTab(BaseTabWidget):
             seq_b_name = seq_a_name + " (self)"
         elif mode == 2:  # force pairwise
             if len(records) < 2:
-                self.status_label.setText(
-                    "Force pairwise mode requires at least two FASTA records."
+                QMessageBox.warning(
+                    self,
+                    "Input Error",
+                    "Force pairwise mode requires at least two FASTA records.",
                 )
                 return
             seq_a_name, seq_a = records[0]
@@ -283,8 +345,10 @@ class DotPlotTab(BaseTabWidget):
 
         k = self.word_size_box.value()
         if len(seq_a) < k or len(seq_b) < k:
-            self.status_label.setText(
-                f"Word size k={k} is too large for input length ({len(seq_a)} / {len(seq_b)})."
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                f"Word size k={k} is too large for input length ({len(seq_a)} / {len(seq_b)}).",
             )
             return
 
@@ -304,6 +368,7 @@ class DotPlotTab(BaseTabWidget):
         self._seq_a_name = seq_a_name
         self._seq_b_name = seq_b_name
         self._draw_dotplot(matrix, seq_a_name, seq_b_name, k)
+        self.export_plot_btn.setEnabled(True)
 
         dot_count = int(matrix.sum())
         density = (dot_count / matrix.size) * 100 if matrix.size else 0.0
@@ -312,7 +377,15 @@ class DotPlotTab(BaseTabWidget):
     def clear(self):
         super().clear()
         self._matrix = None
+        self.path_edit.clear()
+        self.export_plot_btn.setEnabled(False)
+        self.open_folder_btn.setEnabled(False)
         self._draw_placeholder_plot()
+
+    def _open_output_folder(self):
+        """Open the folder of the most recently exported figure."""
+        if self._last_export_dir:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
     def export_result(self):
         if self._matrix is None:
@@ -327,7 +400,9 @@ class DotPlotTab(BaseTabWidget):
         if file_path:
             try:
                 self.figure.savefig(file_path, dpi=300, bbox_inches="tight")
-                self.status_label.setText(f"Figure exported: {file_path}")
+                self.status_label.setText(f"Exported: {os.path.basename(file_path)}")
+                self._last_export_dir = os.path.dirname(file_path)
+                self.open_folder_btn.setEnabled(True)
             except Exception as e:
                 QMessageBox.warning(self, "Export Error", str(e))
 
@@ -339,10 +414,13 @@ DotPlot visualizes sequence similarity as a 2D map. Matching regions appear as d
 
 <h3>Quick Start</h3>
 <ol>
-<li>Paste one sequence (self-comparison) or two sequences (pairwise) in FASTA format.</li>
+<li>Load a FASTA file with <b>Browse</b> or drag &amp; drop it
+onto the input area. One sequence gives a self-comparison; two
+sequences give a pairwise comparison.</li>
 <li>Choose word size (k-mer). Start with <b>k=1</b> for sensitive, <b>k=2</b> for cleaner plots.</li>
-<li>Click <b>Generate DotPlot</b>.</li>
-<li>Use <b>Save Figure</b> to export the plot as PNG, PDF, or SVG.</li>
+<li>Click <b>Run</b>.</li>
+<li>Use <b>Save Figure</b> to export the plot as PNG, PDF, or SVG, then
+<b>Result Folder</b> to locate the saved file.</li>
 </ol>
 
 <h3>Comparison Modes</h3>

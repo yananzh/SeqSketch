@@ -4,10 +4,10 @@ import tempfile
 
 import matplotlib
 
-matplotlib.use("Qt5Agg")
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+matplotlib.use("QtAgg")
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -28,8 +28,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import BaseTabWidget
-from utils.example_data import load_example_text
+from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.example_data import stage_example
 
 # Commonly used pyMSAviz color schemes
 _COLOR_SCHEMES = [
@@ -51,44 +51,76 @@ class MSAVisualizationTab(BaseTabWidget):
         self._current_figure = None
 
         # Rewire base widgets
-        self.run_btn.setText("Visualize")
+        self.run_btn.setText("Run")
         self.export_btn.setText("Save Figure")
         self.export_btn.setFixedWidth(110)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self.export_btn)
+        self.export_btn.setProperty("accentButton", True)
+        self.export_btn.style().unpolish(self.export_btn)
+        self.export_btn.style().polish(self.export_btn)
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.run_btn) + 1, self.export_btn
+        )
         self.output_group.hide()
+        self.help_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
+        self.clear_btn.setFixedWidth(75)
+
+        # Result Folder button (before Clear; enabled after export)
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.style().unpolish(self.open_folder_btn)
+        self.open_folder_btn.style().polish(self.open_folder_btn)
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.clear_btn), self.open_folder_btn
+        )
+        self._last_export_dir = ""
+
         self.copy_btn.hide()
         self.output_text.hide()
         self.output_label.hide()
 
-        # Placeholder
-        self.input_label.setText("Input Alignment (FASTA):")
-        self.input_text.setPlaceholderText(
-            "Paste a pre-aligned FASTA file, or drag-and-drop a file…\n\n"
-            "⚠ All sequences must be the same length (already aligned).\n\n"
-            "Example:\n"
-            ">seq1\nATGCATGCATGC\n"
-            ">seq2\nATGCATGCATGC\n"
-            ">seq3\nATGCATGCATGT"
-        )
-        self.input_text.setMaximumHeight(250)
-        self.upload_btn.setText("Upload File")
+        # File-only input: the text editor stays hidden as the content
+        # store; a FileDropLineEdit shows the selected file path.
+        self.input_text.hide()
         self.input_hint.hide()
 
-        # Place Example button next to Upload File — both fill the row
         ig = self.input_group.layout()
+        ig.setContentsMargins(12, 10, 12, 2)
+        ig.removeWidget(self.input_text)
         ig.removeWidget(self.upload_btn)
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(8)
-        btn_row.addWidget(self.upload_btn, 1)
+
+        self.input_label.setText("Input FASTA file:")
+        self.input_label.setFixedWidth(120)
+
+        self.path_edit = FileDropLineEdit()
+        self.path_edit.setPlaceholderText(
+            "Select or drop an aligned FASTA file (sequences must be equal length)..."
+        )
+        self.path_edit.file_dropped.connect(self._load_file_path)
+
+        # One row: label + path field + Example + Browse
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(self.input_label)
+        row.addWidget(self.path_edit, 1)
+
         self.example_btn = QPushButton("Example")
+        self.example_btn.setFixedWidth(90)
         self.example_btn.setToolTip(self.tr("Load example MSA alignment"))
         self.example_btn.clicked.connect(self._load_example)
-        btn_row.addWidget(self.example_btn, 1)
-        ig.insertLayout(1, btn_row)
+        row.addWidget(self.example_btn)
+
+        self.upload_btn.setText("Browse")
+        self.upload_btn.setFixedWidth(90)
+        row.addWidget(self.upload_btn)
+
+        ig.insertLayout(1, row)
 
         self._setup_parameters()
         self._add_canvas()
-        self._setup_drag_drop()
 
     # ---------------------------------------------------------------- layout
 
@@ -197,7 +229,11 @@ class MSAVisualizationTab(BaseTabWidget):
         self._canvas_container.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
-        self._canvas_container.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # Horizontal scrollbar appears when the figure is wider than the
+        # viewport (e.g. wrap=0 / long alignments); vertical scrolls too.
+        self._canvas_container.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        # Center the figure when the viewport is larger than the canvas
+        self._canvas_container.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Do NOT use setWidgetResizable(True) — that squashes the figure to
         # fit the viewport, making long alignments blurry.
         self._canvas_container.setWidgetResizable(False)
@@ -215,34 +251,6 @@ class MSAVisualizationTab(BaseTabWidget):
         insert_at = max(0, self.content_area.count() - 1)
         self.content_area.insertWidget(insert_at, self._canvas_container)
 
-    # --------------------------------------------------------------- drag-drop
-
-    def _setup_drag_drop(self):
-        w = self.input_text
-        w.setAcceptDrops(True)
-
-        def drag_enter(e):
-            if e.mimeData().hasUrls():
-                e.acceptProposedAction()
-            else:
-                e.ignore()
-
-        def drop(e):
-            urls = e.mimeData().urls()
-            if urls:
-                path = urls[0].toLocalFile()
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        w.setPlainText(f.read())
-                    self._clear_loaded_hint()
-                    e.acceptProposedAction()
-                except Exception as ex:
-                    QMessageBox.warning(self, "File Read Error", str(ex))
-                    e.ignore()
-
-        w.dragEnterEvent = drag_enter
-        w.dropEvent = drop
-
     # ---------------------------------------------------------------- actions
 
     def open_file(self):
@@ -253,12 +261,20 @@ class MSAVisualizationTab(BaseTabWidget):
             "FASTA files (*.fasta *.fa *.fna *.faa *.aln *.txt);;All Files (*)",
         )
         if path:
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    self.input_text.setPlainText(f.read())
-                self._clear_loaded_hint()
-            except Exception as e:
-                QMessageBox.warning(self, "File Read Error", str(e))
+            self._load_file_path(path)
+
+    def _load_file_path(self, file_path):
+        """Read the file into the hidden content store and show its path."""
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception as e:
+            QMessageBox.warning(self, "File Read Error", str(e))
+            return
+        self.input_text.setPlainText(content)
+        self.input_hint.clear()
+        self.path_edit.setText(file_path)
+        self.show_status(f"Loaded file: {os.path.basename(file_path)}")
 
     def export_result(self):
         if self._current_figure is None:
@@ -304,22 +320,38 @@ class MSAVisualizationTab(BaseTabWidget):
                 dpi=max(self.dpi_spin.value(), 300),
             )
             self.status_label.setText(f"Saved: {path}")
+            self._last_export_dir = os.path.dirname(path)
+            self.open_folder_btn.setEnabled(True)
         except Exception as e:
             QMessageBox.warning(self, "Export Error", str(e))
 
     def _load_example(self):
-        text = load_example_text("protein", "aligned_pro_example.fasta")
-        if not text:
+        staged = stage_example("protein", "aligned_pro_example.fasta")
+        if not staged:
             QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
             return
-        self.input_text.setPlainText(text)
+        try:
+            with open(staged, "r", encoding="utf-8") as f:
+                self.input_text.setPlainText(f.read())
+        except Exception as e:
+            QMessageBox.warning(self, "File Read Error", str(e))
+            return
+        self.input_hint.clear()
+        self.path_edit.setText(staged)
         self.show_status(self.tr("Example loaded"))
 
     def clear(self):
         self.input_text.clear()
+        self.path_edit.clear()
         self._clear_loaded_hint()
         self._clear_canvas()
+        self.open_folder_btn.setEnabled(False)
         self.status_label.setText("Ready")
+
+    def _open_output_folder(self):
+        """Open the folder of the most recently exported figure."""
+        if self._last_export_dir:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
     def _clear_loaded_hint(self):
         self.input_hint.clear()
@@ -358,7 +390,9 @@ class MSAVisualizationTab(BaseTabWidget):
     def run(self):
         raw = self.input_text.toPlainText().strip()
         if not raw:
-            self.status_label.setText("Please enter or upload an aligned FASTA file.")
+            QMessageBox.warning(
+                self, "Input Error", "Please enter or upload an aligned FASTA file."
+            )
             return
         headers = self._parse_headers(raw)
 
@@ -487,10 +521,12 @@ MSA figures.</p>
 
 <h3>Quick Start</h3>
 <ol>
-<li>Paste a <b>pre-aligned</b> FASTA file (all sequences must be the same length).</li>
+<li>Load a <b>pre-aligned</b> FASTA file with <b>Browse</b> or drag &amp; drop it
+(all sequences must be the same length).</li>
 <li>Choose a <b>Color Scheme</b> and adjust display options.</li>
-<li>Click <b>Visualize</b> — the rendered figure appears in the scrollable area below.</li>
-<li>Use <b>Save Figure</b> to export as PNG, SVG, or PDF.</li>
+<li>Click <b>Run</b> — the rendered figure appears in the scrollable area below.</li>
+<li>Use <b>Save Figure</b> to export as PNG, SVG, or PDF, then
+<b>Result Folder</b> to locate the saved file.</li>
 </ol>
 
 <h3>Color Schemes</h3>
@@ -518,7 +554,7 @@ MSA figures.</p>
 <h3>Tips</h3>
 <ul>
 <li>Use the <b>Multiple Sequence Alignment (Muscle5 / MAFFT)</b> tabs to
-    generate an alignment first, then paste the output here.</li>
+    generate an alignment first, then load the output file here.</li>
 <li>Set <b>Wrap Length</b> to 0 for a single continuous row.</li>
 <li>Higher <b>DPI</b> = sharper figures but slower rendering (300 is a good default).</li>
 <li>Use <b>Save Figure</b> to export high-resolution copies in PNG, SVG, or PDF.</li>

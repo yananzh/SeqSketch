@@ -1,4 +1,8 @@
+import os
+
 import matplotlib
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -12,10 +16,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import BaseTabWidget
-from utils.example_data import load_example_text
+from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.example_data import stage_example
 
-matplotlib.use("Qt5Agg")
+matplotlib.use("QtAgg")
 import logomaker
 import pandas as pd
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -32,49 +36,77 @@ class SequenceLogoTab(BaseTabWidget):
         self.run_btn.setText("Run")
         self.export_btn.setText("Save Figure")
         self.export_btn.setFixedWidth(110)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self.export_btn)
+        self.export_btn.setProperty("accentButton", True)
+        self.export_btn.style().unpolish(self.export_btn)
+        self.export_btn.style().polish(self.export_btn)
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.run_btn) + 1, self.export_btn
+        )
+        self.help_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
+        self.clear_btn.setFixedWidth(75)
+
+        # Result Folder button (before Clear; enabled after export)
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.style().unpolish(self.open_folder_btn)
+        self.open_folder_btn.style().polish(self.open_folder_btn)
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.clear_btn), self.open_folder_btn
+        )
+        self._last_export_dir = ""
+
         if hasattr(self, "copy_btn"):
             self.copy_btn.hide()
 
-        # Update placeholder text
-        self.input_text.setPlaceholderText(
-            "Paste aligned sequences in FASTA format or drag-and-drop a file...\n\n"
-            "Examples:\n"
-            "DNA sequences:\n"
-            ">seq1\nATGCATGC\n"
-            ">seq2\nATGCATGC\n"
-            ">seq3\nATGCATGT\n\n"
-            "Protein sequences:\n"
-            ">prot1\nMKTFFVAG\n"
-            ">prot2\nMKTFFVAG\n"
-            ">prot3\nMKTFFVSG"
-        )
+        # File-only input: the text editor stays hidden as the content
+        # store; a FileDropLineEdit shows the selected file path.
+        self.input_text.hide()
+        self.input_hint.hide()
         self.output_group.hide()
         self.output_text.hide()
         self.output_label.hide()
-        self.input_hint.hide()
-        self.input_text.setMaximumHeight(160)
 
-        # Place Example button next to Upload File — both fill the row
         ig = self.input_group.layout()
+        ig.setContentsMargins(12, 10, 12, 2)
+        ig.removeWidget(self.input_text)
         ig.removeWidget(self.upload_btn)
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(8)
-        btn_row.addWidget(self.upload_btn, 1)
+
+        self.input_label.setText("Input FASTA file:")
+        self.input_label.setFixedWidth(120)
+
+        self.path_edit = FileDropLineEdit()
+        self.path_edit.setPlaceholderText(
+            "Select or drop an aligned FASTA file (sequences must be equal length)..."
+        )
+        self.path_edit.file_dropped.connect(self._load_file_path)
+
+        # One row: label + path field + Example + Browse
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(self.input_label)
+        row.addWidget(self.path_edit, 1)
+
         self.example_btn = QPushButton("Example")
+        self.example_btn.setFixedWidth(90)
         self.example_btn.setToolTip(self.tr("Load example sequences for Sequence Logo"))
         self.example_btn.clicked.connect(self._load_example)
-        btn_row.addWidget(self.example_btn, 1)
-        ig.insertLayout(1, btn_row)
+        row.addWidget(self.example_btn)
+
+        self.upload_btn.setText("Browse")
+        self.upload_btn.setFixedWidth(90)
+        row.addWidget(self.upload_btn)
+
+        ig.insertLayout(1, row)
 
         # ── Parameter group ───────────────────────────────────────────
         self._setup_parameters()
 
         # ── Matplotlib canvas ─────────────────────────────────────────
         self._add_plot_canvas()
-
-        # Enable drag-and-drop
-        self._setup_drag_drop()
 
         # Store current figure for export
         self.current_figure = None
@@ -84,15 +116,41 @@ class SequenceLogoTab(BaseTabWidget):
         self.input_hint.hide()
 
     def open_file(self):
-        super().open_file()
-        self._clear_loaded_hint()
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select sequence file",
+            "",
+            "FASTA/TXT (*.fasta *.fa *.txt);;All Files (*)",
+        )
+        if file_path:
+            self._load_file_path(file_path)
+
+    def _load_file_path(self, file_path):
+        """Read the file into the hidden content store and show its path."""
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception as e:
+            QMessageBox.warning(self, "File Read Error", str(e))
+            return
+        self.input_text.setPlainText(content)
+        self.input_hint.clear()
+        self.path_edit.setText(file_path)
+        self.show_status(f"Loaded file: {os.path.basename(file_path)}")
 
     def _load_example(self):
-        text = load_example_text("dna", "seqlog_dna_example.fasta")
-        if not text:
+        staged = stage_example("dna", "seqlog_dna_example.fasta")
+        if not staged:
             QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
             return
-        self.input_text.setPlainText(text)
+        try:
+            with open(staged, "r", encoding="utf-8") as f:
+                self.input_text.setPlainText(f.read())
+        except Exception as e:
+            QMessageBox.warning(self, "File Read Error", str(e))
+            return
+        self.input_hint.clear()
+        self.path_edit.setText(staged)
         self.show_status(self.tr("Example loaded"))
 
     # ── Layout helpers ──────────────────────────────────────────────────────
@@ -252,7 +310,7 @@ class SequenceLogoTab(BaseTabWidget):
             self.generate_logo(matrix, seq_type, len(records), mode)
 
             self.status_label.setText(
-                f"Done — {len(records)} seqs, {seq_type}, {mode}, {lengths[0]} pos"
+                f"Generated: {len(records)} seqs, {seq_type}, {mode}, {lengths[0]} pos"
             )
         except Exception as e:
             import traceback
@@ -374,8 +432,9 @@ class SequenceLogoTab(BaseTabWidget):
 
         # Customize plot
         y_label = "Bits" if mode == "Information" else "Probability"
-        ax.set_ylabel(y_label, fontsize=12)
-        ax.set_xlabel("Position", fontsize=12)
+        ax.set_ylabel(y_label, fontsize=14)
+        ax.set_xlabel("Position", fontsize=14)
+        ax.tick_params(labelsize=12)
 
         # Set x-axis to show positions starting from 1
         ax.set_xlim((0.5, len(matrix) + 0.5))
@@ -383,6 +442,13 @@ class SequenceLogoTab(BaseTabWidget):
         # Keep only left and bottom borders
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
+
+        ax.set_title(
+            f"Sequence Logo — {seq_type} ({mode}, {num_seqs} seqs, {len(matrix)} pos)",
+            fontsize=13,
+            fontweight="bold",
+            pad=15,  # more breathing room between title and logo
+        )
 
         # Dynamically widen figure for long sequences so each position is legible
         num_pos = len(matrix)
@@ -437,17 +503,26 @@ class SequenceLogoTab(BaseTabWidget):
         if file_path:
             try:
                 self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight")
-                self.status_label.setText(f"Figure saved: {file_path}")
+                self.status_label.setText(f"Exported: {os.path.basename(file_path)}")
+                self._last_export_dir = os.path.dirname(file_path)
+                self.open_folder_btn.setEnabled(True)
             except Exception as e:
                 QMessageBox.warning(self, "Export Error", f"Failed to save figure:\n{str(e)}")
 
     def clear(self):
         """Clear input, output and figure, restoring the placeholder."""
         self.input_text.clear()
+        self.path_edit.clear()
         self._clear_loaded_hint()
         self._draw_placeholder_plot()
         self.current_figure = None
+        self.open_folder_btn.setEnabled(False)
         self.status_label.setText("Cleared")
+
+    def _open_output_folder(self):
+        """Open the folder of the most recently exported figure."""
+        if self._last_export_dir:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
     def show_help(self):
         """Show help dialog."""
@@ -463,7 +538,7 @@ height reflects how often that letter appears.</p>
 
 <h3>Quick Start</h3>
 <ol>
-<li>Paste or load aligned sequences in <b>FASTA format</b>.</li>
+<li>Load aligned sequences in <b>FASTA format</b> with <b>Browse</b> or drag &amp; drop them.</li>
 <li>Choose the sequence type (DNA or Protein). Auto-detect works well for most inputs.</li>
 <li>Select a display mode (Probability or Information).</li>
 <li>Click <b>Run</b> to generate the logo.</li>
@@ -517,34 +592,6 @@ a feel for the output before tackling larger datasets.</li>
         btn.clicked.connect(dlg.accept)
         layout.addWidget(btn)
         dlg.exec()
-
-    def _setup_drag_drop(self):
-        """Setup drag and drop for file loading"""
-        self.input_text.setAcceptDrops(True)
-
-        def drag_enter(e):
-            md = e.mimeData()
-            if md.hasUrls():
-                urls = md.urls()
-                if urls and urls[0].toLocalFile():
-                    e.acceptProposedAction()
-                    return
-            e.ignore()
-
-        def drop(e):
-            urls = e.mimeData().urls()
-            if urls:
-                file_path = urls[0].toLocalFile()
-                try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    self.input_text.setPlainText(content)
-                    self._clear_loaded_hint()
-                except Exception as ex:
-                    QMessageBox.warning(self, "File Read Error", str(ex))
-
-        self.input_text.dragEnterEvent = drag_enter
-        self.input_text.dropEvent = drop
 
     def parse_fasta(self, text):
         """Parse FASTA format text"""

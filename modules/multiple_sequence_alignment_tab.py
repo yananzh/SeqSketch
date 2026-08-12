@@ -4,10 +4,9 @@ import re
 import subprocess
 import sys
 import tempfile
-from datetime import datetime
 
-from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import QThread, QUrl, pyqtSignal
+from PyQt6.QtGui import QDesktopServices, QFont
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -419,12 +418,43 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self._setup_drag_drop()
         self._setup_mode_tabs()
         self._setup_stop_button()
+        self.help_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
+        self.clear_btn.setFixedWidth(75)
 
     def _setup_stop_button(self):
         self.stop_btn = QPushButton(self.tr("Stop"))
+        self.stop_btn.setFixedWidth(75)
         self.stop_btn.setVisible(False)
         self.stop_btn.clicked.connect(self._cancel_batch)
         self.status_layout.insertWidget(self.status_layout.indexOf(self.run_btn) + 1, self.stop_btn)
+
+        # Result Folder: opens the folder of the output file / batch dir
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.style().unpolish(self.open_folder_btn)
+        self.open_folder_btn.style().polish(self.open_folder_btn)
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.clear_btn), self.open_folder_btn
+        )
+
+    def _open_output_folder(self):
+        """Open the folder of the alignment output (single file or batch dir)."""
+        target = ""
+        if hasattr(self, "mode_tabs") and self.mode_tabs.currentIndex() == 1:
+            target = self.batch_out_dir_edit.text().strip()
+        elif hasattr(self, "output_file_edit"):
+            target = self.output_file_edit.text().strip()
+        if not target:
+            self.show_status(self.tr("No output path selected yet."))
+            return
+        folder = target if os.path.isdir(target) else os.path.dirname(os.path.abspath(target))
+        if not os.path.isdir(folder):
+            self.show_status(self.tr("Output folder does not exist yet."))
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
     def _cancel_batch(self):
         if self._batch_worker is not None and self._batch_worker.isRunning():
@@ -515,7 +545,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         )
 
         self.output_file_btn = QPushButton("Browse")
-        self.output_file_btn.setFixedWidth(80)
+        self.output_file_btn.setFixedWidth(90)
         self.output_file_btn.clicked.connect(self._browse_output_file)
 
         pg_layout.addWidget(output_label, 1, 0)
@@ -532,7 +562,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         )
 
         self.muscle_browse_btn = QPushButton("Browse")
-        self.muscle_browse_btn.setFixedWidth(80)
+        self.muscle_browse_btn.setFixedWidth(90)
         self.muscle_browse_btn.clicked.connect(self._browse_muscle_exe)
 
         pg_layout.addWidget(exe_label, 2, 0)
@@ -548,7 +578,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.output_text.setFont(mono)
         self.output_text.setMinimumHeight(220)
         self.output_group.hide()
-        self.run_btn.setText("Align")
+        self.run_btn.setText("Run")
 
     def _setup_mode_tabs(self):
         """Wrap single-file and batch UIs in two top-level sub-tabs.
@@ -585,6 +615,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_files_edit.setPlaceholderText("Select multiple FASTA files")
         self.batch_files_edit.setReadOnly(True)
         self.batch_files_btn = QPushButton("Browse")
+        self.batch_files_btn.setFixedWidth(90)
         self.batch_files_btn.clicked.connect(self._select_batch_files)
         self.batch_example_btn = QPushButton("Example")
         self.batch_example_btn.setToolTip(self.tr("Load example FASTA files for batch MSA"))
@@ -614,7 +645,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_out_dir_edit = QLineEdit()
         self.batch_out_dir_edit.setPlaceholderText("Choose output folder")
         self.batch_out_dir_btn = QPushButton("Browse")
-        self.batch_out_dir_btn.setFixedWidth(80)
+        self.batch_out_dir_btn.setFixedWidth(90)
         self.batch_out_dir_btn.clicked.connect(self._select_batch_output_dir)
 
         bpg_layout.addWidget(out_dir_label, 0, 0)
@@ -679,7 +710,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_muscle_path_edit.setPlaceholderText("Choose MUSCLE executable path")
         self.batch_muscle_path_edit.setText(self._saved_muscle_path)
         batch_exe_btn = QPushButton("Browse")
-        batch_exe_btn.setFixedWidth(80)
+        batch_exe_btn.setFixedWidth(90)
         batch_exe_btn.clicked.connect(self._browse_batch_muscle_exe)
 
         bpg_layout.addWidget(exe_label, 4, 0)
@@ -748,6 +779,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             "Executable files (*.exe);;All Files (*)",
         )
         if path:
+            path = os.path.normpath(path)
             self.muscle_path_edit.setText(path)
             self._save_muscle_path(path)
 
@@ -772,6 +804,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             "Executable files (*.exe);;All Files (*)",
         )
         if path:
+            path = os.path.normpath(path)
             self.batch_muscle_path_edit.setText(path)
             self._save_muscle_path(path)
 
@@ -782,7 +815,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
                 cfg.read(CONFIG_INI, encoding="utf-8")
                 saved = cfg.get("MSA", "muscle_exe", fallback="").strip()
                 if saved:
-                    return saved
+                    return os.path.normpath(saved)
         except (OSError, configparser.Error):
             pass
         return MUSCLE_EXE
@@ -791,6 +824,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         path = (path or "").strip()
         if not path:
             return
+        path = os.path.normpath(path)
         cfg = configparser.ConfigParser()
         try:
             if os.path.isfile(CONFIG_INI):
@@ -990,7 +1024,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         raw = self.input_text.toPlainText().strip()
         if not raw:
-            self.status_label.setText("Please enter or upload FASTA sequences.")
+            QMessageBox.warning(self, "Input Error", "Please enter or upload FASTA sequences.")
             return
 
         output_path = self._normalized_output_file_path()
@@ -1144,8 +1178,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _normalized_output_file_path(self) -> str:
         path = self.output_file_edit.text().strip()
         if not path:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            path = os.path.join(os.getcwd(), f"muscle5_alignment_{ts}.fasta")
+            return ""
         root, ext = os.path.splitext(path)
         if not ext:
             return path + ".fasta"
@@ -1272,8 +1305,9 @@ on the command line.</p>
 <h3>Quick Start</h3>
 <ol>
 <li>Paste ≥ 2 FASTA sequences or drag-and-drop a file</li>
+<li>Choose an <b>Output File</b> (required for pasted input)</li>
 <li>Choose an <b>Alignment Method</b> (Accurate for most cases)</li>
-<li>Click <b>Align</b> &mdash; the result is written to the output path automatically</li>
+<li>Click <b>Run</b> &mdash; the result is written to the output path automatically</li>
 </ol>
 
 <h3>Single-file vs Batch Multi-file</h3>

@@ -1,8 +1,10 @@
+import os
 import re
 
 from Bio import Align
 from Bio.Align import substitution_matrices
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import QUrl
+from PyQt6.QtGui import QDesktopServices, QFont
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -318,20 +320,42 @@ class PairwiseAlignmentTab(BaseTabWidget):
             + "font-family: 'Courier New', monospace; font-size: 10pt;"
         )
         self.output_text.setMinimumHeight(220)
-        self.run_btn.setText("Align")
+        self.run_btn.setText("Run")
 
-        # --- Example button ----------------------------------------------
-        self.example_btn = QPushButton("Example")
-        self.example_btn.setToolTip(self.tr("Load example sequences for pairwise alignment"))
-        self.example_btn.clicked.connect(self._load_example)
-
-        # --- Button bar: drop Copy, move Export next to Align ---------
+        # --- Button bar: drop Copy, accent Export right after Align -----
         self.copy_btn.hide()
         self.copy_btn.deleteLater()
-        self.export_btn.setFixedWidth(110)
-        # Insert before the Help button (last widget in status_layout)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self.export_btn)
+        self.export_btn.setText("Export")
+        self.export_btn.setFixedWidth(75)
+        self.export_btn.setProperty("accentButton", True)
+        self.export_btn.style().unpolish(self.export_btn)
+        self.export_btn.style().polish(self.export_btn)
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.run_btn) + 1, self.export_btn
+        )
+
+        # --- Example button in the status bar (before Help) -------------
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setFixedWidth(80)
+        self.example_btn.setToolTip(self.tr("Load example sequences for pairwise alignment"))
+        self.example_btn.clicked.connect(self._load_example)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.example_btn)
+
+        # --- Result Folder button (before Clear; enabled after export) --
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.style().unpolish(self.open_folder_btn)
+        self.open_folder_btn.style().polish(self.open_folder_btn)
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.clear_btn), self.open_folder_btn
+        )
+        self._last_export_dir = ""
+        self.help_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
+        self.clear_btn.setFixedWidth(75)
 
     # ------------------------------------------------------------ drag & drop
 
@@ -404,7 +428,34 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.input_text.clear()
         self.seq2_text.clear()
         self.output_text.clear()
+        self.open_folder_btn.setEnabled(False)
         self.status_label.setText("Ready")
+
+    def export_result(self):
+        """Export the alignment report and remember its folder."""
+        if not self.output_text.toPlainText().strip():
+            QMessageBox.warning(self, "Export Error", "Generate an alignment first.")
+            return
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Result",
+            "alignment_result.txt",
+            "Text Files (*.txt);;FASTA Files (*.fasta);;CSV Files (*.csv);;All Files (*)",
+        )
+        if file_path:
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(self.output_text.toPlainText())
+                self.status_label.setText(f"Exported: {os.path.basename(file_path)}")
+                self._last_export_dir = os.path.dirname(file_path)
+                self.open_folder_btn.setEnabled(True)
+            except Exception as e:
+                QMessageBox.warning(self, "Export Error", str(e))
+
+    def _open_output_folder(self):
+        """Open the folder of the most recently exported result."""
+        if self._last_export_dir:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
     # ------------------------------------------------------------ core logic
 
@@ -413,10 +464,10 @@ class PairwiseAlignmentTab(BaseTabWidget):
         seq2_raw = self.seq2_text.toPlainText().strip()
 
         if not seq1_raw:
-            self.status_label.setText("Please enter or upload Sequence 1.")
+            QMessageBox.warning(self, "Input Error", "Please enter or upload Sequence 1.")
             return
         if not seq2_raw:
-            self.status_label.setText("Please enter or upload Sequence 2.")
+            QMessageBox.warning(self, "Input Error", "Please enter or upload Sequence 2.")
             return
 
         try:
@@ -466,7 +517,9 @@ class PairwiseAlignmentTab(BaseTabWidget):
             aln1, aln2 = self._get_aligned_seqs(best)
             aln_len, n_ident, n_sim, n_gaps = self._calc_stats(aln1, aln2, use_matrix, matrix_name)
 
-            pct = lambda n: f"{n / aln_len * 100:.1f}" if aln_len else "0.0"
+            def pct(n):
+                return f"{n / aln_len * 100:.1f}" if aln_len else "0.0"
+
             label1 = header1 or (seq1[:30] + "..." if len(seq1) > 30 else seq1)
             label2 = header2 or (seq2[:30] + "..." if len(seq2) > 30 else seq2)
 
