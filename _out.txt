@@ -10,8 +10,8 @@ tests/test_example_data.py::test_sanger_assembly_example_fills_both_inputs
   F:\SeqSketch\modules\sanger_tab.py:142: PendingDeprecationWarning: The set_tight_layout function will be deprecated in a future version. Use set_layout_engine instead.
     self._overlap_fig.set_tight_layout(True)
 
-tests/test_example_data.py::test_deduplicate_example_fills_input_edit
-  C:\Users\yananzh\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function _LoadThread.__del__ at 0x0000014C05B654E0>
+tests/test_example_data.py::test_rename_ids_example_fills_input_edit
+  C:\Users\yananzh\AppData\Local\Programs\Python\Python313\Lib\site-packages\_pytest\unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function _LoadThread.__del__ at 0x0000012C181C53A0>
   
   Traceback (most recent call last):
     File "F:\SeqSketch\modules\sanger_viewer_tab.py", line 62, in __del__
@@ -24,4 +24,4 @@ tests/test_example_data.py::test_deduplicate_example_fills_input_edit
     warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-259 passed, 5 warnings in 6.70s
+259 passed, 5 warnings in 7.22s

@@ -353,6 +353,9 @@ class _BuildDbWidget(QWidget):
         _set_action_role(fasta_btn, "secondary")
         fasta_btn.setFixedWidth(90)
         fasta_btn.clicked.connect(self._choose_fasta)
+        # Reference button used to align the Build database button's height to
+        # the other form buttons once fonts/layout are resolved.
+        self._ref_btn = fasta_btn
         fasta_row.addWidget(self.fasta_edit)
         fasta_row.addWidget(fasta_btn)
         fasta_lbl = QLabel(self.tr("Input FASTA"))
@@ -424,9 +427,12 @@ class _BuildDbWidget(QWidget):
         for label in (self._fasta_lbl, self._outdir_lbl, self._name_lbl):
             label.setFixedWidth(width)
         # Fit the Build database button to its text at the resolved font
-        # (QSS button padding is 12px per side).
+        # (QSS button padding is 12px per side) and align its height with the
+        # form's Browse buttons (they render taller due to their 1px border).
         metrics = QFontMetrics(self.font())
         self.build_btn.setFixedWidth(metrics.horizontalAdvance(self.build_btn.text()) + 26)
+        if getattr(self, "_ref_btn", None) is not None and self._ref_btn.height() > 0:
+            self.build_btn.setFixedHeight(self._ref_btn.height())
 
     def _current_blast_bin_dir(self) -> str:
         path = self._blast_bin_dir_getter()
