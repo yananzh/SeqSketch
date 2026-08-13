@@ -10,8 +10,14 @@ Results open as a new tab in the main window via result_callback.
 
 import os
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtCore import Qt, QUrl, pyqtSignal
+from PyQt6.QtGui import (
+    QColor,
+    QDesktopServices,
+    QDragEnterEvent,
+    QDropEvent,
+    QFontMetrics,
+)
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -21,11 +27,15 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
     QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
     QTextBrowser,
     QVBoxLayout,
     QWidget,
@@ -35,12 +45,16 @@ from utils.app_paths import resource_path
 from utils.common_components import BaseTabWidget
 
 from .blast_config import (
+    database_is_valid,
     detect_query_sequence_type,
     get_blast_bin_dir,
     infer_blast_db_type,
     list_blast_databases,
     remember_blast_database,
+    remove_blast_database,
+    rename_blast_database,
     set_blast_bin_dir,
+    set_database_pinned,
     validate_query_program_selection,
 )
 
@@ -159,7 +173,7 @@ Building it once makes queries hundreds of times faster than scanning raw FASTA 
 <li>Select an <b>Input FASTA</b> file — the sequence type (nucleotide or protein) is auto-detected.</li>
 <li>Choose an <b>Output folder</b> where the index files will be created.</li>
 <li>Enter a <b>Database name</b> without spaces (e.g. <code>ecoli_genome</code>).</li>
-<li>Click <b>Build DB</b> — <code>makeblastdb</code> runs and the new database is auto-selected for searching.</li>
+<li>Click <b>Build database</b> — <code>makeblastdb</code> runs and the new database is auto-selected for searching.</li>
 </ol>
 
 <h3>Output Files</h3>
@@ -174,6 +188,7 @@ Building it once makes queries hundreds of times faster than scanning raw FASTA 
 <li>The bundled BLAST+ is auto-detected — set <b>BLAST+ Path</b> only if you need a different version.</li>
 <li>Database names must not contain spaces or special characters (<code>\\ / : * ? \" &lt; &gt; |</code>).</li>
 <li>Building a database for a large genome may take several minutes.</li>
+<li>After the build, <b>Result Folder</b> opens the folder containing the new database files.</li>
 </ul>
 """
 
@@ -189,8 +204,9 @@ spreadsheet application or text editor.</p>
 <ol>
 <li>Set <b>BLAST+ Path</b> (auto-detected if bundled).</li>
 <li>Select your <b>query FASTA file</b>.</li>
-<li>Pick a database: drag &amp; drop a <b>Database file</b> (*.phr / *.nhr) or
-    select a <b>Database name</b> from the saved list — the two are kept in sync.</li>
+<li>Pick a database: drag &amp; drop a <b>Database file</b> (*.phr / *.nhr) into the
+    field, or click <b>Manage</b> to choose from your saved databases — the
+    <b>Database name</b> field shows the matching saved record.</li>
 <li>Choose <b>Outfmt</b> (default: TSV, 12 columns) and set the <b>Output File</b> path.</li>
 <li>Click <b>Run</b>.</li>
 </ol>
@@ -199,7 +215,7 @@ spreadsheet application or text editor.</p>
 <ol>
 <li>In the <b>Create new database</b> section, select an <b>Input FASTA</b>,
     an <b>Output folder</b>, and enter a <b>Database name</b>.</li>
-<li>Click <b>Build DB</b> — the new database is built and auto-selected
+<li>Click <b>Build database</b> — the new database is built and auto-selected
     in the <b>Database file</b> and <b>Database name</b> fields above.</li>
 <li>Select your <b>query FASTA file</b> and click <b>Run</b>.</li>
 </ol>
@@ -242,11 +258,15 @@ spreadsheet application or text editor.</p>
 <h3>Tips</h3>
 <ul>
 <li>Drag &amp; drop is supported on all file input fields — no need to click Browse.</li>
-<li>The <b>Pin</b> button keeps your favourite databases at the top of the saved list.</li>
+<li>Use <b>Manage</b> to select, pin, rename, remove, or locate your saved databases.
+    Pinned databases stay at the top of the saved list.</li>
 <li>The database list deduplicates automatically — you won't see the same database twice.</li>
 <li>For large query files, increase <b>Threads</b> to speed up the search.</li>
-<li>Click <b>Example</b> to try a pre-configured E. coli protein BLAST with bundled data,
-    then <b>Clear</b> to reset all fields.</li>
+<li>Click <b>Example</b> to try a pre-configured E. coli protein BLAST with bundled data.</li>
+<li><b>Clear</b> resets the query inputs only — an in-progress
+    <b>Create new database</b> form is left untouched.</li>
+<li>After a BLAST run or a database build, <b>Result Folder</b> opens the folder
+    containing the output file / the new database.</li>
 </ul>
 """
 
@@ -275,7 +295,7 @@ class _DropLineEdit(QLineEdit):
             if mime:
                 urls = mime.urls()
                 if urls:
-                    path = urls[0].toLocalFile()
+                    path = os.path.normpath(urls[0].toLocalFile())
                     self.setText(path)
                     self.dropped.emit(path)
                     a0.acceptProposedAction()
@@ -331,13 +351,14 @@ class _BuildDbWidget(QWidget):
         self.fasta_edit.dropped.connect(self._on_fasta_dropped)
         fasta_btn = QPushButton(self.tr("Browse"))
         _set_action_role(fasta_btn, "secondary")
-        fasta_btn.setFixedWidth(80)
+        fasta_btn.setFixedWidth(90)
         fasta_btn.clicked.connect(self._choose_fasta)
         fasta_row.addWidget(self.fasta_edit)
         fasta_row.addWidget(fasta_btn)
         fasta_lbl = QLabel(self.tr("Input FASTA"))
         if self._label_width:
             fasta_lbl.setFixedWidth(self._label_width)
+        self._fasta_lbl = fasta_lbl
         create_form.addRow(fasta_lbl, fasta_row)
 
         outdir_row = QHBoxLayout()
@@ -346,34 +367,39 @@ class _BuildDbWidget(QWidget):
         self.outdir_edit.setPlaceholderText(self.tr("Select output folder for database files"))
         outdir_btn = QPushButton(self.tr("Browse"))
         _set_action_role(outdir_btn, "secondary")
-        outdir_btn.setFixedWidth(80)
+        outdir_btn.setFixedWidth(90)
         outdir_btn.clicked.connect(self._choose_outdir)
         outdir_row.addWidget(self.outdir_edit)
         outdir_row.addWidget(outdir_btn)
         outdir_lbl = QLabel(self.tr("Output folder"))
         if self._label_width:
             outdir_lbl.setFixedWidth(self._label_width)
+        self._outdir_lbl = outdir_lbl
         create_form.addRow(outdir_lbl, outdir_row)
 
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText(self.tr("my_reference_db"))
-        self.build_btn = QPushButton(self.tr("Build DB"))
+        self.build_btn = QPushButton(self.tr("Build database"))
         _set_action_role(self.build_btn, "primary")
+        self.build_btn.setFixedWidth(150)
         self.build_btn.clicked.connect(self._start_build)
         self.cancel_build_btn = QPushButton(self.tr("Cancel"))
         _set_action_role(self.cancel_build_btn, "secondary")
-        self.cancel_build_btn.setFixedWidth(80)
+        self.cancel_build_btn.setFixedWidth(75)
         self.cancel_build_btn.clicked.connect(self._cancel_build)
         self.cancel_build_btn.setVisible(False)
 
         name_row = QHBoxLayout()
+        name_row.setSpacing(8)
         name_row.addWidget(self.name_edit)
+        # Build / Cancel buttons sit at the end of the Database name row.
         name_row.addWidget(self.build_btn)
         name_row.addWidget(self.cancel_build_btn)
 
         name_lbl = QLabel(self.tr("Database name"))
         if self._label_width:
             name_lbl.setFixedWidth(self._label_width)
+        self._name_lbl = name_lbl
         create_form.addRow(name_lbl, name_row)
 
         if self._embedded:
@@ -390,6 +416,17 @@ class _BuildDbWidget(QWidget):
             self.status_lbl = None
 
     # ── slots ──────────────────────────────────────────────────────────────
+
+    def apply_label_width(self, width: int) -> None:
+        """Re-fit the fixed label column once the stylesheet font is resolved."""
+        if width <= 0:
+            return
+        for label in (self._fasta_lbl, self._outdir_lbl, self._name_lbl):
+            label.setFixedWidth(width)
+        # Fit the Build database button to its text at the resolved font
+        # (QSS button padding is 12px per side).
+        metrics = QFontMetrics(self.font())
+        self.build_btn.setFixedWidth(metrics.horizontalAdvance(self.build_btn.text()) + 26)
 
     def _current_blast_bin_dir(self) -> str:
         path = self._blast_bin_dir_getter()
@@ -510,9 +547,7 @@ class _BuildDbWidget(QWidget):
             if self._database_callback:
                 self._database_callback(outpath)
             if self.status_lbl:
-                self.status_lbl.setText(
-                    f"Database built successfully  →  {self.outdir_edit.text()}/{self.name_edit.text()}"
-                )
+                self.status_lbl.setText(f"Database built: {self.name_edit.text()}")
             QMessageBox.information(
                 self,
                 "Database Built",
@@ -526,11 +561,199 @@ class _BuildDbWidget(QWidget):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Manage Databases dialog
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class _ManageDatabasesDialog(QDialog):
+    """List saved BLAST databases with pin/rename/remove/open-folder actions."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Manage Databases"))
+        self.resize(660, 380)
+        self.setMinimumSize(540, 300)
+        self.selected_path = ""
+        self._build_ui()
+        self._reload()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(8)
+
+        self._table = QTableWidget(0, 5)
+        self._table.setHorizontalHeaderLabels([
+            self.tr("Name"),
+            self.tr("Type"),
+            self.tr("Status"),
+            self.tr("Path"),
+            self.tr("Pinned"),
+        ])
+        self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self._table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        header = self._table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self._table.setMinimumHeight(200)
+        layout.addWidget(self._table)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        self.select_btn = QPushButton(self.tr("Select"))
+        _set_action_role(self.select_btn, "primary")
+        self.select_btn.clicked.connect(self._select)
+        self.open_btn = QPushButton(self.tr("Open Folder"))
+        self.open_btn.clicked.connect(self._open_folder)
+        self.rename_btn = QPushButton(self.tr("Rename…"))
+        self.rename_btn.clicked.connect(self._rename)
+        self.pin_btn = QPushButton(self.tr("Pin / Unpin"))
+        self.pin_btn.clicked.connect(self._toggle_pin)
+        self.remove_btn = QPushButton(self.tr("Remove"))
+        self.remove_btn.clicked.connect(self._remove)
+        self.cleanup_btn = QPushButton(self.tr("Clean Up Missing"))
+        self.cleanup_btn.clicked.connect(self._cleanup_missing)
+        for button in (
+            self.select_btn,
+            self.open_btn,
+            self.rename_btn,
+            self.pin_btn,
+            self.remove_btn,
+            self.cleanup_btn,
+        ):
+            btn_row.addWidget(button)
+        btn_row.addStretch()
+        layout.addLayout(btn_row)
+
+        hint = QLabel(self.tr("Remove only deletes the saved record — files on disk are kept."))
+        hint.setStyleSheet("color: #777;")
+        layout.addWidget(hint)
+
+    def _records(self) -> list[dict]:
+        return list_blast_databases()
+
+    def _reload(self):
+        records = self._records()
+        self._table.setRowCount(0)
+        for record in records:
+            row = self._table.rowCount()
+            self._table.insertRow(row)
+            valid = database_is_valid(str(record["base_path"]))
+            values = [
+                str(record["name"]),
+                str(record["db_type"]),
+                self.tr("OK") if valid else self.tr("Missing"),
+                str(record["base_path"]),
+                self.tr("Yes") if record["pinned"] else "",
+            ]
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                if not valid:
+                    item.setForeground(QColor("#b0b0b0"))
+                self._table.setItem(row, col, item)
+        if not records:
+            self._table.setRowCount(1)
+            self._table.setItem(0, 0, QTableWidgetItem(self.tr("No saved databases yet.")))
+
+    def _selected_record(self) -> dict | None:
+        row = self._table.currentRow()
+        if row < 0:
+            return None
+        records = self._records()
+        if row >= len(records):
+            return None
+        return records[row]
+
+    def _select(self):
+        """Choose the selected record and close the dialog."""
+        record = self._selected_record()
+        if not record:
+            QMessageBox.information(self, self.tr("Manage"), self.tr("Select a database first."))
+            return
+        self.selected_path = str(record["base_path"])
+        self.accept()
+
+    def _open_folder(self):
+        record = self._selected_record()
+        if not record:
+            QMessageBox.information(self, self.tr("Manage"), self.tr("Select a database first."))
+            return
+        base = str(record["base_path"])
+        folder = base if os.path.isdir(base) else os.path.dirname(os.path.abspath(base))
+        if os.path.isdir(folder):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+
+    def _rename(self):
+        record = self._selected_record()
+        if not record:
+            QMessageBox.information(self, self.tr("Manage"), self.tr("Select a database first."))
+            return
+        name, ok = QInputDialog.getText(
+            self,
+            self.tr("Rename Database"),
+            self.tr("Display name:"),
+            text=str(record["name"]),
+        )
+        if ok and name.strip():
+            rename_blast_database(str(record["base_path"]), name.strip())
+            self._reload()
+
+    def _toggle_pin(self):
+        record = self._selected_record()
+        if not record:
+            QMessageBox.information(self, self.tr("Manage"), self.tr("Select a database first."))
+            return
+        set_database_pinned(str(record["base_path"]), not bool(record["pinned"]))
+        self._reload()
+
+    def _remove(self):
+        record = self._selected_record()
+        if not record:
+            QMessageBox.information(self, self.tr("Manage"), self.tr("Select a database first."))
+            return
+        answer = QMessageBox.question(
+            self,
+            self.tr("Remove Database"),
+            self.tr(
+                f"Remove '{record['name']}' from the saved list?\n\n"
+                "The database files on disk will NOT be deleted."
+            ),
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            remove_blast_database(str(record["base_path"]))
+            self._reload()
+
+    def _cleanup_missing(self):
+        removed = 0
+        for record in self._records():
+            if not database_is_valid(str(record["base_path"])):
+                if remove_blast_database(str(record["base_path"])):
+                    removed += 1
+        if removed:
+            QMessageBox.information(
+                self,
+                self.tr("Manage"),
+                self.tr(f"Removed {removed} missing database record(s)."),
+            )
+        else:
+            QMessageBox.information(
+                self, self.tr("Manage"), self.tr("No missing database records found.")
+            )
+        self._reload()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main page: Run Query
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 class _RunQueryWidget(QWidget):
+    blast_finished = pyqtSignal(str)  # successful output file
+    database_built = pyqtSignal(str)  # newly built database base path
+
     def __init__(
         self,
         status_callback=None,
@@ -544,12 +767,39 @@ class _RunQueryWidget(QWidget):
         self._blast_bin_dir_getter = blast_bin_dir_getter or get_blast_bin_dir
         self._thread = None
         self._build_db_widget = None
+        self._label_texts = (
+            "Query FASTA",
+            "BLAST+ Path",
+            "Database file",
+            "Database name",
+            "Input FASTA",
+            "Output folder",
+        )
+        self._label_widgets: list[QLabel] = []
         self._build_ui()
 
     def _status(self, msg: str):
         """Route status message through the callback if set."""
         if self.status_callback:
             self.status_callback(msg)
+
+    def showEvent(self, event):
+        """Re-fit the label column once the stylesheet font is resolved.
+
+        The tab is constructed before it is parented into the styled window,
+        so the construction-time probe measures with the app font. Recompute
+        with the resolved font on first show so labels never clip.
+        """
+        super().showEvent(event)
+        self._apply_label_widths()
+
+    def _apply_label_widths(self):
+        metrics = QFontMetrics(self.font())
+        width = max(metrics.horizontalAdvance(self.tr(text)) for text in self._label_texts)
+        for label in self._label_widgets:
+            label.setFixedWidth(width)
+        if self._build_db_widget is not None:
+            self._build_db_widget.apply_label_width(width)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -561,10 +811,21 @@ class _RunQueryWidget(QWidget):
         grp1_layout = QVBoxLayout(grp1)
         grp1_layout.setSpacing(6)
 
-        lbl_width = max(
-            QLabel(self.tr("Query sequences")).sizeHint().width(),
-            QLabel(self.tr("BLAST+ Path")).sizeHint().width(),
-        )
+        # Measure label widths with the widget's own (stylesheet-resolved) font
+        # so the fixed label column never clips the text, then right-align the
+        # labels so they sit flush against the input fields.
+        probe = QLabel(self.tr("Database name"), self)
+        lbl_width = probe.sizeHint().width()
+        for text in (
+            self.tr("Query FASTA"),
+            self.tr("BLAST+ Path"),
+            self.tr("Database file"),
+            self.tr("Input FASTA"),
+            self.tr("Output folder"),
+        ):
+            probe.setText(text)
+            lbl_width = max(lbl_width, probe.sizeHint().width())
+        probe.deleteLater()
 
         path_row = QHBoxLayout()
         path_row.setSpacing(8)
@@ -576,10 +837,11 @@ class _RunQueryWidget(QWidget):
         self.blast_path_edit.editingFinished.connect(self._persist_blast_bin_dir)
         path_btn = QPushButton(self.tr("Browse"))
         _set_action_role(path_btn, "secondary")
-        path_btn.setFixedWidth(80)
+        path_btn.setFixedWidth(90)
         path_btn.clicked.connect(self._choose_blast_bin_dir)
         path_lbl = QLabel(self.tr("BLAST+ Path"))
         path_lbl.setFixedWidth(lbl_width)
+        self._label_widgets.append(path_lbl)
         path_row.addWidget(path_lbl)
         path_row.addWidget(self.blast_path_edit, 1)
         path_row.addWidget(path_btn)
@@ -592,10 +854,11 @@ class _RunQueryWidget(QWidget):
         self.query_file_edit.dropped.connect(self._on_query_file_changed)
         query_btn = QPushButton(self.tr("Browse"))
         _set_action_role(query_btn, "secondary")
-        query_btn.setFixedWidth(80)
+        query_btn.setFixedWidth(90)
         query_btn.clicked.connect(self._choose_query_file)
-        query_lbl = QLabel(self.tr("Query sequences"))
+        query_lbl = QLabel(self.tr("Query FASTA"))
         query_lbl.setFixedWidth(lbl_width)
+        self._label_widgets.append(query_lbl)
         query_row.addWidget(query_lbl)
         query_row.addWidget(self.query_file_edit, 1)
         query_row.addWidget(query_btn)
@@ -624,10 +887,11 @@ class _RunQueryWidget(QWidget):
         self.db_edit.dropped.connect(self._on_db_dropped)
         db_btn = QPushButton(self.tr("Browse"))
         _set_action_role(db_btn, "secondary")
-        db_btn.setFixedWidth(80)
+        db_btn.setFixedWidth(90)
         db_btn.clicked.connect(self._choose_db)
         db_lbl = QLabel(self.tr("Database file"))
         db_lbl.setFixedWidth(lbl_width)
+        self._label_widgets.append(db_lbl)
         db_row.addWidget(db_lbl)
         db_row.addWidget(self.db_edit, 1)
         db_row.addWidget(db_btn)
@@ -635,19 +899,22 @@ class _RunQueryWidget(QWidget):
 
         lib_row = QHBoxLayout()
         lib_row.setSpacing(8)
-        self.db_library_combo = QComboBox()
-        self.db_library_combo.setToolTip(self.tr("Or pick a previously saved database"))
-        self.db_library_combo.currentIndexChanged.connect(self._use_selected_database)
-        self.pin_db_btn = QPushButton(self.tr("Pin"))
-        _set_action_role(self.pin_db_btn, "secondary")
-        self.pin_db_btn.setFixedWidth(80)
-        self.pin_db_btn.setToolTip(self.tr("Keep this database at the top of the list"))
-        self.pin_db_btn.clicked.connect(self._pin_current_database)
+        self.db_name_edit = QLineEdit()
+        self.db_name_edit.setReadOnly(True)
+        self.db_name_edit.setPlaceholderText(self.tr("Choose a saved database via Manage"))
+        self.manage_db_btn = QPushButton(self.tr("Manage"))
+        _set_action_role(self.manage_db_btn, "secondary")
+        self.manage_db_btn.setFixedWidth(90)
+        self.manage_db_btn.setToolTip(
+            self.tr("Select, pin, rename, remove, or locate your saved databases")
+        )
+        self.manage_db_btn.clicked.connect(self._open_manage_dialog)
         name_lbl = QLabel(self.tr("Database name"))
         name_lbl.setFixedWidth(lbl_width)
+        self._label_widgets.append(name_lbl)
         lib_row.addWidget(name_lbl)
-        lib_row.addWidget(self.db_library_combo, 1)
-        lib_row.addWidget(self.pin_db_btn)
+        lib_row.addWidget(self.db_name_edit, 1)
+        lib_row.addWidget(self.manage_db_btn)
         existing_layout.addLayout(lib_row)
 
         grp2_layout.addWidget(existing_grp)
@@ -713,9 +980,10 @@ class _RunQueryWidget(QWidget):
 
         self.out_edit = QLineEdit()
         self.out_edit.setPlaceholderText(self.tr("blast_result.tsv"))
+        self.out_edit.editingFinished.connect(self._normalize_out_file)
         out_btn = QPushButton(self.tr("Browse"))
         _set_action_role(out_btn, "secondary")
-        out_btn.setFixedWidth(80)
+        out_btn.setFixedWidth(90)
         out_btn.clicked.connect(self._choose_outfile)
         grid.addWidget(QLabel(self.tr("Output File")), 1, 0)
         out_hbox = QHBoxLayout()
@@ -730,10 +998,11 @@ class _RunQueryWidget(QWidget):
         # BlastLocalTab in its status bar so they sit beside Help.
         self.run_btn = QPushButton(self.tr("Run"))
         _set_action_role(self.run_btn, "primary")
+        self.run_btn.setFixedWidth(75)
         self.run_btn.clicked.connect(self._start_run)
         self.cancel_run_btn = QPushButton(self.tr("Cancel"))
         _set_action_role(self.cancel_run_btn, "secondary")
-        self.cancel_run_btn.setFixedWidth(80)
+        self.cancel_run_btn.setFixedWidth(75)
         self.cancel_run_btn.clicked.connect(self._cancel_run)
         self.cancel_run_btn.setVisible(False)
 
@@ -843,30 +1112,23 @@ class _RunQueryWidget(QWidget):
         self._auto_select_blast_program()
 
     def refresh_database_library(self, current_path: str = ""):
+        """Show the saved-record label matching the current database path."""
         selected = os.path.normpath(os.path.abspath(current_path or self.db_edit.text().strip()))
-        self.db_library_combo.blockSignals(True)
-        self.db_library_combo.clear()
-        self.db_library_combo.addItem(self.tr("Choose a saved database..."), "")
-
-        for record in list_blast_databases():
-            label = str(record["name"])
-            db_type = str(record["db_type"])
-            if db_type:
-                label = f"{label} ({db_type})"
-            if record["pinned"]:
-                label = f"{label} [Pinned]"
-            self.db_library_combo.addItem(label, str(record["base_path"]))
-
+        label = ""
         if selected and selected not in (".", ".."):
-            for index in range(1, self.db_library_combo.count()):
-                stored = os.path.normpath(
-                    os.path.abspath(str(self.db_library_combo.itemData(index) or ""))
-                )
+            for record in list_blast_databases():
+                stored = os.path.normpath(os.path.abspath(str(record["base_path"])))
                 if os.path.normcase(stored) == os.path.normcase(selected):
-                    self.db_library_combo.setCurrentIndex(index)
+                    label = str(record["name"])
+                    db_type = str(record["db_type"])
+                    if db_type:
+                        label = f"{label} ({db_type})"
+                    if not database_is_valid(str(record["base_path"])):
+                        label = f"{label} ⚠ Missing"
+                    if record["pinned"]:
+                        label = f"{label} [Pinned]"
                     break
-
-        self.db_library_combo.blockSignals(False)
+        self.db_name_edit.setText(label)
 
     def _select_built_database(self, base_path: str):
         if not base_path:
@@ -874,31 +1136,17 @@ class _RunQueryWidget(QWidget):
         self.db_edit.setText(base_path)
         self.refresh_database_library(current_path=base_path)
         self._auto_select_blast_program()
+        self.database_built.emit(base_path)
 
-    def _use_selected_database(self, index: int):
-        if index <= 0:
-            return
-        base_path = str(self.db_library_combo.itemData(index) or "")
-        if not base_path:
-            return
-        self.db_edit.setText(base_path)
-        self._auto_select_blast_program()
-
-    def _pin_current_database(self):
-        base_path = self.db_edit.text().strip()
-        if not base_path:
-            QMessageBox.warning(
-                self,
-                "Input Error",
-                "Please choose a database before pinning it.",
-            )
-            return
-        remember_blast_database(
-            base_path,
-            db_type=infer_blast_db_type(base_path),
-            pinned=True,
-        )
-        self.refresh_database_library(current_path=base_path)
+    def _open_manage_dialog(self):
+        """Open the Manage Databases dialog; apply the chosen database on accept."""
+        dlg = _ManageDatabasesDialog(self)
+        accepted = dlg.exec()
+        if accepted and dlg.selected_path:
+            self.db_edit.setText(dlg.selected_path)
+        self.refresh_database_library()
+        if accepted and dlg.selected_path:
+            self._auto_select_blast_program()
 
     def _choose_db(self):
         f, _ = QFileDialog.getOpenFileName(
@@ -909,6 +1157,12 @@ class _RunQueryWidget(QWidget):
         )
         if f:
             self._on_db_dropped(f)
+
+    def _normalize_out_file(self):
+        """Convert forward slashes in the typed Output File path to Windows style."""
+        text = self.out_edit.text().strip()
+        if text:
+            self.out_edit.setText(os.path.normpath(os.path.abspath(text)))
 
     def _choose_outfile(self):
         outfmt_key = self.outfmt_combo.currentText()
@@ -953,7 +1207,8 @@ class _RunQueryWidget(QWidget):
         evalue = self.eval_edit.text().strip()
         num_threads = self.threads_spin.value()
         num_hits = self.numhits_spin.value()
-        out_file = self.out_edit.text().strip()
+        out_raw = self.out_edit.text().strip()
+        out_file = os.path.normpath(os.path.abspath(out_raw)) if out_raw else ""
         program = self.prog_combo.currentText()
         outfmt = _OUTFMT_OPTIONS[self.outfmt_combo.currentText()]
         bin_dir = self._current_blast_bin_dir()
@@ -990,7 +1245,7 @@ class _RunQueryWidget(QWidget):
 
         self.run_btn.setVisible(False)
         self.cancel_run_btn.setVisible(True)
-        self._status("Running BLAST query…")
+        self._status("Running BLAST…")
 
         self._thread = _RunBlastThread(
             bin_dir,
@@ -1017,7 +1272,8 @@ class _RunQueryWidget(QWidget):
         self.cancel_run_btn.setVisible(False)
         self._status("")
         if success:
-            self._status(f"BLAST finished  →  {out_file}")
+            self._status(f"BLAST finished: {os.path.basename(out_file)}")
+            self.blast_finished.emit(out_file)
             if self.result_callback and out_file:
                 self.result_callback(out_file)
         else:
@@ -1047,6 +1303,8 @@ class BlastLocalTab(BaseTabWidget):
             result_callback=result_callback,
             blast_bin_dir_getter=get_blast_bin_dir,
         )
+        self._run_tab.blast_finished.connect(self._on_blast_finished)
+        self._run_tab.database_built.connect(self._on_database_built)
         self.content_area.addWidget(self._run_tab)
         self.content_area.addStretch()
 
@@ -1058,11 +1316,39 @@ class BlastLocalTab(BaseTabWidget):
 
         # Example and Clear buttons
         self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn.setFixedWidth(80)
         self.example_btn.clicked.connect(self._load_example)
         self.clear_btn = QPushButton(self.tr("Clear"))
+        self.clear_btn.setFixedWidth(75)
         self.clear_btn.clicked.connect(self._clear)
+        self.help_btn.setFixedWidth(75)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.example_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
+
+        # Result Folder button (before Clear; enabled after a run/build)
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.style().unpolish(self.open_folder_btn)
+        self.open_folder_btn.style().polish(self.open_folder_btn)
+        self.status_layout.insertWidget(self.status_layout.indexOf(self.clear_btn), self.open_folder_btn)
+        self._last_export_dir = ""
+
+    def _on_blast_finished(self, out_file: str):
+        self._last_export_dir = os.path.dirname(os.path.abspath(out_file))
+        self.open_folder_btn.setEnabled(True)
+
+    def _on_database_built(self, base_path: str):
+        folder = base_path if os.path.isdir(base_path) else os.path.dirname(os.path.abspath(base_path))
+        self._last_export_dir = folder
+        self.open_folder_btn.setEnabled(True)
+
+    def _open_output_folder(self):
+        """Open the folder of the most recent BLAST result or built database."""
+        if self._last_export_dir:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
     def _load_example(self):
         """Load bundled E.coli protein BLAST example query and database."""
@@ -1083,16 +1369,18 @@ class BlastLocalTab(BaseTabWidget):
         self.show_status(self.tr("Example loaded: E. coli protein BLAST"))
 
     def _clear(self):
-        """Clear all inputs."""
+        """Clear query inputs. The Create new database form is intentionally
+        left untouched so in-progress database setup is not lost."""
         self._run_tab.query_file_edit.clear()
         self._run_tab.db_edit.clear()
-        self._run_tab.db_library_combo.setCurrentIndex(0)
+        self._run_tab.db_name_edit.clear()
         self._run_tab.out_edit.clear()
         self._run_tab._on_outfmt_changed(self._run_tab.outfmt_combo.currentText())
         self._run_tab.eval_edit.setText("1e-5")
         self._run_tab.prog_combo.setCurrentIndex(0)
         self._run_tab.threads_spin.setValue(_default_blast_threads())
         self._run_tab.numhits_spin.setValue(_DEFAULT_MAX_HITS)
+        self.open_folder_btn.setEnabled(False)
         self.show_status(self.tr("Cleared"))
 
     def _get_blast_bin_dir(self) -> str:

@@ -335,7 +335,7 @@ class BlastRunDialog(QDialog):
     def _on_query_drop(self, e):
         urls = e.mimeData().urls()
         if urls:
-            path = urls[0].toLocalFile()
+            path = os.path.normpath(urls[0].toLocalFile())
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     self.query_edit.setPlainText(f.read())

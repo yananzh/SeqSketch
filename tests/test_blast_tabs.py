@@ -34,6 +34,28 @@ def test_local_blast_tab_uses_inline_database_builder_and_shared_query_editor_st
     assert not hasattr(build_widget, "prot_radio")
 
     assert not hasattr(tab._run_tab, "query_edit")
+
+
+def test_local_blast_clear_keeps_create_database_form(qapp, monkeypatch):
+    monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
+
+    tab = BlastLocalTab()
+    build_widget = tab._run_tab._build_db_widget
+
+    build_widget.fasta_edit.setText(r"C:\refs\my_db.fasta")
+    build_widget.outdir_edit.setText(r"C:\refs")
+    build_widget.name_edit.setText("my_db")
+    tab._run_tab.query_file_edit.setText(r"C:\query.fasta")
+
+    tab._clear()
+
+    # Create new database form is preserved
+    assert build_widget.fasta_edit.text() == r"C:\refs\my_db.fasta"
+    assert build_widget.outdir_edit.text() == r"C:\refs"
+    assert build_widget.name_edit.text() == "my_db"
+    # Query inputs are cleared
+    assert tab._run_tab.query_file_edit.text() == ""
+    assert not tab.open_folder_btn.isEnabled()
     assert "drag & drop" in tab._run_tab.query_file_edit.placeholderText()
     assert not hasattr(tab._run_tab, "query_type_lbl")
     assert not hasattr(tab._run_tab, "hero_title")
@@ -117,7 +139,7 @@ def test_local_blast_inline_builder_selects_new_database(qapp, monkeypatch, tmp_
 
     expected_base_path = os.path.join(str(tmp_path), "reference_db")
     assert tab._run_tab.db_edit.text() == expected_base_path
-    assert tab._run_tab.db_library_combo.currentData() == expected_base_path
+    assert "reference_db" in tab._run_tab.db_name_edit.text()
     assert saved_records[-1]["base_path"] == expected_base_path
     assert saved_records[-1]["db_type"] == "nucl"
 
@@ -161,7 +183,7 @@ def test_blast_menu_uses_single_local_blast_action(qapp, monkeypatch):
     assert isinstance(window.tabs.widget(0), BlastLocalTab)
 
 
-def test_local_blast_tab_exposes_recent_database_picker(qapp, monkeypatch):
+def test_local_blast_tab_shows_saved_database_in_name_field(qapp, monkeypatch):
     monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
     monkeypatch.setattr(
         "modules.blast_local_tab.list_blast_databases",
@@ -184,13 +206,44 @@ def test_local_blast_tab_exposes_recent_database_picker(qapp, monkeypatch):
             },
         ],
     )
+    monkeypatch.setattr("modules.blast_local_tab.database_is_valid", lambda path: True)
 
     tab = BlastLocalTab()
 
-    assert tab._run_tab.db_library_combo.count() == 3
-    assert tab._run_tab.db_library_combo.itemText(1).startswith("Pinned protein db")
-    tab._run_tab.db_library_combo.setCurrentIndex(2)
-    assert tab._run_tab.db_edit.text() == r"C:\db\genome"
+    assert tab._run_tab.db_name_edit.text() == ""
+    tab._run_tab.db_edit.setText(r"C:\db\genome")
+    tab._run_tab.refresh_database_library()
+    assert tab._run_tab.db_name_edit.text() == "Recent nucleotide db (nucl)"
+
+    tab._run_tab.db_edit.setText(r"C:\db\unknown")
+    tab._run_tab.refresh_database_library()
+    assert tab._run_tab.db_name_edit.text() == ""
+
+
+def test_local_blast_manage_dialog_selects_database(qapp, monkeypatch):
+    monkeypatch.setattr(
+        "modules.blast_local_tab.list_blast_databases",
+        lambda: [
+            {
+                "name": "Pinned protein db",
+                "base_path": r"C:\db\proteins",
+                "db_type": "prot",
+                "source_fasta": r"C:\db\proteins.faa",
+                "last_used_at": "2026-05-31T10:00:00",
+                "pinned": True,
+            }
+        ],
+    )
+    monkeypatch.setattr("modules.blast_local_tab.database_is_valid", lambda path: True)
+
+    from modules.blast_local_tab import _ManageDatabasesDialog
+
+    dlg = _ManageDatabasesDialog()
+    dlg._table.selectRow(0)
+    dlg._select()
+
+    assert dlg.selected_path == r"C:\db\proteins"
+    assert dlg.result() == dlg.DialogCode.Accepted
 
 
 def test_local_blast_tab_blocks_mismatched_query_and_program(qapp, monkeypatch, tmp_path):
@@ -235,10 +288,10 @@ def test_local_blast_tab_blocks_mismatched_query_and_program(qapp, monkeypatch, 
     assert thread_started["value"] is False
 
 
-def test_local_blast_tab_can_pin_current_database(qapp, monkeypatch):
+def test_local_blast_tab_manage_dialog_toggles_pin(qapp, monkeypatch):
     monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
 
-    saved_calls: list[dict[str, object]] = []
+    pinned_calls: list[tuple[str, bool]] = []
 
     def fake_list_blast_databases():
         return [
@@ -252,22 +305,26 @@ def test_local_blast_tab_can_pin_current_database(qapp, monkeypatch):
             }
         ]
 
-    def fake_remember_blast_database(base_path, **kwargs):
-        saved_calls.append({"base_path": base_path, **kwargs})
+    def fake_set_database_pinned(base_path, pinned):
+        pinned_calls.append((base_path, pinned))
+        return True
 
     monkeypatch.setattr("modules.blast_local_tab.list_blast_databases", fake_list_blast_databases)
     monkeypatch.setattr(
-        "modules.blast_local_tab.remember_blast_database", fake_remember_blast_database
+        "modules.blast_local_tab.set_database_pinned", fake_set_database_pinned
     )
 
     tab = BlastLocalTab()
-    tab._run_tab.db_edit.setText(r"C:\db\genome")
+    assert tab._run_tab.manage_db_btn.text() == "Manage"
+    assert not hasattr(tab._run_tab, "pin_db_btn")
 
-    tab._run_tab.pin_db_btn.click()
+    from modules.blast_local_tab import _ManageDatabasesDialog
 
-    assert saved_calls
-    assert saved_calls[-1]["base_path"] == r"C:\db\genome"
-    assert saved_calls[-1]["pinned"] is True
+    dlg = _ManageDatabasesDialog()
+    dlg._table.selectRow(0)
+    dlg._toggle_pin()
+
+    assert pinned_calls == [(r"C:\db\genome", True)]
 
 
 def test_blast_database_library_persists_pinned_and_recent_order(tmp_path, monkeypatch):

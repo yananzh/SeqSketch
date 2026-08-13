@@ -173,6 +173,57 @@ def remember_blast_database(
     _save_database_records(records)
 
 
+def database_is_valid(base_path: str) -> bool:
+    """Check that a saved database's index files still exist on disk."""
+    candidate = str(base_path or "").strip()
+    if not candidate:
+        return False
+    if not os.path.isdir(os.path.dirname(os.path.abspath(candidate))):
+        return False
+    for ext in _NUCL_EXTENSIONS + _PROT_EXTENSIONS:
+        if os.path.isfile(candidate + ext):
+            return True
+    return False
+
+
+def remove_blast_database(base_path: str) -> bool:
+    """Remove a saved database record (does NOT delete files on disk)."""
+    normed = _norm_path(str(base_path or "").strip())
+    records = _load_database_records()
+    kept = [record for record in records if _norm_path(record["base_path"]) != normed]
+    if len(kept) == len(records):
+        return False
+    _save_database_records(kept)
+    return True
+
+
+def rename_blast_database(base_path: str, new_name: str) -> bool:
+    """Rename a saved database record's display name."""
+    new_name = str(new_name or "").strip()
+    if not new_name:
+        return False
+    normed = _norm_path(str(base_path or "").strip())
+    records = _load_database_records()
+    for record in records:
+        if _norm_path(record["base_path"]) == normed:
+            record["name"] = new_name
+            _save_database_records(records)
+            return True
+    return False
+
+
+def set_database_pinned(base_path: str, pinned: bool) -> bool:
+    """Pin or unpin a saved database record."""
+    normed = _norm_path(str(base_path or "").strip())
+    records = _load_database_records()
+    for record in records:
+        if _norm_path(record["base_path"]) == normed:
+            record["pinned"] = bool(pinned)
+            _save_database_records(records)
+            return True
+    return False
+
+
 def infer_blast_db_type(path: str) -> str:
     candidate = str(path or "").strip()
     if not candidate:
@@ -309,10 +360,16 @@ def get_blast_bin_dir() -> str | None:
             config.read(cfg_path, encoding="utf-8")
             if CONFIG_SECTION in config and CONFIG_KEY in config[CONFIG_SECTION]:
                 stored = config[CONFIG_SECTION][CONFIG_KEY]
-                if stored and os.path.isdir(stored):
+                # Relative values in config.ini resolve against the app root
+                # (portable_root), not the process cwd.
+                candidate = stored if os.path.isabs(stored) else os.path.join(portable_root(), stored)
+                if candidate and os.path.isdir(candidate):
+                    # Normalize to an absolute Windows-style path so the UI
+                    # never shows forward slashes or cwd-relative values.
+                    resolved = os.path.normpath(os.path.abspath(candidate))
                     if cfg_path != CONFIG_FILE:
-                        set_blast_bin_dir(stored)
-                    return stored
+                        set_blast_bin_dir(resolved)
+                    return resolved
 
     # Fall back to bundled BLAST
     bundled = _detect_bundled_bin()
@@ -329,6 +386,6 @@ def set_blast_bin_dir(bin_dir: str) -> None:
         config.read(CONFIG_FILE, encoding="utf-8")
     if CONFIG_SECTION not in config:
         config[CONFIG_SECTION] = {}
-    config[CONFIG_SECTION][CONFIG_KEY] = bin_dir
+    config[CONFIG_SECTION][CONFIG_KEY] = os.path.normpath(os.path.abspath(bin_dir))
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         config.write(f)
