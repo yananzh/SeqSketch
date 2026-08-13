@@ -49,9 +49,10 @@ Remove-Item 'startup.log' -Force -ErrorAction SilentlyContinue
 
 # ── 2.5 Prune bundled tools (keep only runtime-essential files) ─────────────
 Write-Host "[2.5/4] Pruning bundled tool binaries..."
-# BLAST: keep only the 6 tools used by SeqSketch; remove VDB variants, maskers, docs
+# BLAST: keep only the 6 tools used by SeqSketch + nghttp2.dll (HTTP/2 support
+# needed by BLAST's remote query features); remove VDB variants, maskers, docs
 $blastBin = 'softwares\ncbi-blast-2.17.0+\bin'
-$blastKeep = @('blastn', 'blastp', 'blastx', 'tblastn', 'tblastx', 'makeblastdb')
+$blastKeep = @('blastn', 'blastp', 'blastx', 'tblastn', 'tblastx', 'makeblastdb', 'nghttp2')
 if (Test-Path $blastBin) {
     $blastAll = Get-ChildItem $blastBin -File
     foreach ($f in $blastAll) {
