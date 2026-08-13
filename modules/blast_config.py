@@ -362,7 +362,9 @@ def get_blast_bin_dir() -> str | None:
                 stored = config[CONFIG_SECTION][CONFIG_KEY]
                 # Relative values in config.ini resolve against the app root
                 # (portable_root), not the process cwd.
-                candidate = stored if os.path.isabs(stored) else os.path.join(portable_root(), stored)
+                candidate = (
+                    stored if os.path.isabs(stored) else os.path.join(portable_root(), stored)
+                )
                 if candidate and os.path.isdir(candidate):
                     # Normalize to an absolute Windows-style path so the UI
                     # never shows forward slashes or cwd-relative values.

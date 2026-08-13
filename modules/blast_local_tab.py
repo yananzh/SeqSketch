@@ -1333,7 +1333,9 @@ class BlastLocalTab(BaseTabWidget):
         self.open_folder_btn.clicked.connect(self._open_output_folder)
         self.open_folder_btn.style().unpolish(self.open_folder_btn)
         self.open_folder_btn.style().polish(self.open_folder_btn)
-        self.status_layout.insertWidget(self.status_layout.indexOf(self.clear_btn), self.open_folder_btn)
+        self.status_layout.insertWidget(
+            self.status_layout.indexOf(self.clear_btn), self.open_folder_btn
+        )
         self._last_export_dir = ""
 
     def _on_blast_finished(self, out_file: str):
@@ -1341,7 +1343,9 @@ class BlastLocalTab(BaseTabWidget):
         self.open_folder_btn.setEnabled(True)
 
     def _on_database_built(self, base_path: str):
-        folder = base_path if os.path.isdir(base_path) else os.path.dirname(os.path.abspath(base_path))
+        folder = (
+            base_path if os.path.isdir(base_path) else os.path.dirname(os.path.abspath(base_path))
+        )
         self._last_export_dir = folder
         self.open_folder_btn.setEnabled(True)
 

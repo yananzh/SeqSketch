@@ -310,9 +310,7 @@ def test_local_blast_tab_manage_dialog_toggles_pin(qapp, monkeypatch):
         return True
 
     monkeypatch.setattr("modules.blast_local_tab.list_blast_databases", fake_list_blast_databases)
-    monkeypatch.setattr(
-        "modules.blast_local_tab.set_database_pinned", fake_set_database_pinned
-    )
+    monkeypatch.setattr("modules.blast_local_tab.set_database_pinned", fake_set_database_pinned)
 
     tab = BlastLocalTab()
     assert tab._run_tab.manage_db_btn.text() == "Manage"
