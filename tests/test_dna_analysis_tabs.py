@@ -4,7 +4,7 @@ from types import SimpleNamespace
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QPalette
 from PyQt6.QtWidgets import QFrame, QLabel, QMessageBox, QPushButton
 
@@ -176,8 +176,45 @@ def test_alignment_trimming_tab_places_run_left_help_right_without_stop(qapp):
     all_buttons = tab.findChildren(QPushButton)
     button_texts = [btn.text() for btn in all_buttons]
 
-    assert "Run trimAl" in button_texts
+    assert "Run" in button_texts
     assert "Help" in button_texts
+
+
+def test_alignment_trimming_file_buttons_add_before_example(qapp):
+    tab = AlignmentTrimmingTab()
+    texts = [btn.text() for btn in tab.findChildren(QPushButton)]
+
+    assert texts.index("Add Files") < texts.index("Example")
+    assert "Result Folder" in texts
+
+
+def test_alignment_trimming_result_folder_button_opens_outdir(qapp, monkeypatch, tmp_path):
+    tab = AlignmentTrimmingTab()
+    opened = []
+    monkeypatch.setattr(
+        "modules.trimal_tab.QDesktopServices.openUrl",
+        lambda url: opened.append(url.toString()),
+    )
+
+    tab._open_output_folder()
+    assert tab.status_label.text() == "No output folder selected yet."
+
+    outdir = tmp_path / "trimmed"
+    tab.outdir_edit.setText(str(outdir))
+    tab._open_output_folder()
+    assert tab.status_label.text() == "Output folder does not exist yet."
+
+    outdir.mkdir()
+    tab._open_output_folder()
+    assert opened == [QUrl.fromLocalFile(str(outdir)).toString()]
+
+
+def test_alignment_trimming_nogaps_method_builds_flag(qapp):
+    tab = AlignmentTrimmingTab()
+    tab.rb_nogaps.setChecked(True)
+
+    assert tab._selected_method_name() == "nogaps"
+    assert tab._build_flags() == ["-nogaps"]
 
 
 def test_alignment_trimming_prepares_phylip_input_as_temp_fasta(tmp_path):
@@ -264,13 +301,13 @@ def test_alignment_trimming_logs_full_command_before_start(qapp, monkeypatch, tm
     assert "TrimAl Run Summary" in log_text
     assert "trimAl path" in log_text
     assert "Trimming method" in log_text
-    assert "gappyout" in log_text
+    assert "automated1" in log_text
     assert "Output format" in log_text
     assert "Output folder" in log_text
     assert str(exe_path) in log_text
     assert str(prepared_input) in log_text
     assert str(expected_output) in log_text
-    assert "-gappyout" in log_text
+    assert "-automated1" in log_text
 
 
 def test_protein_analysis_menu_groups_web_tools_and_opens_expected_urls(qapp, monkeypatch):

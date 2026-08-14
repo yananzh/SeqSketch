@@ -621,8 +621,8 @@ class BaseTabWidget(QWidget):
         else:
             self.show_status("Completed")
         self.set_running_state(False)
-        # 线程退出由 start_worker() 中的信号连接驱动，此处不再阻塞等待
-        self.worker_thread = None
+        # 线程引用由 _on_worker_thread_finished() 在线程完全停止后释放，
+        # 避免在此处释放仍在运行的 QThread（会导致应用崩溃）
 
     def handle_worker_error(self, error_msg: str):
         """处理工作线程错误"""
@@ -631,8 +631,16 @@ class BaseTabWidget(QWidget):
         else:
             self.show_status(f"Error: {error_msg}")
         self.set_running_state(False)
-        # 线程退出由 start_worker() 中的信号连接驱动，此处不再阻塞等待
-        self.worker_thread = None
+        # 线程引用由 _on_worker_thread_finished() 在线程完全停止后释放
+
+    def _on_worker_thread_finished(self):
+        """Worker 线程已完全停止 — 此时释放线程引用是安全的。
+
+        直接在线程运行中释放引用会让 PyQt 销毁仍在运行的 QThread，
+        触发 Qt 致命错误 "QThread: Destroyed while thread is still running"。
+        """
+        if self.sender() is self.worker_thread:
+            self.worker_thread = None
 
     def start_worker(self, worker: BaseWorker):
         """启动工作线程的通用方法"""
@@ -659,8 +667,8 @@ class BaseTabWidget(QWidget):
         if hasattr(worker, "progress"):
             worker.progress.connect(self.show_status)
 
-        # 线程结束后自动清理
-        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        # 线程真正停止后才释放引用，避免在运行中销毁 QThread
+        self.worker_thread.finished.connect(self._on_worker_thread_finished)
 
         self.set_running_state(True)
         self.worker_thread.start()

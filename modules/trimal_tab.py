@@ -19,8 +19,8 @@ import subprocess
 import tempfile
 
 from Bio import AlignIO
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPainter
+from PyQt6.QtCore import Qt, QThread, QUrl, pyqtSignal
+from PyQt6.QtGui import QDesktopServices, QDragEnterEvent, QDropEvent, QPainter
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QComboBox,
@@ -40,7 +40,12 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import resource_path, tool_path_from_config
-from utils.common_components import BaseTabWidget, apply_log_viewer_style
+from utils.common_components import (
+    BaseTabWidget,
+    apply_log_viewer_style,
+    validate_input_path,
+    validate_output_path,
+)
 from utils.example_data import stage_example
 
 
@@ -385,8 +390,8 @@ class AlignmentTrimmingTab(BaseTabWidget):
         remove_btn.clicked.connect(self._remove_selected)
         clear_btn = QPushButton(self.tr("Clear All"))
         clear_btn.clicked.connect(self._clear_all)
-        list_btns.addWidget(example_btn)
         list_btns.addWidget(add_btn)
+        list_btns.addWidget(example_btn)
         list_btns.addWidget(remove_btn)
         list_btns.addWidget(clear_btn)
         list_btns.addStretch()
@@ -427,12 +432,14 @@ class AlignmentTrimmingTab(BaseTabWidget):
         self.rb_auto1 = QRadioButton("automated1")
         self.rb_strict = QRadioButton("strict")
         self.rb_strictplus = QRadioButton("strictplus")
+        self.rb_nogaps = QRadioButton("nogaps")
 
         _auto_tooltips = {
-            self.rb_gappyout: self.tr("Good default for most alignments."),
-            self.rb_auto1: self.tr("Auto-selects trimAl strategy from alignment statistics."),
+            self.rb_gappyout: self.tr("Removes only gap-rich columns. Conservative — keeps the most data."),
+            self.rb_auto1: self.tr("Recommended default — auto-balances similarity and data retention."),
             self.rb_strict: self.tr("More aggressive trimming based on alignment statistics."),
             self.rb_strictplus: self.tr("Aggressive trimming plus fragment filtering."),
+            self.rb_nogaps: self.tr("Removes every column that contains a gap — output has no missing residues."),
         }
 
         for rb, desc in _auto_tooltips.items():
@@ -447,9 +454,10 @@ class AlignmentTrimmingTab(BaseTabWidget):
         auto_row.addWidget(self.rb_auto1)
         auto_row.addWidget(self.rb_strict)
         auto_row.addWidget(self.rb_strictplus)
+        auto_row.addWidget(self.rb_nogaps)
 
         method_layout.addLayout(auto_row)
-        self.rb_gappyout.setChecked(True)
+        self.rb_auto1.setChecked(True)
         self.add_content_widget(method_box)
 
         # ── output format group ────────────────────────────────────────────
@@ -478,7 +486,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
         self.add_content_widget(fmt_box)
 
         # ── Run / Stop / Clear buttons (same row as Help, in status_layout) ──
-        self.run_btn = QPushButton(self.tr("Run trimAl"))
+        self.run_btn = QPushButton(self.tr("Run"))
         self.run_btn.clicked.connect(self._run)
         self.stop_btn = QPushButton(self.tr("Stop"))
         self.stop_btn.setVisible(False)
@@ -489,6 +497,8 @@ class AlignmentTrimmingTab(BaseTabWidget):
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.stop_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
+        # Result Folder button (opens the output folder), before Help
+        self.add_open_output_dir_button()
 
         # Anchor the shared log area near the bottom
         self.content_area.addStretch()
@@ -508,20 +518,23 @@ and more reliable downstream analyses.</p>
 <ol>
 <li>Add alignment files via <b>Add Files</b> or drag &amp; drop.</li>
 <li>Choose an <b>output folder</b> (auto-filled from the first file).</li>
-<li>Select a <b>trimming method</b> (start with <b>gappyout</b>).</li>
-<li>Click <b>Run trimAl</b>.</li>
+<li>Select a <b>trimming method</b> (start with <b>automated1</b>).</li>
+<li>Click <b>Run</b>.</li>
 </ol>
 
 <h3>Trimming Methods</h3>
 <ul>
 <li><b>gappyout</b> &mdash; removes columns with unusually high gap proportions.
-Fast and effective &mdash; good default for most datasets.</li>
+Conservative &mdash; keeps the most data.</li>
 <li><b>automated1</b> &mdash; auto-selects the best method based on alignment
-statistics.</li>
+statistics. <b>Recommended default.</b></li>
 <li><b>strict</b> &mdash; more aggressive trimming based on alignment
 statistics.</li>
 <li><b>strictplus</b> &mdash; like strict but also filters out short sequence
 fragments.</li>
+<li><b>nogaps</b> &mdash; removes every column that contains a gap. Strictest
+option — the output has no missing residues (useful when downstream analyses
+require complete columns).</li>
 </ul>
 
 <h3>Output Formats</h3>
@@ -535,7 +548,8 @@ fragments.</li>
 
 <h3>Tips</h3>
 <ul>
-<li>Start with <b>gappyout</b> or <b>automated1</b> for most datasets.</li>
+<li>Start with <b>automated1</b> (the default) for most datasets; <b>gappyout</b>
+is a more conservative alternative; <b>nogaps</b> is the strictest option.</li>
 <li>After trimming, feed the output into <b>ML Tree Construction (IQ-TREE)</b>
 or <b>MSA Visualization</b>.</li>
 <li>Check the log after each run for column-count changes and any warnings.</li>
@@ -625,6 +639,17 @@ or <b>MSA Visualization</b>.</li>
         if d:
             self.outdir_edit.setText(d)
 
+    def _open_output_folder(self):
+        """Open the folder where trimmed results are written."""
+        outdir = self.outdir_edit.text().strip()
+        if not outdir:
+            self.show_status(self.tr("No output folder selected yet."))
+            return
+        if not os.path.isdir(outdir):
+            self.show_status(self.tr("Output folder does not exist yet."))
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(outdir))
+
     def _choose_exe(self):
         path, _ = QFileDialog.getOpenFileName(
             self, "Select trimAl executable", "", "Executables (*.exe);;All Files (*)"
@@ -641,8 +666,10 @@ or <b>MSA Visualization</b>.</li>
             flags.append("-gappyout")
         elif self.rb_strict.isChecked():
             flags.append("-strict")
-        else:
+        elif self.rb_strictplus.isChecked():
             flags.append("-strictplus")
+        else:
+            flags.append("-nogaps")
         fmt_map = {
             "CLUSTAL": "-clustal",
             "PHYLIP": "-phylip",
@@ -673,15 +700,14 @@ or <b>MSA Visualization</b>.</li>
         if not outdir:
             QMessageBox.warning(self, "No Output Folder", "Please specify an output folder.")
             return
-        if not os.path.isdir(outdir):
-            try:
-                os.makedirs(outdir, exist_ok=True)
-            except Exception as e:
-                QMessageBox.critical(self, "Folder Error", f"Cannot create output folder:\n{e}")
-                return
+        valid, err = validate_output_path(os.path.join(outdir, "trimal.out"))
+        if not valid:
+            QMessageBox.critical(self, "Folder Error", f"Cannot create output folder:\n{err}")
+            return
 
         exe = self._exe_edit.text().strip() or _resolve_trimal_exe()
-        if not os.path.isfile(exe):
+        valid, err = validate_input_path(exe)
+        if not valid:
             QMessageBox.critical(
                 self,
                 "trimAl Not Found",
@@ -706,6 +732,12 @@ or <b>MSA Visualization</b>.</li>
                 if item is None:
                     continue
                 in_path = item.data(256)
+                valid, err = validate_input_path(in_path)
+                if not valid:
+                    QMessageBox.warning(
+                        self, "Input Error", f"File not found or unreadable:\n{in_path}"
+                    )
+                    continue
                 in_ext = os.path.splitext(in_path)[1].lower()
                 if in_ext in _ALIGN_FORMATS:
                     detected_fmt = _ALIGN_FORMATS[in_ext]
@@ -786,7 +818,9 @@ or <b>MSA Visualization</b>.</li>
             return "gappyout"
         if self.rb_strict.isChecked():
             return "strict"
-        return "strictplus"
+        if self.rb_strictplus.isChecked():
+            return "strictplus"
+        return "nogaps"
 
     # ── thread callbacks ──────────────────────────────────────────────────
     def _on_progress(self, current: int, total: int, fname: str):

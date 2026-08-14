@@ -32,7 +32,7 @@ from modules.one_step_multigenephy_workflow import (
     _trimal_executable,
     build_default_tool_adapters,
 )
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, validate_input_path
 
 
 def _wrap_layout(layout) -> QWidget:
@@ -42,8 +42,7 @@ def _wrap_layout(layout) -> QWidget:
 
 
 class OneStepMultiGenePhyTab(BaseTabWidget):
-    def __init__(self, status_callback=None):
-        self._status_callback = status_callback
+    def __init__(self):
         self.gene_columns: list[str] = []
         self._worker: WorkflowWorker | None = None
         self._loading = False
@@ -219,10 +218,11 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             )
         )
         self.bootstrap_spin = QSpinBox()
-        self.bootstrap_spin.setRange(1000, 10000)
+        self.bootstrap_spin.setRange(0, 10000)
         self.bootstrap_spin.setValue(1000)
+        self.bootstrap_spin.setSpecialValueText(self.tr("0 (disabled)"))
         self.bootstrap_spin.setToolTip(
-            self.tr("Bootstrap replicates. UFBoot min 1000, Standard min 100.")
+            self.tr("Bootstrap replicates (0 = off). UFBoot ≥ 1000, Standard ≥ 100 recommended.")
         )
         # Auto-adjust bootstrap minimum based on mode
         self.bootstrap_mode_combo.currentIndexChanged.connect(self._on_bootstrap_mode_changed)
@@ -240,7 +240,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.content_area.addStretch()
 
         # ── Start / Cancel buttons in status bar ──────────────────────────
-        self._run_btn = QPushButton(self.tr("Start Workflow"))
+        self._run_btn = QPushButton(self.tr("Run"))
         self._run_btn.clicked.connect(self.start_run)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._run_btn)
 
@@ -281,12 +281,12 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             self.load_sheet_columns()
 
     def _on_bootstrap_mode_changed(self) -> None:
-        """Adjust bootstrap minimum based on selected mode."""
+        """Suggest a replicate count for the selected mode (0 = off)."""
         mode = self.bootstrap_mode_combo.currentData()
-        new_min = 100 if mode == "standard" else 1000
-        self.bootstrap_spin.setMinimum(new_min)
-        if self.bootstrap_spin.value() < new_min:
-            self.bootstrap_spin.setValue(new_min)
+        suggested = 100 if mode == "standard" else 1000
+        self.bootstrap_spin.setMinimum(0)
+        if 0 < self.bootstrap_spin.value() < suggested:
+            self.bootstrap_spin.setValue(suggested)
 
     def _choose_output_dir(self) -> None:
         directory = QFileDialog.getExistingDirectory(
@@ -425,7 +425,8 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         checked_genes: list[str],
         ncbi_email: str,
     ) -> bool:
-        if not excel_path or not os.path.isfile(excel_path):
+        valid, _ = validate_input_path(excel_path)
+        if not valid:
             self.show_status(self.tr("Excel file not found"))
             self.log_message(self.tr("The selected Excel file does not exist."), "ERROR")
             return False
@@ -469,7 +470,8 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.log_area.clear()
         self.log_area.append(self.tr("── Input Validation ──"))
 
-        if not excel_path or not os.path.isfile(excel_path):
+        valid, _ = validate_input_path(excel_path)
+        if not valid:
             self.log_area.append(self.tr("[FAIL] Excel file not found."))
             self.show_status(self.tr("Validation failed"))
             return
@@ -733,7 +735,7 @@ to select your own Excel file.</li>
 <li>Review the auto-detected <b>sheet</b>, <b>strain column</b>, and <b>gene list</b>.</li>
 <li>Enter your <b>NCBI email</b> if any cells contain accessions.</li>
 <li>Click <b>Validate Inputs</b> to check file format and external tool paths.</li>
-<li>Choose an <b>output directory</b> and click <b>Start Workflow</b>.</li>
+<li>Choose an <b>output directory</b> and click <b>Run</b>.</li>
 </ol>
 
 <h3>Workbook Format</h3>

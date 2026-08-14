@@ -40,7 +40,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import user_data_file
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, validate_input_path
 from utils.example_data import stage_example
 
 
@@ -446,7 +446,7 @@ class _ZoomableGraphicsView(QGraphicsView):
 # Main Tab
 # ---------------------------------------------------------------------------
 class ToytreeVisualizationTab(BaseTabWidget):
-    def __init__(self, status_callback=None, parent=None):
+    def __init__(self, parent=None):
         super().__init__("Tree Visualization (Toytree)", "file")
         self._render_thread: _RenderThread | None = None
         self._export_thread: _ExportThread | None = None
@@ -631,7 +631,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
         self.add_content_widget(splitter)
 
         # ── Buttons in status bar ────────────────────────────────────
-        self._draw_btn = QPushButton(self.tr("Draw Tree"))
+        self._draw_btn = QPushButton(self.tr("Run"))
         self._draw_btn.clicked.connect(self._draw)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._draw_btn)
 
@@ -662,20 +662,9 @@ class ToytreeVisualizationTab(BaseTabWidget):
     # Help
     # ------------------------------------------------------------------
     def show_help(self):
-        from PyQt6.QtWidgets import QDialog, QTextBrowser
-
-        dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("Tree Visualization (Toytree) — Help"))
-        dlg.resize(640, 520)
-        lay = QVBoxLayout(dlg)
-        browser = QTextBrowser()
-        browser.setOpenExternalLinks(True)
-        browser.setHtml(self._help_html())
-        lay.addWidget(browser)
-        close_btn = QPushButton(self.tr("Close"))
-        close_btn.clicked.connect(dlg.accept)
-        lay.addWidget(close_btn)
-        dlg.exec()
+        self.show_help_dialog(
+            self.tr("Tree Visualization (Toytree) — Help"), self._help_html(), 640, 520
+        )
 
     def _help_html(self) -> str:
         return self.tr("""
@@ -690,7 +679,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 <ol>
   <li><b>Open</b> a tree file or drag &amp; drop one onto the input field.</li>
   <li>Choose a <b>layout</b> (Rectangular, Circular, or Unrooted).</li>
-  <li>Click <b>Draw Tree</b> to render — parameters auto-update on change.</li>
+  <li>Click <b>Run</b> to render — parameters auto-update on change.</li>
   <li>Click <b>Export Image</b> to save as SVG, PDF, or PNG.</li>
 </ol>
 
@@ -759,7 +748,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
     def _show_placeholder(self):
         self._scene.clear()
         self._scene.setSceneRect(QRectF(-400, -300, 800, 600))
-        text_item = self._scene.addSimpleText(self.tr("Load a tree file and click Draw Tree"))
+        text_item = self._scene.addSimpleText(self.tr("Load a tree file and click Run"))
         text_item.setBrush(QColor("#aaa"))
         br = text_item.boundingRect()
         text_item.setPos(-br.width() / 2, -br.height() / 2)
@@ -939,7 +928,8 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         if not tree_file:
             self.show_status(self.tr("Please select a tree file."))
             return
-        if not os.path.isfile(tree_file):
+        valid, err = validate_input_path(tree_file)
+        if not valid:
             self.show_status(self.tr("File not found."))
             return
 

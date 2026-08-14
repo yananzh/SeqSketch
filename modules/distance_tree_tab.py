@@ -239,7 +239,7 @@ except ImportError:
 # Main Tab
 # ---------------------------------------------------------------------------
 class DistanceTreeTab(BaseTabWidget):
-    def __init__(self, status_callback=None, parent=None):
+    def __init__(self, parent=None):
         super().__init__("Distance Tree Construction", "file")
         self._thread: _DistanceTreeWorker | None = None
         self._matrix_data = None  # latest result
@@ -300,9 +300,9 @@ class DistanceTreeTab(BaseTabWidget):
         opt_row.addSpacing(20)
         opt_row.addWidget(QLabel(self.tr("Bootstrap:")))
         self._bootstrap_spin = QSpinBox()
-        self._bootstrap_spin.setRange(0, 1000)
+        self._bootstrap_spin.setRange(0, 10000)
         self._bootstrap_spin.setSingleStep(100)
-        self._bootstrap_spin.setValue(0)
+        self._bootstrap_spin.setValue(1000)
         self._bootstrap_spin.setSpecialValueText(self.tr("Off"))
         self._bootstrap_spin.setToolTip(
             self.tr("Number of bootstrap replicates (0 = off). 100–1000 recommended.")

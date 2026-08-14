@@ -1081,8 +1081,7 @@ class MafftAlignmentTab(BaseTabWidget):
         fname = os.path.basename(saved_path)
         self.status_label.setText(f"Done — {n_seq} seqs, {aln_len} bp, → {fname}")
         self.set_running_state(False)
-        # 线程退出由 start_worker() 信号连接驱动
-        self.worker_thread = None
+        # 线程引用由 start_worker() 的 _on_worker_thread_finished() 在线程停止后释放
 
     def handle_worker_error(self, error_msg: str):
         self.run_btn.setEnabled(True)
@@ -1090,8 +1089,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.status_label.setText("MAFFT alignment failed.")
         QMessageBox.critical(self, "MAFFT Error", error_msg)
         self.set_running_state(False)
-        # 线程退出由 start_worker() 信号连接驱动
-        self.worker_thread = None
+        # 线程引用由 start_worker() 的 _on_worker_thread_finished() 在线程停止后释放
 
     def _normalized_output_file_path(self) -> str:
         path = self.output_file_edit.text().strip()

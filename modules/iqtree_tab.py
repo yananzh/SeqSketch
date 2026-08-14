@@ -23,7 +23,12 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import resource_path, tool_path_from_config
-from utils.common_components import BaseTabWidget, FileDropLineEdit, apply_log_viewer_style
+from utils.common_components import (
+    BaseTabWidget,
+    FileDropLineEdit,
+    apply_log_viewer_style,
+    validate_input_path,
+)
 from utils.example_data import stage_example
 
 
@@ -100,8 +105,7 @@ class _IqTreeThread(QThread):
 class IqTreeTab(BaseTabWidget):
     """ML Tree Construction (IQ-TREE) tab."""
 
-    def __init__(self, status_callback=None, parent=None):
-        self._status_cb = status_callback
+    def __init__(self, parent=None):
         self._thread: _IqTreeThread | None = None
         self._last_treefile = ""
         super().__init__("ML Tree Construction (IQ-TREE)", "file")
@@ -450,7 +454,8 @@ Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
     # ------------------------------------------------------------------
     def _run(self):
         exe = self._exe_edit.text().strip()
-        if not exe or not os.path.isfile(exe):
+        valid, err = validate_input_path(exe)
+        if not valid:
             self.log_message(self.tr("IQ-TREE executable not found."), "ERROR")
             self.show_status(self.tr("IQ-TREE executable not found."))
             return
@@ -459,7 +464,8 @@ Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
         if not input_path:
             self.show_status(self.tr("Please provide an input alignment file."))
             return
-        if not os.path.isfile(input_path):
+        valid, err = validate_input_path(input_path)
+        if not valid:
             self.show_status(self.tr("Input file not found."))
             return
         # Validate alignment format

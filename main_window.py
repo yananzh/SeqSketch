@@ -367,11 +367,7 @@ class MainWindow(QMainWindow):
     def open_iqtree_tab(self):
         from modules.iqtree_tab import IqTreeTab
 
-        self._find_or_open(
-            IqTreeTab,
-            "ML Tree Construction (IQ-TREE)",
-            factory=lambda: IqTreeTab(status_callback=self.status.showMessage),
-        )
+        self._find_or_open(IqTreeTab, "ML Tree Construction (IQ-TREE)")
 
     def open_partition_concat_tab(self):
         from modules.partition_concat_tab import PartitionConcatTab
@@ -388,7 +384,6 @@ class MainWindow(QMainWindow):
         self._find_or_open(
             OneStepMultiGenePhyTab,
             "One Step MultiGenePhy",
-            factory=lambda: OneStepMultiGenePhyTab(status_callback=None),
             reuse=False,
         )
 
