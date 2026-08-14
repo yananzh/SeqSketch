@@ -30,6 +30,7 @@
 
 ### 其他
 - 点阵图（Dotplot）、引物分析（Primer3）
+- 克隆引物设计（限制性酶切位点接头 PCR 引物）
 - 收藏夹管理器（书签分类、导入/导出 JSON / HTML、拖放排序）
 - 操作日志记录、浅色/深色主题切换
 
@@ -58,6 +59,7 @@ py -m pytest tests/test_dna_analysis_tabs.py -q
 py -m pytest tests/test_example_data.py -q
 py -m pytest tests/test_blast_tabs.py -q
 py -m pytest tests/test_primer_tabs.py -q
+py -m pytest tests/test_cloning_primer_tab.py -q
 py -m pytest tests/test_toytree_tab.py -q
 py -m pytest tests/test_one_step_multigenephy_tab.py -q
 py -m pytest tests/test_one_step_multigenephy_workflow.py -q

@@ -143,12 +143,10 @@ class PrimerAnalysisTab(QWidget):
         self.run_btn = QPushButton(self.tr("Run"))
         self.example_btn = QPushButton(self.tr("Example"))
         self.example_btn.setToolTip(self.tr("Load example primer pair and template"))
-        self.copy_btn = QPushButton(self.tr("Copy Results"))
         self.clear_btn = QPushButton(self.tr("Clear"))
         self.help_btn = QPushButton(self.tr("Help"))
         status_row.addWidget(self.run_btn)
         status_row.addWidget(self.example_btn)
-        status_row.addWidget(self.copy_btn)
         status_row.addWidget(self.clear_btn)
         status_row.addWidget(self.help_btn)
         root.addLayout(status_row)
@@ -156,7 +154,6 @@ class PrimerAnalysisTab(QWidget):
     def connect_signals(self):
         self.run_btn.clicked.connect(self.run_analysis)
         self.example_btn.clicked.connect(self._load_example)
-        self.copy_btn.clicked.connect(self._copy_results)
         self.clear_btn.clicked.connect(self._clear_all)
         self.help_btn.clicked.connect(self._show_help)
         self.fwd_edit.textChanged.connect(self._on_input_changed)
@@ -196,13 +193,6 @@ class PrimerAnalysisTab(QWidget):
             template_text = f">{records[2][0]}\n{records[2][1]}"
             self.template_edit.setPlainText(template_text)
         self.status_label.setText(self.tr("Loaded example: primer_example.fasta"))
-
-    def _copy_results(self):
-        if not self._last_results:
-            self.status_label.setText("No results to copy.")
-            return
-        QApplication.clipboard().setText(self._last_results)
-        self.status_label.setText("Results copied to clipboard.")
 
     def _clear_all(self):
         self.fwd_edit.clear()
@@ -249,7 +239,6 @@ expected product size.</p>
     <span style="color:#2e7d32;">green</span> = optimal,
     <span style="color:#e65100;">orange</span> = marginal,
     <span style="color:#c62828;">red</span> = poor.</li>
-<li>Click <b>Copy Results</b> to save the full report to your clipboard.</li>
 </ol>
 
 <h3>Metrics Reference</h3>

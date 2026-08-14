@@ -12,7 +12,15 @@ from unittest.mock import patch
 
 import pytest
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QLineEdit, QMessageBox, QPushButton, QTextEdit
+from PyQt6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidgetItem,
+    QTextEdit,
+)
 
 from main_window import MainWindow
 from modules.primer3_gui import PrimerDesignTab
@@ -100,7 +108,6 @@ def test_analysis_tab_has_expected_widgets(qapp):
     assert isinstance(tab.results_text, QTextEdit)
     assert tab.run_btn.text() == "Run"
     assert tab.example_btn.text() == "Example"
-    assert tab.copy_btn.text() == "Copy Results"
     assert tab.clear_btn.text() == "Clear"
     assert tab.help_btn.text() == "Help"
 
@@ -126,26 +133,6 @@ def test_analysis_tab_clear_resets_all(qapp, monkeypatch):
     assert tab.rev_edit.text() == ""
     assert tab._last_results == ""
     assert "Cleared" in tab.status_label.text()
-
-
-def test_analysis_tab_copy_empty_results(qapp):
-    tab = PrimerAnalysisTab()
-    tab.copy_btn.click()
-    assert "No results" in tab.status_label.text()
-
-
-def test_analysis_tab_copy_results_to_clipboard(qapp, monkeypatch):
-    _mock_primer3_for_analysis(monkeypatch)
-    tab = PrimerAnalysisTab()
-    tab.fwd_edit.setText("ATCGATCGATCGATCGATCG")
-    tab.rev_edit.setText("GCTAGCTAGCTAGCTAGCTA")
-    tab.run_analysis()
-    assert tab._last_results
-
-    tab.copy_btn.click()
-    clipboard = QApplication.clipboard().text()
-    assert "Primer Pair Analysis Results" in clipboard
-    assert "copied" in tab.status_label.text().lower()
 
 
 # ── PrimerAnalysisTab: input validation ─────────────────────────────────────
@@ -312,9 +299,11 @@ def test_design_tab_has_expected_widgets(qapp):
     tab = PrimerDesignTab()
     assert isinstance(tab.seq_input, QTextEdit)
     assert isinstance(tab.results_table, type(tab.results_table))
-    assert tab.design_button.text() == "Design Primers"
+    assert tab.design_button.text() == "Run"
     assert tab.example_seq_btn.text() == "Example"
     assert tab.help_btn.text() == "Help"
+    assert tab.open_folder_btn.text() == "Result Folder"
+    assert not tab.open_folder_btn.isEnabled()
 
 
 def test_design_tab_example_loads_hbb_exon1(qapp):
@@ -335,6 +324,26 @@ def test_design_tab_clear_resets_all(qapp):
     assert tab.results_table.rowCount() == 0
     assert tab._current_template_seq == ""
     assert "cleared" in tab.status_label.text().lower()
+
+
+def test_design_tab_export_csv_enables_result_folder(qapp, monkeypatch, tmp_path):
+    tab = PrimerDesignTab()
+    tab.results_table.setRowCount(1)
+    tab.results_table.setItem(0, 0, QTableWidgetItem("1"))
+    tab.results_table.setItem(0, 1, QTableWidgetItem("Fwd"))
+    tab.results_table.setItem(0, 2, QTableWidgetItem("ACGT" * 5))
+
+    out_file = tmp_path / "results.csv"
+    monkeypatch.setattr(
+        QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(out_file), ""))
+    )
+    tab.export_results_csv()
+    assert out_file.is_file()
+    assert tab.open_folder_btn.isEnabled()
+    assert tab._last_export_dir == str(tmp_path)
+
+    tab.clear_seq_btn.click()
+    assert not tab.open_folder_btn.isEnabled()
 
 
 # ── PrimerDesignTab: sequence validation ────────────────────────────────────

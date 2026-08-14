@@ -352,6 +352,11 @@ class MainWindow(QMainWindow):
 
         self._find_or_open(PrimerAnalysisTab, "Primer Analysis")
 
+    def open_cloning_primer_tab(self):
+        from modules.cloning_primer_tab import CloningPrimerTab
+
+        self._find_or_open(CloningPrimerTab, "Cloning Primer Design")
+
     # ── Phylogenetic Tree ────────────────────────────────────────────────
 
     def open_distance_tree_tab(self):

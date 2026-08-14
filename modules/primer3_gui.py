@@ -13,8 +13,8 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 
 # matplotlib for primer binding site map
 from matplotlib.figure import Figure
-from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import QObject, Qt, QThread, QUrl, pyqtSignal
+from PyQt6.QtGui import QColor, QDesktopServices
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -98,6 +98,7 @@ class PrimerDesignTab(QWidget):
         self.current_results: dict[str, Any] = {}
         self.row_detail_cache: list[dict[str, Any]] = []
         self._current_template_seq: str = ""
+        self._last_export_dir: str = ""
 
         self.init_ui()
         self.connect_signals()
@@ -152,13 +153,12 @@ class PrimerDesignTab(QWidget):
         self.seq_input.dropEvent = types.MethodType(_drop, self.seq_input)
 
         seq_btn_row = QHBoxLayout()
-        self.load_seq_btn = QPushButton("Load from File")
+        self.load_seq_btn = QPushButton(self.tr("Browse"))
         self.example_seq_btn = QPushButton(self.tr("Example"))
         self.example_seq_btn.setToolTip(self.tr("Load HBB exon 1 example sequence"))
-        self.clear_seq_btn = QPushButton("Clear")
+        self.clear_seq_btn = QPushButton(self.tr("Clear"))
         seq_btn_row.addWidget(self.load_seq_btn)
         seq_btn_row.addWidget(self.example_seq_btn)
-        seq_btn_row.addWidget(self.clear_seq_btn)
         seq_btn_row.addStretch()
 
         seq_v.addWidget(self.seq_input)
@@ -367,9 +367,14 @@ class PrimerDesignTab(QWidget):
         self.gc_clamp_spin = QSpinBox()
         self.gc_clamp_spin.setValue(1)
 
-        self.design_button = QPushButton("Design Primers")
+        self.design_button = QPushButton(self.tr("Run"))
         self.help_btn = QPushButton(self.tr("Help"))
         self.export_excel_btn = QPushButton(self.tr("Export Excel"))
+        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn.setFixedWidth(110)
+        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.setToolTip(self.tr("Open the folder of the last exported results"))
         if not _HAS_OPENPYXL:
             self.export_excel_btn.setEnabled(False)
             self.export_excel_btn.setToolTip(
@@ -446,7 +451,9 @@ class PrimerDesignTab(QWidget):
         status_row.addWidget(self.status_label)
         status_row.addStretch()
         status_row.addWidget(self.design_button)
+        status_row.addWidget(self.clear_seq_btn)
         status_row.addWidget(self.export_excel_btn)
+        status_row.addWidget(self.open_folder_btn)
         status_row.addWidget(self.help_btn)
         status_row.addSpacing(8)
         root_layout.addLayout(status_row)
@@ -459,6 +466,7 @@ class PrimerDesignTab(QWidget):
         self.example_seq_btn.clicked.connect(self._load_example)
         self.clear_seq_btn.clicked.connect(self.clear_sequence)
         self.export_excel_btn.clicked.connect(self.export_results_excel)
+        self.open_folder_btn.clicked.connect(self._open_result_folder)
         self.help_btn.clicked.connect(self.show_help_dialog)
         self.results_table.itemSelectionChanged.connect(self._draw_primer_map)
 
@@ -510,6 +518,7 @@ class PrimerDesignTab(QWidget):
         self.row_detail_cache.clear()
         self._current_template_seq = ""
         self._clear_primer_map()
+        self.open_folder_btn.setEnabled(False)
         self.status_label.setText(self.tr("Sequence and results cleared."))
 
     def apply_standard_presets(self):
@@ -796,10 +805,17 @@ class PrimerDesignTab(QWidget):
                         vals.append(item.text() if item else "")
                     writer.writerow(vals)
             self.status_label.setText(f"Exported CSV: {out_path}")
+            self._last_export_dir = os.path.dirname(out_path)
+            self.open_folder_btn.setEnabled(True)
         except Exception as exc:
             self.show_error_message(f"Failed to export CSV: {exc}")
 
     # ── Excel Export ─────────────────────────────────────────────────
+
+    def _open_result_folder(self):
+        """Open the folder of the most recently exported results file."""
+        if self._last_export_dir and os.path.isdir(self._last_export_dir):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
     def export_results_excel(self):
         """Export primer results to an Excel (.xlsx) file."""
@@ -877,6 +893,8 @@ class PrimerDesignTab(QWidget):
 
             wb.save(out_path)
             self.status_label.setText(self.tr("Exported Excel: %s") % out_path)
+            self._last_export_dir = os.path.dirname(out_path)
+            self.open_folder_btn.setEnabled(True)
         except Exception as exc:
             self.show_error_message(self.tr("Failed to export Excel: %s") % exc)
 
@@ -1034,7 +1052,7 @@ that meet strict Tm, GC%, and product-size constraints suitable for qPCR.</p>
     (bases A/C/G/T/U/N allowed), or click <b>Example</b> to load HBB exon 1.</li>
 <li><b>Adjust parameters</b> if needed — the defaults (80-150 bp product,
     57-63°C Tm, 40-60% GC) work well for most qPCR applications.</li>
-<li><b>Click "Design Primers"</b> to launch Primer3 in the background.</li>
+<li><b>Click "Run"</b> to launch Primer3 in the background.</li>
 <li><b>Review results</b> in the table — select any row to see primer
     binding positions drawn on the template map.</li>
 <li><b>Export</b> results to Excel or CSV for downstream use.</li>
