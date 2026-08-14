@@ -16,8 +16,8 @@ from PyQt6.QtWidgets import QListWidgetItem, QMessageBox, QPushButton
 
 from modules.partition_concat_tab import (
     PartitionConcatTab,
-    _ConcatPartitionWorker,
     _concatenate_alignments,
+    _ConcatPartitionWorker,
     _sanitize_gene_names,
 )
 from utils.common_components import BaseTabWidget, BaseWorker
