@@ -734,8 +734,20 @@ class OneStepMultiGenePhyRunner:
 
             _check_abort()
             current_step = "Fetch/Normalize"
-            set_step("Fetch/Normalize", "running")
-            log_line("Fetching and normalizing sequences")
+            fetch_skipped = (
+                project.resume_mode in ("align", "tree")
+                and bool(datasets)
+                and all(
+                    (stage_dirs["normalized"] / f"{ds.gene_name}.fasta").is_file()
+                    for ds in datasets.values()
+                )
+            )
+            if fetch_skipped:
+                set_step("Fetch/Normalize", "skipped")
+                log_line("Fetch/Normalize skipped — reusing existing normalized sequences")
+            else:
+                set_step("Fetch/Normalize", "running")
+                log_line("Fetching and normalizing sequences")
 
             fetch_warning = False
             for dataset in datasets.values():
@@ -815,7 +827,8 @@ class OneStepMultiGenePhyRunner:
                     dataset.artifacts["normalized"] = str(normalized_path)
                     artifacts.normalized_files[dataset.gene_name] = str(normalized_path)
 
-            set_step("Fetch/Normalize", "warning" if fetch_warning else "succeeded")
+            if not fetch_skipped:
+                set_step("Fetch/Normalize", "warning" if fetch_warning else "succeeded")
             total_failed = sum(gs.get("failed", 0) for gs in gene_stats.values())
             if total_failed:
                 add_warning(
@@ -832,9 +845,22 @@ class OneStepMultiGenePhyRunner:
                 )
 
             current_step = "Align per Gene"
-            set_step("Align per Gene", "running")
-            set_step("Trim per Gene", "running")
-            log_line("Aligning and trimming per-gene sequences")
+            trim_skipped = (
+                project.resume_mode == "tree"
+                and bool(datasets)
+                and all(
+                    (stage_dirs["trimmed"] / f"{ds.gene_name}.fasta").is_file()
+                    for ds in datasets.values()
+                )
+            )
+            if trim_skipped:
+                set_step("Align per Gene", "skipped")
+                set_step("Trim per Gene", "skipped")
+                log_line("Align/trim skipped — reusing existing trimmed alignments")
+            else:
+                set_step("Align per Gene", "running")
+                set_step("Trim per Gene", "running")
+                log_line("Aligning and trimming per-gene sequences")
 
             alignment_warning = False
             trimming_warning = False
@@ -915,24 +941,29 @@ class OneStepMultiGenePhyRunner:
                 trimmed_gene_count += 1
                 dataset.status = "succeeded"
 
-            set_step("Align per Gene", "warning" if alignment_warning else "succeeded")
-            trim_status = "warning" if trimming_warning or trimmed_gene_count == 0 else "succeeded"
-            set_step("Trim per Gene", trim_status)
+            if not trim_skipped:
+                set_step("Align per Gene", "warning" if alignment_warning else "succeeded")
+                trim_status = (
+                    "warning" if trimming_warning or trimmed_gene_count == 0 else "succeeded"
+                )
+                set_step("Trim per Gene", trim_status)
 
             _check_abort()
             current_step = "Concatenate"
-            set_step("Concatenate", "running")
-            log_line("Concatenating trimmed gene alignments")
             concat_path = stage_dirs["concat"] / "supermatrix.fasta"
             partition_path = stage_dirs["concat"] / "partitions.nex"
-            if (
+            concat_skipped = (
                 project.resume_mode == "tree"
                 and concat_path.is_file()
                 and partition_path.is_file()
-            ):
-                log_line("Reusing existing concatenated matrix (skip concatenate)")
+            )
+            if concat_skipped:
+                set_step("Concatenate", "skipped")
+                log_line("Concatenate skipped — reusing existing supermatrix")
                 self.concat_info = []
             else:
+                set_step("Concatenate", "running")
+                log_line("Concatenating trimmed gene alignments")
                 concatenated, partitions = concatenate_gene_alignments(
                     datasets,
                     strain_order,
@@ -952,7 +983,8 @@ class OneStepMultiGenePhyRunner:
                 _write_partitions(partition_path, partitions)
             artifacts.extra_paths["supermatrix"] = str(concat_path)
             artifacts.extra_paths["partitions"] = str(partition_path)
-            set_step("Concatenate", "succeeded")
+            if not concat_skipped:
+                set_step("Concatenate", "succeeded")
 
             _check_abort()
             current_step = "Build Tree"

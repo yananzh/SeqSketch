@@ -247,11 +247,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         boot_row = QHBoxLayout()
         boot_row.setContentsMargins(0, 0, 0, 0)
         boot_row.addWidget(self.bootstrap_mode_combo, 1)
+        boot_row.addWidget(QLabel(self.tr("Bootstrap replicates:")))
+        self.bootstrap_spin.setFixedWidth(72)
         boot_row.addWidget(self.bootstrap_spin)
-        boot_row.addSpacing(12)
-        self.keep_intermediates_check = QCheckBox(self.tr("Preserve intermediate files"))
-        self.keep_intermediates_check.setChecked(True)
-        boot_row.addWidget(self.keep_intermediates_check)
         param_form.addRow(self.tr("IQ-TREE Bootstrap:"), _wrap_layout(boot_row))
 
         # Resume mode: which stages to skip (reuse a previous run's outputs)
@@ -272,7 +270,22 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 "the workbook."
             )
         )
-        param_form.addRow(self.tr("Skip completed steps:"), self.resume_mode_combo)
+        self.keep_intermediates_check = QCheckBox(self.tr("Preserve intermediate files"))
+        self.keep_intermediates_check.setChecked(True)
+        run_row = QHBoxLayout()
+        run_row.setContentsMargins(0, 0, 0, 0)
+        run_row.addWidget(self.resume_mode_combo, 1)
+        run_row.addSpacing(12)
+        run_row.addWidget(self.keep_intermediates_check)
+        param_form.addRow(self.tr("Skip completed steps:"), _wrap_layout(run_row))
+
+        # Give both dropdowns the same width so their right edges line up
+        _combo_width = max(
+            self.bootstrap_mode_combo.sizeHint().width(),
+            self.resume_mode_combo.sizeHint().width(),
+        )
+        self.bootstrap_mode_combo.setFixedWidth(_combo_width)
+        self.resume_mode_combo.setFixedWidth(_combo_width)
 
         self.add_content_widget(param_group)
         self.content_area.addStretch()
@@ -755,6 +768,9 @@ and one or more <b>gene columns</b>.</p>
         )
         self.log_area.append(
             f"  Threads        : {'AUTO' if self.threads_spin.value() == 0 else self.threads_spin.value()}"
+        )
+        self.log_area.append(
+            f"  Skip completed : {self.resume_mode_combo.currentText()}"
         )
         self.log_area.append(f"{sep}")
         self.log_area.append("")

@@ -838,9 +838,11 @@ def test_runner_skips_fetch_align_trim_when_outputs_exist(tmp_path):
 
     result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
 
-    assert result.step_status["Fetch/Normalize"] == "succeeded"
-    assert result.step_status["Align per Gene"] == "succeeded"
-    assert result.step_status["Trim per Gene"] == "succeeded"
+    assert result.step_status["Fetch/Normalize"] == "skipped"
+    assert result.step_status["Align per Gene"] == "skipped"
+    assert result.step_status["Trim per Gene"] == "skipped"
+    assert result.step_status["Concatenate"] == "skipped"
+    assert result.step_status["Build Tree"] == "succeeded"
     assert not result.warnings
     assert result.artifacts.treefile_path.endswith("final.treefile")
 
@@ -894,7 +896,7 @@ def test_runner_align_mode_skips_fetch_but_runs_align_trim(tmp_path):
     result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
 
     assert calls == ["align", "trim"]  # fetch skipped, align/trim still run
-    assert result.step_status["Fetch/Normalize"] == "succeeded"
+    assert result.step_status["Fetch/Normalize"] == "skipped"
     assert result.step_status["Align per Gene"] == "succeeded"
     assert result.step_status["Trim per Gene"] == "succeeded"
 
