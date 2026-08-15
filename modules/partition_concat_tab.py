@@ -32,6 +32,7 @@ from PyQt6.QtWidgets import (
 from utils.common_components import (
     BaseTabWidget,
     BaseWorker,
+    unify_status_button_sizes,
     validate_input_path,
     validate_output_path,
 )
@@ -584,6 +585,9 @@ class PartitionConcatTab(BaseTabWidget):
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
         # Result Folder button (opens the output directory), before Help
         self.add_open_output_dir_button()
+
+        # Consistent status-bar button widths across the app's tabs
+        unify_status_button_sizes(self)
 
         # Ensure status label is visible in the status row
         self.status_label.show()

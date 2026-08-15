@@ -43,6 +43,7 @@ from utils.app_paths import resource_path, tool_path_from_config
 from utils.common_components import (
     BaseTabWidget,
     apply_log_viewer_style,
+    unify_status_button_sizes,
     validate_input_path,
     validate_output_path,
 )
@@ -499,6 +500,9 @@ class AlignmentTrimmingTab(BaseTabWidget):
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
         # Result Folder button (opens the output folder), before Help
         self.add_open_output_dir_button()
+
+        # Consistent status-bar button widths across the app's tabs
+        unify_status_button_sizes(self)
 
         # Anchor the shared log area near the bottom
         self.content_area.addStretch()

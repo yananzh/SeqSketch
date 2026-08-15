@@ -184,6 +184,30 @@ def apply_log_viewer_style(editor: QTextEdit) -> None:
     editor.viewport().setStyleSheet("background: transparent;")
 
 
+# ── Unified status-bar button sizing ───────────────────────────────────────
+STATUS_BUTTON_WIDTH_SINGLE = 80   # one-word labels: Run, Clear, Help, Stop, ...
+STATUS_BUTTON_WIDTH_DOUBLE = 120  # two-word labels: View Tree, Export Matrix, ...
+
+
+def unify_status_button_sizes(tab) -> None:
+    """Give every status-bar button of ``tab`` a consistent width.
+
+    One-word labels get ``STATUS_BUTTON_WIDTH_SINGLE`` and two-word labels
+    ``STATUS_BUTTON_WIDTH_DOUBLE``, so the bottom button rows look the same
+    across feature tabs regardless of how each tab built its buttons.
+    """
+    layout = tab.status_layout
+    for i in range(layout.count()):
+        widget = layout.itemAt(i).widget()
+        if isinstance(widget, QPushButton):
+            width = (
+                STATUS_BUTTON_WIDTH_DOUBLE
+                if len(widget.text().split()) > 1
+                else STATUS_BUTTON_WIDTH_SINGLE
+            )
+            widget.setFixedWidth(width)
+
+
 class BaseWorker(QObject):
     """
     通用工作线程基类

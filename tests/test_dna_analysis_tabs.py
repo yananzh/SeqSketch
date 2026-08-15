@@ -1577,3 +1577,40 @@ def test_ssr_finder_export_csv_includes_record_column(qapp, tmp_path, monkeypatc
     assert any(ln.startswith("Sequences,2") for ln in lines[:header_idx])
     data = [ln for ln in lines[header_idx + 1 :] if ln]
     assert all(ln.endswith("rec_one") or ln.endswith("rec_two") for ln in data)
+
+
+def test_phylo_tabs_status_bar_button_sizes_unified(qapp):
+    """All Phylogenetic Tree tabs use consistent status-bar button widths:
+    narrow for one-word labels, wider for two-word labels."""
+    from modules.distance_tree_tab import DistanceTreeTab
+    from modules.iqtree_tab import IqTreeTab
+    from modules.one_step_multigenephy_tab import OneStepMultiGenePhyTab
+    from modules.partition_concat_tab import PartitionConcatTab
+    from modules.tree_visualization_toytree_tab import ToytreeVisualizationTab
+    from modules.trimal_tab import AlignmentTrimmingTab
+    from utils.common_components import (
+        STATUS_BUTTON_WIDTH_DOUBLE,
+        STATUS_BUTTON_WIDTH_SINGLE,
+    )
+
+    tabs = [
+        AlignmentTrimmingTab(),
+        PartitionConcatTab(),
+        DistanceTreeTab(),
+        IqTreeTab(),
+        OneStepMultiGenePhyTab(),
+        ToytreeVisualizationTab(),
+    ]
+    for tab in tabs:
+        for i in range(tab.status_layout.count()):
+            widget = tab.status_layout.itemAt(i).widget()
+            if isinstance(widget, QPushButton):
+                expected = (
+                    STATUS_BUTTON_WIDTH_DOUBLE
+                    if len(widget.text().split()) > 1
+                    else STATUS_BUTTON_WIDTH_SINGLE
+                )
+                assert (widget.minimumWidth(), widget.maximumWidth()) == (expected, expected), (
+                    type(tab).__name__,
+                    widget.text(),
+                )

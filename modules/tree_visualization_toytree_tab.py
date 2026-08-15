@@ -40,7 +40,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import user_data_file
-from utils.common_components import BaseTabWidget, validate_input_path
+from utils.common_components import BaseTabWidget, unify_status_button_sizes, validate_input_path
 from utils.example_data import stage_example
 
 
@@ -655,6 +655,9 @@ class ToytreeVisualizationTab(BaseTabWidget):
         self._node_size_spin.valueChanged.connect(self._on_param_changed)
         self._edge_width_spin.valueChanged.connect(self._on_param_changed)
         self._support_size_spin.valueChanged.connect(self._on_param_changed)
+
+        # Consistent status-bar button widths across the app's tabs
+        unify_status_button_sizes(self)
 
         self.show_status(self.tr("Ready — load a tree file and adjust parameters"))
 

@@ -8,6 +8,7 @@ required.
 Powered by Bio.Phylo.TreeConstruction.
 """
 
+import math
 import os
 from io import StringIO
 
@@ -31,12 +32,17 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget, apply_log_viewer_style, validate_input_path
+from utils.common_components import (
+    BaseTabWidget,
+    unify_status_button_sizes,
+    validate_input_path,
+)
 
 # ── Distance model presets ────────────────────────────────────────────────
 _DNA_MODELS = [
     ("p-distance (identity)", "identity"),
-    ("BLAST identity (blastn)", "blastn"),
+    ("Jukes-Cantor (JC69)", "jc69"),
+    ("Kimura 2-parameter (K80)", "k80"),
 ]
 
 _AA_MODELS = [
@@ -109,8 +115,7 @@ class _DistanceTreeWorker(QThread):
                 return
 
             # ── calculate distance matrix ─────────────────────────
-            calculator = DistanceCalculator(self._model)
-            dm = calculator.get_distance(alignment)
+            dm = _make_distance_matrix(alignment, self._model)
 
             names = list(dm.names)
 
@@ -128,44 +133,51 @@ class _DistanceTreeWorker(QThread):
                 tree = constructor.upgma(dm)
 
             n_bootstrap_done = 0
+            warning = ""
 
             # ── bootstrap ─────────────────────────────────────────
-            if self._n_bootstrap > 0 and _HAS_BOOTSTRAP:
-                n_cols = alignment.get_alignment_length()
-                # Convert alignment to 2D char array for fast column resampling
-                aln_array = np.array([list(str(rec.seq)) for rec in alignment])
-                bootstrap_trees = []
-                for i in range(self._n_bootstrap):
-                    indices = np.random.randint(0, n_cols, size=n_cols)
-                    boot_cols = aln_array[:, indices]
-                    # Rebuild bootstrap alignment in memory
-                    from Bio.Align import MultipleSeqAlignment
-                    from Bio.Seq import Seq
-                    from Bio.SeqRecord import SeqRecord
+            if self._n_bootstrap > 0:
+                if not _HAS_BOOTSTRAP:
+                    warning = (
+                        "Bootstrap support is unavailable (Biopython's "
+                        "get_support is missing); the tree was built without it."
+                    )
+                else:
+                    n_cols = alignment.get_alignment_length()
+                    # Convert alignment to 2D char array for fast column resampling
+                    aln_array = np.array([list(str(rec.seq)) for rec in alignment])
+                    bootstrap_trees = []
+                    for i in range(self._n_bootstrap):
+                        indices = np.random.randint(0, n_cols, size=n_cols)
+                        boot_cols = aln_array[:, indices]
+                        # Rebuild bootstrap alignment in memory
+                        from Bio.Align import MultipleSeqAlignment
+                        from Bio.Seq import Seq
+                        from Bio.SeqRecord import SeqRecord
 
-                    boot_records = []
-                    for row_idx, rec in enumerate(alignment):
-                        boot_seq = "".join(boot_cols[row_idx])
-                        boot_records.append(
-                            SeqRecord(
-                                Seq(boot_seq),
-                                id=rec.id,
-                                description=rec.description,
+                        boot_records = []
+                        for row_idx, rec in enumerate(alignment):
+                            boot_seq = "".join(boot_cols[row_idx])
+                            boot_records.append(
+                                SeqRecord(
+                                    Seq(boot_seq),
+                                    id=rec.id,
+                                    description=rec.description,
+                                )
                             )
-                        )
-                    boot_aln = MultipleSeqAlignment(boot_records)
+                        boot_aln = MultipleSeqAlignment(boot_records)
 
-                    dm_boot = calculator.get_distance(boot_aln)
-                    if self._method == "nj":
-                        tree_boot = constructor.nj(dm_boot)
-                    else:
-                        tree_boot = constructor.upgma(dm_boot)
-                    bootstrap_trees.append(tree_boot)
-                    self.progress.emit(i + 1, self._n_bootstrap)
+                        dm_boot = _make_distance_matrix(boot_aln, self._model)
+                        if self._method == "nj":
+                            tree_boot = constructor.nj(dm_boot)
+                        else:
+                            tree_boot = constructor.upgma(dm_boot)
+                        bootstrap_trees.append(tree_boot)
+                        self.progress.emit(i + 1, self._n_bootstrap)
 
-                # Annotate main tree with bootstrap support values
-                tree = _get_support(tree, bootstrap_trees)
-                n_bootstrap_done = self._n_bootstrap
+                    # Annotate main tree with bootstrap support values
+                    tree = _get_support(tree, bootstrap_trees)
+                    n_bootstrap_done = self._n_bootstrap
 
             buf = StringIO()
             Phylo.write(tree, buf, "newick")
@@ -183,6 +195,7 @@ class _DistanceTreeWorker(QThread):
                 "newick": newick_str,
                 "n_taxa": n_taxa,
                 "n_bootstrap": n_bootstrap_done,
+                "warning": warning,
             })
         except Exception as exc:
             self.finished_err.emit(str(exc))
@@ -226,6 +239,77 @@ def _detect_seq_type(path: str) -> str:
     return "DNA"
 
 
+# ── Evolutionary distance models (DNA) ────────────────────────────────────
+_DNA_BASES = set("ACGTU")
+_PURINES = set("AG")
+_PYRIMIDINES = set("CTU")
+
+
+def _dna_distance_matrix(alignment, model: str):
+    """Compute a Jukes-Cantor (``jc69``) or Kimura 2-parameter (``k80``)
+    distance matrix directly from an aligned matrix.
+
+    Only sites where both sequences have a concrete base (A/C/G/T/U) are
+    compared (pairwise deletion of gaps and ambiguous codes). Distances that
+    exceed the model's saturation point are capped at 999.
+    """
+    from Bio.Phylo.TreeConstruction import DistanceMatrix
+
+    names = [rec.id for rec in alignment]
+    rows = []
+    for i in range(len(names)):
+        seq_i = str(alignment[i].seq).upper()
+        row = []
+        for j in range(i + 1):
+            if i == j:
+                row.append(0.0)
+                continue
+            seq_j = str(alignment[j].seq).upper()
+            comparable = differences = transitions = transversions = 0
+            for a, b in zip(seq_i, seq_j):
+                if a not in _DNA_BASES or b not in _DNA_BASES:
+                    continue
+                comparable += 1
+                if a == b:
+                    continue
+                differences += 1
+                if (a in _PURINES and b in _PURINES) or (
+                    a in _PYRIMIDINES and b in _PYRIMIDINES
+                ):
+                    transitions += 1
+                else:
+                    transversions += 1
+            if comparable == 0:
+                row.append(0.0)
+                continue
+            if model == "jc69":
+                p = differences / comparable
+                arg = 1.0 - 4.0 / 3.0 * p
+                row.append(-0.75 * math.log(arg) if arg > 0 else 999.0)
+            else:  # k80
+                p_trans = transitions / comparable
+                p_transv = transversions / comparable
+                arg1 = 1.0 - 2.0 * p_trans - p_transv
+                arg2 = 1.0 - 2.0 * p_transv
+                if arg1 <= 0 or arg2 <= 0:
+                    row.append(999.0)
+                else:
+                    row.append(-0.5 * math.log(arg1) - 0.25 * math.log(arg2))
+        rows.append(row)
+    return DistanceMatrix(names, rows)
+
+
+def _make_distance_matrix(alignment, model: str):
+    """Compute a Biopython DistanceMatrix for ``model``.
+
+    ``jc69`` / ``k80`` are computed directly; all other models (including the
+    protein matrices) are delegated to Biopython's ``DistanceCalculator``.
+    """
+    if model in ("jc69", "k80"):
+        return _dna_distance_matrix(alignment, model)
+    return DistanceCalculator(model).get_distance(alignment)
+
+
 # ── Bootstrap consensus (optional — BioPython ≥ 1.58) ─────────────────────
 try:
     from Bio.Phylo.Consensus import get_support as _get_support
@@ -245,6 +329,7 @@ class DistanceTreeTab(BaseTabWidget):
         self._matrix_data = None  # latest result
         self._newick_str = ""
         self._names = []
+        self._last_treefile = ""
         self._build_ui()
         self._connect_signals()
         self.show_status(self.tr("Ready — load a FASTA alignment and click Run"))
@@ -266,6 +351,12 @@ class DistanceTreeTab(BaseTabWidget):
         self._file_edit = _DropLineEdit()
         self._file_edit.setPlaceholderText(self.tr("Select or drag & drop a FASTA alignment..."))
         fr.addWidget(self._file_edit, 1)
+        self._example_btn = QPushButton(self.tr("Example"))
+        self._example_btn.setToolTip(
+            self.tr("Load bundled example alignment (csrA_pro_mafft.fasta)")
+        )
+        self._example_btn.clicked.connect(self._load_example)
+        fr.addWidget(self._example_btn)
         self._browse_btn = QPushButton(self.tr("Browse"))
         self._browse_btn.setFixedWidth(90)
         self._browse_btn.clicked.connect(self._browse_input)
@@ -278,12 +369,14 @@ class DistanceTreeTab(BaseTabWidget):
         lbl_model.setFixedWidth(lbl_w)
         opt_row.addWidget(lbl_model)
         self._model_combo = QComboBox()
-        self._model_combo.addItem(self.tr("p-distance (identity)"), "identity")
-        self._model_combo.addItem(self.tr("BLAST identity (blastn)"), "blastn")
+        for display, data in _DNA_MODELS:
+            self._model_combo.addItem(self.tr(display), data)
         self._model_combo.setMinimumWidth(220)
         self._model_combo.setToolTip(
             self.tr(
-                "p-distance: fraction of differing sites  |  blastn: BLAST identity-based (DNA only)"
+                "p-distance: fraction of differing sites  |  JC69: Jukes-Cantor correction  |  "
+                "K80: Kimura 2-parameter (transitions vs transversions)\n"
+                "First time? NJ + p-distance is a safe start."
             )
         )
         opt_row.addWidget(self._model_combo)
@@ -294,7 +387,10 @@ class DistanceTreeTab(BaseTabWidget):
         self._method_combo.addItem("UPGMA", "upgma")
         self._method_combo.setMinimumWidth(100)
         self._method_combo.setToolTip(
-            self.tr("nj: Neighbor-Joining (fast, accurate) | upgma: UPGMA (ultrametric)")
+            self.tr(
+                "nj: Neighbor-Joining (fast, accurate, no clock assumption)  |  "
+                "upgma: UPGMA (assumes a molecular clock — check before using)"
+            )
         )
         opt_row.addWidget(self._method_combo)
         opt_row.addSpacing(20)
@@ -353,30 +449,28 @@ class DistanceTreeTab(BaseTabWidget):
 
         # ── Action buttons in status bar, left of Help ─────────
         self._run_btn = QPushButton(self.tr("Run"))
-        self._run_btn.setFixedWidth(100)
         self._run_btn.clicked.connect(self._compute)
 
+        self._view_tree_btn = QPushButton(self.tr("View Tree"))
+        self._view_tree_btn.setVisible(False)
+        self._view_tree_btn.clicked.connect(self._open_tree_viewer)
+
         self._export_csv_btn = QPushButton(self.tr("Export Matrix"))
-        self._export_csv_btn.setFixedWidth(130)
         # Always blue; enabled/disabled not needed
         self._export_csv_btn.clicked.connect(self._export_csv)
 
         self._clear_btn = QPushButton(self.tr("Clear"))
-        self._clear_btn.setFixedWidth(80)
         self._clear_btn.clicked.connect(self._clear_all)
 
-        self._example_btn = QPushButton(self.tr("Example"))
-        self._example_btn.setToolTip(
-            self.tr("Load bundled example alignment (csrA_pro_mafft.fasta)")
-        )
-        self._example_btn.clicked.connect(self._load_example)
-
         # Insert before Help button (rightmost in status_layout)
-        # Order: [Run] [Export Matrix] [Example] [Clear] [Help]
+        # Order: [Run] [View Tree] [Export Matrix] [Clear] [Help]
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._run_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._view_tree_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._export_csv_btn)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self._example_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._clear_btn)
+
+        # Consistent status-bar button widths across the app's tabs
+        unify_status_button_sizes(self)
 
     def _connect_signals(self):
         self._file_edit.fileDropped.connect(self._on_file_dropped)
@@ -450,7 +544,9 @@ class DistanceTreeTab(BaseTabWidget):
         self._model_combo.setCurrentIndex(idx if idx >= 0 else 0)
         tip = (
             self.tr(
-                "p-distance: fraction of differing sites  |  blastn: BLAST identity-based (DNA only)"
+                "p-distance: fraction of differing sites  |  JC69: Jukes-Cantor correction  |  "
+                "K80: Kimura 2-parameter (transitions vs transversions)\n"
+                "First time? NJ + p-distance is a safe start."
             )
             if seq_type == "DNA"
             else self.tr(
@@ -522,6 +618,10 @@ class DistanceTreeTab(BaseTabWidget):
         self._newick_str = data["newick"]
         n_taxa = data["n_taxa"]
         n_bootstrap = data.get("n_bootstrap", 0)
+        warning = data.get("warning", "")
+        if warning:
+            self.log_message(self.tr(warning), "WARNING")
+            self.show_status(self.tr(warning))
 
         # Populate table
         self._populate_table(data["matrix"], data["names"])
@@ -532,6 +632,8 @@ class DistanceTreeTab(BaseTabWidget):
             os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(self._newick_str + "\n")
+            self._last_treefile = output_path
+            self._view_tree_btn.setVisible(True)
             boot_msg = f", {n_bootstrap} bootstrap replicates" if n_bootstrap else ""
             self.log_message(self.tr(f"Tree saved → {output_path}  ({n_taxa} taxa{boot_msg})"))
             status_msg = self.tr(
@@ -539,6 +641,8 @@ class DistanceTreeTab(BaseTabWidget):
             )
             self.show_status(status_msg)
         except Exception as exc:
+            self._last_treefile = ""
+            self._view_tree_btn.setVisible(False)
             self.log_message(self.tr(f"Failed to save tree: {exc}"), "ERROR")
             self.show_status(self.tr("Tree computed but save failed"))
 
@@ -550,6 +654,22 @@ class DistanceTreeTab(BaseTabWidget):
         self.show_status(self.tr(f"Error: {msg}"))
         self._set_running(False)
         self._thread = None
+
+    def _open_tree_viewer(self):
+        """Open the resulting tree file in the Toytree Visualization tab."""
+        if not self._last_treefile or not os.path.isfile(self._last_treefile):
+            return
+        main_win = self.window()
+        if main_win and hasattr(main_win, "open_toytree_visualization_tab"):
+            main_win.open_toytree_visualization_tab()
+            from modules.tree_visualization_toytree_tab import ToytreeVisualizationTab
+
+            for i in range(main_win.tabs.count()):
+                widget = main_win.tabs.widget(i)
+                if isinstance(widget, ToytreeVisualizationTab):
+                    widget._file_edit.setText(self._last_treefile)
+                    main_win.tabs.setCurrentIndex(i)
+                    break
 
     def _populate_table(self, matrix, names):
         n = len(names)
@@ -640,7 +760,9 @@ class DistanceTreeTab(BaseTabWidget):
         self._matrix_data = None
         self._newick_str = ""
         self._names = []
-        self._bootstrap_spin.setValue(0)
+        self._last_treefile = ""
+        self._view_tree_btn.setVisible(False)
+        self._bootstrap_spin.setValue(1000)
         # Reset model combo to DNA defaults
         self._model_combo.clear()
         for display, data in _DNA_MODELS:
@@ -678,13 +800,15 @@ to load the bundled sample. Models auto-update based on DNA or Protein detection
 <li>Optionally set <b>Bootstrap</b> replicates for branch support.</li>
 <li>Set the output <b>tree file (.nwk)</b> path (auto-suggested).</li>
 <li>Click <b>Run</b> — the matrix appears below, tree saved to file.</li>
+<li>Click <b>View Tree</b> to open the Newick tree in the <b>Tree Visualization</b> tab.</li>
 <li>Use <b>Export Matrix</b> to save the distance table as CSV.</li>
 </ol>
 
 <h3>Distance Models</h3>
 <ul>
 <li><b>p-distance (identity)</b> &mdash; fraction of differing sites (DNA &amp; Protein).</li>
-<li><b>BLAST identity (blastn)</b> &mdash; BLAST identity-based distance (DNA only).</li>
+<li><b>Jukes-Cantor (JC69)</b> &mdash; DNA distance corrected for multiple substitutions (recommended for DNA).</li>
+<li><b>Kimura 2-parameter (K80)</b> &mdash; DNA distance that separates transitions and transversions (recommended for DNA).</li>
 <li><b>BLOSUM62</b> &mdash; widely used for protein alignments.</li>
 <li><b>Dayhoff</b> &mdash; PAM-based substitution matrix (Protein).</li>
 </ul>

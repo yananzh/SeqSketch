@@ -66,7 +66,7 @@ def test_tab_renders_import_summary_and_gene_list(qapp):
     assert "Genes: 3" in text
     assert "Accessions: 4" in text
     assert "Raw sequences: 2" in text
-    assert tab.gene_edit.text() == "ITS, TEF1, RPB2"
+    assert tab._checked_gene_columns() == ["ITS", "TEF1", "RPB2"]
 
 
 def test_tab_logs_import_summary_with_translated_labels(qapp, monkeypatch):
@@ -111,7 +111,7 @@ def test_tab_loads_gene_columns_from_excel_header(qapp, monkeypatch, tmp_path):
     tab.load_sheet_columns()
 
     assert tab.gene_columns == ["ITS", "TEF1", "RPB2"]
-    assert tab.gene_edit.text() == "ITS, TEF1, RPB2"
+    assert tab._checked_gene_columns() == ["ITS", "TEF1", "RPB2"]
 
 
 def test_tab_updates_status_log_step_summary_and_artifacts_after_mocked_run(qapp):
@@ -281,3 +281,69 @@ def test_show_help_displays_structured_workflow_guidance(qapp):
     assert "Tips" in source
     assert "NCBI accession" in source
     assert "Concatenate" in source
+
+
+def test_threads_max_equals_cpu_count(qapp):
+    tab = OneStepMultiGenePhyTab()
+
+    assert tab.threads_spin.maximum() == max(os.cpu_count() or 1, 1)
+
+
+def test_example_button_on_excel_row_left_of_browse(qapp):
+    from PyQt6.QtWidgets import QPushButton
+
+    tab = OneStepMultiGenePhyTab()
+    excel_row = tab.excel_path_edit.parent().layout()
+    buttons = [
+        (widget, widget.text())
+        for i in range(excel_row.count())
+        if isinstance((widget := excel_row.itemAt(i).widget()), QPushButton)
+    ]
+    assert [t for _, t in buttons] == ["Example", "Browse"]
+
+
+def test_gene_list_unchecking_excludes_gene(qapp):
+    from PyQt6.QtCore import Qt
+
+    tab = OneStepMultiGenePhyTab()
+    tab._populate_gene_columns(["ITS", "TEF1", "RPB2"])
+
+    assert tab._checked_gene_columns() == ["ITS", "TEF1", "RPB2"]
+
+    tab.gene_list.item(1).setCheckState(Qt.CheckState.Unchecked)
+
+    assert tab._checked_gene_columns() == ["ITS", "RPB2"]
+
+
+def test_resume_mode_combo_exists_and_resets(qapp):
+    tab = OneStepMultiGenePhyTab()
+
+    assert hasattr(tab, "resume_mode_combo")
+    assert tab.resume_mode_combo.count() == 3
+    tab.resume_mode_combo.setCurrentIndex(2)
+    tab._clear()
+    assert tab.resume_mode_combo.currentIndex() == 0
+
+
+def test_result_folder_button_opens_output_dir(qapp, monkeypatch, tmp_path):
+    from PyQt6.QtCore import QUrl
+
+    tab = OneStepMultiGenePhyTab()
+    opened = []
+    monkeypatch.setattr(
+        "modules.one_step_multigenephy_tab.QDesktopServices.openUrl",
+        lambda url: opened.append(url.toString()),
+    )
+    assert tab.open_output_btn.text() == "Result Folder"
+
+    tab._open_output_folder()
+    assert tab.status_label.text() == "No output folder selected yet."
+
+    out_dir = tmp_path / "run"
+    tab.output_dir_edit.setText(str(out_dir))
+    tab._open_output_folder()
+    assert tab.status_label.text() == "Output folder does not exist yet."
+
+    out_dir.mkdir()
+    tab._open_output_folder()
+    assert opened == [QUrl.fromLocalFile(str(out_dir)).toString()]

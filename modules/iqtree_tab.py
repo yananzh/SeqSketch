@@ -6,7 +6,9 @@ Uses the bundled iqtree3.exe at softwares/iqtree-3.0.1-Windows/bin/iqtree3.exe
 import os
 import subprocess
 
-from PyQt6.QtCore import QThread, pyqtSignal
+from Bio import AlignIO
+from PyQt6.QtCore import QThread, QUrl, pyqtSignal
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -27,6 +29,7 @@ from utils.common_components import (
     BaseTabWidget,
     FileDropLineEdit,
     apply_log_viewer_style,
+    unify_status_button_sizes,
     validate_input_path,
 )
 from utils.example_data import stage_example
@@ -40,6 +43,27 @@ def _resolve_iqtree_exe() -> str:
         if os.path.isfile(exe):
             return exe
     return resource_path("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
+
+
+def _detect_alignment_format(path: str) -> str:
+    """Guess alignment format from the file extension (default: fasta)."""
+    ext = os.path.splitext(path)[1].lower()
+    mapping = {
+        ".fasta": "fasta",
+        ".fa": "fasta",
+        ".fas": "fasta",
+        ".fna": "fasta",
+        ".ffn": "fasta",
+        ".faa": "fasta",
+        ".phy": "phylip",
+        ".phylip": "phylip",
+        ".nex": "nexus",
+        ".nxs": "nexus",
+        ".aln": "clustal",
+        ".clustal": "clustal",
+        ".sto": "stockholm",
+    }
+    return mapping.get(ext, "fasta")
 
 
 # ---------------------------------------------------------------------------
@@ -137,10 +161,17 @@ class IqTreeTab(BaseTabWidget):
         self._input_edit = FileDropLineEdit()
         self._input_edit.setPlaceholderText(self.tr("Drag file here or click Browse…"))
         self._input_edit.textChanged.connect(self._auto_fill_outdir)
+        self._input_edit.textChanged.connect(self._refresh_outgroup_taxa)
+        self._example_btn = QPushButton(self.tr("Example"))
+        self._example_btn.setToolTip(
+            self.tr("Load bundled example alignment (cytb_protein_aligned.fasta)")
+        )
+        self._example_btn.clicked.connect(self._load_example)
+        in_row.addWidget(self._input_edit, 1)
+        in_row.addWidget(self._example_btn)
         in_browse = QPushButton(self.tr("Browse"))
         in_browse.setFixedWidth(90)
         in_browse.clicked.connect(self._browse_input)
-        in_row.addWidget(self._input_edit, 1)
         in_row.addWidget(in_browse)
         input_form.addRow(self.tr("Alignment:"), in_row)
 
@@ -171,12 +202,16 @@ class IqTreeTab(BaseTabWidget):
             self.tr("AUTO: IQ-TREE auto-detects | DNA: nucleotide | AA: amino acid")
         )
         self._threads_spin = QSpinBox()
-        self._threads_spin.setRange(0, 256)
+        self._threads_spin.setRange(0, max(os.cpu_count() or 1, 1))
         self._threads_spin.setValue(0)
         self._threads_spin.setSpecialValueText("AUTO")
-        self._threads_spin.setToolTip(self.tr("Number of CPU threads (0 = AUTO)"))
+        self._threads_spin.setToolTip(
+            self.tr(
+                "Keep AUTO — IQ-TREE picks the thread count for you. "
+                "Only set a fixed number if you know your machine's core count."
+            )
+        )
         self._model_edit = QLineEdit("TEST")
-        self._model_edit.setFixedWidth(90)
         self._model_edit.setToolTip(
             self.tr(
                 "Keep TEST for automatic model selection (ModelTest-NG).\n"
@@ -184,26 +219,25 @@ class IqTreeTab(BaseTabWidget):
             )
         )
         self._prefix_edit = QLineEdit()
-        self._prefix_edit.setFixedWidth(90)
         self._prefix_edit.setPlaceholderText(self.tr("Prefix"))
         self._prefix_edit.setToolTip(self.tr("Output: <prefix>.treefile, <prefix>.iqtree, etc."))
 
         row1 = QHBoxLayout()
         row1.setContentsMargins(0, 0, 0, 0)
         row1.addWidget(self._seqtype_combo)
-        row1.addSpacing(8)
+        row1.addSpacing(6)
         row1.addWidget(QLabel(self.tr("Threads:")))
         row1.addWidget(self._threads_spin)
-        row1.addSpacing(8)
+        row1.addSpacing(6)
         row1.addWidget(QLabel(self.tr("Model:")))
         row1.addWidget(self._model_edit)
-        row1.addSpacing(8)
+        row1.addSpacing(6)
         row1.addWidget(QLabel(self.tr("Prefix:")))
         row1.addWidget(self._prefix_edit)
         row1.addStretch()
         form.addRow(self.tr("Sequence type:"), row1)
 
-        # Row 2: Bootstrap
+        # Row 2: Bootstrap + UFBoot + SH-aLRT
         boot_row = QHBoxLayout()
         self._bootstrap_spin = QSpinBox()
         self._bootstrap_spin.setRange(0, 10000)
@@ -215,30 +249,40 @@ class IqTreeTab(BaseTabWidget):
         self._ufboot_check.setToolTip(
             self.tr("Checked: UFBoot (-B) | Unchecked: standard bootstrap (-b)")
         )
-        boot_row.addWidget(self._bootstrap_spin)
-        boot_row.addWidget(self._ufboot_check)
-        boot_row.addStretch()
-        form.addRow(self.tr("Bootstrap replicates:"), boot_row)
-
-        # Row 3: SH-aLRT
-        alrt_row = QHBoxLayout()
-        self._alrt_check = QCheckBox(self.tr("Enable SH-aLRT"))
-        self._alrt_check.setChecked(False)
-        self._alrt_check.setToolTip(
-            self.tr("SH-like approximate likelihood ratio test for branch support")
-        )
         self._alrt_spin = QSpinBox()
         self._alrt_spin.setRange(100, 10000)
         self._alrt_spin.setValue(1000)
         self._alrt_spin.setEnabled(False)
         self._alrt_spin.setToolTip(self.tr("Number of SH-aLRT replicates (default 1000)"))
+        self._alrt_check = QCheckBox(self.tr("Enable SH-aLRT"))
+        self._alrt_check.setChecked(False)
+        self._alrt_check.setToolTip(
+            self.tr("SH-like approximate likelihood ratio test for branch support")
+        )
         self._alrt_check.toggled.connect(self._alrt_spin.setEnabled)
-        alrt_row.addWidget(self._alrt_check)
-        alrt_row.addWidget(self._alrt_spin)
-        alrt_row.addStretch()
-        form.addRow(self.tr("SH-aLRT:"), alrt_row)
+        boot_row.addWidget(self._bootstrap_spin)
+        boot_row.addWidget(self._ufboot_check)
+        boot_row.addWidget(self._alrt_check)
+        boot_row.addWidget(self._alrt_spin)
+        boot_row.addStretch()
+        form.addRow(self.tr("Bootstrap replicates:"), boot_row)
 
-        # Row 4: Output directory
+        # Row 4: Outgroup (populated from the alignment once a file is loaded)
+        outgroup_row = QHBoxLayout()
+        self._outgroup_combo = QComboBox()
+        self._outgroup_combo.setEditable(True)
+        self._outgroup_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self._outgroup_combo.lineEdit().setPlaceholderText(
+            self.tr("Optional — select a taxon or type comma-separated taxa")
+        )
+        self._outgroup_combo.setToolTip(
+            self.tr("Root the tree on these taxa (IQ-TREE -o option)")
+        )
+        outgroup_row.addWidget(self._outgroup_combo, 1)
+        outgroup_row.addStretch()
+        form.addRow(self.tr("Outgroup:"), outgroup_row)
+
+        # Row 5: Output directory
         outdir_row = QHBoxLayout()
         self._outdir_edit = QLineEdit()
         self._outdir_edit.setPlaceholderText(
@@ -252,19 +296,23 @@ class IqTreeTab(BaseTabWidget):
         outdir_row.addWidget(outdir_browse)
         form.addRow(self.tr("Output directory:"), outdir_row)
 
+        # Row 1 (Sequence type / Threads / Model / Prefix): uniform width.
+        # ~90 px keeps the row (with its inline labels) on one line at the
+        # app's 920 px window without triggering the form's WrapLongRows.
+        for box in (
+            self._seqtype_combo,
+            self._threads_spin,
+            self._model_edit,
+            self._prefix_edit,
+        ):
+            box.setFixedWidth(90)
+
         self.add_content_widget(param_group)
 
-        # ── Buttons in status bar: [Run] [Example] [View Tree] [Clear] [Stop] [Help] ──
+        # ── Buttons in status bar: [Run] [View Tree] [Clear] [Stop] [Help] ──
         self.run_btn = QPushButton(self.tr("Run"))
         self.run_btn.clicked.connect(self._run)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
-
-        self._example_btn = QPushButton(self.tr("Example"))
-        self._example_btn.setToolTip(
-            self.tr("Load bundled example alignment (cytb_protein_aligned.fasta)")
-        )
-        self._example_btn.clicked.connect(self._load_example)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self._example_btn)
 
         self._view_tree_btn = QPushButton(self.tr("View Tree"))
         self._view_tree_btn.setVisible(False)
@@ -281,7 +329,12 @@ class IqTreeTab(BaseTabWidget):
         self.stop_btn.clicked.connect(self._stop)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.stop_btn)
 
+        # Result Folder button (opens the output directory), before Help
+        self.add_open_output_dir_button()
+
         self.log_area.setMaximumHeight(350)
+        # Consistent status-bar button widths across the app's tabs
+        unify_status_button_sizes(self)
         self.content_area.addStretch()
 
     def _auto_fill_outdir(self):
@@ -289,6 +342,26 @@ class IqTreeTab(BaseTabWidget):
         path = self._input_edit.text().strip()
         if path and os.path.isfile(path) and not self._outdir_edit.text().strip():
             self._outdir_edit.setText(os.path.dirname(path))
+
+    def _refresh_outgroup_taxa(self):
+        """Populate the outgroup dropdown with the taxa of the input alignment."""
+        path = self._input_edit.text().strip()
+        if not path or not os.path.isfile(path):
+            return
+        try:
+            alignment = AlignIO.read(path, _detect_alignment_format(path))
+            names = [rec.id for rec in alignment]
+        except Exception:
+            return
+        current = self._outgroup_combo.currentText().strip()
+        self._outgroup_combo.blockSignals(True)
+        self._outgroup_combo.clear()
+        self._outgroup_combo.addItems(names)
+        if current and current in names:
+            self._outgroup_combo.setCurrentText(current)
+        else:
+            self._outgroup_combo.setCurrentText("")
+        self._outgroup_combo.blockSignals(False)
 
     # ------------------------------------------------------------------
     # Slots / helpers
@@ -338,6 +411,21 @@ class IqTreeTab(BaseTabWidget):
         if path:
             self._outdir_edit.setText(path)
 
+    def _open_output_folder(self):
+        """Open the folder where IQ-TREE output files are written."""
+        outdir = self._outdir_edit.text().strip()
+        if not outdir:
+            input_path = self._input_edit.text().strip()
+            if input_path and os.path.isfile(input_path):
+                outdir = os.path.dirname(input_path)
+        if not outdir:
+            self.show_status(self.tr("No output folder selected yet."))
+            return
+        if not os.path.isdir(outdir):
+            self.show_status(self.tr("Output folder does not exist yet."))
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(outdir))
+
     def _stop(self):
         if self._thread and self._thread.isRunning():
             self._thread.stop()
@@ -350,6 +438,7 @@ class IqTreeTab(BaseTabWidget):
         self._input_edit.clear()
         self._partition_edit.clear()
         self._outdir_edit.clear()
+        self._outgroup_combo.clear()
         self._prefix_edit.clear()
         self._model_edit.setText("TEST")
         self._seqtype_combo.setCurrentIndex(0)
@@ -384,6 +473,9 @@ class IqTreeTab(BaseTabWidget):
             cmd += [flag, str(boot_val)]
         if self._alrt_check.isChecked():
             cmd += ["-alrt", str(self._alrt_spin.value())]
+        outgroup = self._outgroup_combo.currentText().strip()
+        if outgroup:
+            cmd += ["-o", outgroup]
         threads_val = self._threads_spin.value()
         cmd += ["-T", "AUTO" if threads_val == 0 else str(threads_val)]
         cmd += ["--redo"]
@@ -424,6 +516,8 @@ ultrafast bootstrapping, and automatic model selection.</p>
 Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
 <li><b>Threads</b> &mdash; AUTO lets IQ-TREE choose; set a fixed number for reproducibility.</li>
 <li><b>Prefix</b> &mdash; Output files: prefix.treefile, etc. Blank = use input name.</li>
+<li><b>Outgroup</b> &mdash; optional comma-separated taxa (e.g. <code>taxonA,taxonB</code>)
+to root the tree on (IQ-TREE <code>-o</code>).</li>
 </ul>
 
 <h3>Bootstrap &amp; Branch Support</h3>
@@ -510,6 +604,9 @@ Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
             self.log_area.append("  Bootstrap    : disabled")
         if self._alrt_check.isChecked():
             self.log_area.append(f"  SH-aLRT      : {self._alrt_spin.value()}")
+        outgroup = self._outgroup_combo.currentText().strip()
+        if outgroup:
+            self.log_area.append(f"  Outgroup     : {outgroup}")
         threads = self._threads_spin.value()
         self.log_area.append(f"  Threads      : {'AUTO' if threads == 0 else threads}")
         self.log_area.append(f"  Command      : {subprocess.list2cmdline(cmd)}")
@@ -535,12 +632,11 @@ Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
         self.stop_btn.setVisible(False)
 
         if success:
-            msg = self.tr("IQ-TREE finished successfully.")
             if treefile and os.path.isfile(treefile):
                 self._last_treefile = treefile
                 self._view_tree_btn.setVisible(True)
-                msg += f"  {treefile}"
-            self.show_status(msg)
+            self.show_status(self.tr("IQ-TREE finished successfully"))
+            self._log_output_files()
         elif "Stopped by user" in output:
             self.show_status(self.tr("Run stopped by user."))
         else:
@@ -549,6 +645,27 @@ Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
             self._thread.wait()
             self._thread.deleteLater()
             self._thread = None
+
+    def _log_output_files(self):
+        """List the key IQ-TREE output files (with descriptions) in the log."""
+        if not self._last_treefile:
+            return
+        prefix = os.path.splitext(self._last_treefile)[0]
+        descriptions = [
+            ("treefile", self.tr("best-scoring ML tree (Newick)")),
+            ("contree", self.tr("consensus tree from bootstrap (Newick)")),
+            ("iqtree", self.tr("full analysis report")),
+            ("log", self.tr("run log")),
+        ]
+        self.log_area.append("  ── Output files ──")
+        listed = False
+        for ext, desc in descriptions:
+            path = f"{prefix}.{ext}"
+            if os.path.isfile(path):
+                self.log_area.append(f"    {os.path.basename(path)}  ({desc})")
+                listed = True
+        if not listed:
+            self.log_area.append(f"    {os.path.basename(self._last_treefile)}")
 
     def _open_tree_viewer(self):
         """Open the resulting tree file in the Toytree Visualization tab."""

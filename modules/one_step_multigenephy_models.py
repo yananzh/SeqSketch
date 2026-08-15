@@ -16,6 +16,7 @@ class ProjectInput:
     iqtree_bootstrap: int = 1000
     iqtree_bootstrap_mode: str = "ufboot"
     threads: str = "AUTO"
+    resume_mode: str = "scratch"  # "scratch" | "align" (skip fetch) | "tree" (skip fetch/align/trim/concat)
 
 
 @dataclass(slots=True)

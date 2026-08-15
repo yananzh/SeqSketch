@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 
+from PyQt6.QtCore import QSize, Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -11,6 +13,9 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListView,
+    QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPushButton,
     QSpinBox,
@@ -32,7 +37,7 @@ from modules.one_step_multigenephy_workflow import (
     _trimal_executable,
     build_default_tool_adapters,
 )
-from utils.common_components import BaseTabWidget, validate_input_path
+from utils.common_components import BaseTabWidget, unify_status_button_sizes, validate_input_path
 
 
 def _wrap_layout(layout) -> QWidget:
@@ -81,10 +86,17 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.output_dir_edit = QLineEdit()
         self.output_dir_edit.setPlaceholderText(self.tr("Select an output directory"))
 
-        self.gene_edit = QLineEdit()
-        self.gene_edit.setReadOnly(True)
-        self.gene_edit.setPlaceholderText(
-            self.tr("Gene columns will appear here after loading an Excel file")
+        self.gene_list = QListWidget()
+        # Flow the gene checkboxes horizontally, compact enough for a single row
+        self.gene_list.setViewMode(QListView.ViewMode.IconMode)
+        self.gene_list.setFlow(QListView.Flow.LeftToRight)
+        self.gene_list.setWrapping(True)
+        self.gene_list.setResizeMode(QListView.ResizeMode.Adjust)
+        self.gene_list.setIconSize(QSize(0, 0))
+        # Pre-layout fallback; showEvent re-syncs to the actual styled height.
+        self.gene_list.setMaximumHeight(self.excel_path_edit.sizeHint().height())
+        self.gene_list.setToolTip(
+            self.tr("Gene columns found in the workbook — uncheck any column that is not a gene")
         )
 
         browse_excel_btn = QPushButton(self.tr("Browse"))
@@ -93,9 +105,14 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         browse_excel_btn.clicked.connect(self._choose_excel)
         browse_output_btn.clicked.connect(self._choose_output_dir)
 
+        use_example_btn = QPushButton(self.tr("Example"))
+        use_example_btn.setToolTip(self.tr("Load a bundled example Excel workbook"))
+        use_example_btn.clicked.connect(self._load_example)
+
         excel_row = QHBoxLayout()
         excel_row.setContentsMargins(0, 0, 0, 0)
         excel_row.addWidget(self.excel_path_edit)
+        excel_row.addWidget(use_example_btn)
         excel_row.addWidget(browse_excel_btn)
 
         output_row = QHBoxLayout()
@@ -125,22 +142,18 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.sheet_name_combo.currentTextChanged.connect(self._on_detail_changed)
         self.strain_column_combo.currentTextChanged.connect(self._on_detail_changed)
 
-        input_form.addRow(self.tr("Gene list:"), self.gene_edit)
+        input_form.addRow(self.tr("Gene list:"), self.gene_list)
         input_form.addRow(self.tr("Output directory:"), _wrap_layout(output_row))
 
         # Validate button row
         validate_btn = QPushButton(self.tr("Validate Inputs"))
         validate_btn.clicked.connect(self._check_inputs)
-        example_btn = QPushButton(self.tr("See an Example"))
+        example_btn = QPushButton(self.tr("Format Reference"))
         example_btn.clicked.connect(self._show_example)
-        use_example_btn = QPushButton(self.tr("Use an Example"))
-        use_example_btn.setToolTip(self.tr("Load a bundled example Excel workbook"))
-        use_example_btn.clicked.connect(self._load_example)
         validate_row = QHBoxLayout()
         validate_row.setContentsMargins(0, 0, 0, 0)
         validate_row.addWidget(validate_btn)
         validate_row.addWidget(example_btn)
-        validate_row.addWidget(use_example_btn)
         validate_row.addStretch()
         input_form.addRow(QWidget(), _wrap_layout(validate_row))
 
@@ -162,7 +175,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.mafft_mode_combo.setCurrentIndex(0)
         self.mafft_mode_combo.setToolTip(
             self.tr(
-                "Auto: automatic selection | Local Pair: local alignment | "
+                "Auto: automatic selection (recommended) | Local Pair: local alignment | "
                 "Global Pair: global alignment | Conserved: conserved region alignment"
             )
         )
@@ -176,16 +189,21 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.trimal_mode_combo.setCurrentIndex(0)
         self.trimal_mode_combo.setToolTip(
             self.tr(
-                "automated1: heuristic | gappyout: adaptive gap removal | "
+                "automated1: heuristic (recommended) | gappyout: adaptive gap removal | "
                 "strict/plus: conservative gap+similarity | nogaps: remove all-gap columns"
             )
         )
 
         self.threads_spin = QSpinBox()
-        self.threads_spin.setRange(0, 256)
+        self.threads_spin.setRange(0, max(os.cpu_count() or 1, 1))
         self.threads_spin.setValue(0)
         self.threads_spin.setSpecialValueText("AUTO")
-        self.threads_spin.setToolTip(self.tr("CPU threads (0 = auto-detect)"))
+        self.threads_spin.setToolTip(
+            self.tr(
+                "Keep AUTO — the tools pick the thread count for you. "
+                "Only set a fixed number if you know your machine's core count."
+            )
+        )
 
         mt_row = QHBoxLayout()
         mt_row.setContentsMargins(0, 0, 0, 0)
@@ -234,7 +252,27 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.keep_intermediates_check = QCheckBox(self.tr("Preserve intermediate files"))
         self.keep_intermediates_check.setChecked(True)
         boot_row.addWidget(self.keep_intermediates_check)
-        param_form.addRow(self.tr("IQ-TREE:"), _wrap_layout(boot_row))
+        param_form.addRow(self.tr("IQ-TREE Bootstrap:"), _wrap_layout(boot_row))
+
+        # Resume mode: which stages to skip (reuse a previous run's outputs)
+        self.resume_mode_combo = QComboBox()
+        self.resume_mode_combo.addItem(self.tr("From scratch (default)"), "scratch")
+        self.resume_mode_combo.addItem(self.tr("From align/trim (skip fetch)"), "align")
+        self.resume_mode_combo.addItem(
+            self.tr("From tree (skip fetch/align/trim/concat)"), "tree"
+        )
+        self.resume_mode_combo.setCurrentIndex(0)
+        self.resume_mode_combo.setToolTip(
+            self.tr(
+                "From scratch: run the full pipeline.\n"
+                "From align/trim: reuse 01_normalized files from a previous run "
+                "(skips the network fetch).\n"
+                "From tree: reuse 04_concat files (skips fetch, align/trim and "
+                "concatenation). Uncheck by choosing From scratch if you changed "
+                "the workbook."
+            )
+        )
+        param_form.addRow(self.tr("Skip completed steps:"), self.resume_mode_combo)
 
         self.add_content_widget(param_group)
         self.content_area.addStretch()
@@ -259,7 +297,25 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self._view_tree_btn.clicked.connect(self._open_tree_viewer)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._view_tree_btn)
 
+        # Result Folder button (opens the output directory), before Help
+        self.add_open_output_dir_button()
+
         self.log_area.setMaximumHeight(400)
+        # Consistent status-bar button widths across the app's tabs
+        unify_status_button_sizes(self)
+
+    def showEvent(self, event) -> None:
+        """Keep the gene list the same height as the sibling input fields.
+
+        Line edits / combos grow taller under the stylesheet (padding +
+        border), which their sizeHint() does not reflect before layout, so
+        re-sync the gene list once the tab is actually shown.
+        """
+        super().showEvent(event)
+        if hasattr(self, "excel_path_edit") and hasattr(self, "gene_list"):
+            h = self.excel_path_edit.height()
+            if h > 0:
+                self.gene_list.setMaximumHeight(h)
 
     def _choose_excel(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
@@ -296,6 +352,17 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         )
         if directory:
             self.output_dir_edit.setText(directory)
+
+    def _open_output_folder(self) -> None:
+        """Open the folder where the pipeline results are written."""
+        out_dir = self.output_dir_edit.text().strip()
+        if not out_dir:
+            self.show_status(self.tr("No output folder selected yet."))
+            return
+        if not os.path.isdir(out_dir):
+            self.show_status(self.tr("Output folder does not exist yet."))
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(out_dir))
 
     def load_sheet_columns(self) -> None:
         excel_path = self.excel_path_edit.text().strip()
@@ -345,10 +412,19 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
     def _populate_gene_columns(self, gene_names: list[str]) -> None:
         self.gene_columns = list(gene_names)
-        self.gene_edit.setText(", ".join(self.gene_columns))
+        self.gene_list.clear()
+        for name in gene_names:
+            item = QListWidgetItem(name)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked)
+            self.gene_list.addItem(item)
 
     def _checked_gene_columns(self) -> list[str]:
-        return list(self.gene_columns)
+        return [
+            self.gene_list.item(i).text()
+            for i in range(self.gene_list.count())
+            if self.gene_list.item(i).checkState() == Qt.CheckState.Checked
+        ]
 
     def _log_import_summary(self, summary: dict[str, int]) -> None:
         self.log_message(self.tr("── Import Summary ──"))
@@ -580,7 +656,7 @@ and one or more <b>gene columns</b>.</p>
         self.strain_column_combo.clear()
         self.strain_column_combo.addItem("Species")
         self.email_edit.clear()
-        self.gene_edit.clear()
+        self.gene_list.clear()
         self.output_dir_edit.clear()
         self.mafft_mode_combo.setCurrentIndex(0)
         self.trimal_mode_combo.setCurrentIndex(0)
@@ -588,6 +664,7 @@ and one or more <b>gene columns</b>.</p>
         self.bootstrap_mode_combo.setCurrentIndex(0)
         self.bootstrap_spin.setValue(1000)
         self.keep_intermediates_check.setChecked(True)
+        self.resume_mode_combo.setCurrentIndex(0)
         self.gene_columns = []
         self._last_treefile = ""
         self._view_tree_btn.setVisible(False)
@@ -695,6 +772,7 @@ and one or more <b>gene columns</b>.</p>
             iqtree_bootstrap_mode=self.bootstrap_mode_combo.currentData(),
             threads=str(self.threads_spin.value()) if self.threads_spin.value() > 0 else "AUTO",
             keep_intermediates=self.keep_intermediates_check.isChecked(),
+            resume_mode=self.resume_mode_combo.currentData(),
         )
         commands: list[str] = []
         runner = OneStepMultiGenePhyRunner(
@@ -730,9 +808,11 @@ in one step. Supports mixed NCBI accessions and private sequences.</p>
 
 <h3>Quick Start</h3>
 <ol>
-<li>Click <b>Use an Example</b> to load the bundled demo workbook, or <b>Browse</b>
-to select your own Excel file.</li>
-<li>Review the auto-detected <b>sheet</b>, <b>strain column</b>, and <b>gene list</b>.</li>
+<li>Click <b>Example</b> to load the bundled demo workbook, or <b>Browse</b>
+to select your own Excel file. Click <b>Format Reference</b> to see the
+expected workbook layout.</li>
+<li>Review the auto-detected <b>sheet</b> and <b>strain column</b>. In the
+<b>gene list</b>, uncheck any column that is metadata rather than a gene.</li>
 <li>Enter your <b>NCBI email</b> if any cells contain accessions.</li>
 <li>Click <b>Validate Inputs</b> to check file format and external tool paths.</li>
 <li>Choose an <b>output directory</b> and click <b>Run</b>.</li>
@@ -765,6 +845,11 @@ to select your own Excel file.</li>
 <li><b>IQ-TREE Bootstrap</b> &mdash; UFBoot (ultrafast, min 1000), UFBoot + SH-aLRT (branch test),
 or Standard bootstrap (min 100).</li>
 <li><b>Preserve intermediate files</b> &mdash; keep per-gene alignments and trimmed files for inspection.</li>
+<li><b>Skip completed steps</b> &mdash; resume a previous run in the same output folder:
+<b>From scratch</b> (default, full pipeline), <b>From align/trim</b> (reuse
+<code>01_normalized</code>, skips the network fetch), or <b>From tree</b>
+(reuse <code>04_concat</code>, skips fetch/align/trim/concatenation and only
+re-runs IQ-TREE). Choose <b>From scratch</b> if you changed the workbook.</li>
 </ul>
 
 <h3>Output Files</h3>
@@ -777,7 +862,8 @@ or Standard bootstrap (min 100).</li>
 
 <h3>Tips</h3>
 <ul>
-<li>Start with <b>Use an Example</b> to see the expected workbook format.</li>
+<li>Start with <b>Format Reference</b> to see the expected workbook layout, then
+click <b>Example</b> to load a demo workbook.</li>
 <li>Strain names should only contain letters, digits, and underscores.</li>
 <li>Use <b>Validate Inputs</b> before running to catch format issues early.</li>
 <li>For large datasets, increase <b>Threads</b> to speed up MAFFT and IQ-TREE.</li>

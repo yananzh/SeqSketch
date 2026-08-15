@@ -788,3 +788,150 @@ def test_workflow_worker_emits_failed_on_runner_exception(tmp_path):
 
     assert failed == ["runner exploded"]
     assert completed == []
+
+
+def test_runner_skips_fetch_align_trim_when_outputs_exist(tmp_path):
+    run_dir = tmp_path / "run"
+    normalized = run_dir / "01_normalized"
+    trimmed = run_dir / "03_trimmed"
+    concat = run_dir / "04_concat"
+    normalized.mkdir(parents=True)
+    trimmed.mkdir(parents=True)
+    concat.mkdir(parents=True)
+    (normalized / "ITS.fasta").write_text(
+        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
+    )
+    (trimmed / "ITS.fasta").write_text(
+        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
+    )
+    (concat / "supermatrix.fasta").write_text(
+        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
+    )
+    (concat / "partitions.nex").write_text("charset gene1 = 1-4;\n", encoding="utf-8")
+
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(run_dir),
+        ncbi_email="user@example.com",
+        resume_mode="tree",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "MK123", "accession", accession="MK123"),
+        GeneCell("strain_b", "ITS", "MK124", "accession", accession="MK124"),
+    ]
+
+    def _boom(*args, **kwargs):
+        raise AssertionError("adapter should not be called when skipping")
+
+    adapters = ToolAdapters(
+        fetch_accession=_boom,
+        run_alignment=_boom,
+        run_trimming=_boom,
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
+            str(tmp_path / "final.treefile")
+        ),
+    )
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    assert result.step_status["Fetch/Normalize"] == "succeeded"
+    assert result.step_status["Align per Gene"] == "succeeded"
+    assert result.step_status["Trim per Gene"] == "succeeded"
+    assert not result.warnings
+    assert result.artifacts.treefile_path.endswith("final.treefile")
+
+
+def test_runner_align_mode_skips_fetch_but_runs_align_trim(tmp_path):
+    run_dir = tmp_path / "run"
+    normalized = run_dir / "01_normalized"
+    normalized.mkdir(parents=True)
+    (normalized / "ITS.fasta").write_text(
+        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
+    )
+
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(run_dir),
+        ncbi_email="user@example.com",
+        resume_mode="align",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "MK123", "accession", accession="MK123"),
+        GeneCell("strain_b", "ITS", "MK124", "accession", accession="MK124"),
+    ]
+
+    calls = []
+
+    def fetch_accession(accession, email):
+        calls.append("fetch")
+        return "ATGC"
+
+    def run_alignment(gene_name, sequences, output_dir, mode):
+        calls.append("align")
+        return dict(sequences), str(tmp_path / f"{gene_name}.aln")
+
+    def run_trimming(gene_name, sequences, output_dir, mode):
+        calls.append("trim")
+        return dict(sequences), str(tmp_path / f"{gene_name}.trimmed.fasta")
+
+    adapters = ToolAdapters(
+        fetch_accession=fetch_accession,
+        run_alignment=run_alignment,
+        run_trimming=run_trimming,
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
+            str(tmp_path / "final.treefile")
+        ),
+    )
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    assert calls == ["align", "trim"]  # fetch skipped, align/trim still run
+    assert result.step_status["Fetch/Normalize"] == "succeeded"
+    assert result.step_status["Align per Gene"] == "succeeded"
+    assert result.step_status["Trim per Gene"] == "succeeded"
+
+
+def test_runner_reports_fetch_failure_aggregate_warning(tmp_path):
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(tmp_path / "run"),
+        ncbi_email="user@example.com",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "ATGC", "sequence", normalized_sequence="ATGC"),
+        GeneCell("strain_b", "ITS", "ATGA", "sequence", normalized_sequence="ATGA"),
+        GeneCell("strain_c", "ITS", "MK123", "accession", accession="MK123"),
+    ]
+    adapters = ToolAdapters(
+        fetch_accession=lambda accession, email: (_ for _ in ()).throw(
+            RuntimeError("network down")
+        ),
+        run_alignment=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.aln"),
+        ),
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.trimmed.fasta"),
+        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
+            str(tmp_path / "final.treefile")
+        ),
+    )
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    result = runner.run(project, cells, strain_order=["strain_a", "strain_b", "strain_c"])
+
+    assert any("failed after retries" in w for w in result.warnings)
+    assert result.step_status["Fetch/Normalize"] == "warning"

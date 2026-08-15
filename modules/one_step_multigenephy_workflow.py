@@ -740,6 +740,26 @@ class OneStepMultiGenePhyRunner:
             fetch_warning = False
             for dataset in datasets.values():
                 gene_name = dataset.gene_name
+                # Skip the network fetch when reusing a previous run's normalized output
+                normalized_path = stage_dirs["normalized"] / f"{gene_name}.fasta"
+                if project.resume_mode in ("align", "tree") and normalized_path.is_file():
+                    dataset.normalized_sequences = _read_fasta_file(normalized_path)
+                    gene_stats[gene_name] = {
+                        "accessions": 0,
+                        "fetched": 0,
+                        "failed": 0,
+                        "sequences": 0,
+                        "aligned": False,
+                        "trimmed": False,
+                        "missing_strains": [],
+                        "included": False,
+                    }
+                    dataset.artifacts["normalized"] = str(normalized_path)
+                    artifacts.normalized_files[gene_name] = str(normalized_path)
+                    log_line(
+                        f"  {gene_name}: reusing existing normalized sequences (skip fetch)"
+                    )
+                    continue
                 acc_total = sum(1 for c in dataset.cells if c.value_type == "accession")
                 seq_total = sum(1 for c in dataset.cells if c.value_type == "sequence")
                 acc_fetched = 0
@@ -796,6 +816,12 @@ class OneStepMultiGenePhyRunner:
                     artifacts.normalized_files[dataset.gene_name] = str(normalized_path)
 
             set_step("Fetch/Normalize", "warning" if fetch_warning else "succeeded")
+            total_failed = sum(gs.get("failed", 0) for gs in gene_stats.values())
+            if total_failed:
+                add_warning(
+                    f"{total_failed} accession fetch(es) failed after retries — those "
+                    "strains are treated as missing for the affected genes."
+                )
             # Log per-gene accession summary
             log_line("── Fetch Summary ──")
             for gene_name, gs in sorted(gene_stats.items()):
@@ -823,6 +849,22 @@ class OneStepMultiGenePhyRunner:
                     dataset.status = "warning"
                     add_warning(
                         f"{dataset.gene_name}: skipped because fewer than 2 usable sequences remain"
+                    )
+                    continue
+
+                # Skip align/trim when reusing a previous run's trimmed output
+                trimmed_path = stage_dirs["trimmed"] / f"{dataset.gene_name}.fasta"
+                if project.resume_mode == "tree" and trimmed_path.is_file():
+                    dataset.trimmed_sequences = _read_fasta_file(trimmed_path)
+                    gs["aligned"] = True
+                    gs["trimmed"] = True
+                    dataset.status = "succeeded"
+                    dataset.artifacts["trimmed"] = str(trimmed_path)
+                    artifacts.trimmed_files[dataset.gene_name] = str(trimmed_path)
+                    trimmed_gene_count += 1
+                    log_line(
+                        f"  {dataset.gene_name}: reusing existing trimmed alignment "
+                        "(skip align/trim)"
                     )
                     continue
 
@@ -881,26 +923,33 @@ class OneStepMultiGenePhyRunner:
             current_step = "Concatenate"
             set_step("Concatenate", "running")
             log_line("Concatenating trimmed gene alignments")
-            concatenated, partitions = concatenate_gene_alignments(
-                datasets,
-                strain_order,
-                gene_order=project.gene_columns,
-            )
-            self.concat_info = list(partitions)
-            # Track which genes are included and missing strains
-            for gene_name, gs in gene_stats.items():
-                if gene_name in datasets and datasets[gene_name].trimmed_sequences:
-                    gs["included"] = True
-                    trimmed_set = set(datasets[gene_name].trimmed_sequences)
-                    gs["missing_strains"] = [s for s in strain_order if s not in trimmed_set]
-            log_line("Genes in concatenation: {n}".format(n=len(partitions)))
-            if not partitions:
-                raise RuntimeError("No genes remain usable for concatenation")
-
             concat_path = stage_dirs["concat"] / "supermatrix.fasta"
             partition_path = stage_dirs["concat"] / "partitions.nex"
-            _write_fasta(concat_path, concatenated, strain_order)
-            _write_partitions(partition_path, partitions)
+            if (
+                project.resume_mode == "tree"
+                and concat_path.is_file()
+                and partition_path.is_file()
+            ):
+                log_line("Reusing existing concatenated matrix (skip concatenate)")
+                self.concat_info = []
+            else:
+                concatenated, partitions = concatenate_gene_alignments(
+                    datasets,
+                    strain_order,
+                    gene_order=project.gene_columns,
+                )
+                self.concat_info = list(partitions)
+                # Track which genes are included and missing strains
+                for gene_name, gs in gene_stats.items():
+                    if gene_name in datasets and datasets[gene_name].trimmed_sequences:
+                        gs["included"] = True
+                        trimmed_set = set(datasets[gene_name].trimmed_sequences)
+                        gs["missing_strains"] = [s for s in strain_order if s not in trimmed_set]
+                log_line("Genes in concatenation: {n}".format(n=len(partitions)))
+                if not partitions:
+                    raise RuntimeError("No genes remain usable for concatenation")
+                _write_fasta(concat_path, concatenated, strain_order)
+                _write_partitions(partition_path, partitions)
             artifacts.extra_paths["supermatrix"] = str(concat_path)
             artifacts.extra_paths["partitions"] = str(partition_path)
             set_step("Concatenate", "succeeded")
