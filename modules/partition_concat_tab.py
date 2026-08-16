@@ -243,6 +243,21 @@ def _concatenate_alignments(
         ids, seqs = _read_fasta(fpath)
         if not ids:
             raise ValueError(f"No sequences in {fpath}")
+        # Duplicate taxon IDs would either silently drop sequences (dict
+        # collision) or duplicate rows in the supermatrix — reject up front
+        # so the Run path behaves like the Validate path.
+        seen_ids: set[str] = set()
+        dup_ids: set[str] = set()
+        for tid in ids:
+            if tid in seen_ids:
+                dup_ids.add(tid)
+            seen_ids.add(tid)
+        if dup_ids:
+            preview = ", ".join(sorted(dup_ids)[:5])
+            raise ValueError(
+                f"Duplicate sequence ID(s) in {os.path.basename(fpath)}: {preview}. "
+                "Remove duplicates or use Simplify Headers first."
+            )
         lengths = {len(s) for s in seqs}
         if len(lengths) > 1:
             raise ValueError(f"Unaligned sequences in {fpath} (lengths: {sorted(lengths)})")

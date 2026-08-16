@@ -33,6 +33,7 @@ from PyQt6.QtWidgets import (
 from utils.app_paths import resource_path, tool_path_from_config
 from utils.common_components import BaseTabWidget, BaseWorker
 from utils.example_data import load_example_text, stage_example
+from utils.process_control import kill_process_tree
 
 
 def _default_mafft_exe() -> str:
@@ -198,6 +199,11 @@ class _MafftWorker(BaseWorker):
         self.threads = threads
         self.mafft_exe = mafft_exe
         self.output_format = output_format
+        self._proc: subprocess.Popen | None = None
+
+    def stop(self):
+        if self._proc and self._proc.poll() is None:
+            kill_process_tree(self._proc)
 
     def _build_command(self, input_path: str) -> list[str]:
         return _build_mafft_command(
@@ -229,27 +235,35 @@ class _MafftWorker(BaseWorker):
 
             cmd = self._build_command(tmp_in)
             self.emit_progress("Running MAFFT...")
-            result = subprocess.run(
+            proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                timeout=1200,
                 creationflags=(
                     subprocess.CREATE_NO_WINDOW
                     if os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW")
                     else 0
                 ),
             )
+            self._proc = proc
+            try:
+                stdout_data, stderr_data = proc.communicate(timeout=1200)
+            except subprocess.TimeoutExpired:
+                kill_process_tree(proc)
+                self.emit_error("MAFFT timed out (>20 min). Try a faster strategy.")
+                return
+            finally:
+                self._proc = None
 
-            if result.returncode != 0:
-                details = (result.stderr or result.stdout or "").strip()
-                self.emit_error(f"MAFFT exited with code {result.returncode}:\n{details}")
+            if proc.returncode != 0:
+                details = (stderr_data or stdout_data or "").strip()
+                self.emit_error(f"MAFFT exited with code {proc.returncode}:\n{details}")
                 return
 
-            aligned_text = (result.stdout or "").strip()
+            aligned_text = (stdout_data or "").strip()
             if not aligned_text:
                 self.emit_error("MAFFT produced no alignment output.")
                 return
@@ -300,10 +314,7 @@ class _MafftBatchWorker(QThread):
     def stop(self):
         self._killed = True
         if self._proc and self._proc.poll() is None:
-            try:
-                self._proc.kill()
-            except OSError:
-                pass
+            kill_process_tree(self._proc)
 
     def _render_name(self, stem: str, ext: str) -> str:
         safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_") or "sample"
@@ -392,7 +403,11 @@ class _MafftBatchWorker(QThread):
                         else 0
                     ),
                 )
-                stdout_data, stderr_data = self._proc.communicate(timeout=1200)
+                try:
+                    stdout_data, stderr_data = self._proc.communicate(timeout=1200)
+                except subprocess.TimeoutExpired:
+                    kill_process_tree(self._proc)
+                    raise RuntimeError("MAFFT timed out (>20 min) per file.")
                 if self._killed:
                     break
                 if self._proc.returncode != 0:

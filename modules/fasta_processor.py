@@ -63,25 +63,26 @@ class FASTAProcessor:
         try:
             self.file_path = file_path
             self.records = []
+            with open(file_path, 'rb') as fobj:
+                data = fobj.read()
             try:
-                f = open(file_path, 'r', encoding='utf-8')
-            except Exception:
-                f = open(file_path, 'r', encoding='latin-1')
-            with f as fobj:
-                current_header = ""
-                current_sequence = ""
-                for line_num, line in enumerate(fobj, 1):
-                    line = line.strip()
-                    if line.startswith('>'):
-                        if current_header and current_sequence:
-                            self._add_record(current_header, current_sequence)
-                        current_header = line[1:]
-                        current_sequence = ""
-                    else:
-                        if current_header:
-                            current_sequence += line
-                if current_header and current_sequence:
-                    self._add_record(current_header, current_sequence)
+                text = data.decode('utf-8')
+            except UnicodeDecodeError:
+                text = data.decode('latin-1')
+            current_header = ""
+            current_sequence = ""
+            for line_num, line in enumerate(text.splitlines(), 1):
+                line = line.strip()
+                if line.startswith('>'):
+                    if current_header and current_sequence:
+                        self._add_record(current_header, current_sequence)
+                    current_header = line[1:]
+                    current_sequence = ""
+                else:
+                    if current_header:
+                        current_sequence += line
+            if current_header and current_sequence:
+                self._add_record(current_header, current_sequence)
             logger.info(f"Successfully read FASTA file: {file_path}, {len(self.records)} records")
             return True
         except Exception as e:

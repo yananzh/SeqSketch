@@ -630,12 +630,16 @@ class SimplifyIDsTab(BaseTabWidget):
                     )
                     auto_count = 0
                     seen = {}
-                    for record in records:
+                    for row_idx, record in enumerate(records):
                         base_id = record.header
                         if base_id in seen:
                             seen[base_id] += 1
                             record.header = f"{base_id}_{seen[base_id]}"
                             auto_count += 1
+                            # Keep the mapping report in sync with the renumbered ID
+                            fields = mapping_rows[row_idx].split("\t")
+                            fields[1] = record.header
+                            mapping_rows[row_idx] = "\t".join(fields)
                         else:
                             seen[base_id] = 1
                     self.log_message(

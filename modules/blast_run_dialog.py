@@ -112,7 +112,10 @@ class _RunBlastThread(QThread):
                 self.finished.emit(False, "", "Cancelled by user.")
             elif self._proc.returncode == 0:
                 with open(self.out_file, "w", encoding="utf-8") as fout:
-                    fout.write(_TSV_HEADER)
+                    # Column names only make sense for tabular output; a TSV
+                    # header would corrupt pairwise (0) or XML (5) files.
+                    if self.outfmt.startswith("6"):
+                        fout.write(_TSV_HEADER)
                     if os.path.exists(tmp_out):
                         with open(tmp_out, "r", encoding="utf-8") as fin:
                             fout.write(fin.read())

@@ -212,3 +212,36 @@ def test_open_tree_viewer_switches_to_toytree_tab(qapp, tmp_path):
 
     assert toytree_tab._file_edit.text() == str(out)
     assert opened == [0]
+
+
+# ── Matrix diagonal semantics ─────────────────────────────────────────────
+
+
+def test_populate_table_shows_zero_diagonal(qapp):
+    tab = DistanceTreeTab()
+    matrix = [[0.0, 0.2], [0.2, 0.0]]
+
+    tab._populate_table(matrix, ["a", "b"])
+
+    assert tab._table.item(0, 0).text() == "0.0000"
+    assert tab._table.item(1, 1).text() == "0.0000"
+    assert tab._table.item(0, 1).text() == "0.2000"
+
+
+def test_export_csv_writes_zero_diagonal(qapp, tmp_path, monkeypatch):
+    from PyQt6.QtWidgets import QFileDialog
+
+    tab = DistanceTreeTab()
+    tab._names = ["a", "b"]
+    tab._matrix_data = [[0.0, 0.2], [0.2, 0.0]]
+    out = tmp_path / "matrix.csv"
+    monkeypatch.setattr(
+        QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(out), ""))
+    )
+
+    tab._export_csv()
+
+    content = out.read_text(encoding="utf-8")
+    lines = content.strip().splitlines()
+    assert lines[1] == "a,0.000000,0.200000"
+    assert lines[2] == "b,0.200000,0.000000"

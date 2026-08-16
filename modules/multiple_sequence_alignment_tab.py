@@ -127,6 +127,28 @@ class _MuscleWorker(QThread):
                         pass
 
 
+def _find_duplicate_headers(text: str) -> list[str]:
+    """Return FASTA headers (full line after '>') appearing more than once."""
+    counts: dict[str, int] = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith(">"):
+            header = line[1:].strip()
+            if header:
+                counts[header] = counts.get(header, 0) + 1
+    return sorted(h for h, c in counts.items() if c > 1)
+
+
+def _reject_duplicate_headers(text: str, source: str) -> None:
+    duplicates = _find_duplicate_headers(text)
+    if duplicates:
+        preview = ", ".join(duplicates[:5])
+        raise ValueError(
+            f"{source} contains duplicate sequence header(s): {preview}. "
+            "Remove duplicates (see the Deduplicate tool) before alignment."
+        )
+
+
 def _parse_fasta_to_dict(text: str) -> dict:
     seqs = {}
     header = None
@@ -317,6 +339,7 @@ class _MuscleBatchWorker(QThread):
                 self.progress.emit(f"[{idx}/{total}] Reading: {os.path.basename(in_path)}")
                 with open(in_path, "r", encoding="utf-8", errors="replace") as f:
                     raw = f.read().strip()
+                _reject_duplicate_headers(raw, os.path.basename(in_path))
                 seqs = _parse_fasta_to_dict(raw)
                 if len(seqs) < 2:
                     raise ValueError("Need at least 2 sequences in FASTA")
@@ -1038,7 +1061,9 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             return
         self.output_file_edit.setText(output_path)
 
-        # Validate: need ≥ 2 sequences
+        # Validate: need ≥ 2 sequences (reject duplicate headers before the
+        # dict-based parser silently keeps only the last copy of each)
+        _reject_duplicate_headers(raw, "Input")
         seqs = self._parse_fasta(raw)
         if len(seqs) < 2:
             self.status_label.setText("Need ≥ 2 sequences for MSA.")

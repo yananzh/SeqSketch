@@ -18,7 +18,6 @@ from .extract_by_regex_tab import ExtractByRegexTab
 from .fasta_processor import FASTAProcessor
 from .orf_tab import ORFTab
 from .physicochemical_properties_tab import PhysicochemicalPropertiesTab
-from .reverse_complement_tab import ReverseComplementTab
 from .rna_tab import RNATab
 from .sanger_tab import SangerTab
 from .sequence_statistics_tab import SequenceStatisticsTab

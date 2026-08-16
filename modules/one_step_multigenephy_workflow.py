@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -20,6 +22,7 @@ from modules.one_step_multigenephy_io import (
 )
 from modules.one_step_multigenephy_models import RunArtifacts, WorkflowRunResult
 from utils.app_paths import resource_path, tool_path_from_config
+from utils.process_control import kill_process_tree
 
 
 def _creation_flags() -> int:
@@ -92,8 +95,23 @@ def _ensure_executable(path: str, tool_name: str) -> None:
         raise FileNotFoundError(f"{tool_name} executable not found: {path}")
 
 
-def _run_command(cmd: list[str], cwd: str | None = None) -> subprocess.CompletedProcess:
-    result = subprocess.run(
+def _run_command(
+    cmd: list[str],
+    cwd: str | None = None,
+    is_aborted: Callable[[], bool] | None = None,
+) -> subprocess.CompletedProcess:
+    """Run an external tool, interruptible via *is_aborted* polling.
+
+    On abort the whole process tree is killed (launchers like mafft.bat spawn
+    cmd.exe whose children would otherwise survive as orphans) and
+    RuntimeError("Workflow cancelled by user") propagates to the runner.
+    """
+    if is_aborted is None:
+
+        def is_aborted():
+            return False
+
+    proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -103,6 +121,44 @@ def _run_command(cmd: list[str], cwd: str | None = None) -> subprocess.Completed
         creationflags=_creation_flags(),
         cwd=cwd,
     )
+    aborted = False
+    try:
+        stdout_chunks: list[str] = []
+        stderr_chunks: list[str] = []
+
+        def _drain(stream, sink):
+            for line in stream:
+                sink.append(line)
+
+        out_thread = threading.Thread(target=_drain, args=(proc.stdout, stdout_chunks))
+        err_thread = threading.Thread(target=_drain, args=(proc.stderr, stderr_chunks))
+        out_thread.daemon = True
+        err_thread.daemon = True
+        out_thread.start()
+        err_thread.start()
+
+        while proc.poll() is None:
+            if is_aborted():
+                aborted = True
+                kill_process_tree(proc)
+                break
+            proc.wait(timeout=0.2)
+        out_thread.join(timeout=5)
+        err_thread.join(timeout=5)
+
+        if aborted:
+            raise RuntimeError("Workflow cancelled by user")
+
+        result = subprocess.CompletedProcess(
+            args=cmd,
+            returncode=proc.returncode,
+            stdout="".join(stdout_chunks),
+            stderr="".join(stderr_chunks),
+        )
+    except Exception:
+        if not aborted and proc.poll() is None:
+            kill_process_tree(proc)
+        raise
     if result.returncode != 0:
         details = (result.stderr or result.stdout or "").strip()
         raise RuntimeError(details or f"Command failed with exit code {result.returncode}")
@@ -125,6 +181,17 @@ def build_default_tool_adapters(
 
     def _track(cmd_parts: list[str]) -> None:
         commands.append(" ".join(cmd_parts))
+
+    # The runner injects its abort callback via set_abort() so external-tool
+    # subprocesses can be killed mid-run when the user cancels.
+    abort_holder: dict = {"check": None}
+
+    def set_abort(check: Callable[[], bool] | None) -> None:
+        abort_holder["check"] = check
+
+    def _is_aborted() -> bool:
+        check = abort_holder["check"]
+        return bool(check is not None and check())
 
     def fetch_accession(accession: str, email: str) -> str:
         if Entrez is None:
@@ -175,7 +242,7 @@ def build_default_tool_adapters(
         cmd.extend(["--thread", "1", str(input_path)])
 
         _track(cmd)
-        result = _run_command(cmd)
+        result = _run_command(cmd, is_aborted=_is_aborted)
         aligned_text = (result.stdout or "").strip()
         if not aligned_text:
             raise RuntimeError("MAFFT produced no alignment output")
@@ -214,7 +281,7 @@ def build_default_tool_adapters(
                 cmd.append(f"-{normalized_mode}")
 
         _track(cmd)
-        _run_command(cmd)
+        _run_command(cmd, is_aborted=_is_aborted)
 
         if not output_path.is_file():
             raise RuntimeError("trimAl did not produce an output FASTA")
@@ -257,7 +324,7 @@ def build_default_tool_adapters(
                 cmd.extend(["-B", str(bootstrap)])
 
         _track(cmd)
-        _run_command(cmd, cwd=str(stage_dir))
+        _run_command(cmd, cwd=str(stage_dir), is_aborted=_is_aborted)
 
         treefile_path = Path(f"{prefix}.treefile")
         if not treefile_path.is_file():
@@ -269,17 +336,64 @@ def build_default_tool_adapters(
         run_alignment=run_alignment,
         run_trimming=run_trimming,
         run_iqtree=run_iqtree,
+        set_abort=set_abort,
     )
+
+
+def _project_fingerprint(project, cells, strain_order: list[str]) -> str:
+    """Stable digest of the inputs that resume reuse depends on.
+
+    Covers the workbook identity (path + mtime), selected genes, strain list,
+    and the align/trim/tree parameters — everything whose change would make
+    reusing a previous run's intermediate files produce wrong results.
+    """
+    import hashlib
+
+    try:
+        mtime = os.path.getmtime(project.excel_path)
+    except OSError:
+        mtime = -1.0
+    payload = json.dumps(
+        {
+            "excel_path": os.path.abspath(project.excel_path),
+            "excel_mtime": mtime,
+            "gene_columns": list(project.gene_columns),
+            "strain_order": list(strain_order),
+            "mafft_mode": project.mafft_mode,
+            "trimal_mode": project.trimal_mode,
+            "iqtree_bootstrap": project.iqtree_bootstrap,
+            "iqtree_bootstrap_mode": project.iqtree_bootstrap_mode,
+            "threads": project.threads,
+            "cell_values": sorted(
+                (c.strain_name, c.gene_name, c.value_type, c.accession or "", c.raw_value or "")
+                for c in cells
+            ),
+        },
+        sort_keys=True,
+        default=str,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _read_previous_fingerprint(manifest_path: Path) -> str | None:
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    value = payload.get("input_fingerprint")
+    return value if isinstance(value, str) else None
 
 
 def _build_manifest_payload(
     step_status: dict[str, str],
     warnings: list[str],
     artifacts: RunArtifacts,
+    input_fingerprint: str = "",
 ) -> dict:
     return {
         "steps": step_status,
         "warnings": warnings,
+        "input_fingerprint": input_fingerprint,
         "artifacts": {
             "normalized": artifacts.normalized_files,
             "aligned": artifacts.aligned_files,
@@ -559,6 +673,9 @@ class ToolAdapters:
     run_alignment: Callable[[str, dict[str, str], str, str], tuple[dict[str, str], str]]
     run_trimming: Callable[[str, dict[str, str], str, str], tuple[dict[str, str], str]]
     run_iqtree: Callable[[str, str, str, int, str, str], str]
+    # Optional injector the runner uses to share its abort callback with the
+    # default adapters; None for test doubles that don't spawn subprocesses.
+    set_abort: Callable[[Callable[[], bool] | None], None] | None = None
 
 
 class OneStepMultiGenePhyRunner:
@@ -591,6 +708,9 @@ class OneStepMultiGenePhyRunner:
         log_line = _log
         if is_aborted is None:
             is_aborted = lambda: False
+        set_abort = getattr(self.adapters, "set_abort", None)
+        if callable(set_abort):
+            set_abort(is_aborted)
 
         def _check_abort() -> None:
             if is_aborted():
@@ -635,6 +755,21 @@ class OneStepMultiGenePhyRunner:
             warnings.append(message)
             log_line(message)
 
+        # Resume safety: intermediate files are only reusable when the inputs
+        # (workbook content, gene selection, tool parameters) are unchanged.
+        # A fingerprint mismatch falls back to a full from-scratch run.
+        input_fingerprint = _project_fingerprint(project, cells, strain_order)
+        if project.resume_mode != "scratch":
+            previous = _read_previous_fingerprint(
+                Path(project.output_dir) / "06_reports" / "run_manifest.json"
+            )
+            if previous is None or previous != input_fingerprint:
+                add_warning(
+                    "Workbook or parameters changed since the previous run "
+                    "(or no fingerprint recorded) — resume disabled, running from scratch."
+                )
+                project.resume_mode = "scratch"
+
         def persist_run_outputs(suppress_errors: bool = False) -> None:
             set_step("Summarize", "running")
             manifest_written = False
@@ -653,7 +788,9 @@ class OneStepMultiGenePhyRunner:
             try:
                 write_run_manifest(
                     artifacts.manifest_path,
-                    _build_manifest_payload(persisted_step_status, warnings, artifacts),
+                    _build_manifest_payload(
+                        persisted_step_status, warnings, artifacts, input_fingerprint
+                    ),
                 )
                 manifest_written = True
             except Exception as exc:
@@ -687,7 +824,9 @@ class OneStepMultiGenePhyRunner:
                 try:
                     write_run_manifest(
                         artifacts.manifest_path,
-                        _build_manifest_payload(step_status, warnings, artifacts),
+                        _build_manifest_payload(
+                            step_status, warnings, artifacts, input_fingerprint
+                        ),
                     )
                 except OSError:
                     pass
@@ -751,6 +890,7 @@ class OneStepMultiGenePhyRunner:
 
             fetch_warning = False
             for dataset in datasets.values():
+                _check_abort()
                 gene_name = dataset.gene_name
                 # Skip the network fetch when reusing a previous run's normalized output
                 normalized_path = stage_dirs["normalized"] / f"{gene_name}.fasta"
@@ -780,6 +920,7 @@ class OneStepMultiGenePhyRunner:
                     f"  Normalizing gene: {gene_name} ({acc_total} accessions, {seq_total} sequences)"
                 )
                 for cell in dataset.cells:
+                    _check_abort()
                     if cell.value_type == "accession" and cell.accession:
                         try:
                             sequence = (

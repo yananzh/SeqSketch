@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QTableWidget,
     QTableWidgetItem,
     QTextEdit,
 )
@@ -298,7 +299,7 @@ def test_analysis_tab_find_binding_no_match():
 def test_design_tab_has_expected_widgets(qapp):
     tab = PrimerDesignTab()
     assert isinstance(tab.seq_input, QTextEdit)
-    assert isinstance(tab.results_table, type(tab.results_table))
+    assert isinstance(tab.results_table, QTableWidget)
     assert tab.design_button.text() == "Run"
     assert tab.example_seq_btn.text() == "Example"
     assert tab.help_btn.text() == "Help"
@@ -376,25 +377,38 @@ def test_design_tab_validate_invalid_sequence():
 
 def test_design_tab_refuses_empty_sequence(qapp, monkeypatch):
     tab = PrimerDesignTab()
-    # Prevent actual QMessageBox popup
-    monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: None)
+    warnings = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: warnings.append(args))
     tab.start_design_task()
-    assert not tab.design_button.isEnabled() or True  # remains enabled after error
+    assert len(warnings) == 1
+    assert warnings[0][1] == "Input Error"
+    assert "valid DNA template" in warnings[0][2]
+    assert tab.design_button.isEnabled()
+    assert tab.results_table.rowCount() == 0
 
 
 def test_design_tab_refuses_short_sequence(qapp, monkeypatch):
     tab = PrimerDesignTab()
     tab.seq_input.setPlainText("ATCG")
-    monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: None)
+    warnings = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: warnings.append(args))
     tab.start_design_task()
-    # Button should remain enabled (error path doesn't disable it)
+    assert len(warnings) == 1
+    assert "too short" in warnings[0][2]
+    assert tab.design_button.isEnabled()
+    assert tab.results_table.rowCount() == 0
 
 
 def test_design_tab_refuses_invalid_bases(qapp, monkeypatch):
     tab = PrimerDesignTab()
     tab.seq_input.setPlainText("ATCGX" * 20)
-    monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: None)
+    warnings = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: warnings.append(args))
     tab.start_design_task()
+    assert len(warnings) == 1
+    assert "A/C/G/T/U/N only" in warnings[0][2]
+    assert tab.design_button.isEnabled()
+    assert tab.results_table.rowCount() == 0
 
 
 # ── PrimerDesignTab: parameter validation ───────────────────────────────────

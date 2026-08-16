@@ -272,13 +272,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 "the workbook."
             )
         )
-        self.keep_intermediates_check = QCheckBox(self.tr("Preserve intermediate files"))
-        self.keep_intermediates_check.setChecked(True)
         run_row = QHBoxLayout()
         run_row.setContentsMargins(0, 0, 0, 0)
         run_row.addWidget(self.resume_mode_combo, 1)
-        run_row.addSpacing(12)
-        run_row.addWidget(self.keep_intermediates_check)
+        run_row.addStretch(1)
         param_form.addRow(self.tr("Skip completed steps:"), _wrap_layout(run_row))
 
         # Give both dropdowns the same width so their right edges line up
@@ -678,7 +675,6 @@ and one or more <b>gene columns</b>.</p>
         self.threads_spin.setValue(0)
         self.bootstrap_mode_combo.setCurrentIndex(0)
         self.bootstrap_spin.setValue(1000)
-        self.keep_intermediates_check.setChecked(True)
         self.resume_mode_combo.setCurrentIndex(0)
         self.gene_columns = []
         self._last_treefile = ""
@@ -789,7 +785,7 @@ and one or more <b>gene columns</b>.</p>
             iqtree_bootstrap=self.bootstrap_spin.value(),
             iqtree_bootstrap_mode=self.bootstrap_mode_combo.currentData(),
             threads=str(self.threads_spin.value()) if self.threads_spin.value() > 0 else "AUTO",
-            keep_intermediates=self.keep_intermediates_check.isChecked(),
+            keep_intermediates=True,
             resume_mode=self.resume_mode_combo.currentData(),
         )
         commands: list[str] = []

@@ -40,7 +40,12 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import user_data_file
-from utils.common_components import BaseTabWidget, unify_status_button_sizes, validate_input_path
+from utils.common_components import (
+    BaseTabWidget,
+    park_qthread,
+    unify_status_button_sizes,
+    validate_input_path,
+)
 from utils.example_data import stage_example
 
 
@@ -961,6 +966,9 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
                 self._render_thread.finished.disconnect(self._on_render_done)
             except (TypeError, RuntimeError):
                 pass
+            # Park instead of dropping the reference: destroying a QThread
+            # that is still rendering would abort the whole application.
+            park_qthread(self._render_thread)
             self._render_thread = None
 
     def _on_render_done(self, success: bool, svg_bytes: bytes, msg: str):
@@ -1013,7 +1021,13 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
                 self._export_thread.finished.disconnect(self._on_export_done)
             except (TypeError, RuntimeError):
                 pass
+            park_qthread(self._export_thread)
             self._export_thread = None
+
+    def shutdown(self):
+        self._cancel_render()
+        self._cancel_export()
+        super().shutdown()
 
     def _on_export_done(self, success: bool, path: str, msg: str):
         if self._export_thread is not None:

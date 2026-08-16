@@ -280,11 +280,15 @@ class FastaTableConverterTab(BaseTabWidget):
         input_path = self.input_edit.text().strip()
         ext = os.path.splitext(input_path)[1].lower()
         try:
+            # dtype=str + keep_default_na=False keep IDs like "00123" intact and
+            # prevent cells reading "NA"/"null" from dropping rows silently.
             if ext in (".xlsx", ".xls"):
-                return pd.read_excel(input_path)
+                return pd.read_excel(input_path, dtype=str, keep_default_na=False)
             if ext == ".tsv":
-                return pd.read_csv(input_path, sep="\t")
-            return pd.read_csv(input_path)
+                return pd.read_csv(
+                    input_path, sep="\t", dtype=str, keep_default_na=False
+                )
+            return pd.read_csv(input_path, dtype=str, keep_default_na=False)
         except Exception as e:
             self.log_message(f"Failed to read table: {e}", "ERROR")
             return None

@@ -94,13 +94,16 @@ def match_records_by_id(records, query_ids: list[str], match_mode: str, output_o
             effective_output_order = "Preserve FASTA Order"
         elif output_order == "Preserve Query Order":
             matched_records = []
+            emitted = set()  # one record may match several queries — emit it once
             for i, sequence_id in enumerate(requested_ids):
                 for record in records:
                     header = normalize_sequence_id(record.header, case_sensitive)
                     q = normalized_queries[i]
                     if q and q in header:
-                        matched_records.append(record)
                         matched_query_flags[i] = True
+                        if id(record) not in emitted:
+                            matched_records.append(record)
+                            emitted.add(id(record))
             effective_output_order = output_order
         else:
             matched_records = []

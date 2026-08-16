@@ -11,6 +11,7 @@ import time
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+import pytest
 from PyQt6.QtCore import QUrl
 from PyQt6.QtWidgets import QListWidgetItem, QMessageBox, QPushButton
 
@@ -189,6 +190,50 @@ def test_run_writes_mrbayes_nexus_data_fills_missing_taxa_with_question_mark(
         [str(gene1), str(gene2)], ["gene1", "gene2"], missing_char="-"
     )
     assert seqs[ids.index("taxonC")] == "----ACGTACGT"
+
+
+def test_concatenate_merges_same_taxon_with_different_descriptions(tmp_path):
+    # Ported from the retired root-level _test_taxa.py: identical primary IDs
+    # with different descriptions must merge into one taxon, and a taxon
+    # genuinely absent from a gene must be reported as missing.
+    gene1 = tmp_path / "gene1.fasta"
+    gene1.write_text(
+        ">taxonA [organism=Fish]\nACGT\n>taxonB COI gene\nTTGG\n",
+        encoding="utf-8",
+    )
+    gene2 = tmp_path / "gene2.fasta"
+    gene2.write_text(
+        ">taxonA mitochondrial genome\nACGT\n>taxonB 12S rRNA\nTTGG\n",
+        encoding="utf-8",
+    )
+
+    ids, seqs, partitions, gene_taxa = _concatenate_alignments(
+        [str(gene1), str(gene2)], ["gene1", "gene2"]
+    )
+    assert ids == ["taxonA", "taxonB"]
+    for gene_name, taxa in gene_taxa:
+        assert set(ids) == set(taxa)  # no spurious missing taxa from descriptions
+
+    # taxonB genuinely missing from gene3 must be reported
+    gene3 = tmp_path / "gene3.fasta"
+    gene3.write_text(">taxonA short\nACGT\n", encoding="utf-8")
+    ids3, _, _, gene_taxa3 = _concatenate_alignments(
+        [str(gene1), str(gene3)], ["gene1", "gene3"]
+    )
+    assert "taxonB" in set(ids3) - set(gene_taxa3[1][1])
+
+
+def test_concatenate_rejects_duplicate_taxon_ids(tmp_path):
+    # Duplicate IDs in any input file must fail the Run path, not silently
+    # drop sequences via dict collision.
+    gene1 = tmp_path / "dup.fasta"
+    gene1.write_text(
+        ">taxonA first copy\nACGT\n>taxonB\nTTGG\n>taxonA second copy\nAAAA\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Duplicate sequence ID"):
+        _concatenate_alignments([str(gene1)], ["gene1"])
 
 
 # ── Format-aware completion summary ───────────────────────────────────────

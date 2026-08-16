@@ -735,15 +735,22 @@ def test_mafft_worker_emits_aligned_fasta_with_auto_strategy(monkeypatch, tmp_pa
     commands = []
     results = []
 
-    def fake_run(cmd, *args, **kwargs):
-        commands.append(cmd)
-        return SimpleNamespace(
-            returncode=0,
-            stdout=">seq1\nATG-C\n>seq2\nATGTC\n",
-            stderr="",
-        )
+    class _FakePopen:
+        def __init__(self, cmd, **kwargs):
+            commands.append(cmd)
+            self.returncode = 0
+            self.pid = 0
 
-    monkeypatch.setattr("modules.mafft_alignment_tab.subprocess.run", fake_run)
+        def poll(self):
+            return self.returncode
+
+        def communicate(self, timeout=None):
+            return ">seq1\nATG-C\n>seq2\nATGTC\n", ""
+
+        def wait(self, timeout=None):
+            return self.returncode
+
+    monkeypatch.setattr("modules.mafft_alignment_tab.subprocess.Popen", _FakePopen)
     worker.finished.connect(results.append)
 
     worker.run()
@@ -1614,3 +1621,50 @@ def test_phylo_tabs_status_bar_button_sizes_unified(qapp):
                     type(tab).__name__,
                     widget.text(),
                 )
+
+
+def test_msa_rejects_duplicate_input_headers_before_alignment(qapp, monkeypatch):
+    # Duplicate headers must fail loudly instead of the dict parser silently
+    # keeping only the last copy of each sequence.
+    from modules.multiple_sequence_alignment_tab import (
+        _find_duplicate_headers,
+        _reject_duplicate_headers,
+    )
+
+    dup_text = ">seqA\nATGC\n>seqB\nTTTT\n>seqA\nGGGG\n"
+    assert _find_duplicate_headers(dup_text) == ["seqA"]
+    assert _find_duplicate_headers(">seqA\nATGC\n>seqB\nTTTT\n") == []
+
+    with pytest.raises(ValueError, match="duplicate sequence header"):
+        _reject_duplicate_headers(dup_text, "input.fasta")
+
+    # Unique input passes
+    _reject_duplicate_headers(">seqA\nATGC\n>seqB\nTTTT\n", "input.fasta")
+
+
+def test_msa_batch_worker_rejects_duplicate_headers(tmp_path):
+    from modules.multiple_sequence_alignment_tab import _MuscleBatchWorker
+
+    dup = tmp_path / "dup.fasta"
+    dup.write_text(">seqA\nATGC\n>seqB\nTTTT\n>seqA\nGGGG\n", encoding="utf-8")
+    # Batch mode summarizes per-file failures in its finished message, so the
+    # exe never runs — a marker file is enough to pass the isfile check.
+    muscle_exe = tmp_path / "muscle.exe"
+    muscle_exe.write_text("", encoding="utf-8")
+
+    worker = _MuscleBatchWorker(
+        input_files=[str(dup)],
+        output_dir=str(tmp_path / "out"),
+        method="fast",
+        threads=1,
+        muscle_exe=str(muscle_exe),
+        output_mode="FASTA (aligned)",
+        naming_pattern="{stem}_{method}.{ext}",
+        overwrite=True,
+    )
+    messages = []
+    worker.finished.connect(messages.append)
+    worker.run()
+
+    assert messages and "duplicate sequence header" in messages[0]
+    assert "seqA" in messages[0]

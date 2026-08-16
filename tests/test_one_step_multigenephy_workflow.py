@@ -594,44 +594,50 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
     def fake_resource_path(*parts):
         return resource_paths[parts]
 
-    def fake_run(
-        cmd,
-        stdout=None,
-        stderr=None,
-        text=None,
-        encoding=None,
-        errors=None,
-        creationflags=None,
-        cwd=None,
-    ):
-        calls.append({"cmd": list(cmd), "creationflags": creationflags, "cwd": cwd})
-        executable_name = Path(cmd[0]).name.lower()
-        if executable_name == "mafft.bat":
-            return type(
-                "Result",
-                (),
-                {
-                    "returncode": 0,
-                    "stdout": ">strain_a\nAA-\n>strain_b\nAT-\n",
-                    "stderr": "",
-                },
-            )()
-        if executable_name == "trimal.exe":
-            output_path = Path(cmd[cmd.index("-out") + 1])
-            output_path.write_text(
-                ">strain_a\nAA\n>strain_b\nAT\n",
-                encoding="utf-8",
-            )
-            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
-        if executable_name == "iqtree3.exe":
-            prefix = cmd[cmd.index("--prefix") + 1]
-            Path(f"{prefix}.treefile").write_text("(strain_a,strain_b);\n", encoding="utf-8")
-            return type("Result", (), {"returncode": 0, "stdout": "ok", "stderr": ""})()
-        raise AssertionError(f"Unexpected command: {cmd}")
+    def make_fake_popen():
+        class _FakeStream:
+            def __init__(self, text):
+                self._lines = text.splitlines(keepends=True)
+
+            def __iter__(self):
+                return iter(self._lines)
+
+        class _FakePopen:
+            def __init__(self, cmd, stdout=None, stderr=None, text=None,
+                         encoding=None, errors=None, creationflags=None, cwd=None):
+                calls.append({"cmd": list(cmd), "creationflags": creationflags, "cwd": cwd})
+                executable_name = Path(cmd[0]).name.lower()
+                if executable_name == "mafft.bat":
+                    self._stdout_text = ">strain_a\nAA-\n>strain_b\nAT-\n"
+                elif executable_name == "trimal.exe":
+                    output_path = Path(cmd[cmd.index("-out") + 1])
+                    output_path.write_text(
+                        ">strain_a\nAA\n>strain_b\nAT\n",
+                        encoding="utf-8",
+                    )
+                    self._stdout_text = ""
+                elif executable_name == "iqtree3.exe":
+                    prefix = cmd[cmd.index("--prefix") + 1]
+                    Path(f"{prefix}.treefile").write_text("(strain_a,strain_b);\n", encoding="utf-8")
+                    self._stdout_text = "ok"
+                else:
+                    raise AssertionError(f"Unexpected command: {cmd}")
+                self.returncode = 0
+                self.stdout = _FakeStream(self._stdout_text)
+                self.stderr = _FakeStream("")
+                self.pid = 0
+
+            def poll(self):
+                return self.returncode
+
+            def wait(self, timeout=None):
+                return self.returncode
+
+        return _FakePopen
 
     monkeypatch.setattr(workflow_module, "tool_path_from_config", lambda section, key: None)
     monkeypatch.setattr(workflow_module, "resource_path", fake_resource_path)
-    monkeypatch.setattr(workflow_module.subprocess, "run", fake_run)
+    monkeypatch.setattr(workflow_module.subprocess, "Popen", make_fake_popen())
 
     adapters = build_default_tool_adapters()
 
@@ -795,9 +801,11 @@ def test_runner_skips_fetch_align_trim_when_outputs_exist(tmp_path):
     normalized = run_dir / "01_normalized"
     trimmed = run_dir / "03_trimmed"
     concat = run_dir / "04_concat"
+    reports = run_dir / "06_reports"
     normalized.mkdir(parents=True)
     trimmed.mkdir(parents=True)
     concat.mkdir(parents=True)
+    reports.mkdir(parents=True)
     (normalized / "ITS.fasta").write_text(
         ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
     )
@@ -822,6 +830,12 @@ def test_runner_skips_fetch_align_trim_when_outputs_exist(tmp_path):
         GeneCell("strain_a", "ITS", "MK123", "accession", accession="MK123"),
         GeneCell("strain_b", "ITS", "MK124", "accession", accession="MK124"),
     ]
+
+    # Resume reuse requires a manifest fingerprint matching the current inputs
+    fingerprint = workflow_module._project_fingerprint(project, cells, ["strain_a", "strain_b"])
+    workflow_module.write_run_manifest(
+        reports / "run_manifest.json", {"input_fingerprint": fingerprint}
+    )
 
     def _boom(*args, **kwargs):
         raise AssertionError("adapter should not be called when skipping")
@@ -850,7 +864,9 @@ def test_runner_skips_fetch_align_trim_when_outputs_exist(tmp_path):
 def test_runner_align_mode_skips_fetch_but_runs_align_trim(tmp_path):
     run_dir = tmp_path / "run"
     normalized = run_dir / "01_normalized"
+    reports = run_dir / "06_reports"
     normalized.mkdir(parents=True)
+    reports.mkdir(parents=True)
     (normalized / "ITS.fasta").write_text(
         ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
     )
@@ -868,6 +884,11 @@ def test_runner_align_mode_skips_fetch_but_runs_align_trim(tmp_path):
         GeneCell("strain_a", "ITS", "MK123", "accession", accession="MK123"),
         GeneCell("strain_b", "ITS", "MK124", "accession", accession="MK124"),
     ]
+
+    fingerprint = workflow_module._project_fingerprint(project, cells, ["strain_a", "strain_b"])
+    workflow_module.write_run_manifest(
+        reports / "run_manifest.json", {"input_fingerprint": fingerprint}
+    )
 
     calls = []
 
@@ -899,6 +920,111 @@ def test_runner_align_mode_skips_fetch_but_runs_align_trim(tmp_path):
     assert result.step_status["Fetch/Normalize"] == "skipped"
     assert result.step_status["Align per Gene"] == "succeeded"
     assert result.step_status["Trim per Gene"] == "succeeded"
+
+
+def test_runner_resume_falls_back_to_scratch_on_fingerprint_mismatch(tmp_path):
+    run_dir = tmp_path / "run"
+    normalized = run_dir / "01_normalized"
+    reports = run_dir / "06_reports"
+    normalized.mkdir(parents=True)
+    reports.mkdir(parents=True)
+    (normalized / "ITS.fasta").write_text(
+        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
+    )
+    # Manifest recorded for different inputs (stale fingerprint)
+    workflow_module.write_run_manifest(
+        reports / "run_manifest.json", {"input_fingerprint": "stale-value"}
+    )
+
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(run_dir),
+        ncbi_email="user@example.com",
+        resume_mode="align",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "ATGC", "sequence", normalized_sequence="ATGC"),
+        GeneCell("strain_b", "ITS", "ATGA", "sequence", normalized_sequence="ATGA"),
+    ]
+
+    calls = []
+
+    def fetch_accession(accession, email):
+        calls.append("fetch")
+        return "ATGC"
+
+    def run_alignment(gene_name, sequences, output_dir, mode):
+        calls.append("align")
+        return dict(sequences), str(tmp_path / f"{gene_name}.aln")
+
+    def run_trimming(gene_name, sequences, output_dir, mode):
+        calls.append("trim")
+        return dict(sequences), str(tmp_path / f"{gene_name}.trimmed.fasta")
+
+    adapters = ToolAdapters(
+        fetch_accession=fetch_accession,
+        run_alignment=run_alignment,
+        run_trimming=run_trimming,
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
+            str(tmp_path / "final.treefile")
+        ),
+    )
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    # Stale fingerprint → full re-run, no silent reuse of old files
+    assert calls == ["align", "trim"]  # fetch still skipped: cells are pasted sequences
+    assert "Fetch/Normalize" in result.step_status
+    assert any("resume disabled" in warning for warning in result.warnings)
+
+
+def test_runner_resume_without_manifest_falls_back_to_scratch(tmp_path):
+    run_dir = tmp_path / "run"
+    normalized = run_dir / "01_normalized"
+    normalized.mkdir(parents=True)
+    (normalized / "ITS.fasta").write_text(
+        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
+    )
+    # No run_manifest.json at all — reuse must not happen silently.
+
+    project = ProjectInput(
+        excel_path="input.xlsx",
+        sheet_name="Sheet1",
+        strain_column="Strain",
+        gene_columns=["ITS"],
+        output_dir=str(run_dir),
+        ncbi_email="user@example.com",
+        resume_mode="align",
+    )
+    cells = [
+        GeneCell("strain_a", "ITS", "ATGC", "sequence", normalized_sequence="ATGC"),
+        GeneCell("strain_b", "ITS", "ATGA", "sequence", normalized_sequence="ATGA"),
+    ]
+
+    adapters = ToolAdapters(
+        fetch_accession=lambda accession, email: "ATGC",
+        run_alignment=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.aln"),
+        ),
+        run_trimming=lambda gene_name, sequences, output_dir, mode: (
+            dict(sequences),
+            str(tmp_path / f"{gene_name}.trimmed.fasta"),
+        ),
+        run_iqtree=lambda concat_path, partition_path, output_dir, bootstrap, threads, bootstrap_mode="ufboot": (
+            str(tmp_path / "final.treefile")
+        ),
+    )
+    runner = OneStepMultiGenePhyRunner(adapters=adapters)
+
+    result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+
+    assert any("resume disabled" in warning for warning in result.warnings)
+    assert result.step_status["Align per Gene"] == "succeeded"  # re-ran, not skipped
 
 
 def test_runner_reports_fetch_failure_aggregate_warning(tmp_path):

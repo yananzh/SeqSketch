@@ -690,10 +690,10 @@ class DistanceTreeTab(BaseTabWidget):
 
         for i in range(n):
             for j in range(n):
-                val = 1.0 if i == j else matrix[i][j]
+                val = matrix[i][j]
                 item = QTableWidgetItem(f"{val:.4f}")
                 item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-                # Color-code off-diagonal only; diagonal stays unstyled
+                # Color-code off-diagonal only; the zero diagonal stays unstyled
                 if i != j:
                     intensity = int(255 * (1 - val / max_dist))
                     if intensity > 250:
@@ -726,13 +726,8 @@ class DistanceTreeTab(BaseTabWidget):
             if ext == ".xlsx":
                 import pandas as pd
 
-                # Replace diagonal 0→1 to match table display
-                xlsx_data = [
-                    [1.0 if i == j else v for j, v in enumerate(row)]
-                    for i, row in enumerate(self._matrix_data)
-                ]
                 df = pd.DataFrame(
-                    xlsx_data,
+                    self._matrix_data,
                     index=self._names,
                     columns=self._names,
                 )
@@ -742,8 +737,7 @@ class DistanceTreeTab(BaseTabWidget):
                     f.write("taxa," + ",".join(self._names) + "\n")
                     for i, name in enumerate(self._names):
                         row_vals = [
-                            "1.000000" if i == j else f"{v:.6f}"
-                            for j, v in enumerate(self._matrix_data[i])
+                            f"{v:.6f}" for v in self._matrix_data[i]
                         ]
                         f.write(name + "," + ",".join(row_vals) + "\n")
             self.log_message(self.tr(f"Matrix exported → {path}"))

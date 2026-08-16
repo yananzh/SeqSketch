@@ -63,7 +63,7 @@ H2O = 18.01056
 
 def _cuts_after(seq, residues, block_before="P"):
     """Return cut positions (0-based, after cleavage) for residues NOT followed by block_before."""
-    cuts = []
+    cuts = [0]
     for i, aa in enumerate(seq[:-1]):
         if aa in residues and seq[i + 1] not in block_before:
             cuts.append(i + 1)

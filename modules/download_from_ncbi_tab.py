@@ -1,4 +1,5 @@
 import os
+import socket
 import time
 from collections import Counter
 from datetime import datetime
@@ -57,9 +58,22 @@ def report_path_for_output(output_path: str) -> str:
     return f"{base}_download_report.txt"
 
 
-def fetch_batch_with_retries(entrez_module, db: str, batch: list[str], retry_count: int):
+def fetch_batch_with_retries(
+    entrez_module,
+    db: str,
+    batch: list[str],
+    retry_count: int,
+    is_cancelled=None,
+):
+    """Fetch one batch, retrying transient network errors with backoff.
+
+    is_cancelled (optional, no-arg callable) is polled between attempts and
+    during backoff waits so a stuck download can be stopped promptly.
+    """
     last_error = None
     for attempt in range(retry_count + 1):
+        if is_cancelled is not None and is_cancelled():
+            raise _DownloadCancelled()
         try:
             with entrez_module.efetch(
                 db=db,
@@ -70,10 +84,28 @@ def fetch_batch_with_retries(entrez_module, db: str, batch: list[str], retry_cou
                 return handle.read(), attempt
         except URLError as exc:
             last_error = exc
+            if attempt < retry_count:
+                _sleep_backoff(2**attempt * 0.5, is_cancelled)
         except Exception as exc:
             last_error = exc
             break
     raise last_error
+
+
+class _DownloadCancelled(Exception):
+    """Raised inside fetch_batch_with_retries when the user cancels."""
+
+
+def _sleep_backoff(seconds: float, is_cancelled=None):
+    """Sleep in short slices so a cancel is noticed within ~0.2s."""
+    import time as _time
+
+    remaining = seconds
+    while remaining > 0:
+        if is_cancelled is not None and is_cancelled():
+            raise _DownloadCancelled()
+        _time.sleep(min(0.2, remaining))
+        remaining -= 0.2
 
 
 def write_download_report(output_path: str, report: dict):
@@ -145,73 +177,90 @@ class _NcbiDownloadWorker(QObject):
 
         Entrez.email = self._email
 
+        # Without a socket timeout a stalled efetch blocks this worker forever
+        # and the Stop button never takes effect.
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(60)
+
         batches = split_batches(self._acc_list, self._batch_size)
         fasta_chunks: list[str] = []
         failed_accessions: list[str] = []
         error_messages: list[str] = []
         batches_succeeded = 0
+        cancelled = False
 
-        for batch_index, batch in enumerate(batches, start=1):
-            if self._cancel:
-                self.cancelled.emit()
-                return
+        try:
+            for batch_index, batch in enumerate(batches, start=1):
+                if self._cancel:
+                    cancelled = True
+                    break
 
-            self.progress.emit(batch_index, len(batches))
+                self.progress.emit(batch_index, len(batches))
 
-            # NCBI asks for ~3 requests/second without an API key.
-            if batch_index > 1:
-                time.sleep(0.34)
+                # NCBI asks for ~3 requests/second without an API key.
+                if batch_index > 1:
+                    time.sleep(0.34)
 
-            try:
-                fasta_data, retry_attempts_used = fetch_batch_with_retries(
-                    Entrez, self._db, batch, self._retry_count
-                )
-            except URLError as e:
-                failed_accessions.extend(batch)
-                error_messages.append(f"Batch {batch_index}: Network error: {e}")
-                self.log_message.emit(
-                    f"Network error after {self._retry_count + 1} attempt(s) "
-                    f"for batch {batch_index}: {e}",
-                    "ERROR",
-                )
-                continue
-            except Exception as e:
-                failed_accessions.extend(batch)
-                error_messages.append(f"Batch {batch_index}: NCBI download error: {e}")
-                self.log_message.emit(f"NCBI download error in batch {batch_index}: {e}", "ERROR")
-                continue
+                try:
+                    fasta_data, retry_attempts_used = fetch_batch_with_retries(
+                        Entrez, self._db, batch, self._retry_count,
+                        is_cancelled=lambda: self._cancel,
+                    )
+                except _DownloadCancelled:
+                    cancelled = True
+                    break
+                except URLError as e:
+                    failed_accessions.extend(batch)
+                    error_messages.append(f"Batch {batch_index}: Network error: {e}")
+                    self.log_message.emit(
+                        f"Network error after {self._retry_count + 1} attempt(s) "
+                        f"for batch {batch_index}: {e}",
+                        "ERROR",
+                    )
+                    continue
+                except Exception as e:
+                    failed_accessions.extend(batch)
+                    error_messages.append(f"Batch {batch_index}: NCBI download error: {e}")
+                    self.log_message.emit(f"NCBI download error in batch {batch_index}: {e}", "ERROR")
+                    continue
 
-            if retry_attempts_used:
-                self.log_message.emit(
-                    f"Batch {batch_index} succeeded after {retry_attempts_used + 1} attempt(s)",
-                    "WARNING",
-                )
+                if retry_attempts_used:
+                    self.log_message.emit(
+                        f"Batch {batch_index} succeeded after {retry_attempts_used + 1} attempt(s)",
+                        "WARNING",
+                    )
 
-            if not fasta_data.strip() or "Error" in fasta_data or "not found" in fasta_data:
-                failed_accessions.extend(batch)
-                error_messages.append(f"Batch {batch_index}: empty or error response from NCBI")
-                self.log_message.emit(
-                    f"Batch {batch_index} returned no usable sequence data. "
-                    "Check DB type and accessions.",
-                    "ERROR",
-                )
-                continue
+                if not fasta_data.strip() or "Error" in fasta_data or "not found" in fasta_data:
+                    failed_accessions.extend(batch)
+                    error_messages.append(f"Batch {batch_index}: empty or error response from NCBI")
+                    self.log_message.emit(
+                        f"Batch {batch_index} returned no usable sequence data. "
+                        "Check DB type and accessions.",
+                        "ERROR",
+                    )
+                    continue
 
-            fasta_chunks.append(fasta_data.strip())
-            batches_succeeded += 1
+                fasta_chunks.append(fasta_data.strip())
+                batches_succeeded += 1
 
-            returned_headers = parse_fasta_headers(fasta_data)
-            returned_keys = {header.casefold() for header in returned_headers}
-            batch_missing = [
-                accession for accession in batch if accession.casefold() not in returned_keys
-            ]
-            if batch_missing:
-                failed_accessions.extend(batch_missing)
-                preview = ", ".join(batch_missing[:5])
-                self.log_message.emit(
-                    f"Batch {batch_index} may have missing accession(s): {preview}",
-                    "WARNING",
-                )
+                returned_headers = parse_fasta_headers(fasta_data)
+                returned_keys = {header.casefold() for header in returned_headers}
+                batch_missing = [
+                    accession for accession in batch if accession.casefold() not in returned_keys
+                ]
+                if batch_missing:
+                    failed_accessions.extend(batch_missing)
+                    preview = ", ".join(batch_missing[:5])
+                    self.log_message.emit(
+                        f"Batch {batch_index} may have missing accession(s): {preview}",
+                        "WARNING",
+                    )
+        finally:
+            socket.setdefaulttimeout(old_timeout)
+
+        if cancelled:
+            self.cancelled.emit()
+            return
 
         fasta_data = "\n".join(chunk for chunk in fasta_chunks if chunk)
         report = {

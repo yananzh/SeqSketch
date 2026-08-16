@@ -371,3 +371,78 @@ def test_local_blast_actions_place_primary_action_left_of_help(qapp, monkeypatch
     assert tab._run_tab.run_btn.text() == "Run"
     # Run left of Help in the status bar
     assert tab._run_tab.run_btn.x() < tab.help_btn.x()
+
+
+# ── blast_run_dialog: outfmt header handling ─────────────────────────────
+
+
+def _run_dialog_with_fake_blast(monkeypatch, tmp_path, outfmt, blast_output):
+    """Run _RunBlastThread with a fake Popen that produces blast_output."""
+    import subprocess
+
+    from modules.blast_run_dialog import _RunBlastThread
+
+    out_file = str(tmp_path / f"out_{outfmt.split()[0]}.txt")
+
+    class _FakePopen:
+        def __init__(self, cmd, **kwargs):
+            # Write the fake BLAST result into the "-out" temp file
+            tmp_out = cmd[cmd.index("-out") + 1]
+            with open(tmp_out, "w", encoding="utf-8") as f:
+                f.write(blast_output)
+            self.returncode = 0
+
+        def communicate(self, timeout=None):
+            return "", ""
+
+        def poll(self):
+            return self.returncode
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(
+        "modules.blast_run_dialog.subprocess.Popen", _FakePopen
+    )
+
+    thread = _RunBlastThread(
+        bin_dir=str(tmp_path),
+        program="blastn",
+        db=str(tmp_path / "db"),
+        evalue="1e-5",
+        query_seq=">q\nACGT\n",
+        out_file=out_file,
+        num_threads=1,
+        num_hits=10,
+        outfmt=outfmt,
+    )
+    results = []
+    thread.finished.connect(lambda *args: results.append(args))
+    thread.run()
+    return out_file, results
+
+
+def test_blast_run_dialog_tsv_outfmt_writes_header(monkeypatch, tmp_path):
+    out_file, results = _run_dialog_with_fake_blast(
+        monkeypatch, tmp_path,
+        "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
+        "hit1\thit2\n",
+    )
+    assert results == [(True, out_file, "")]
+    content = open(out_file, encoding="utf-8").read()
+    assert content.startswith("qseqid\tsseqid\tpident")
+    assert content.endswith("hit1\thit2\n")
+
+
+def test_blast_run_dialog_pairwise_and_xml_outfmt_have_no_header(monkeypatch, tmp_path):
+    for outfmt, payload in [
+        ("0", "Query= q\nLength=4\n"),
+        ("5", '<?xml version="1.0"?>\n<BlastOutput/>'),
+    ]:
+        out_file, results = _run_dialog_with_fake_blast(
+            monkeypatch, tmp_path, outfmt, payload
+        )
+        assert results == [(True, out_file, "")]
+        content = open(out_file, encoding="utf-8").read()
+        assert content == payload
+        assert not content.startswith("qseqid")

@@ -33,6 +33,7 @@ from utils.common_components import (
     validate_input_path,
 )
 from utils.example_data import stage_example
+from utils.process_control import kill_process_tree
 
 
 def _resolve_iqtree_exe() -> str:
@@ -83,13 +84,10 @@ class _IqTreeThread(QThread):
         self._killed = False
 
     def stop(self):
-        """Terminate the running process."""
+        """Terminate the running process tree (iqtree may spawn workers)."""
         self._killed = True
         if self._proc:
-            try:
-                self._proc.kill()
-            except OSError:
-                pass
+            kill_process_tree(self._proc)
 
     def run(self):
         self.progress.emit("IQ-TREE running…")

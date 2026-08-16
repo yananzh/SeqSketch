@@ -328,6 +328,26 @@ def test_extract_by_id_case_insensitive_query_order_and_missing_report(
     assert "Missing ID report saved to:" in log_text(tab)
 
 
+def test_extract_by_id_contains_query_order_emits_each_record_once(
+    qapp, sample_fasta_file: Path, tmp_path: Path
+):
+    # A record matching two queries ("seq" and "seq1" both substring-match
+    # seq1's header) must be emitted exactly once.
+    output_path = tmp_path / "extracted_contains_dedup.fasta"
+    tab = ExtractByIDTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.output_edit.setText(str(output_path))
+    tab.id_edit.setPlainText("seq1\nseq")
+    tab.match_mode_combo.setCurrentText("Contains (case-sensitive)")
+    tab.output_order_combo.setCurrentText("Preserve Query Order")
+    tab.run_extract()
+
+    assert output_path.exists()
+    headers = fasta_headers(output_path)
+    assert headers.count("seq1 alpha description") == 1
+
+
 def test_extract_by_id_exclude_mode_keeps_non_requested_records(
     qapp, sample_fasta_file: Path, tmp_path: Path
 ):

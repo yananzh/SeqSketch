@@ -259,6 +259,48 @@ class DataWorker(BaseWorker):
         self.finished.emit(message)
 
 
+def park_qthread(thread: Optional[QThread]):
+    """Detach a possibly still-running QThread without destroying it.
+
+    The thread's reference is dropped, but destruction is deferred to
+    finished→deleteLater so a running QThread is never garbage-collected
+    (which would abort the app with "QThread: Destroyed while thread is
+    still running"). Safe to call with None, non-thread objects, or an
+    already-finished thread.
+    """
+    if thread is None or not hasattr(thread, "isRunning"):
+        return
+    try:
+        if not thread.isRunning():
+            thread.deleteLater()
+            return
+        thread.finished.connect(thread.deleteLater)
+    except RuntimeError:
+        # C++ object already deleted — nothing left to park
+        pass
+
+
+def stop_worker_object(obj) -> bool:
+    """Best-effort stop of a worker thread-like object.
+
+    Calls stop() when present (workers use it to kill subprocesses and set
+    abort flags), then quits a running QThread event loop. Returns True when
+    the object existed and was handled. The caller keeps ownership: for
+    threads that may still be running, pair this with park_qthread().
+    """
+    if obj is None:
+        return False
+    try:
+        if hasattr(obj, "stop"):
+            obj.stop()
+        if hasattr(obj, "isRunning") and obj.isRunning():
+            if hasattr(obj, "quit"):
+                obj.quit()
+        return True
+    except RuntimeError:
+        return False
+
+
 class BaseTabWidget(QWidget):
     """
     Common Tab base class providing unified UI patterns and error handling
@@ -272,6 +314,32 @@ class BaseTabWidget(QWidget):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.init_common_ui()
         self.connect_common_signals()
+
+    def shutdown(self):
+        """Stop background work before the tab is closed.
+
+        MainWindow.close_tab() calls this on every tab. The base implementation
+        stops the shared worker_thread plus the conventional thread/worker
+        attributes used across tabs; subclasses owning other threads or
+        subprocesses must override this and park/stop them too, then call
+        super().shutdown().
+        """
+        stop_worker_object(self.worker_thread)
+        park_qthread(self.worker_thread)
+        self.worker_thread = None
+        for attr_name in ("_thread", "_batch_worker"):
+            thread = getattr(self, attr_name, None)
+            if thread is None:
+                continue
+            stop_worker_object(thread)
+            park_qthread(thread)
+            setattr(self, attr_name, None)
+        for attr_name in ("_worker",):
+            worker = getattr(self, attr_name, None)
+            if worker is not None:
+                stop_worker_object(worker)
+                park_qthread(worker)
+                setattr(self, attr_name, None)
 
     def init_common_ui(self):
         """Initialize common UI components"""
@@ -748,28 +816,6 @@ class FASTAWorker(BaseWorker):
 
 
 # 常用工具函数
-def setup_logging():
-    """设置项目日志"""
-    import logging
-    import os
-    from datetime import datetime
-
-    log_dir = "logs"
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-
-    log_file = os.path.join(log_dir, f"bioseq_{datetime.now().strftime('%Y%m%d')}.log")
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.FileHandler(log_file, encoding="utf-8"),
-            logging.StreamHandler(),
-        ],
-    )
-
-
 def validate_input_path(path: str, file_types: list | None = None) -> tuple[bool, str]:
     """
     验证输入文件路径

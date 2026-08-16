@@ -87,26 +87,29 @@ class MainWindow(QMainWindow):
 
     def close_tab(self, index):
         widget = self.tabs.widget(index)
-        # 安全停止正在运行的 worker 线程，防止 C++ 对象已被销毁后访问崩溃
-        for attr_name in ("worker_thread", "_thread", "_batch_worker"):
-            if not hasattr(widget, attr_name):
-                continue
-            obj = getattr(widget, attr_name)
-            if obj is None:
-                continue
-            try:
-                if hasattr(obj, "stop"):
-                    obj.stop()
-            except RuntimeError:
-                pass
-            try:
-                if hasattr(obj, "isRunning") and obj.isRunning():
-                    if hasattr(obj, "quit"):
-                        obj.quit()
-                    if hasattr(obj, "wait"):
-                        obj.wait(3000)
-            except RuntimeError:
-                pass
+        shutdown = getattr(widget, "shutdown", None)
+        if callable(shutdown):
+            # Preferred path: the tab stops its own threads/processes.
+            shutdown()
+        else:
+            # Legacy fallback for tabs that are not BaseTabWidget subclasses.
+            for attr_name in ("worker_thread", "_thread", "_batch_worker"):
+                obj = getattr(widget, attr_name, None)
+                if obj is None:
+                    continue
+                try:
+                    if hasattr(obj, "stop"):
+                        obj.stop()
+                except RuntimeError:
+                    pass
+                try:
+                    if hasattr(obj, "isRunning") and obj.isRunning():
+                        if hasattr(obj, "quit"):
+                            obj.quit()
+                        if hasattr(obj, "wait"):
+                            obj.wait(3000)
+                except RuntimeError:
+                    pass
         self.tabs.removeTab(index)
         widget.deleteLater()
 
