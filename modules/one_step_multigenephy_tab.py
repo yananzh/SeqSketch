@@ -37,7 +37,12 @@ from modules.one_step_multigenephy_workflow import (
     _trimal_executable,
     build_default_tool_adapters,
 )
-from utils.common_components import BaseTabWidget, unify_status_button_sizes, validate_input_path
+from utils.common_components import (
+    BaseTabWidget,
+    apply_input_list_style,
+    unify_status_button_sizes,
+    validate_input_path,
+)
 
 
 def _wrap_layout(layout) -> QWidget:
@@ -93,6 +98,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.gene_list.setWrapping(True)
         self.gene_list.setResizeMode(QListView.ResizeMode.Adjust)
         self.gene_list.setIconSize(QSize(0, 0))
+        apply_input_list_style(self.gene_list)
         # Pre-layout fallback; showEvent re-syncs to the actual styled height.
         self.gene_list.setMaximumHeight(self.excel_path_edit.sizeHint().height())
         self.gene_list.setToolTip(

@@ -31,7 +31,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import resource_path, tool_path_from_config
-from utils.common_components import BaseTabWidget, BaseWorker
+from utils.common_components import BaseTabWidget, BaseWorker, apply_input_list_style
 from utils.example_data import load_example_text, stage_example
 from utils.process_control import kill_process_tree
 
@@ -658,6 +658,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
         self.batch_files_list = QListWidget()
         self.batch_files_list.setMinimumHeight(80)
+        apply_input_list_style(self.batch_files_list)
         bl.addWidget(self.batch_files_list)
 
         # --- Batch Parameters QGroupBox (includes output dir + naming) ---

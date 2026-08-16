@@ -32,7 +32,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import resource_path, tool_path_from_config, user_data_file
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, apply_input_list_style
 from utils.example_data import load_example_text, stage_example
 
 # Per-user config file where the user-selected MUSCLE path is persisted.
@@ -650,6 +650,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         self.batch_files_list = QListWidget()
         self.batch_files_list.setMinimumHeight(80)
+        apply_input_list_style(self.batch_files_list)
         bl.addWidget(self.batch_files_list)
 
         # --- Batch Parameters QGroupBox (includes output dir + naming) ---

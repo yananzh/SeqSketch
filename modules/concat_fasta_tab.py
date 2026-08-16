@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, apply_input_list_style
 
 
 class ConcatFastaTab(BaseTabWidget):
@@ -40,6 +40,7 @@ class ConcatFastaTab(BaseTabWidget):
         self.file_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         self.file_list.setMinimumHeight(100)
         self.file_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        apply_input_list_style(self.file_list)
         input_main.addWidget(self.file_list)
 
         file_btn_row = QHBoxLayout()

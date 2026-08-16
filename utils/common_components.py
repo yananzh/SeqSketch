@@ -163,6 +163,21 @@ def apply_sequence_editor_style(editor: QTextEdit) -> None:
     editor.viewport().setStyleSheet("background: transparent;")
 
 
+def apply_input_list_style(list_widget) -> None:
+    """Give a QListWidget a clearly visible rounded border matching the
+    app's sequence-editor panels (#94a3b8).
+
+    Keep the rule minimal on purpose: on the real Windows backend, adding
+    padding/background to an item view's stylesheet makes the border
+    disappear (the opaque viewport overpaints it) or bleeds the border color
+    into the content area. Verified against the windows platform: only a
+    bare `border` (+ border-radius) declaration renders reliably.
+    """
+    list_widget.setStyleSheet(
+        "QListWidget { border: 1px solid #94a3b8; border-radius: 4px; }"
+    )
+
+
 def apply_transparent_text_edit_background(editor: QTextEdit) -> None:
     style = editor.styleSheet()
     style = style.replace("background: #ffffff;", "")
