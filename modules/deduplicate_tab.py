@@ -50,8 +50,8 @@ class DeduplicateTab(BaseTabWidget):
         self.example_btn.setFixedWidth(90)
         self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
-        input_layout.addWidget(self.input_btn)
         input_layout.addWidget(self.example_btn)
+        input_layout.addWidget(self.input_btn)
 
         # ── Options ──
         opts_group = QGroupBox("Deduplication Options")

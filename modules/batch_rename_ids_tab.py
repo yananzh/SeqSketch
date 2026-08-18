@@ -234,8 +234,8 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.example_btn.setFixedWidth(90)
         self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
-        input_layout.addWidget(self.input_btn)
         input_layout.addWidget(self.example_btn)
+        input_layout.addWidget(self.input_btn)
 
         # ── ID Mapping ──
         mapping_group = QGroupBox("ID Mapping")
@@ -368,20 +368,23 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.show_status("Input file selected")
 
     def _load_example(self):
-        """Load the bundled cytb teaching example into the input field."""
+        """Load the bundled cytb teaching example (FASTA + ID mapping file)."""
         from PyQt6.QtWidgets import QMessageBox
 
         from utils.example_data import stage_example
 
-        path = stage_example("phylo", "cytb_cds_raw.fasta")
-        if not path:
+        fasta_path = stage_example("phylo", "cytb_cds_raw.fasta")
+        mapping_path = stage_example("dna", "cytb_id_mapping.xlsx")
+        if not fasta_path or not mapping_path:
             QMessageBox.information(
                 self,
                 self.tr("Example"),
                 self.tr("Failed to load example data. The installation may be incomplete."),
             )
             return
-        self.handle_input_file_selected(path)
+        self.handle_input_file_selected(fasta_path)
+        self.handle_mapping_file_selected(mapping_path)
+        self.show_status(self.tr("已载入示例数据: cytb_cds_raw.fasta + cytb_id_mapping.xlsx"))
 
     def select_mapping_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -811,6 +814,8 @@ mapping, whether it was applied, and why.</li>
 
 <h3>Tips</h3>
 <ul>
+<li>Click <b>Example</b> to load the bundled cytb FASTA plus a ready-made
+ID mapping file (Excel, <code>old_id → new_id</code>) — great for a first try.</li>
 <li>Always <b>Preview</b> before running — mapping errors are easy to miss.</li>
 <li>Only the primary FASTA ID (the part before the first space) is replaced;
 descriptions are preserved.</li>

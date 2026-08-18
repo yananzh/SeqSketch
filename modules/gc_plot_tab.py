@@ -90,8 +90,8 @@ class GCPlotTab(BaseTabWidget):
         row.addWidget(self.input_path_edit, 1)
         self.browse_btn = QPushButton(self.tr("Browse"))
         self.browse_btn.clicked.connect(self._browse_input_file)
-        row.addWidget(self.browse_btn)
         row.addWidget(self.example_btn)
+        row.addWidget(self.browse_btn)
         ig_layout.insertLayout(1, row)
 
     def _browse_input_file(self):

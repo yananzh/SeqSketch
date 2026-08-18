@@ -316,6 +316,8 @@ def test_rename_ids_example_fills_input_edit(qapp):
     btn.click()
     assert tab.input_edit.text().strip() != ""
     assert os.path.isfile(tab.input_edit.text().strip())
+    assert tab.mapping_edit.text().strip() != ""
+    assert os.path.isfile(tab.mapping_edit.text().strip())
 
 
 def test_deduplicate_example_fills_input_edit(qapp):
