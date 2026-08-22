@@ -245,13 +245,13 @@ class TranslateTab(BaseTabWidget):
 
 <p><b>What does this tool do?</b><br>
 It translates DNA or RNA coding sequences into their corresponding amino acid
-(protein) sequences using the standard genetic code. Supports all six reading
+(protein) sequences using a selectable genetic code (11 NCBI tables). Supports all six reading
 frames and both 1-letter and 3-letter amino acid notation.</p>
 
 <h3>Quick Start</h3>
 <ol>
 <li>Paste your coding sequence or drag-and-drop a FASTA file</li>
-<li>Select a <b>Reading Frame</b> (default +1 works for most CDS inputs)</li>
+<li>Select a <b>Reading Frame</b> (default +1 works for most CDS (coding sequence) inputs)</li>
 <li>Choose <b>Amino Acid Format</b> (1-letter or 3-letter)</li>
 <li>Click <b>Run</b> to translate</li>
 <li>Export or copy the protein sequence</li>
@@ -262,7 +262,7 @@ frames and both 1-letter and 3-letter amino acid notation.</p>
 <tr><td><b>Your sequence</b></td><td><b>&rarr; Choose</b></td></tr>
 <tr><td>A complete CDS starting at the first nucleotide</td><td>&rarr; <b>+1</b></td></tr>
 <tr><td>Genomic DNA &mdash; you don't know where the CDS starts</td><td>&rarr; try all 6 frames with <b>ORF Finder</b></td></tr>
-<tr><td>You have the reverse-complemented sequence</td><td>&rarr; <b>-1, -2, or -3</b></td></tr>
+<tr><td>Your gene is on the reverse strand (translated 5'&rarr;3' off the reverse complement)</td><td>&rarr; <b>-1, -2, or -3</b></td></tr>
 </table>
 
 <h3>Amino Acid Formats</h3>

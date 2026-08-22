@@ -82,7 +82,7 @@ class DeduplicateTab(BaseTabWidget):
         opts_layout.addWidget(self.case_insensitive_checkbox)
         self.export_removed_checkbox = QCheckBox("Export removed")
         self.export_removed_checkbox.setToolTip(
-            "Save the sequences that were removed to a separate _removed.fasta file"
+            "Save the removed sequences to a companion _removed file (same extension as the output)"
         )
         opts_layout.addWidget(self.export_removed_checkbox)
         opts_layout.addStretch()
@@ -415,11 +415,11 @@ Useful when you have partial/truncated duplicates.</li>
 
 <h3>Extra Options</h3>
 <ul>
-<li><b>Case-insensitive ID matching</b> &mdash; treat 'GeneA' and 'genea'
+<li><b>Ignore case</b> &mdash; treat 'GeneA' and 'genea'
 as the same ID. Only visible in Sequence ID mode.</li>
-<li><b>Export removed sequences</b> &mdash; save the sequences that were
-removed to a separate <code>_removed.fasta</code> file so you can
-inspect what was filtered out.</li>
+<li><b>Export removed</b> &mdash; save the sequences that were
+removed to a companion <code>_removed</code> file (same extension as the
+output) so you can inspect what was filtered out.</li>
 </ul>
 
 <h3>Tips</h3>
@@ -428,7 +428,7 @@ inspect what was filtered out.</li>
 <li>Run <b>FASTA Statistics</b> first to check for duplicate IDs in your
 source file &mdash; the duplicate-ID count there matches what this tool
 will find in ID mode.</li>
-<li>Use <b>Export removed sequences</b> when processing unfamiliar data
+<li>Use <b>Export removed</b> when processing unfamiliar data
 so you can verify nothing important was discarded.</li>
 </ul>
         """

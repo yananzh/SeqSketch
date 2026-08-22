@@ -479,7 +479,7 @@ Characters that do not belong to standard nucleotide or protein alphabets
 break alignment and analysis tools.</p>
 
 <p><b>Duplicate IDs</b><br>
-How many sequence IDs appear more than once. Duplicate IDs confuse many
+How many extra records share an ID with an earlier record (one ID appearing three times adds 2). Duplicate IDs confuse many
 bioinformatics tools and should usually be resolved before further analysis.</p>
 
 <h3>Example Input</h3>

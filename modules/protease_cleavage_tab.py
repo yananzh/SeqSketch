@@ -457,6 +457,16 @@ It performs an <i>in silico</i> digestion of a protein sequence with a
 selected protease (or chemical reagent), producing a list of predicted
 fragments with their positions, lengths, and molecular weights.</p>
 
+<h3>Quick Start</h3>
+<ol>
+<li>Paste a protein sequence (raw or FASTA) into the input box, or click
+<b>Example</b> to load one.</li>
+<li>Choose a <b>protease</b> (e.g. Trypsin) and the number of
+<b>missed cleavages</b> to tolerate (0 is the classic in-silico digest).</li>
+<li>Click <b>Digest</b> to list the predicted fragments, then
+<b>Export CSV</b> to save them.</li>
+</ol>
+
 <h3>Available Proteases</h3>
 <ul>
 <li><b>Trypsin</b> &mdash; the workhorse for mass-spec. Cuts after K, R

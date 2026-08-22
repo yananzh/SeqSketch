@@ -413,8 +413,18 @@ class HydrophobicityPlotTab(BaseTabWidget):
 
 <p><b>What does this tool do?</b><br>
 It computes a hydrophobicity score for each residue position using a sliding
-window, then plots the profile along the protein sequence. Positive scores
-indicate hydrophobic regions; negative scores indicate hydrophilic regions.</p>
+window, then plots the profile along the protein sequence. For Kyte-Doolittle-type
+scales, positive scores indicate hydrophobic regions and negative scores
+hydrophilic ones (Hopp-Woods is inverted — see Scales below).</p>
+
+<h3>Quick Start</h3>
+<ol>
+<li>Paste a protein sequence (raw or FASTA) into the input box, or click
+<b>Example</b> to load one.</li>
+<li>Pick a <b>hydrophobicity scale</b> (Kyte-Doolittle is the classic default)
+and a <b>window size</b> (9-15 works well for most proteins).</li>
+<li>Click <b>Run</b> to draw the profile, then <b>Export Plot</b> to save it.</li>
+</ol>
 
 <h3>Scales</h3>
 <ul>

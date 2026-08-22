@@ -9,7 +9,8 @@ from utils.example_data import load_example_text
 class ComplementTab(BaseTabWidget):
     complement_map = str.maketrans(
         "ACGTacgtRYMKSWBDHVNrykmswbdhvn",
-        "TGCAtgcaYRKMWSVHDBNyrkmwsvhdbn",
+        # S (G/C) and W (A/T) complement onto themselves, like N.
+        "TGCAtgcaYRKMSWVHDBNyrkmswvhdbn",
     )
 
     def __init__(self, parent=None):

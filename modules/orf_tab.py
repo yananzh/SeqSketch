@@ -526,7 +526,7 @@ identification.</p>
 <h3>Quick Start</h3>
 <ol>
 <li>Paste your DNA sequence or drag-and-drop a FASTA file</li>
-<li>Set the <b>minimum ORF length</b> (default 100 nt &mdash; shorter values find more ORFs but increase noise)</li>
+<li>Set the <b>minimum ORF length</b> (default 75 nt &mdash; shorter values find more ORFs but increase noise; the tiny example below needs a threshold of 21 or lower)</li>
 <li>Choose the <b>search strand</b> (both strands is recommended)</li>
 <li>Choose <b>start codons</b> (standard ATG or include alternative starts)</li>
 <li>Click <b>Run</b> to find ORFs</li>
@@ -575,7 +575,7 @@ Translation: MKPGFK*
 <li>Start with a larger <b>Min ORF Length</b> (300 nt) and decrease it if you miss expected ORFs</li>
 <li>Use <b>Both strands</b> unless you have a specific reason to search only one</li>
 <li>For eukaryotic sequences, remember that real genes may contain introns &mdash; ORF Finder works best on cDNA/mRNA sequences</li>
-<li>The output is shown in a sortable table &mdash; click column headers to sort by length, frame, or position.  Use <b>Copy to Clipboard</b> to copy selected ORF sequences, or <b>Export Result</b> to save all ORFs as a FASTA file.</li>
+<li>The output table is pre-sorted by ORF length. Use <b>Copy to Clipboard</b> to copy the protein translations of selected ORFs, or <b>Export ORFs</b> to save all ORFs as a FASTA file.</li>
 </ul>
         """
         from PyQt6.QtCore import Qt

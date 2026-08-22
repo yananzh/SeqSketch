@@ -585,7 +585,7 @@ records or removes them, depending on the match mode you choose.</p>
 <h3>Quick Start</h3>
 <ol>
 <li>Select a FASTA file</li>
-<li>Enter or load your list of IDs (one per line)</li>
+<li>Enter or paste your list of IDs (one per line)</li>
 <li>Choose a match mode and output order</li>
 <li>Click <b>Preview</b> to check the first few matches</li>
 <li>Choose where to save the result, then click <b>Run</b></li>

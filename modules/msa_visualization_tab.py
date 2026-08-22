@@ -513,7 +513,7 @@ class MSAVisualizationTab(BaseTabWidget):
 
     def show_help(self):
         html = """
-<h2>MSA Visualization — pyMSAviz</h2>
+<h2>MSA Visualization &mdash; pyMSAviz</h2>
 
 <p><b>What does this tool do?</b><br>
 Renders a colored multiple sequence alignment figure using pyMSAviz,
@@ -543,12 +543,12 @@ MSA figures.</p>
 
 <h3>Display Options</h3>
 <ul>
-<li><b>Sequence Characters</b> — show/hide residue letters inside each cell.</li>
+<li><b>Seq Char</b> — show/hide residue letters inside each cell.</li>
 <li><b>Grid</b> — draw cell borders.</li>
-<li><b>Position Count</b> — show column numbers along the x-axis.</li>
+<li><b>Show Count</b> — show column numbers along the x-axis.</li>
 <li><b>Consensus</b> — consensus bar below the alignment.</li>
-<li><b>Sort by Similarity</b> — reorder by similarity to the first sequence.</li>
-<li><b>Highlight Conserved Columns</b> — light blue background on columns
+<li><b>Auto Sort</b> — reorder by similarity to the first sequence.</li>
+<li><b>Highlight Conserved</b> — light blue background on columns
     meeting the identity threshold.</li>
 </ul>
 
@@ -557,12 +557,12 @@ MSA figures.</p>
 <li>Use the <b>Multiple Sequence Alignment (Muscle5 / MAFFT)</b> tabs to
     generate an alignment first, then load the output file here.</li>
 <li>Set <b>Wrap Length</b> to 0 for a single continuous row.</li>
-<li>Higher <b>DPI</b> = sharper figures but slower rendering (300 is a good default).</li>
-<li>Use <b>Save Figure</b> to export high-resolution copies in PNG, SVG, or PDF.</li>
+<li><b>DPI</b> (default 150) controls preview sharpness; exports always use at least 300 DPI.</li>
+<li>Use <b>Save Figure</b> to export high-resolution copies in PNG, SVG, PDF, or TIFF.</li>
 </ul>
 """
         dlg = QDialog(self)
-        dlg.setWindowTitle("Help – MSA Visualization (pyMSAviz)")
+        dlg.setWindowTitle("Help - MSA Visualization")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(480)
         layout = QVBoxLayout(dlg)

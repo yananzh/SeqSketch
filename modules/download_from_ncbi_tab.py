@@ -643,8 +643,7 @@ requested, downloaded, and what failed.</li>
 <h3>Tips</h3>
 <ul>
 <li>Always verify your <b>database choice</b> matches your accession type.</li>
-<li>Use <b>Load Accessions from File</b> when you have a long list from a
-spreadsheet or previous analysis.</li>
+<li>Paste long accession lists straight into the box &mdash; one accession per line.</li>
 <li>The operation log shows per-batch progress so you can tell how the
 download is going.</li>
 <li>If a download fails completely, check your internet connection and

@@ -1036,7 +1036,7 @@ class PrimerDesignTab(QWidget):
         from PyQt6.QtWidgets import QLabel, QPushButton, QScrollArea, QVBoxLayout
 
         dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("qPCR Primer Design - Help"))
+        dlg.setWindowTitle(self.tr("Help - qPCR Primer Design"))
         dlg.setFixedSize(720, 540)
         layout = QVBoxLayout(dlg)
 
@@ -1047,7 +1047,7 @@ class PrimerDesignTab(QWidget):
 
         label = QLabel(
             self.tr("""
-<h2>qPCR Primer Design</h2>
+<h2>qPCR Primer Design &mdash; PCR Primers via Primer3</h2>
 
 <p><b>What does this tool do?</b><br>
 Designs optimal primer pairs for quantitative PCR (qPCR / real-time PCR)
@@ -1060,10 +1060,9 @@ that meet strict Tm, GC%, and product-size constraints suitable for qPCR.</p>
     (bases A/C/G/T/U/N allowed), or click <b>Example</b> to load HBB exon 1.</li>
 <li><b>Adjust parameters</b> if needed — the defaults (80-150 bp product,
     57-63°C Tm, 40-60% GC) work well for most qPCR applications.</li>
-<li><b>Click "Run"</b> to launch Primer3 in the background.</li>
-<li><b>Review results</b> in the table — select any row to see primer
-    binding positions drawn on the template map.</li>
-<li><b>Export</b> results to Excel or CSV for downstream use.</li>
+<li><b>Click "Run"</b> to launch Primer3 in the background (the template must be at least 50 bp).</li>
+<li><b>Review results</b> in the table — the map below shows every returned pair; clicking a row refreshes it.</li>
+<li><b>Export</b> results to Excel for downstream use.</li>
 </ol>
 
 <h3>Parameter Guide</h3>
@@ -1092,7 +1091,7 @@ that meet strict Tm, GC%, and product-size constraints suitable for qPCR.</p>
 <ul>
 <li><b>Pair #</b> — ranked by Primer3 penalty score (1 = best).</li>
 <li><b>Fwd / Rev</b> — Forward (sense) or Reverse (antisense) primer.</li>
-<li><b>Position</b> — 5' start coordinate on the template (1-based).</li>
+<li><b>Position</b> — 5' start coordinate on the template (0-based, as reported by Primer3).</li>
 <li><b>Length</b> — primer length in nucleotides.</li>
 <li><b>Tm</b> — melting temperature. Fwd and Rev should be within 2°C.</li>
 <li><b>GC%</b> — GC content. 40-60% is optimal for qPCR.</li>

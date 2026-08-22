@@ -455,7 +455,7 @@ class ExtractByRegexTab(BaseTabWidget):
 <h2>Regex Filter &mdash; Match FASTA Records with Patterns</h2>
 
 <p><b>What does this tool do?</b><br>
-It scans every header in your FASTA file with a regular expression pattern and
+It scans your FASTA file with a regular expression pattern (headers by default,
 keeps (or removes) the records that match. You control where the pattern looks
 (ID, description, or both) and whether matching is case-sensitive.</p>
 
@@ -481,6 +481,7 @@ description text instead (e.g. <code>^NM_</code>, <code>kinase</code>).</p>
 <tr><td><b>Full Header</b></td><td>ID + description (without <code>&gt;</code>)</td><td>NM_001101.5 Homo sapiens protein kinase</td></tr>
 <tr><td><b>Sequence ID Only</b></td><td>text before first space (without <code>&gt;</code>)</td><td>NM_001101.5</td></tr>
 <tr><td><b>Description Only</b></td><td>text after first space</td><td>(no match)</td></tr>
+<tr><td><b>Sequence</b></td><td>the sequence letters themselves</td><td>ATG... if the sequence starts with NM-matching letters (useful for motif filtering)</td></tr>
 </table>
 
 <h3>Regex Quick Reference</h3>

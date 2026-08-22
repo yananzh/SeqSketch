@@ -724,10 +724,10 @@ class CloningPrimerTab(BaseTabWidget):
 
     def show_help(self):
         self.show_help_dialog(
-            self.tr("Cloning Primer Design - Help"),
+            self.tr("Help - Cloning Primer Design"),
             self.tr(
                 """
-<h2>Cloning Primer Design</h2>
+<h2>Cloning Primer Design &mdash; Restriction-Site PCR Primers</h2>
 
 <p><b>What does this tool do?</b><br>
 Designs PCR primers that add restriction sites (with protective bases) to the
@@ -736,14 +736,14 @@ gene-specific primers for blunt / TA ligation when no enzyme is chosen.</p>
 
 <h3>Primer layout</h3>
 <pre>Fwd:  [protective bases][site][insert 5' end ~20 nt]
-Rev:  [protective bases][rc-site][rc of insert 3' end ~20 nt]</pre>
+Rev:  [protective bases][site][rc of insert 3' end ~20 nt]</pre>
 
 <h3>Quick Start</h3>
 <ol>
 <li>Paste or upload a single insert sequence (FASTA or raw DNA, one record
     only; starts with the ATG for a coding insert).</li>
 <li>Pick a 5' and a 3' restriction enzyme, or choose <b>None</b> on either or
-    both ends for blunt / TA ligation (no overhang added).</li>
+    both ends for blunt / TA ligation &mdash; inserting the PCR product directly without restriction enzymes.</li>
 <li>Set the core length and target Tm, then click <b>Run</b>.</li>
 <li>Read the two designed primers in the <b>Full Sequence (5'&rarr;3')</b>
     column and order them as-is.</li>
@@ -752,7 +752,7 @@ Rev:  [protective bases][rc-site][rc of insert 3' end ~20 nt]</pre>
 <h3>Parameter Guide</h3>
 <table border='0' cellpadding='4' cellspacing='2'>
 <tr><td><b>Core Length (nt)</b></td><td>Gene-specific annealing region without
-    the restriction overhang. The tool searches &plusmn;3 nt around this value
+    the restriction overhang. The tool searches &plusmn;3 nt around this value (clamped to 15&ndash;30 nt)
     to approach the target Tm.</td></tr>
 <tr><td><b>Target Tm (&deg;C)</b></td><td>Melting temperature the primer cores
     are optimised towards. Uses the primer3 nearest-neighbour model under

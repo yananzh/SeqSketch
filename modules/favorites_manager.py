@@ -819,7 +819,7 @@ class BookmarkManager(QWidget):
     # ============== Help ==============
     def _show_help(self):
         dlg = QDialog(self)
-        dlg.setWindowTitle("Bookmarks - Help")
+        dlg.setWindowTitle("Help - Bookmarks")
         dlg.setFixedSize(600, 480)
         layout = QVBoxLayout(dlg)
 
@@ -828,11 +828,11 @@ class BookmarkManager(QWidget):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         label = QLabel("""
-<h2>Bookmarks</h2>
+<h2>Bookmarks &mdash; Manage Saved Sequences</h2>
 
 <p><b>What does this tool do?</b><br>
 Organize your frequently-used URLs into categories with drag-and-drop,
-live search, and JSON/HTML import/export. All bookmarks are saved
+live search, JSON import, and JSON/HTML export. All bookmarks are saved
 automatically to your user data folder.</p>
 
 <h3>Quick Start</h3>

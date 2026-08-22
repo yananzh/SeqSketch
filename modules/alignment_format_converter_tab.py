@@ -341,7 +341,7 @@ class AlignmentFormatConverterTab(BaseTabWidget):
 
     def show_help(self):
         html = """
-<h2>Alignment Format Converter</h2>
+<h2>Alignment Format Converter &mdash; Convert Between MSA Formats</h2>
 
 <p><b>What does this tool do?</b><br>
 Converts alignment files between common bioinformatics formats:
@@ -353,7 +353,7 @@ aligned to the same length.</p>
 <li>Select an aligned input file (or drag &amp; drop)</li>
 <li>Verify the <b>Input Format</b> &mdash; the tool auto-detects from the file extension</li>
 <li>Choose the <b>Output Format</b> and an output path</li>
-<li>Click <b>Convert</b></li>
+<li>Click <b>Run</b></li>
 </ol>
 
 <h3>Supported Formats</h3>
@@ -372,7 +372,7 @@ detection manually if needed.</p>
 <h3>Output Auto-Naming</h3>
 <p>When you select an input file the output path is pre-filled with the
 same base name and the extension matching the chosen output format.
-Click <b>Save As</b> to choose a different location.</p>
+Click <b>Browse</b> next to the output field to choose a different location.</p>
 
 <h3>Limitations</h3>
 <ul>
@@ -389,7 +389,7 @@ Click <b>Save As</b> to choose a different location.</p>
         )
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("Help – Alignment Format Converter")
+        dlg.setWindowTitle("Help - Alignment Format Converter")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(480)
         layout = QVBoxLayout(dlg)

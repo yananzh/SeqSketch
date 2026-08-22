@@ -1154,7 +1154,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
     def show_help(self):
         html = """
-<h2>Multiple Sequence Alignment — MAFFT</h2>
+<h2>Multiple Sequence Alignment &mdash; MAFFT</h2>
 
 <p><b>What does this tool do?</b><br>
 Aligns ≥ 2 DNA or protein sequences using the bundled MAFFT engine.
@@ -1164,7 +1164,7 @@ iterative refinement.</p>
 <h3>Quick Start</h3>
 <ol>
 <li>Paste ≥ 2 FASTA sequences or drag-and-drop a file.</li>
-<li>Choose an <b>Output File</b> (required for pasted input).</li>
+<li>Optionally choose an <b>Output File</b> &mdash; a timestamped name is auto-generated when left blank.</li>
 <li>Choose an <b>Alignment Strategy</b> (Auto works well for most cases).</li>
 <li>Click <b>Run</b> — the result is written to the output path automatically.</li>
 </ol>
@@ -1172,7 +1172,7 @@ iterative refinement.</p>
 <h3>Single-file vs Batch Multi-file</h3>
 <ul>
 <li><b>Single-file</b> — align one multi-FASTA input and save to a chosen output file.</li>
-<li><b>Batch Multi-file</b> — process multiple FASTA files in a folder,
+<li><b>Batch Multi-file</b> — process multiple selected FASTA files,
     with auto-naming via <code>{stem}</code>, <code>{method}</code>, <code>{ext}</code> placeholders.</li>
 </ul>
 
@@ -1205,7 +1205,7 @@ iterative refinement.</p>
 </ul>
 """
         dlg = QDialog(self)
-        dlg.setWindowTitle("Help – Multiple Sequence Alignment (MAFFT)")
+        dlg.setWindowTitle("Help - Multiple Sequence Alignment (MAFFT)")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(480)
         layout = QVBoxLayout(dlg)

@@ -645,7 +645,7 @@ thresholds, plus compound SSR reporting when two repeats lie close together.</p>
 <tr><td><b>Min repeats</b></td><td>10</td><td>6</td><td>5</td><td>5</td><td>5</td><td>5</td></tr>
 </table>
 <p>The <b>Preset</b> dropdown applies a ready-made threshold set: MISA
-default, <b>Stringent</b> (mono 12, di 8, tri&ndash;hexa 7/6), or
+default, <b>Stringent</b> (mono 12, di 8, tri 7, tetra&ndash;hexa 6), or
 <b>Relaxed</b> (mono 8, di 5, tri&ndash;hexa 4). Adjusting any spin box
 switches the preset to <b>Custom</b>.</p>
 <p>A <b>compound SSR</b> (MISA type <code>c</code>) joins two or more perfect

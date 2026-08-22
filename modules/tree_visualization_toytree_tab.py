@@ -671,7 +671,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
     # ------------------------------------------------------------------
     def show_help(self):
         self.show_help_dialog(
-            self.tr("Tree Visualization (Toytree) — Help"), self._help_html(), 640, 520
+            self.tr("Help - Tree Visualization"), self._help_html(), 640, 520
         )
 
     def _help_html(self) -> str:
@@ -734,7 +734,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 
 <h3>Tip Name Mapping</h3>
 <p>You can replace tree tip labels with custom names by providing a two-column
-<b>mapping file</b> (CSV / TSV):</p>
+<b>mapping file</b> (CSV / TSV / TXT / Excel):</p>
 <table>
   <tr><td><b>Format</b></td><td><code>old_name,new_name</code> — one pair per line</td></tr>
   <tr><td><b>Drop zone</b></td><td>drag &amp; drop a mapping file, or use the Example button</td></tr>

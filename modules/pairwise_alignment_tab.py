@@ -765,7 +765,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h2>Pairwise Sequence Alignment</h2>
+<h2>Pairwise Sequence Alignment &mdash; Compare Two Sequences</h2>
 <p><b>What does this tool do?</b><br>
 Align two DNA or protein sequences using Biopython's <code>PairwiseAligner</code>.
 Supports both global (end-to-end) and local (best-matching region) alignment,
@@ -835,7 +835,7 @@ equivalent to the classic EMBOSS Needle and Water algorithms.</p>
 </ul>
         """
         dlg = QDialog(self)
-        dlg.setWindowTitle("Help – Pairwise Sequence Alignment")
+        dlg.setWindowTitle("Help - Pairwise Sequence Alignment")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(480)
         layout = QVBoxLayout(dlg)

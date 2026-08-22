@@ -1339,14 +1339,14 @@ on the command line.</p>
 <h3>Single-file vs Batch Multi-file</h3>
 <ul>
 <li><b>Single-file</b> &mdash; align one multi-FASTA input and save to a chosen output file</li>
-<li><b>Batch Multi-file</b> &mdash; process multiple FASTA files in a folder,
+<li><b>Batch Multi-file</b> &mdash; process multiple selected FASTA files,
     with auto-naming via <code>{stem}</code>, <code>{method}</code>, <code>{ext}</code> placeholders</li>
 </ul>
 
 <h3>Alignment Methods</h3>
 <table border="0" cellpadding="4" cellspacing="2">
 <tr><td><b>Accurate (&ndash;align)</b></td><td>&rarr; progressive alignment with refinement; best for up to a few hundred sequences</td></tr>
-<tr><td><b>Fast (&ndash;super5)</b></td><td>&rarr; heuristic method, suitable for thousands of sequences</td></tr>
+<tr><td><b>Fast / Large datasets (&ndash;super5)</b></td><td>&rarr; heuristic method, suitable for thousands of sequences</td></tr>
 </table>
 
 <h3>Sequence Order</h3>
@@ -1370,7 +1370,7 @@ on the command line.</p>
 </ul>
 """
         dlg = QDialog(self)
-        dlg.setWindowTitle("Help – Multiple Sequence Alignment (MUSCLE v5)")
+        dlg.setWindowTitle("Help - Multiple Sequence Alignment (MUSCLE v5)")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(480)
         layout = QVBoxLayout(dlg)

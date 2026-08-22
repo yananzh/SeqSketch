@@ -983,8 +983,7 @@ in phylogenomics.</p>
 
 <h3>Parameters</h3>
 <ul>
-  <li><b>Sequence type</b> &ndash; DNA (nucleotide) or Protein (amino acid).
-  Auto-detected from the first sequence; used in the NEXUS header.</li>
+  <li>Sequence type (DNA or protein) is auto-detected from the first sequence &mdash; no setting needed.</li>
   <li><b>Partition format</b> &ndash; two options:
   <b>NEXUS charset (IQ-TREE)</b> writes a partition-only <code>#NEXUS</code>
   block with <code>BEGIN SETS;</code> charsets (load with IQ-TREE <code>-p</code>);

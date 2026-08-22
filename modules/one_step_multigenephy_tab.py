@@ -862,9 +862,8 @@ expected workbook layout.</li>
 <li><b>MAFFT</b> &mdash; Auto (automatic selection), Local Pair, Global Pair, or Conserved Region.</li>
 <li><b>trimAl</b> &mdash; automated1 (heuristic), gappyout (adaptive), strict/plus (conservative), nogaps.</li>
 <li><b>Threads</b> &mdash; AUTO uses all available cores; set a fixed number for reproducibility.</li>
-<li><b>IQ-TREE Bootstrap</b> &mdash; UFBoot (ultrafast, min 1000), UFBoot + SH-aLRT (branch test),
-or Standard bootstrap (min 100).</li>
-<li><b>Preserve intermediate files</b> &mdash; keep per-gene alignments and trimmed files for inspection.</li>
+<li><b>IQ-TREE Bootstrap</b> &mdash; UFBoot (ultrafast, 1000 recommended), UFBoot + SH-aLRT (branch test), or Standard bootstrap (100 recommended). The value is auto-filled when you switch modes; 0 turns bootstrap off.</li>
+<li>Per-gene alignments and trimmed files are always kept for inspection under the stage folders.</li>
 <li><b>Skip completed steps</b> &mdash; resume a previous run in the same output folder:
 <b>From scratch</b> (default, full pipeline), <b>From align/trim</b> (reuse
 <code>01_normalized</code>, skips the network fetch), or <b>From tree</b>
@@ -874,10 +873,10 @@ re-runs IQ-TREE). Choose <b>From scratch</b> if you changed the workbook.</li>
 
 <h3>Output Files</h3>
 <ul>
-<li><code>&lt;prefix&gt;.treefile</code> &mdash; best ML tree in Newick format.</li>
-<li><code>&lt;prefix&gt;.nex</code> &mdash; NEXUS partition file for downstream tools.</li>
-<li><code>report.html</code> &mdash; interactive HTML summary with tree and statistics.</li>
-<li><code>manifest.txt</code> &mdash; file inventory for reproducibility.</li>
+<li><code>05_iqtree/final.treefile</code> &mdash; best ML tree in Newick format.</li>
+<li><code>04_concat/supermatrix.fasta</code> + <code>partitions.nex</code> &mdash; concatenated alignment and its NEXUS partition file.</li>
+<li><code>06_reports/run_report.html</code> &mdash; interactive HTML summary with tree and statistics.</li>
+<li><code>06_reports/run_manifest.json</code> &mdash; file inventory for reproducibility.</li>
 </ul>
 
 <h3>Tips</h3>
@@ -886,7 +885,7 @@ re-runs IQ-TREE). Choose <b>From scratch</b> if you changed the workbook.</li>
 click <b>Example</b> to load a demo workbook.</li>
 <li>Strain names should only contain letters, digits, and underscores.</li>
 <li>Use <b>Validate Inputs</b> before running to catch format issues early.</li>
-<li>For large datasets, increase <b>Threads</b> to speed up MAFFT and IQ-TREE.</li>
+<li>For large datasets, increase <b>Threads</b> to speed up IQ-TREE (alignments run single-threaded).</li>
 <li>After completion, click <b>View Tree</b> to visualize the result.</li>
 <li>Pre-trimmed input sequences usually give better alignments.</li>
 </ul>

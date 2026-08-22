@@ -530,7 +530,7 @@ class SequenceLogoTab(BaseTabWidget):
         from PyQt6.QtWidgets import QDialog, QPushButton, QTextBrowser, QVBoxLayout
 
         help_text = """
-<h2>Sequence Logo — Visualize Sequence Conservation</h2>
+<h2>Sequence Logo &mdash; Visualize Sequence Conservation</h2>
 
 <p><b>What does this tool do?</b><br>
 It generates a sequence logo from a set of aligned DNA or protein sequences.
@@ -581,7 +581,7 @@ a feel for the output before tackling larger datasets.</li>
 </ul>
         """
         dlg = QDialog(self)
-        dlg.setWindowTitle("Help – Sequence Logo")
+        dlg.setWindowTitle("Help - Sequence Logo")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(480)
         layout = QVBoxLayout(dlg)

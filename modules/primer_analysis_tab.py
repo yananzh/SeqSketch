@@ -209,7 +209,7 @@ class PrimerAnalysisTab(QWidget):
         from PyQt6.QtWidgets import QLabel, QPushButton, QScrollArea, QVBoxLayout
 
         dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("Primer Analysis - Help"))
+        dlg.setWindowTitle(self.tr("Help - Primer Analysis"))
         dlg.setFixedSize(680, 500)
         layout = QVBoxLayout(dlg)
 
@@ -220,7 +220,7 @@ class PrimerAnalysisTab(QWidget):
 
         label = QLabel(
             self.tr("""
-<h2>Primer Analysis</h2>
+<h2>Primer Analysis &mdash; Evaluate a Primer Pair</h2>
 
 <p><b>What does this tool do?</b><br>
 Analyzes a user-specified primer pair for key thermodynamic properties
@@ -237,10 +237,7 @@ expected product size.</p>
 <li>Adjust salt conditions if your buffer differs from defaults
     (50 mM Na&plus;/K&plus;, 3 mM Mg&sup2;&plus;).</li>
 <li>Click <b>Run</b> to compute all properties.</li>
-<li>Review the results — metrics are color-coded:
-    <span style="color:#2e7d32;">green</span> = optimal,
-    <span style="color:#e65100;">orange</span> = marginal,
-    <span style="color:#c62828;">red</span> = poor.</li>
+<li>Review the results — every metric is compared against its recommended range (see the column guide below).</li>
 </ol>
 
 <h3>Metrics Reference</h3>
@@ -257,7 +254,7 @@ expected product size.</p>
 <tr><td><b>Cross-Dimer</b></td><td>Forward binding to reverse primer.
     Produces primer-dimers instead of desired amplicon.</td></tr>
 <tr><td><b>Tm Difference</b></td><td>|Fwd Tm - Rev Tm|. Keep
-    &lt;2°C for qPCR.</td></tr>
+    &lt;2°C for qPCR (quantitative PCR).</td></tr>
 </table>
 
 <h3>Quality Assessment</h3>
@@ -265,7 +262,7 @@ expected product size.</p>
 <ul>
 <li>&#10003; <b>All checks passed</b> — primer pair looks good.</li>
 <li>&#9888; <b>Warnings</b> — Tm difference &gt; 2°C, GC% out of
-    40-60% range, or dimer/hairpin structures detected.</li>
+    40-60% range, or self-dimer / cross-dimer structures detected.</li>
 </ul>
 
 <h3>Template Binding (Optional)</h3>

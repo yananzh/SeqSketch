@@ -409,7 +409,7 @@ class DotPlotTab(BaseTabWidget):
 
     def show_help(self):
         help_text = """
-<h2>DotPlot (Local)</h2>
+<h2>DotPlot &mdash; Sequence Similarity Dot Matrix</h2>
 <p><b>What does this tool do?</b><br>
 DotPlot visualizes sequence similarity as a 2D map. Matching regions appear as diagonal patterns, making it easy to spot repeats, inversions, and conserved domains.</p>
 
@@ -451,7 +451,7 @@ sequences give a pairwise comparison.</li>
         from PyQt6.QtWidgets import QDialog, QPushButton, QTextBrowser, QVBoxLayout
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("Help – DotPlot")
+        dlg.setWindowTitle("Help - DotPlot")
         dlg.setMinimumWidth(660)
         dlg.setMinimumHeight(480)
         layout = QVBoxLayout(dlg)

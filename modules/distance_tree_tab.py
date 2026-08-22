@@ -779,7 +779,7 @@ class DistanceTreeTab(BaseTabWidget):
     # ── Help ────────────────────────────────────────────────────────
     def show_help(self):
         help_text = """
-<h2>Distance Tree Construction</h2>
+<h2>Distance Tree Construction &mdash; NJ / UPGMA via BioPython</h2>
 
 <p><b>What does this tool do?</b><br>
 Computes a pairwise <b>distance matrix</b> from a multiple sequence alignment,
@@ -795,7 +795,7 @@ to load the bundled sample. Models auto-update based on DNA or Protein detection
 <li>Set the output <b>tree file (.nwk)</b> path (auto-suggested).</li>
 <li>Click <b>Run</b> — the matrix appears below, tree saved to file.</li>
 <li>Click <b>View Tree</b> to open the Newick tree in the <b>Tree Visualization</b> tab.</li>
-<li>Use <b>Export Matrix</b> to save the distance table as CSV.</li>
+<li>Use <b>Export Matrix</b> to save the distance table as CSV or Excel.</li>
 </ol>
 
 <h3>Distance Models</h3>
@@ -831,8 +831,8 @@ Newick tree. Recommended: 100 for quick checks, 500–1000 for publication.</p>
 <ul>
 <li><b>Tree file</b> &mdash; Newick format (.nwk), ready for visualization in
 Tree Visualization (Toytree) or IQ-TREE.</li>
-<li><b>Distance Matrix</b> &mdash; displayed in the table; export to CSV for
-heatmap plotting or external analysis.</li>
+<li><b>Distance Matrix</b> &mdash; displayed in the table; export to CSV or
+Excel for heatmap plotting or external analysis.</li>
 </ul>
 
 <h3>Tips</h3>

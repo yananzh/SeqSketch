@@ -193,7 +193,7 @@ Building it once makes queries hundreds of times faster than scanning raw FASTA 
 """
 
 _HELP_RUN = """
-<h2>Local BLAST</h2>
+<h2>Local BLAST &mdash; Search Queries Against Local Databases</h2>
 
 <p><b>What does this tool do?</b><br>
 Search your query sequences against a local BLAST database using the NCBI BLAST+ toolkit.
@@ -238,7 +238,7 @@ spreadsheet application or text editor.</p>
 <tr><td><b>Max hits</b></td><td>→ Maximum subject sequences reported per query. Default: 50.</td></tr>
 <tr><td><b>Outfmt</b></td><td>→ Output format. <b>6 (TSV)</b> gives 12 tab-separated columns;
     <b>0 (Pairwise)</b> is human-readable alignments; <b>5 (XML)</b> for programmatic use.
-    The output file extension updates automatically.</td></tr>
+    The suggested output filename updates to match the chosen format.</td></tr>
 </table>
 
 <h3>Output Columns (outfmt 6)</h3>
@@ -1422,4 +1422,4 @@ class BlastLocalTab(BaseTabWidget):
 
     def show_help(self):
         """Show Local BLAST help dialog."""
-        _show_help(self, self.tr("Local BLAST Help"), _HELP_RUN)
+        _show_help(self, self.tr("Help - Local BLAST"), _HELP_RUN)

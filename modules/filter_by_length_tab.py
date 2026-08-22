@@ -305,7 +305,7 @@ class FilterByLengthTab(BaseTabWidget):
 It removes sequences that are too short or too long, keeping only those
 that fall within your specified length range.</p>
 
-<h3>Usage</h3>
+<h3>Quick Start</h3>
 <ul>
 <li>Set a minimum length to remove short contigs or fragments.</li>
 <li>Set a maximum length to exclude unusually long sequences (e.g. complete
@@ -326,7 +326,7 @@ analyses).</li>
 <h3>Tips</h3>
 <ul>
 <li>Always <b>Preview</b> first to see how many sequences will be kept.</li>
-<li>Run <b>FASTA QC</b> before filtering to understand the length distribution
+<li>Run <b>FASTA Statistics</b> before filtering to understand the length distribution
 of your file.</li>
 </ul>
         """

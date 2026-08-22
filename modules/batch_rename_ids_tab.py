@@ -821,7 +821,7 @@ ID mapping file (Excel, <code>old_id → new_id</code>) — great for a first tr
 <li>Only the primary FASTA ID (the part before the first space) is replaced;
 descriptions are preserved.</li>
 <li>IDs not listed in the mapping file stay unchanged.</li>
-<li>If no IDs match the mapping file, no output file is written.</li>
+<li>If no IDs match the mapping file, no FASTA output is written (a rename report is still saved if that option is enabled).</li>
 </ul>
         """
 

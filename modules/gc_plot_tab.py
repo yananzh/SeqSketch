@@ -602,7 +602,7 @@ class GCPlotTab(BaseTabWidget):
         )
 
         help_text = self.tr("""
-<h2>GC Content / GC Skew Plot — Sliding-Window Analysis</h2>
+<h2>GC Content / GC Skew Plot &mdash; Sliding-Window Analysis</h2>
 
 <p><b>What does this tool do?</b><br>
 It computes GC content and GC skew across a DNA sequence using a

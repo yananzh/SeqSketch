@@ -721,8 +721,7 @@ For example:</p>
 <pre>&gt;NM_001101.5 Homo sapiens protein kinase
  |----ID----| |-------Description--------|</pre>
 <p>Unless you enable <b>Preserve description</b>, the description is
-removed from the output. Some modes only look at the ID, while others
-scan the full header (ID + description).</p>
+removed from the output. All modes operate on the full header line (ID + description).</p>
 
 <h3>Try It With the Example Data</h3>
 <p>Click the <b>Example</b> button next to the file input. It loads
@@ -736,7 +735,7 @@ simplification mode.</p>
 <pre>
 First word                   &rarr;  tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC
 Delimiter "|" field 2        &rarr;  A0AAI7ZCJ9
-Delimiter "|" field 3        &rarr;  A0AAI7ZCJ9_XANAC
+Delimiter "|" field 3        &rarr;  A0AAI7ZCJ9_XANAC_Pyruvate_... (last field keeps the rest)
 Keep 2 words                 &rarr;  tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC_Pyruvate
 Regex  tr\\|([^|]+)\\|         &rarr;  A0AAI7ZCJ9
 Regex  ([A-Z0-9]{10}_[A-Z]+) &rarr;  A0AAI7ZCJ9_XANAC
@@ -751,7 +750,7 @@ Regex  ([A-Z0-9]{10}_[A-Z]+) &rarr;  A0AAI7ZCJ9_XANAC
     <td>&rarr; <b>First word</b></td></tr>
 <tr><td><code>&gt;tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC</code><br>
     (UniProt, pipe-separated fields)</td>
-    <td>&rarr; <b>Delimiter field</b> with <code>|</code>, field 3</td></tr>
+    <td>&rarr; <b>Regex</b> <code>tr\\|([^|]+)\\|</code> (field 3 would swallow the description)</td></tr>
 <tr><td><code>&gt;contig_123 length=5000 cov=10.5</code><br>
     (space-separated tokens, keep the first few)</td>
     <td>&rarr; <b>Keep first N words</b></td></tr>
