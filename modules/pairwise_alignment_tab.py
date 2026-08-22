@@ -382,7 +382,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
                     with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
                     widget.setPlainText(content)
-                    self.show_status(self.tr(f"{label}: loaded {file_path}"))
+                    self.show_status(self.tr(f"{label}: loaded {os.path.basename(file_path)}"))
                     e.acceptProposedAction()
                 except Exception as ex:
                     QMessageBox.warning(self, "File Read Error", str(ex))
@@ -420,7 +420,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 self.input_text.setPlainText(content)
-                self.show_status(self.tr(f"Loaded file: {file_path}"))
+                self.show_status(self.tr(f"Loaded: {os.path.basename(file_path)}"))
             except Exception as e:
                 QMessageBox.warning(self, "File Read Error", str(e))
 
@@ -569,7 +569,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
             self.output_text.setPlainText(output)
             self.status_label.setText(
-                f"Done — Score: {score:.0f} | Ident: {pct(n_ident)}% | Sim: {pct(n_sim)}%"
+                f"Done — score {score:.0f}, ident {pct(n_ident)}%, sim {pct(n_sim)}%"
             )
         except Exception as e:
             QMessageBox.critical(self, "Alignment Error", str(e))

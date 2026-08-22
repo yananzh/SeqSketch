@@ -647,10 +647,10 @@ or <b>MSA Visualization</b>.</li>
         """Open the folder where trimmed results are written."""
         outdir = self.outdir_edit.text().strip()
         if not outdir:
-            self.show_status(self.tr("No output folder selected yet."))
+            self.show_status(self.tr("No output folder selected yet"))
             return
         if not os.path.isdir(outdir):
-            self.show_status(self.tr("Output folder does not exist yet."))
+            self.show_status(self.tr("Output folder does not exist yet"))
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(outdir))
 

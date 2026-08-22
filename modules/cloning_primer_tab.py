@@ -556,20 +556,19 @@ class CloningPrimerTab(BaseTabWidget):
     def run(self):
         raw = self.input_text.toPlainText()
         if not raw.strip():
-            self.show_status(self.tr("Please paste an insert sequence first."))
+            self.show_status(self.tr("Please paste an insert sequence first"))
             return
         if count_fasta_records(raw) > 1:
             self.show_status(
                 self.tr(
-                    "Only one FASTA sequence is supported — "
-                    "multi-sequence input is not allowed."
+                    "Only one FASTA record allowed"
                 )
             )
             return
         seq = normalize_sequence(raw)
         if not seq or not all(base in "ACGTUN" for base in seq):
             self.show_status(
-                self.tr("Invalid sequence: only A/C/G/T/U/N letters are allowed.")
+                self.tr("Invalid sequence: A/C/G/T/U/N only")
             )
             return
         same_enzyme = (
@@ -653,7 +652,7 @@ class CloningPrimerTab(BaseTabWidget):
     def _export_table(self) -> None:
         """Export the primer table as Excel, CSV or TSV."""
         if self.results_table.rowCount() == 0:
-            self.show_status(self.tr("Nothing to export — run a design first."))
+            self.show_status(self.tr("Nothing to export — run a design first"))
             return
         file_path, selected_filter = QFileDialog.getSaveFileName(
             self,
@@ -692,11 +691,11 @@ class CloningPrimerTab(BaseTabWidget):
             )
             return
         self._last_export_dir = os.path.dirname(os.path.abspath(file_path))
-        self.show_status(self.tr(f"Exported table to: {file_path}"))
+        self.show_status(self.tr(f"Exported: {os.path.basename(file_path)}"))
 
     def _open_result_folder(self) -> None:
         if not self._last_export_dir or not os.path.isdir(self._last_export_dir):
-            self.show_status(self.tr("No exported file yet — use Export Table first."))
+            self.show_status(self.tr("No exported file yet — use Export Table first"))
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 

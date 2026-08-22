@@ -162,7 +162,7 @@ class TranslateTab(BaseTabWidget):
     def run(self):
         raw = self.input_text.toPlainText().strip()
         if not raw:
-            self.show_status("Please enter a DNA or RNA sequence.")
+            self.show_status("Please enter a DNA or RNA sequence")
             return
 
         frame = self.frame_box.currentIndex()
@@ -174,13 +174,13 @@ class TranslateTab(BaseTabWidget):
         if ">" in raw:
             records = self._parse_fasta(raw)
             if not records:
-                self.show_status("No valid FASTA records found.")
+                self.show_status("No valid FASTA records found")
                 return
             output_blocks = []
             for header, seq in records:
                 seq = seq.upper().replace("U", "T")
                 if not re.fullmatch(r"[ACGTN]+", seq):
-                    self.show_status(f"Invalid characters in {header}. Only A/T/G/C/N allowed.")
+                    self.show_status(f"Invalid characters in {header}: A/T/G/C/N only")
                     return
                 trans_seq = self._translate_frame(seq, frame, aa_mode, codon_table)
                 output_blocks.append(f"{header} | Frame: {frame_name}\n{trans_seq}")
@@ -189,10 +189,10 @@ class TranslateTab(BaseTabWidget):
         else:
             seq = raw.replace("\n", "").replace(" ", "").upper().replace("U", "T")
             if not seq:
-                self.show_status("No valid sequence found.")
+                self.show_status("No valid sequence found")
                 return
             if not re.fullmatch(r"[ACGTN]+", seq):
-                self.show_status("Invalid characters. Only A/T/G/C/N allowed.")
+                self.show_status("Invalid characters. Only A/T/G/C/N allowed")
                 return
             trans_seq = self._translate_frame(seq, frame, aa_mode, codon_table)
             self.output_text.setPlainText(trans_seq)

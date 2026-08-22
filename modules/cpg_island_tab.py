@@ -402,7 +402,7 @@ class CpGIslandTab(BaseTabWidget):
     def run(self):
         path = self.input_path_edit.text().strip()
         if not path:
-            self.show_status(self.tr("Please select a DNA sequence file."))
+            self.show_status(self.tr("Please select a DNA sequence file"))
             return
         try:
             with open(path, "r", encoding="utf-8") as fh:
@@ -416,7 +416,7 @@ class CpGIslandTab(BaseTabWidget):
 
         records = _parse_fasta(text)
         if not records:
-            self.show_status(self.tr("No valid FASTA sequence found."))
+            self.show_status(self.tr("No valid FASTA sequence found"))
             return
         cleaned: List[Tuple[str, str]] = []
         for header, seq in records:
@@ -424,11 +424,11 @@ class CpGIslandTab(BaseTabWidget):
             if not seq:
                 continue
             if not all(c in "ACGTN" for c in seq):
-                self.show_status(self.tr("Invalid characters. Only A/T/G/C/N allowed."))
+                self.show_status(self.tr("Invalid characters. Only A/T/G/C/N allowed"))
                 return
             cleaned.append((header, seq))
         if not cleaned:
-            self.show_status(self.tr("No valid sequence found."))
+            self.show_status(self.tr("No valid sequence found"))
             return
         self._records = cleaned
 

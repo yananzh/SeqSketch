@@ -900,7 +900,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         """Read leaf names from the tree file and populate the outgroup combo."""
         tree_file = self._file_edit.text().strip()
         if not tree_file or not os.path.isfile(tree_file):
-            self.show_status(self.tr("⚠ Please select a tree file first."))
+            self.show_status(self.tr("⚠ Please select a tree file first"))
             return
         try:
             import toytree
@@ -924,7 +924,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self._outgroup_combo.addItems(names)
             self._outgroup_combo.setCurrentIndex(-1)  # no auto-selection
             self._outgroup_combo.blockSignals(False)
-            self.show_status(self.tr(f"✔ Loaded {len(names)} tip names."))
+            self.show_status(self.tr(f"✔ Loaded {len(names)} tip names"))
         except Exception as exc:
             self.show_status(self.tr(f"✖ Could not read tree: {exc}"))
 
@@ -934,11 +934,11 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
     def _draw(self):
         tree_file = self._file_edit.text().strip()
         if not tree_file:
-            self.show_status(self.tr("Please select a tree file."))
+            self.show_status(self.tr("Please select a tree file"))
             return
         valid, err = validate_input_path(tree_file)
         if not valid:
-            self.show_status(self.tr("File not found."))
+            self.show_status(self.tr("File not found"))
             return
 
         self._cancel_render()
@@ -979,7 +979,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         self._draw_btn.setEnabled(True)
         if success:
             self._show_svg_bytes(svg_bytes)
-            self.show_status(self.tr("Tree rendered."))
+            self.show_status(self.tr("Tree rendered"))
         else:
             self._scene.clear()
             text_item = self._scene.addSimpleText(self.tr(f"Render error:\n{msg}"))
@@ -992,7 +992,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
     def _export(self):
         tree_file = self._file_edit.text().strip()
         if not tree_file or not os.path.isfile(tree_file):
-            self.show_status(self.tr("Please load a tree file first."))
+            self.show_status(self.tr("Please load a tree file first"))
             return
 
         out_path, _ = QFileDialog.getSaveFileName(
@@ -1035,6 +1035,6 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self._export_thread.deleteLater()
             self._export_thread = None
         if success:
-            self.show_status(self.tr(f"✔ Exported: {path}"))
+            self.show_status(self.tr(f"✔ Exported: {os.path.basename(path)}"))
         else:
             self.show_status(self.tr(f"✖ Export failed: {msg}"))

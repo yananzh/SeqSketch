@@ -149,7 +149,7 @@ class PrimerDesignTab(QWidget):
                         try:
                             with open(path, "r", encoding="utf-8") as f:
                                 _tab.seq_input.setText(f.read())
-                            _tab.status_label.setText(f"Dropped file: {path}")
+                            _tab.status_label.setText(f"Loaded: {os.path.basename(path)}")
                         except (OSError, UnicodeDecodeError):
                             pass
                         return
@@ -503,7 +503,7 @@ class PrimerDesignTab(QWidget):
             with open(file_path, "r", encoding="utf-8") as handle:
                 text = handle.read()
             self.seq_input.setPlainText(text)
-            self.status_label.setText(f"Loaded sequence: {file_path}")
+            self.status_label.setText(f"Loaded: {os.path.basename(file_path)}")
         except Exception as exc:
             QMessageBox.critical(self, "Load Error", f"Failed to read file:\n{exc}")
 
@@ -812,7 +812,7 @@ class PrimerDesignTab(QWidget):
                         item = self.results_table.item(row, col)
                         vals.append(item.text() if item else "")
                     writer.writerow(vals)
-            self.status_label.setText(f"Exported CSV: {out_path}")
+            self.status_label.setText(f"Exported: {os.path.basename(out_path)}")
             self._last_export_dir = os.path.dirname(out_path)
             self.open_folder_btn.setEnabled(True)
         except Exception as exc:

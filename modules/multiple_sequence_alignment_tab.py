@@ -471,11 +471,11 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         elif hasattr(self, "output_file_edit"):
             target = self.output_file_edit.text().strip()
         if not target:
-            self.show_status(self.tr("No output path selected yet."))
+            self.show_status(self.tr("No output path selected yet"))
             return
         folder = target if os.path.isdir(target) else os.path.dirname(os.path.abspath(target))
         if not os.path.isdir(folder):
-            self.show_status(self.tr("Output folder does not exist yet."))
+            self.show_status(self.tr("Output folder does not exist yet"))
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 

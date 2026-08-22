@@ -93,7 +93,7 @@ class ComplementTab(BaseTabWidget):
     def run(self):
         seq = self.input_text.toPlainText().strip()
         if not seq:
-            self.show_status("Please enter a DNA sequence or FASTA.")
+            self.show_status("Please enter a DNA sequence or FASTA")
             return
 
         if ">" in seq:
@@ -105,7 +105,7 @@ class ComplementTab(BaseTabWidget):
                 self.show_status("Invalid FASTA format or sequences")
         else:
             if not self.is_valid_dna(seq):
-                self.show_status("Invalid characters. Allowed IUPAC codes: A/T/G/C/N, etc.")
+                self.show_status("Invalid characters: IUPAC bases only")
                 return
             transformed = self._transform_sequence(seq)
             self.output_text.setPlainText(transformed)

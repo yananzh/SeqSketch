@@ -273,7 +273,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
     def run(self):
         path = self.input_path_edit.text().strip()
         if not path:
-            self.show_status(self.tr("Please select a DNA sequence file."))
+            self.show_status(self.tr("Please select a DNA sequence file"))
             return
         try:
             with open(path, "r", encoding="utf-8") as fh:
@@ -301,10 +301,10 @@ class RestrictionEnzymeTab(BaseTabWidget):
 
         seq = seq.replace("\n", "").replace(" ", "").upper().replace("U", "T")
         if not seq:
-            self.show_status(self.tr("No valid sequence found."))
+            self.show_status(self.tr("No valid sequence found"))
             return
         if not re.fullmatch(r"[ACGTN]+", seq):
-            self.show_status(self.tr("Invalid characters. Only A/T/G/C/N allowed."))
+            self.show_status(self.tr("Invalid characters. Only A/T/G/C/N allowed"))
             return
 
         # Build enzyme list
@@ -493,7 +493,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
                             for r in self._results
                         )
                     )
-            self.show_status(self.tr(f"Exported {len(self._results)} enzymes to {path}"))
+            self.show_status(self.tr(f"Exported: {os.path.basename(path)}"))
         except Exception as e:
             QMessageBox.critical(self, self.tr("Export Error"), str(e))
 

@@ -253,7 +253,7 @@ class SangerTab(QWidget):
 
         if overlap < min_overlap or identity < min_identity:
             self.status_label.setText(
-                self.tr(f"Warning: No clear overlap (overlap={overlap}bp, identity={identity:.2f})")
+                self.tr(f"No clear overlap ({overlap}bp, {identity:.0%})")
             )
             QMessageBox.warning(
                 self,
@@ -265,7 +265,7 @@ class SangerTab(QWidget):
             )
         else:
             self.status_label.setText(
-                self.tr(f"Assembly complete: {overlap}bp overlap, {identity:.1%} identity")
+                self.tr(f"Assembled: {overlap}bp, {identity:.1%} identity")
             )
             QMessageBox.information(
                 self,
@@ -579,7 +579,7 @@ class SangerTab(QWidget):
         if file_path:
             with open(file_path, "w") as f:
                 f.write(seq)
-            self.status_label.setText(self.tr(f"Saved to: {file_path}"))
+            self.status_label.setText(self.tr(f"Saved: {os.path.basename(file_path)}"))
             QMessageBox.information(
                 self, self.tr("Save Successful"), self.tr(f"Saved to: {file_path}")
             )

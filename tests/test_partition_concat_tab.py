@@ -100,12 +100,12 @@ def test_result_folder_button_opens_output_dir(qapp, monkeypatch, tmp_path):
     assert tab.open_output_btn.text() == "Result Folder"
 
     tab._open_output_folder()
-    assert tab.status_label.text() == "No output folder selected yet."
+    assert tab.status_label.text() == "No output folder selected yet"
 
     out_dir = tmp_path / "out"
     tab._output_dir_edit.setText(str(out_dir))
     tab._open_output_folder()
-    assert tab.status_label.text() == "Output folder does not exist yet."
+    assert tab.status_label.text() == "Output folder does not exist yet"
 
     out_dir.mkdir()
     tab._open_output_folder()

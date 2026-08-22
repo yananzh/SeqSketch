@@ -204,7 +204,7 @@ def test_analysis_tab_produces_html_results(qapp, monkeypatch):
     assert "Tm" in html
     assert "GC%" in html
     assert "Hairpin" in html
-    assert "Done" in tab.status_label.text()
+    assert "Fwd" in tab.status_label.text()
 
 
 def test_analysis_tab_quality_all_pass(qapp, monkeypatch):

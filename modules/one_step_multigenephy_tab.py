@@ -375,10 +375,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         """Open the folder where the pipeline results are written."""
         out_dir = self.output_dir_edit.text().strip()
         if not out_dir:
-            self.show_status(self.tr("No output folder selected yet."))
+            self.show_status(self.tr("No output folder selected yet"))
             return
         if not os.path.isdir(out_dir):
-            self.show_status(self.tr("Output folder does not exist yet."))
+            self.show_status(self.tr("Output folder does not exist yet"))
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(out_dir))
 

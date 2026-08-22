@@ -510,7 +510,7 @@ and calculates the expected PCR product size.</p>
         html.append("</div>")
         self._last_results = "".join(html)
         self.results_text.setHtml(self._last_results)
-        self.status_label.setText(f"Done. ΔTm={tm_diff:.1f}°C, Fwd={len(fwd)}nt, Rev={len(rev)}nt")
+        self.status_label.setText(f"ΔTm {tm_diff:.1f}°C | Fwd {len(fwd)}nt | Rev {len(rev)}nt")
 
 
 if __name__ == "__main__":

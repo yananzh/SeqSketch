@@ -311,7 +311,7 @@ class SequenceLogoTab(BaseTabWidget):
             self.generate_logo(matrix, seq_type, len(records), mode)
 
             self.status_label.setText(
-                f"Generated: {len(records)} seqs, {seq_type}, {mode}, {lengths[0]} pos"
+                f"Generated: {len(records)} seqs, {lengths[0]} pos ({seq_type} {mode})"
             )
         except Exception as e:
             import traceback

@@ -197,12 +197,12 @@ def test_alignment_trimming_result_folder_button_opens_outdir(qapp, monkeypatch,
     )
 
     tab._open_output_folder()
-    assert tab.status_label.text() == "No output folder selected yet."
+    assert tab.status_label.text() == "No output folder selected yet"
 
     outdir = tmp_path / "trimmed"
     tab.outdir_edit.setText(str(outdir))
     tab._open_output_folder()
-    assert tab.status_label.text() == "Output folder does not exist yet."
+    assert tab.status_label.text() == "Output folder does not exist yet"
 
     outdir.mkdir()
     tab._open_output_folder()

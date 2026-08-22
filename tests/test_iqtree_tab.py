@@ -99,7 +99,7 @@ def test_open_output_folder_uses_outdir_or_input_dir(qapp, monkeypatch, tmp_path
 
     # no outdir and no input file -> status message
     tab._open_output_folder()
-    assert tab.status_label.text() == "No output folder selected yet."
+    assert tab.status_label.text() == "No output folder selected yet"
 
     # outdir set -> opens it
     outdir = tmp_path / "out"

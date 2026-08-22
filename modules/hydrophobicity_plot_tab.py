@@ -393,7 +393,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
         if file_path:
             try:
                 self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight")
-                self.status_label.setText(f"Figure saved: {file_path}")
+                self.status_label.setText(f"Figure saved: {os.path.basename(file_path)}")
                 self._last_export_dir = os.path.dirname(file_path)
                 self.open_folder_btn.setEnabled(True)
             except Exception as e:

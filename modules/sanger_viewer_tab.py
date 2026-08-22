@@ -229,7 +229,7 @@ class SangerViewerTab(QWidget):
 
         # --- Status bar + Export Plot / Clear / Help ---
         self.status_layout = QHBoxLayout()
-        self._status_label = QLabel(self.tr("Load an AB1 file to begin."))
+        self._status_label = QLabel(self.tr("Load an AB1 file to begin"))
         self.status_layout.addWidget(self._status_label)
         self.status_layout.addStretch()
         self._btn_export_plot = QPushButton(self.tr("Export Plot"))
@@ -567,7 +567,7 @@ class SangerViewerTab(QWidget):
         self._fig.clear()
         self._canvas.draw_idle()
         self._plot_stack.setCurrentIndex(0)  # back to the empty-state hint
-        self._set_status(self.tr("Load an AB1 file to begin."))
+        self._set_status(self.tr("Load an AB1 file to begin"))
 
     # ------------------------------------------------------------------
     # Help
@@ -672,7 +672,7 @@ class SangerViewerTab(QWidget):
             return
         QApplication.clipboard().setText(selected)
         self._set_status(
-            self.tr(f"Copied {len(selected)} bases (positions {start}\u2013{end}) to clipboard.")
+            self.tr(f"Copied {len(selected)} bases (positions {start}\u2013{end})")
         )
 
     def _set_status(self, msg: str) -> None:

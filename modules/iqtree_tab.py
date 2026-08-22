@@ -417,10 +417,10 @@ class IqTreeTab(BaseTabWidget):
             if input_path and os.path.isfile(input_path):
                 outdir = os.path.dirname(input_path)
         if not outdir:
-            self.show_status(self.tr("No output folder selected yet."))
+            self.show_status(self.tr("No output folder selected yet"))
             return
         if not os.path.isdir(outdir):
-            self.show_status(self.tr("Output folder does not exist yet."))
+            self.show_status(self.tr("Output folder does not exist yet"))
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(outdir))
 
@@ -429,7 +429,7 @@ class IqTreeTab(BaseTabWidget):
             self._thread.stop()
         self.stop_btn.setVisible(False)
         self.run_btn.setEnabled(True)
-        self.show_status(self.tr("Stopped."))
+        self.show_status(self.tr("Stopped"))
 
     def _clear(self):
         """Clear the log area and reset all parameters to defaults."""
@@ -549,16 +549,16 @@ to root the tree on (IQ-TREE <code>-o</code>).</li>
         valid, err = validate_input_path(exe)
         if not valid:
             self.log_message(self.tr("IQ-TREE executable not found."), "ERROR")
-            self.show_status(self.tr("IQ-TREE executable not found."))
+            self.show_status(self.tr("IQ-TREE executable not found"))
             return
 
         input_path = self._input_edit.text().strip()
         if not input_path:
-            self.show_status(self.tr("Please provide an input alignment file."))
+            self.show_status(self.tr("Please provide an input alignment file"))
             return
         valid, err = validate_input_path(input_path)
         if not valid:
-            self.show_status(self.tr("Input file not found."))
+            self.show_status(self.tr("Input file not found"))
             return
         # Validate alignment format
         ext = os.path.splitext(input_path)[1].lower()
@@ -636,9 +636,9 @@ to root the tree on (IQ-TREE <code>-o</code>).</li>
             self.show_status(self.tr("IQ-TREE finished successfully"))
             self._log_output_files()
         elif "Stopped by user" in output:
-            self.show_status(self.tr("Run stopped by user."))
+            self.show_status(self.tr("Run stopped by user"))
         else:
-            self.show_status(self.tr("IQ-TREE returned an error. See log below."))
+            self.show_status(self.tr("IQ-TREE returned an error. See log below"))
         if self._thread is not None:
             self._thread.wait()
             self._thread.deleteLater()

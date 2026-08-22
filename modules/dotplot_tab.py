@@ -373,7 +373,7 @@ class DotPlotTab(BaseTabWidget):
 
         dot_count = int(matrix.sum())
         density = (dot_count / matrix.size) * 100 if matrix.size else 0.0
-        self.status_label.setText(f"DotPlot generated: {dot_count} dots, density {density:.4f}%.")
+        self.status_label.setText(f"Generated: {dot_count} dots, density {density:.4f}%")
 
     def clear(self):
         super().clear()

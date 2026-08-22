@@ -342,7 +342,7 @@ class ProteaseCleavageTab(BaseTabWidget):
         total = len(all_fragments)
         if len(records) > 1:
             self.status_label.setText(
-                f"Digested: {total} fragments ({protease_name}, {len(records)} seq)"
+                f"Digested {total} fragments ({protease_name})"
             )
         else:
             self.status_label.setText(f"Digested: {total} fragments ({protease_name})")

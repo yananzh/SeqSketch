@@ -320,7 +320,7 @@ class MSAVisualizationTab(BaseTabWidget):
                 format=fmt,
                 dpi=max(self.dpi_spin.value(), 300),
             )
-            self.status_label.setText(f"Saved: {path}")
+            self.status_label.setText(f"Saved: {os.path.basename(path)}")
             self._last_export_dir = os.path.dirname(path)
             self.open_folder_btn.setEnabled(True)
         except Exception as e:
@@ -496,7 +496,7 @@ class MSAVisualizationTab(BaseTabWidget):
             gap_chars = sum(s.count("-") + s.count(".") for s in seq_lines)
             gap_pct = round(gap_chars / total_chars * 100, 1) if total_chars else 0.0
             self.status_label.setText(
-                f"Rendered — {n_seq} seqs, {aln_len} cols, {gap_pct}% gaps | {color}"
+                f"Rendered: {n_seq} seqs, {aln_len} cols, {gap_pct}% gaps ({color})"
             )
 
         except Exception as e:

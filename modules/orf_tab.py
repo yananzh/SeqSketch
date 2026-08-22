@@ -212,7 +212,7 @@ class ORFTab(BaseTabWidget):
     def run(self):
         raw = self.input_text.toPlainText().strip()
         if not raw:
-            self.show_status("Please enter a DNA sequence.")
+            self.show_status("Please enter a DNA sequence")
             return
 
         # Parse FASTA records (support single raw sequence and multi-FASTA)
@@ -249,7 +249,7 @@ class ORFTab(BaseTabWidget):
             if not seq:
                 continue
             if not re.fullmatch(r"[ACGTN]+", seq):
-                self.show_status(f'Invalid characters in "{rec_header}". Only A/T/G/C/N allowed.')
+                self.show_status(f'Invalid characters in "{rec_header}". A/T/G/C/N only')
                 return
 
             # Tag with origin header so multi-record output is readable

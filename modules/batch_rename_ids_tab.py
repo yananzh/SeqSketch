@@ -385,7 +385,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             return
         self.handle_input_file_selected(fasta_path)
         self.handle_mapping_file_selected(mapping_path)
-        self.show_status(self.tr("已载入示例数据: cytb_cds_raw.fasta + cytb_id_mapping.xlsx"))
+        self.show_status(self.tr("Example loaded"))
 
     def select_mapping_file(self):
         file_path, _ = QFileDialog.getOpenFileName(

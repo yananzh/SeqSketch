@@ -508,11 +508,11 @@ class MafftAlignmentTab(BaseTabWidget):
         elif hasattr(self, "output_file_edit"):
             target = self.output_file_edit.text().strip()
         if not target:
-            self.show_status(self.tr("No output path selected yet."))
+            self.show_status(self.tr("No output path selected yet"))
             return
         folder = target if os.path.isdir(target) else os.path.dirname(os.path.abspath(target))
         if not os.path.isdir(folder):
-            self.show_status(self.tr("Output folder does not exist yet."))
+            self.show_status(self.tr("Output folder does not exist yet"))
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
@@ -1064,7 +1064,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self._aligned_fasta = ""
         self.run_btn.setEnabled(False)
         self.status_label.setText(
-            f"Running MAFFT ({_strategy_key(strategy)}) on {len(seqs)} sequences…"
+            f"Running MAFFT ({_strategy_key(strategy)}), {len(seqs)} seqs…"
         )
 
         self._worker = _MafftWorker(

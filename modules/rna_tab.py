@@ -52,7 +52,7 @@ class RNATab(BaseTabWidget):
     def run(self):
         seq = self.input_text.toPlainText().strip()
         if not seq:
-            self.show_status("Please enter a DNA sequence or FASTA.")
+            self.show_status("Please enter a DNA sequence or FASTA")
             return
 
         # Check if input is FASTA format
@@ -67,7 +67,7 @@ class RNATab(BaseTabWidget):
         else:
             # Single raw sequence
             if not self.is_valid_dna(seq):
-                self.show_status("Invalid characters. Allowed IUPAC codes: A/T/G/C/N, etc.")
+                self.show_status("Invalid characters: IUPAC bases only")
                 return
             rna = seq.upper().replace("T", "U").replace("t", "u")
             self.output_text.setPlainText(rna)

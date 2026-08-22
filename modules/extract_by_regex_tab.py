@@ -257,7 +257,7 @@ class ExtractByRegexTab(BaseTabWidget):
         # since the accession lives in the ID part.
         self.regex_edit.setText(r"tr\|[^|]+\|A0AAI7Z")
         self.match_scope_combo.setCurrentText("Sequence ID Only")
-        self.show_status(self.tr("Example loaded: simple_header.fasta + sample regex"))
+        self.show_status(self.tr("Example loaded"))
 
     def clear_all(self):
         self.input_edit.clear()
