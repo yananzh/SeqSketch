@@ -14,6 +14,9 @@ favorites.json
 startup.log
 logs/
 nul
+_out.txt
+*.log
+.zcode/
 
 # Stray dev scratch files
 all_files.txt

@@ -1,6 +1,6 @@
 # SeqSketch — Agent Instructions
 
-PyQt6-based bioinformatics desktop app for sequence analysis. Keep this file minimal and actionable; link to [readme.txt](readme.txt) for user-facing feature descriptions.
+PyQt6-based bioinformatics desktop app for sequence analysis. Keep this file minimal and actionable; link to [README.MD](README.MD) for user-facing feature descriptions.
 
 ## Verified Commands
 
