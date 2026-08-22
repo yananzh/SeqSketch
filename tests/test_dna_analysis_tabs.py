@@ -900,9 +900,14 @@ def test_main_window_and_menu_use_mafft_label(qapp):
     alignment_menu = next(
         action.menu() for action in menu_bar.actions() if action.text() == "Alignment"
     )
-    action_texts = [action.text() for action in alignment_menu.actions() if action.text()]
-
-    assert "Multiple Sequence Alignment (MAFFT)" in action_texts
+    # MSA entries are now nested under a "Multiple Sequence Alignment" submenu
+    msa_submenu = next(
+        action.menu() for action in alignment_menu.actions()
+        if action.text() == "Multiple Sequence Alignment"
+    )
+    sub_texts = [action.text() for action in msa_submenu.actions() if action.text()]
+    assert "MAFFT" in sub_texts
+    assert "Muscle5" in sub_texts
 
 
 def test_sequence_logo_tab_shows_save_figure_button_and_uses_logomaker_title(qapp):
@@ -1663,7 +1668,7 @@ def test_msa_batch_worker_rejects_duplicate_headers(tmp_path):
         overwrite=True,
     )
     messages = []
-    worker.finished.connect(messages.append)
+    worker.batch_finished.connect(messages.append)
     worker.run()
 
     assert messages and "duplicate sequence header" in messages[0]

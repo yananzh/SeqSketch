@@ -1095,8 +1095,8 @@ def test_split_fasta_by_count_happy_path(qapp, sample_fasta_file: Path, tmp_path
     tab.count_spin.setValue(2)
     tab.run_split()
 
-    part1 = output_dir / "split_part001.fasta"
-    part2 = output_dir / "split_part002.fasta"
+    part1 = output_dir / "sample_part001.fasta"
+    part2 = output_dir / "sample_part002.fasta"
     assert part1.exists()
     assert part2.exists()
     assert fasta_headers(part1) == ["seq1 alpha description", "seq2 beta description"]
@@ -1118,8 +1118,8 @@ def test_split_fasta_by_parts_happy_path(qapp, sample_fasta_file: Path, tmp_path
     tab.parts_spin.setValue(2)
     tab.run_split()
 
-    part1 = output_dir / "split_part001.fasta"
-    part2 = output_dir / "split_part002.fasta"
+    part1 = output_dir / "sample_part001.fasta"
+    part2 = output_dir / "sample_part002.fasta"
     assert part1.exists()
     assert part2.exists()
     assert len(fasta_headers(part1)) + len(fasta_headers(part2)) == 4

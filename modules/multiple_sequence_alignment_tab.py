@@ -34,6 +34,7 @@ from PyQt6.QtWidgets import (
 from utils.app_paths import resource_path, tool_path_from_config, user_data_file
 from utils.common_components import BaseTabWidget, apply_input_list_style
 from utils.example_data import load_example_text, stage_example
+from utils.process_control import kill_process_tree
 
 # Per-user config file where the user-selected MUSCLE path is persisted.
 # Mirrors the pattern used by blast_config.py (legacy repo-root config.ini is
@@ -56,7 +57,7 @@ MUSCLE_EXE = _resolve_muscle_exe()
 # Worker thread — runs MUSCLE in background
 # ---------------------------------------------------------------------------
 class _MuscleWorker(QThread):
-    finished = pyqtSignal(str)  # aligned FASTA text
+    alignment_finished = pyqtSignal(str)  # aligned FASTA text
     error = pyqtSignal(str)
     progress = pyqtSignal(str)
 
@@ -107,7 +108,7 @@ class _MuscleWorker(QThread):
             with open(tmp_out, "r", encoding="utf-8") as fout:
                 aligned = fout.read()
 
-            self.finished.emit(aligned)
+            self.alignment_finished.emit(aligned)
 
         except FileNotFoundError:
             self.error.emit(
@@ -248,7 +249,7 @@ def _dict_to_fasta_text(seqs: dict) -> str:
 
 
 class _MuscleBatchWorker(QThread):
-    finished = pyqtSignal(str)
+    batch_finished = pyqtSignal(str)
     error = pyqtSignal(str)
     progress = pyqtSignal(str)
 
@@ -280,10 +281,7 @@ class _MuscleBatchWorker(QThread):
     def stop(self):
         self._killed = True
         if self._proc and self._proc.poll() is None:
-            try:
-                self._proc.kill()
-            except OSError:
-                pass
+            kill_process_tree(self._proc)
 
     def _render_name(self, stem: str, ext: str) -> str:
         safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_") or "sample"
@@ -365,15 +363,16 @@ class _MuscleBatchWorker(QThread):
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                 )
-                self._proc.communicate(timeout=1200)
+                stdout_data, stderr_data = self._proc.communicate(timeout=1200)
                 if self._killed:
                     break
                 if self._proc.returncode != 0:
-                    err = (
-                        (self._proc.stderr.read() or b"").decode("utf-8", errors="replace").strip()
-                    )
+                    err = (stderr_data or stdout_data or "").strip()
                     raise RuntimeError(f"MUSCLE exited with code {self._proc.returncode}: {err}")
 
                 with open(tmp_out, "r", encoding="utf-8") as fout:
@@ -413,13 +412,13 @@ class _MuscleBatchWorker(QThread):
                             pass
 
         if self._killed:
-            self.finished.emit(f"Batch cancelled: {ok}/{total} succeeded before cancel.")
+            self.batch_finished.emit(f"Batch cancelled: {ok}/{total} succeeded before cancel.")
         else:
             summary = [f"Batch completed: {ok}/{total} succeeded."]
             if fail_msgs:
                 summary.append("\nFailures:")
                 summary.extend(f"- {m}" for m in fail_msgs)
-            self.finished.emit("\n".join(summary))
+            self.batch_finished.emit("\n".join(summary))
 
 
 # ---------------------------------------------------------------------------
@@ -1009,7 +1008,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             sequence_order=self.batch_order_combo.currentText(),
         )
         self._batch_worker.progress.connect(self._on_batch_progress)
-        self._batch_worker.finished.connect(self._on_batch_finished)
+        self._batch_worker.batch_finished.connect(self._on_batch_finished)
         self._batch_worker.error.connect(self._on_batch_error)
         self._batch_worker.start()
 
@@ -1110,7 +1109,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.status_label.setText(f"Running MUSCLE ({method}) on {len(seqs)} sequences…")
 
         self._worker = _MuscleWorker(clean_fasta, method, threads, muscle_exe)
-        self._worker.finished.connect(self._on_alignment_done)
+        self._worker.alignment_finished.connect(self._on_alignment_done)
         self._worker.error.connect(self._on_alignment_error)
         self._worker.progress.connect(lambda msg: self.status_label.setText(msg))
         self._worker.start()

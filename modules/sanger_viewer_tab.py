@@ -128,12 +128,12 @@ class SangerViewerTab(QWidget):
             )
         )
         file_row.addWidget(self._file_edit, 1)
-        self._btn_browse = QPushButton(self.tr("Browse"))
-        self._btn_browse.setToolTip(self.tr("Select an AB1 file (loads automatically)"))
-        file_row.addWidget(self._btn_browse)
         self._btn_example = QPushButton(self.tr("Example"))
         self._btn_example.setToolTip(self.tr("Load a bundled example AB1 trace file"))
         file_row.addWidget(self._btn_example)
+        self._btn_browse = QPushButton(self.tr("Browse"))
+        self._btn_browse.setToolTip(self.tr("Select an AB1 file (loads automatically)"))
+        file_row.addWidget(self._btn_browse)
         outer.addLayout(file_row)
 
         # --- Options row ---

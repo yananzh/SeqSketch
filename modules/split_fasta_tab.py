@@ -94,13 +94,6 @@ class SplitFastaTab(BaseTabWidget):
         self.output_btn.setFixedWidth(90)
         out_layout.addWidget(self.output_edit)
         out_layout.addWidget(self.output_btn)
-        out_layout.addWidget(QLabel("Prefix:"))
-        self.prefix_edit = QLineEdit("split")
-        self.prefix_edit.setFixedWidth(100)
-        self.prefix_edit.setToolTip(
-            "Output files are named <prefix>_part001.fasta, <prefix>_part002.fasta, ..."
-        )
-        out_layout.addWidget(self.prefix_edit)
 
         # ── Preview ──
         self.preview_panel = QPlainTextEdit()
@@ -179,7 +172,6 @@ class SplitFastaTab(BaseTabWidget):
     def clear_all(self):
         self.input_edit.clear()
         self.output_edit.clear()
-        self.prefix_edit.setText("split")
         self.preview_panel.clear()
         self.log_area.clear()
         self.show_status("Cleared")
@@ -222,6 +214,18 @@ class SplitFastaTab(BaseTabWidget):
             return None
         return output_dir
 
+    def _derive_prefix(self) -> str:
+        """Derive the output file prefix from the input file name (stem, no extension).
+
+        Falls back to "split" when no input file is set or the stem is empty.
+        """
+        input_path = self.input_edit.text().strip()
+        if input_path:
+            stem = os.path.splitext(os.path.basename(input_path))[0]
+            if stem:
+                return stem
+        return "split"
+
     def preview_split(self):
         records = self._read_records()
         if not records:
@@ -245,7 +249,7 @@ class SplitFastaTab(BaseTabWidget):
         output_dir = self._output_dir()
         if output_dir is None:
             return
-        prefix = self.prefix_edit.text().strip() or "split"
+        prefix = self._derive_prefix()
         chunks = self._build_plan(records)
 
         from modules.fasta_processor import FASTAProcessor
@@ -298,10 +302,11 @@ records of the input file.</p>
 
 <h3>Output File Names</h3>
 <p>Files are written to the output directory as
-<code>&lt;prefix&gt;_part001.fasta</code>,
-<code>&lt;prefix&gt;_part002.fasta</code>, &hellip;
-The default prefix is <code>split</code>; change it to describe your
-dataset (e.g. <code>cytb</code>). The output directory is created
+<code>&lt;input_stem&gt;_part001.fasta</code>,
+<code>&lt;input_stem&gt;_part002.fasta</code>, &hellip;
+The prefix is taken from the input file name (without its extension); for
+example, splitting <code>cytb.fasta</code> produces <code>cytb_part001.fasta</code>,
+<code>cytb_part002.fasta</code>, &hellip; The output directory is created
 automatically if it does not exist.</p>
 
 <h3>Quick Start</h3>
@@ -310,7 +315,7 @@ automatically if it does not exist.</p>
 <code>B.subtilis_pro.fasta</code> protein dataset).</li>
 <li>Choose <b>Sequences per file</b> or <b>Number of parts</b> and set
 the value.</li>
-<li>Pick an output directory and, optionally, a new file prefix.</li>
+<li>Pick an output directory.</li>
 <li>Click <b>Preview</b> &mdash; the split plan shows how many files will
 be created and how many sequences each one will hold.</li>
 <li>Click <b>Run</b>, then use <b>Result Folder</b> to jump straight to the

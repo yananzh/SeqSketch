@@ -22,6 +22,10 @@ class RNATab(BaseTabWidget):
         self.input_text.setMinimumHeight(150)
         self.output_text.setMinimumHeight(150)
 
+        # Hide the unused hint label so the Example/Upload buttons sit at the
+        # bottom of the Input Sequence group (same pattern as TranslateTab).
+        self.input_hint.hide()
+
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton(self.tr("Example"))
         self.example_btn.clicked.connect(self._load_example)

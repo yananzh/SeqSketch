@@ -20,6 +20,10 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(self.tr("SeqSketch"))
         self.resize(920, 700)
+        # Lock the default size as the minimum: some tabs (e.g. the MSA tabs'
+        # batch page) carry a large minimumSizeHint that would otherwise
+        # silently inflate the window beyond its default height.
+        self.setMinimumSize(920, 700)
         self._init_width = 920
         icon_path = resource_path("window_logo.png")
         if os.path.exists(icon_path):
