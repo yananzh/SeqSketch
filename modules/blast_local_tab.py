@@ -42,7 +42,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import resource_path
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, unify_status_button_sizes
 
 from .blast_config import (
     database_is_valid,
@@ -1302,6 +1302,7 @@ class BlastLocalTab(BaseTabWidget):
         super().__init__("Local BLAST", "blast")
         self._build_ui(status_callback, result_callback)
         self._check_blast_bin()
+        unify_status_button_sizes(self)
 
     def _build_ui(self, status_callback, result_callback):
         self._run_tab = _RunQueryWidget(

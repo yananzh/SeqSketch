@@ -27,7 +27,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
 
 # (name, recognition site, 0-based cut index on the 5'->3' strand, protection bases)
@@ -332,6 +332,7 @@ class CloningPrimerTab(BaseTabWidget):
         # shared "Output Result" group from the sequence-mode base layout.
         self.content_area.removeWidget(self.output_group)
         self.output_group.hide()
+        unify_status_button_sizes(self)
 
     def _setup_parameter_ui(self):
         grp = QGroupBox(self.tr("Cloning Parameters"))

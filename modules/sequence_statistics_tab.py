@@ -14,7 +14,12 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget, FASTAWorker, FileDropLineEdit
+from utils.common_components import (
+    BaseTabWidget,
+    FASTAWorker,
+    FileDropLineEdit,
+    unify_status_button_sizes,
+)
 
 NUCLEOTIDE_BASES = set("ACGTUNRYMKSWBDHV")
 AMBIGUOUS_BASES = set("RYMKSWBDHV")
@@ -236,6 +241,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         super().__init__("FASTA Statistics", "file")
         self.init_ui()
         self.connect_signals()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         # 固定标签宽度使两行对齐

@@ -49,7 +49,7 @@ except ImportError:
     _HAS_OPENPYXL = False
 
 # Shared styling
-from utils.common_components import apply_sequence_editor_style
+from utils.common_components import apply_sequence_editor_style, unify_status_button_sizes
 from utils.example_data import load_example_text
 
 try:
@@ -379,7 +379,6 @@ class PrimerDesignTab(QWidget):
         self.help_btn = QPushButton(self.tr("Help"))
         self.export_excel_btn = QPushButton(self.tr("Export Excel"))
         self.open_folder_btn = QPushButton(self.tr("Result Folder"))
-        self.open_folder_btn.setFixedWidth(110)
         self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
         self.open_folder_btn.setToolTip(self.tr("Open the folder of the last exported results"))
@@ -453,18 +452,20 @@ class PrimerDesignTab(QWidget):
         splitter.setSizes([380, 1040])
 
         # ── Status bar with buttons at the bottom ──
-        status_row = QHBoxLayout()
+        self.status_layout = QHBoxLayout()
         self.status_label = QLabel(self.tr("Ready"))
         self.status_label.setStyleSheet("color: #666; padding: 2px 8px;")
-        status_row.addWidget(self.status_label)
-        status_row.addStretch()
-        status_row.addWidget(self.design_button)
-        status_row.addWidget(self.clear_seq_btn)
-        status_row.addWidget(self.export_excel_btn)
-        status_row.addWidget(self.open_folder_btn)
-        status_row.addWidget(self.help_btn)
-        status_row.addSpacing(8)
-        root_layout.addLayout(status_row)
+        self.status_layout.addWidget(self.status_label)
+        self.status_layout.addStretch()
+        self.status_layout.addWidget(self.design_button)
+        self.status_layout.addWidget(self.clear_seq_btn)
+        self.status_layout.addWidget(self.export_excel_btn)
+        self.status_layout.addWidget(self.open_folder_btn)
+        self.status_layout.addWidget(self.help_btn)
+        self.status_layout.addSpacing(8)
+        # Same one-word/two-word width rule as the BaseTabWidget tabs.
+        unify_status_button_sizes(self)
+        root_layout.addLayout(self.status_layout)
 
     def connect_signals(self):
         self.design_button.clicked.connect(self.start_design_task)

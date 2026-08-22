@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
 )
 
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
 
 PROPERTIES = [
@@ -120,6 +120,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
 
         # Storage for results
         self.current_results = []
+        unify_status_button_sizes(self)
 
     def _setup_results_area(self):
         """Replace the plain-text output with one wide per-sequence table."""

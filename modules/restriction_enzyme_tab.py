@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
 
 
@@ -117,6 +117,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self.export_xlsx_btn.clicked.connect(self._export_excel)
         _idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(_idx + 1, self.export_xlsx_btn)
+        unify_status_button_sizes(self)
 
     def _setup_file_input(self):
         """Replace the paste editor with a file-only input (Browse + drag & drop)."""

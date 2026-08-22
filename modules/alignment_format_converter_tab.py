@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import (
     BaseTabWidget,
+    unify_status_button_sizes,
     validate_input_path,
     validate_output_path,
 )
@@ -95,6 +96,7 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         super().__init__("Alignment Format Converter", "file")
         self.init_ui()
         self.connect_signals()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         class FileDropLineEdit(QLineEdit):

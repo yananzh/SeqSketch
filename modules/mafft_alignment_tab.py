@@ -31,7 +31,12 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import resource_path, tool_path_from_config
-from utils.common_components import BaseTabWidget, BaseWorker, apply_input_list_style
+from utils.common_components import (
+    BaseTabWidget,
+    BaseWorker,
+    apply_input_list_style,
+    unify_status_button_sizes,
+)
 from utils.example_data import load_example_text, stage_example
 from utils.process_control import kill_process_tree
 
@@ -475,6 +480,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.help_btn.setFixedWidth(75)
         self.run_btn.setFixedWidth(75)
         self.clear_btn.setFixedWidth(75)
+        unify_status_button_sizes(self)
 
     def _setup_stop_button(self):
         self.stop_btn = QPushButton(self.tr("Stop"))

@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
 
 matplotlib.use("Qt5Agg")
@@ -64,6 +64,7 @@ class GCPlotTab(BaseTabWidget):
 
         # Keep step default in sync with window changes
         self.window_spin.valueChanged.connect(self._sync_step_to_window)
+        unify_status_button_sizes(self)
 
     def _setup_file_input(self):
         """Replace the paste editor with a file-only input (Browse + drag & drop)."""

@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 from utils.common_components import (
     BaseTabWidget,
     FileDropLineEdit,
+    unify_status_button_sizes,
 )
 
 SIMPLIFY_MODE_FIRST_TOKEN = "first_token"
@@ -108,6 +109,7 @@ class SimplifyIDsTab(BaseTabWidget):
         self.init_ui()
         self.connect_signals()
         self.update_mode_controls()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         _label_width = 130

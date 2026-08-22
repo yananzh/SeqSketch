@@ -26,7 +26,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import apply_transparent_text_edit_background
+from utils.common_components import (
+    apply_transparent_text_edit_background,
+    unify_status_button_sizes,
+)
 from utils.example_data import stage_example
 
 # Pixels per raw scan when sizing the canvas (1 scan ≈ 1 px gives good peak clarity)
@@ -225,27 +228,26 @@ class SangerViewerTab(QWidget):
         outer.addWidget(seq_group)
 
         # --- Status bar + Export Plot / Clear / Help ---
-        status_row = QHBoxLayout()
+        self.status_layout = QHBoxLayout()
         self._status_label = QLabel(self.tr("Load an AB1 file to begin."))
-        status_row.addWidget(self._status_label)
-        status_row.addStretch()
+        self.status_layout.addWidget(self._status_label)
+        self.status_layout.addStretch()
         self._btn_export_plot = QPushButton(self.tr("Export Plot"))
-        self._btn_export_plot.setFixedWidth(110)
         self._btn_export_plot.setProperty("accentButton", True)
         self._btn_export_plot.setToolTip(self.tr("Save the current chromatogram as an image file"))
         self._btn_export_plot.setEnabled(False)
         self._btn_export_plot.style().unpolish(self._btn_export_plot)
         self._btn_export_plot.style().polish(self._btn_export_plot)
-        status_row.addWidget(self._btn_export_plot)
+        self.status_layout.addWidget(self._btn_export_plot)
         self._btn_clear = QPushButton(self.tr("Clear"))
-        self._btn_clear.setFixedWidth(90)
         self._btn_clear.setToolTip(self.tr("Clear the loaded chromatogram and reset the view"))
-        status_row.addWidget(self._btn_clear)
+        self.status_layout.addWidget(self._btn_clear)
         self._btn_help = QPushButton(self.tr("Help"))
-        self._btn_help.setFixedWidth(80)
         self._btn_help.setToolTip(self.tr("Show usage help"))
-        status_row.addWidget(self._btn_help)
-        outer.addLayout(status_row)
+        self.status_layout.addWidget(self._btn_help)
+        # Same one-word/two-word width rule as the BaseTabWidget tabs.
+        unify_status_button_sizes(self)
+        outer.addLayout(self.status_layout)
 
         # --- Signal connections ---
         self._btn_browse.clicked.connect(self._browse)

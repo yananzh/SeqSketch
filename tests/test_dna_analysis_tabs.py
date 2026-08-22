@@ -1628,6 +1628,81 @@ def test_phylo_tabs_status_bar_button_sizes_unified(qapp):
                 )
 
 
+def test_every_tab_status_bar_button_sizes_unified(qapp):
+    """Every tab in the app follows the one-word/two-word status button width
+    rule, not just the phylogenetic tabs."""
+    import importlib
+    import inspect
+    import pkgutil
+
+    import modules
+    from modules.codon_usage_tab import CodonUsageTab
+    from modules.favorites_manager import BookmarkManager
+    from modules.primer3_gui import PrimerDesignTab
+    from modules.primer_analysis_tab import PrimerAnalysisTab
+    from modules.sanger_tab import SangerTab
+    from modules.sanger_viewer_tab import SangerViewerTab
+    from utils.common_components import (
+        STATUS_BUTTON_WIDTH_DOUBLE,
+        STATUS_BUTTON_WIDTH_SINGLE,
+        BaseTabWidget,
+    )
+
+    def instantiable_no_args(cls) -> bool:
+        try:
+            params = list(inspect.signature(cls.__init__).parameters.values())[1:]
+        except (TypeError, ValueError):
+            return False
+        return all(
+            p.default is not inspect.Parameter.empty
+            or p.kind
+            in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+            for p in params
+        )
+
+    tab_classes = {
+        SangerTab,
+        SangerViewerTab,
+        PrimerDesignTab,
+        PrimerAnalysisTab,
+        CodonUsageTab,
+        BookmarkManager,
+    }
+    for mod_info in pkgutil.iter_modules(modules.__path__):
+        mod = importlib.import_module(f"modules.{mod_info.name}")
+        for obj in vars(mod).values():
+            if (
+                inspect.isclass(obj)
+                and issubclass(obj, BaseTabWidget)
+                and obj.__module__ == mod.__name__
+                and instantiable_no_args(obj)
+            ):
+                tab_classes.add(obj)
+
+    assert len(tab_classes) > 20, "tab discovery unexpectedly found few tabs"
+
+    checked = 0
+    for cls in sorted(tab_classes, key=lambda c: c.__name__):
+        tab = cls()
+        for i in range(tab.status_layout.count()):
+            widget = tab.status_layout.itemAt(i).widget()
+            if isinstance(widget, QPushButton):
+                expected = (
+                    STATUS_BUTTON_WIDTH_DOUBLE
+                    if len(widget.text().split()) > 1
+                    else STATUS_BUTTON_WIDTH_SINGLE
+                )
+                assert (
+                    widget.minimumWidth(),
+                    widget.maximumWidth(),
+                ) == (expected, expected), (
+                    cls.__name__,
+                    widget.text(),
+                )
+                checked += 1
+    assert checked > 80, f"only {checked} status buttons checked"
+
+
 def test_msa_rejects_duplicate_input_headers_before_alignment(qapp, monkeypatch):
     # Duplicate headers must fail loudly instead of the dict parser silently
     # keeping only the last copy of each sequence.

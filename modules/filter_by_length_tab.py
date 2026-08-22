@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QSpinBox,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 
 
 class FilterByLengthTab(BaseTabWidget):
@@ -24,6 +24,7 @@ class FilterByLengthTab(BaseTabWidget):
         super().__init__("Filter by Length", "file")
         self.init_ui()
         self.connect_signals()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         _label_width = 130

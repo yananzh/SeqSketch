@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget, apply_input_list_style
+from utils.common_components import BaseTabWidget, apply_input_list_style, unify_status_button_sizes
 
 
 class ConcatFastaTab(BaseTabWidget):
@@ -28,6 +28,7 @@ class ConcatFastaTab(BaseTabWidget):
         super().__init__("Concatenate FASTA", "file")
         self.init_ui()
         self.connect_signals()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         _label_width = 130

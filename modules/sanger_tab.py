@@ -24,6 +24,7 @@ from utils.common_components import (
     FileDropLineEdit,
     apply_sequence_editor_style,
     apply_transparent_text_edit_background,
+    unify_status_button_sizes,
 )
 from utils.example_data import load_example_text
 
@@ -179,32 +180,30 @@ class SangerTab(QWidget):
         outer.addWidget(grp_out)
 
         # ── Status row: Run / Clear / Example / Help ──────────────────
-        status_layout = QHBoxLayout()
+        self.status_layout = QHBoxLayout()
         self.status_label = QLabel(self.tr("Ready"))
-        status_layout.addWidget(self.status_label)
-        status_layout.addStretch()
+        self.status_layout.addWidget(self.status_label)
+        self.status_layout.addStretch()
 
         self.run_btn = QPushButton(self.tr("Run"))
-        self.run_btn.setFixedWidth(90)
         self.run_btn.clicked.connect(self.run_assembly)
-        status_layout.addWidget(self.run_btn)
+        self.status_layout.addWidget(self.run_btn)
 
         self.clear_btn = QPushButton(self.tr("Clear"))
-        self.clear_btn.setFixedWidth(90)
         self.clear_btn.clicked.connect(self._clear_all)
-        status_layout.addWidget(self.clear_btn)
+        self.status_layout.addWidget(self.clear_btn)
 
         self.example_btn = QPushButton(self.tr("Example"))
-        self.example_btn.setFixedWidth(90)
         self.example_btn.clicked.connect(self._load_example)
-        status_layout.addWidget(self.example_btn)
+        self.status_layout.addWidget(self.example_btn)
 
         self.help_btn = QPushButton(self.tr("Help"))
-        self.help_btn.setFixedWidth(80)
         self.help_btn.clicked.connect(self.show_help)
-        status_layout.addWidget(self.help_btn)
+        self.status_layout.addWidget(self.help_btn)
 
-        outer.addLayout(status_layout)
+        # Same one-word/two-word width rule as the BaseTabWidget tabs.
+        unify_status_button_sizes(self)
+        outer.addLayout(self.status_layout)
 
     # ── Assembly logic ─────────────────────────────────────────────────
 

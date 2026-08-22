@@ -39,6 +39,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from utils.common_components import unify_status_button_sizes
 from utils.example_data import load_example_text
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -758,16 +759,13 @@ class CodonUsageTab(QWidget):
         self._status_label = QLabel("Ready")
 
         self._btn_run = QPushButton("Run")
-        self._btn_run.setFixedWidth(90)
         self._btn_run.clicked.connect(self._run_analysis)
 
         self._btn_export_csv = QPushButton("Export CSV")
-        self._btn_export_csv.setFixedWidth(110)
         self._btn_export_csv.setEnabled(False)
         self._btn_export_csv.clicked.connect(self._export_csv)
 
         self._btn_export_plot = QPushButton("Export Plot")
-        self._btn_export_plot.setFixedWidth(110)
         self._btn_export_plot.setToolTip(
             "Save the current chart (RSCU / GC / Comparison) as an image file"
         )
@@ -775,17 +773,18 @@ class CodonUsageTab(QWidget):
         self._btn_export_plot.clicked.connect(self._export_plot)
 
         self._btn_help = QPushButton("Help")
-        self._btn_help.setFixedWidth(80)
         self._btn_help.clicked.connect(self._show_help)
 
-        status_row = QHBoxLayout()
-        status_row.addWidget(self._status_label)
-        status_row.addStretch()
-        status_row.addWidget(self._btn_run)
-        status_row.addWidget(self._btn_export_csv)
-        status_row.addWidget(self._btn_export_plot)
-        status_row.addWidget(self._btn_help)
-        root.addLayout(status_row)
+        self.status_layout = QHBoxLayout()
+        self.status_layout.addWidget(self._status_label)
+        self.status_layout.addStretch()
+        self.status_layout.addWidget(self._btn_run)
+        self.status_layout.addWidget(self._btn_export_csv)
+        self.status_layout.addWidget(self._btn_export_plot)
+        self.status_layout.addWidget(self._btn_help)
+        # Same one-word/two-word width rule as the BaseTabWidget tabs.
+        unify_status_button_sizes(self)
+        root.addLayout(self.status_layout)
 
         self._result_tabs.currentChanged.connect(self._update_export_plot_state)
 

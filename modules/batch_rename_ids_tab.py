@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 
 # Remove worker, use main thread
 
@@ -215,6 +215,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         super().__init__("Rename IDs", "file")
         self.init_ui()
         self.connect_signals()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         _label_width = 130

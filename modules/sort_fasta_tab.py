@@ -14,7 +14,12 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit, validate_input_path
+from utils.common_components import (
+    BaseTabWidget,
+    FileDropLineEdit,
+    unify_status_button_sizes,
+    validate_input_path,
+)
 
 SORT_KEY_ID = "id"
 SORT_KEY_LENGTH = "length"
@@ -45,6 +50,7 @@ class SortFastaTab(BaseTabWidget):
         self.log_area.setMaximumHeight(80)
         self.init_ui()
         self.connect_signals()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         _label_width = 130

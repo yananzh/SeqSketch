@@ -24,7 +24,12 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit, PlaceholderComboBox
+from utils.common_components import (
+    BaseTabWidget,
+    FileDropLineEdit,
+    PlaceholderComboBox,
+    unify_status_button_sizes,
+)
 from utils.example_data import stage_example
 
 # Gardiner-Garden & Frommer (1987) default criteria.
@@ -174,6 +179,7 @@ class CpGIslandTab(BaseTabWidget):
         self._setup_export_button()
         self.output_group.hide()
         self.output_text.hide()
+        unify_status_button_sizes(self)
 
     # ── UI ─────────────────────────────────────────────────────────────
 

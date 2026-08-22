@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
 
 matplotlib.use("QtAgg")
@@ -70,6 +70,7 @@ class DotPlotTab(BaseTabWidget):
         self._update_ui_layout()
         self._setup_parameters()
         self._setup_plot_canvas()
+        unify_status_button_sizes(self)
 
     def _update_ui_layout(self):
         # File-only input: the text editor stays hidden as the content

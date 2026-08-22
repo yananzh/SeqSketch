@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, unify_status_button_sizes
 
 
 def normalize_accession_list(acc_text: str) -> tuple[list[str], list[str]]:
@@ -293,6 +293,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.log_area.setMaximumHeight(100)
         self.init_ui()
         self.connect_signals()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         _label_width = 130

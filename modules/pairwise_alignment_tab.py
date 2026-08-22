@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import (
     BaseTabWidget,
+    unify_status_button_sizes,
 )
 from utils.example_data import load_example_text
 
@@ -62,6 +63,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         # Show/hide parameters based on auto-detected sequence type
         self.input_text.textChanged.connect(self._update_param_visibility)
         self.seq2_text.textChanged.connect(self._update_param_visibility)
+        unify_status_button_sizes(self)
 
     # ------------------------------------------------------------------ layout
 

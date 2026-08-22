@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
 
 matplotlib.use("QtAgg")
@@ -110,6 +110,7 @@ class SequenceLogoTab(BaseTabWidget):
 
         # Store current figure for export
         self.current_figure = None
+        unify_status_button_sizes(self)
 
     def _clear_loaded_hint(self):
         self.input_hint.clear()

@@ -377,8 +377,6 @@ class BaseTabWidget(QWidget):
 
         # Run/Clear buttons for sequence tabs — placed at bottom-right
         if self.tab_type == "sequence" and hasattr(self, "run_btn"):
-            self.run_btn.setFixedWidth(90)
-            self.clear_btn.setFixedWidth(90)
             self.status_layout.addWidget(self.run_btn)
             self.status_layout.addWidget(self.clear_btn)
 
@@ -386,6 +384,11 @@ class BaseTabWidget(QWidget):
         self.help_btn = QPushButton("Help")
         self.help_btn.clicked.connect(self.show_help)
         self.status_layout.addWidget(self.help_btn)
+
+        # Base buttons adopt the unified widths here; tabs that add more
+        # status-row buttons re-run unify_status_button_sizes(self) at the
+        # end of their __init__.
+        unify_status_button_sizes(self)
 
         # Log area (file mode only)
         if self.tab_type == "file":

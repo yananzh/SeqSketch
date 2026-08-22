@@ -16,7 +16,12 @@ from PyQt6.QtWidgets import (
 )
 
 from modules.fasta_processor import FASTARecord
-from utils.common_components import BaseTabWidget, FileDropLineEdit, validate_input_path
+from utils.common_components import (
+    BaseTabWidget,
+    FileDropLineEdit,
+    unify_status_button_sizes,
+    validate_input_path,
+)
 
 DIRECTION_FASTA_TO_TABLE = "fasta_to_table"
 DIRECTION_TABLE_TO_FASTA = "table_to_fasta"
@@ -103,6 +108,7 @@ class FastaTableConverterTab(BaseTabWidget):
         self.log_area.setMaximumHeight(80)
         self.init_ui()
         self.connect_signals()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         _label_width = 130

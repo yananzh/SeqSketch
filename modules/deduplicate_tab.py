@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit
+from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 
 DEDUP_BY_ID = "by_id"
 DEDUP_BY_SEQ = "by_seq"
@@ -31,6 +31,7 @@ class DeduplicateTab(BaseTabWidget):
         self.log_area.setMaximumHeight(100)
         self.init_ui()
         self.connect_signals()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         _label_width = 130

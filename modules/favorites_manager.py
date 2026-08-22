@@ -34,6 +34,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import user_data_file
+from utils.common_components import unify_status_button_sizes
 
 # URL validation regex
 _URL_RE = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
@@ -251,15 +252,17 @@ class BookmarkManager(QWidget):
         h_layout.addWidget(self.bookmark_list, 6)
 
         # ── Status bar ────────────────────────────────────────────
-        status_row = QHBoxLayout()
+        self.status_layout = QHBoxLayout()
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet("color: #666; padding: 2px 8px;")
-        status_row.addWidget(self.status_label)
-        status_row.addStretch()
+        self.status_layout.addWidget(self.status_label)
+        self.status_layout.addStretch()
         self.help_btn = QPushButton("Help")
         self.help_btn.clicked.connect(self._show_help)
-        status_row.addWidget(self.help_btn)
-        root.addLayout(status_row)
+        self.status_layout.addWidget(self.help_btn)
+        # Same one-word/two-word width rule as the BaseTabWidget tabs.
+        unify_status_button_sizes(self)
+        root.addLayout(self.status_layout)
 
         # Keyboard shortcuts
         delete_short = QAction(self)

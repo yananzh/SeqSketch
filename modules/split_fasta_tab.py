@@ -15,7 +15,12 @@ from PyQt6.QtWidgets import (
     QSpinBox,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit, validate_input_path
+from utils.common_components import (
+    BaseTabWidget,
+    FileDropLineEdit,
+    unify_status_button_sizes,
+    validate_input_path,
+)
 
 SPLIT_BY_COUNT = "count"  # N sequences per file
 SPLIT_BY_PARTS = "parts"  # fixed number of output files
@@ -33,6 +38,7 @@ class SplitFastaTab(BaseTabWidget):
         self.log_area.setMaximumHeight(100)
         self.init_ui()
         self.connect_signals()
+        unify_status_button_sizes(self)
 
     def init_ui(self):
         _label_width = 130

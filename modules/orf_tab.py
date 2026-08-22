@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
 
 # NCBI genetic code table id, keyed by the human-readable label shown in the combo box.
@@ -87,6 +87,7 @@ class ORFTab(BaseTabWidget):
         btn_row.addWidget(self.upload_btn, 1)
         btn_row.addWidget(self.example_btn, 1)
         ig_layout.insertLayout(1, btn_row)
+        unify_status_button_sizes(self)
 
     def _load_example(self):
         """Load the bundled lambda phage DNA example for ORF finding."""

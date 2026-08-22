@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
 )
 
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
 
 AMINO_ACIDS = [
@@ -108,6 +108,7 @@ class AminoAcidCompositionTab(BaseTabWidget):
         btn_row.addWidget(self.upload_btn, 1)
         btn_row.addWidget(self.example_btn, 1)
         ig_layout.insertLayout(1, btn_row)
+        unify_status_button_sizes(self)
 
     def _setup_results_area(self):
         """Replace the plain-text output with one long-format AA table."""

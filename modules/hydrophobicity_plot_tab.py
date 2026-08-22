@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import BaseTabWidget
+from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
 
 # ── Hydrophobicity scales ───────────────────────────────────────────────────
@@ -176,6 +176,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
         self.open_folder_btn.style().polish(self.open_folder_btn)
         self.status_layout.insertWidget(_idx + 2, self.open_folder_btn)
         self._last_export_dir = ""
+        unify_status_button_sizes(self)
 
     def _load_example(self):
         """Load the bundled protein example (only the first record is shown)."""

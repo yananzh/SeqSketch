@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import apply_sequence_editor_style
+from utils.common_components import apply_sequence_editor_style, unify_status_button_sizes
 from utils.example_data import load_example_text
 
 try:
@@ -135,21 +135,23 @@ class PrimerAnalysisTab(QWidget):
         root.addWidget(results_group, 1)
 
         # ── Bottom bar: Status + Analyze / Copy / Help ──────────────
-        status_row = QHBoxLayout()
+        self.status_layout = QHBoxLayout()
         self.status_label = QLabel(self.tr("Ready"))
         self.status_label.setStyleSheet("color: #666; padding: 2px 8px;")
-        status_row.addWidget(self.status_label)
-        status_row.addStretch()
+        self.status_layout.addWidget(self.status_label)
+        self.status_layout.addStretch()
         self.run_btn = QPushButton(self.tr("Run"))
         self.example_btn = QPushButton(self.tr("Example"))
         self.example_btn.setToolTip(self.tr("Load example primer pair and template"))
         self.clear_btn = QPushButton(self.tr("Clear"))
         self.help_btn = QPushButton(self.tr("Help"))
-        status_row.addWidget(self.run_btn)
-        status_row.addWidget(self.example_btn)
-        status_row.addWidget(self.clear_btn)
-        status_row.addWidget(self.help_btn)
-        root.addLayout(status_row)
+        self.status_layout.addWidget(self.run_btn)
+        self.status_layout.addWidget(self.example_btn)
+        self.status_layout.addWidget(self.clear_btn)
+        self.status_layout.addWidget(self.help_btn)
+        # Same one-word/two-word width rule as the BaseTabWidget tabs.
+        unify_status_button_sizes(self)
+        root.addLayout(self.status_layout)
 
     def connect_signals(self):
         self.run_btn.clicked.connect(self.run_analysis)
