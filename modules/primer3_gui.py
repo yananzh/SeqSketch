@@ -119,9 +119,17 @@ class PrimerDesignTab(QWidget):
         seq_v = QVBoxLayout(seq_group)
         self.seq_input = QTextEdit()
         apply_sequence_editor_style(self.seq_input)
+        # The group box already draws a 1px border (styles.qss); keeping the
+        # editor's own border shows a faint double frame, so strip it like
+        # BaseTabWidget does for its input/output editors.
+        _style = self.seq_input.styleSheet()
+        _style = _style.replace("border: 1px solid #94a3b8;", "border: none;")
+        self.seq_input.setStyleSheet(_style)
         self.seq_input.setAcceptDrops(True)
+        # Manual line break: QTextEdit placeholders do not word-wrap, and the
+        # splitter's left panel is too narrow for the full one-line text.
         self.seq_input.setPlaceholderText(
-            self.tr("Paste FASTA or raw DNA sequence here, or drag & drop a file...")
+            self.tr("Paste FASTA or raw DNA sequence here,\nor drag & drop a file...")
         )
 
         # Patch drag-drop to load file content directly
@@ -628,7 +636,6 @@ class PrimerDesignTab(QWidget):
             "PRIMER_MAX_HAIRPIN_TH": self.max_hairpin_tm_spin.value(),
         }
 
-        seq_len = len(sequence)
         global_args["PRIMER_PRODUCT_SIZE_RANGE"] = [
             self.prod_size_min.value(),
             self.prod_size_max.value(),

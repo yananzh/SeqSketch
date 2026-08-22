@@ -165,7 +165,6 @@ def _detect_seq_type(files: list[str]) -> str:
     If ≥85 % of characters are valid DNA (ACGTNU), returns 'DNA'.
     Otherwise returns 'AA' (protein).
     """
-    dna_chars = set("ACGTRYSWKMBDHVNUacgtryswkmbdhvnu.-")
     try:
         for fpath in files:
             ids, seqs = _read_fasta(fpath)

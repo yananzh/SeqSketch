@@ -457,7 +457,6 @@ class DownloadFromNCBITab(BaseTabWidget):
         output_path = self.output_edit.text().strip()
         batch_size = self.batch_size_spin.value()
         retry_count = self.retry_count_spin.value()
-        export_report = self.export_report_checkbox.isChecked()
 
         # 验证输入
         if not email:

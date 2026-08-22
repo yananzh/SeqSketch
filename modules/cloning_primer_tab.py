@@ -6,7 +6,7 @@ import os
 import re
 from typing import Any, Optional
 
-from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices, QFont
 from PyQt6.QtWidgets import (
     QApplication,
@@ -18,7 +18,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
-    QLayout,
     QMessageBox,
     QPushButton,
     QSizePolicy,
@@ -337,27 +336,27 @@ class CloningPrimerTab(BaseTabWidget):
     def _setup_parameter_ui(self):
         grp = QGroupBox(self.tr("Cloning Parameters"))
         grp.setFlat(True)
-        # Wrap the grid so it keeps its content width instead of absorbing
-        # all leftover window width into wide, evenly spaced columns.
-        wrap = QHBoxLayout(grp)
-        wrap.setContentsMargins(4, 16, 0, 4)
-        grid = QGridLayout()
-        grid.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
+        grid = QGridLayout(grp)
+        grid.setContentsMargins(8, 16, 8, 4)
         grid.setHorizontalSpacing(8)
         grid.setVerticalSpacing(6)
 
-        # One row of four label + control pairs; labels share a fixed width
-        # and are right-aligned so every control lines up.
+        # One row spanning the full group width: each parameter occupies an
+        # equal quarter (label + control), with controls stretching to fill.
         def param_pair(label_text: str, widget, col: int):
+            cell = QHBoxLayout()
+            cell.setContentsMargins(0, 0, 0, 0)
+            cell.setSpacing(8)
             label = QLabel(label_text)
-            label.setFixedWidth(108)
-            label.setAlignment(
-                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-            )
             label.setToolTip(widget.toolTip())
-            grid.addWidget(label, 0, col)
-            widget.setFixedWidth(90)
-            grid.addWidget(widget, 0, col + 1)
+            cell.addWidget(label)
+            # One shared control minimum (sized to the combo's content hint)
+            # keeps the quarters even when the row nears its minimum width.
+            widget.setMinimumWidth(self.enz5_combo.minimumSizeHint().width())
+            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            cell.addWidget(widget, 1)
+            grid.addLayout(cell, 0, col)
+            grid.setColumnStretch(col, 1)
 
         self.enz5_combo = QComboBox()
         self._fill_enzyme_combo(self.enz5_combo, default_index=0)
@@ -371,7 +370,7 @@ class CloningPrimerTab(BaseTabWidget):
         self.enz3_combo.setToolTip(
             self.tr("Restriction site added to the 3' end; None = blunt / TA ligation")
         )
-        param_pair(self.tr("3' Enzyme"), self.enz3_combo, 2)
+        param_pair(self.tr("3' Enzyme"), self.enz3_combo, 1)
 
         self.core_len_spin = QSpinBox()
         self.core_len_spin.setRange(15, 30)
@@ -380,7 +379,7 @@ class CloningPrimerTab(BaseTabWidget):
         self.core_len_spin.setToolTip(
             self.tr("Gene-specific primer length (without the restriction overhang)")
         )
-        param_pair(self.tr("Core (nt)"), self.core_len_spin, 4)
+        param_pair(self.tr("Core (nt)"), self.core_len_spin, 2)
 
         self.target_tm_spin = QDoubleSpinBox()
         self.target_tm_spin.setRange(50.0, 70.0)
@@ -394,10 +393,7 @@ class CloningPrimerTab(BaseTabWidget):
                 "the tool searches ±3 nt around the core length to approach it"
             )
         )
-        param_pair(self.tr("Tm (°C)"), self.target_tm_spin, 6)
-
-        wrap.addLayout(grid)
-        wrap.addStretch()
+        param_pair(self.tr("Tm (°C)"), self.target_tm_spin, 3)
 
         self._param_layout.addWidget(grp)
 

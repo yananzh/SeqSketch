@@ -297,10 +297,10 @@ class SequenceStatisticsTab(BaseTabWidget):
         ]
         for i, (label, key) in enumerate(stats):
             row, col = i // 2, (i % 2) * 2
-            l = QLabel(f"{label}: ")
+            name_lbl = QLabel(f"{label}: ")
             v = QLabel("--")
             v.setProperty("statValue", True)
-            self.stats_layout.addWidget(l, row, col)
+            self.stats_layout.addWidget(name_lbl, row, col)
             self.stats_layout.addWidget(v, row, col + 1)
             self.stat_labels[key] = v
         # Tooltips for key metrics

@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PyQt6.QtWidgets import QComboBox, QSizePolicy, QTableWidget, QTextEdit
+from PyQt6.QtWidgets import QComboBox, QGroupBox, QSizePolicy, QTableWidget, QTextEdit
 
 import modules.cloning_primer_tab as tab_module
 from main_window import MainWindow
@@ -180,6 +180,28 @@ def test_tab_run_fills_table(qapp, monkeypatch):
 def test_tab_hides_output_result_group(qapp):
     tab = CloningPrimerTab()
     assert tab.output_group.isHidden()
+
+
+def test_tab_parameter_row_fills_width_in_equal_quarters(qapp):
+    """The single-row parameter area fills the group box at the app's default
+    window width: each control expands past the old 90px fixed width, the four
+    quarters share the row evenly, and the row reaches the right edge."""
+    tab = CloningPrimerTab()
+    tab.resize(920, 700)  # MainWindow's default and minimum size
+    tab.show()
+    qapp.processEvents()
+
+    controls = [tab.enz5_combo, tab.enz3_combo, tab.core_len_spin, tab.target_tm_spin]
+    widths = [c.width() for c in controls]
+    assert all(w > 100 for w in widths), f"controls did not expand: {widths}"
+    assert max(widths) - min(widths) <= 30, f"quarters uneven: {widths}"
+
+    grp = next(
+        g for g in tab.findChildren(QGroupBox) if "Cloning Parameters" in g.title()
+    )
+    tm = tab.target_tm_spin
+    right_edge = tm.mapTo(grp, tm.rect().topLeft()).x() + tm.width()
+    assert right_edge >= grp.width() - 40, "parameter row does not reach the right edge"
 
 
 def test_tab_example_and_upload_share_bottom_row(qapp):

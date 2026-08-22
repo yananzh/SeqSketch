@@ -696,9 +696,13 @@ class OneStepMultiGenePhyRunner:
         is_aborted: Callable[[], bool] | None = None,
     ) -> WorkflowRunResult:
         if step_changed is None:
-            step_changed = lambda step, status: None
+            def step_changed(step: str, status: str) -> None:
+                pass
+
         if log_line is None:
-            log_line = lambda line: None
+            def log_line(line: str) -> None:
+                pass
+
         _orig_log = log_line
 
         def _log(msg: str) -> None:
@@ -707,7 +711,8 @@ class OneStepMultiGenePhyRunner:
 
         log_line = _log
         if is_aborted is None:
-            is_aborted = lambda: False
+            def is_aborted() -> bool:
+                return False
         set_abort = getattr(self.adapters, "set_abort", None)
         if callable(set_abort):
             set_abort(is_aborted)

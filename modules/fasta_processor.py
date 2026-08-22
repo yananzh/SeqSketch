@@ -53,10 +53,10 @@ class FASTAProcessor:
     def read_file(self, file_path: str) -> bool:
         """
         读取FASTA文件
-        
+
         Args:
             file_path: FASTA文件路径
-            
+
         Returns:
             bool: 是否成功读取
         """
@@ -109,7 +109,7 @@ class FASTAProcessor:
     def validate_file(self) -> Tuple[bool, List[str]]:
         """
         验证FASTA文件格式
-        
+
         Returns:
             Tuple[bool, List[str]]: (是否有效, 错误信息列表)
         """
@@ -132,7 +132,7 @@ class FASTAProcessor:
     def get_statistics(self) -> Dict:
         """
         获取文件统计信息
-        
+
         Returns:
             Dict: 统计信息字典
         """
@@ -174,13 +174,13 @@ class FASTAProcessor:
                         min_gc: float = 0, max_gc: float = 100) -> List[FASTARecord]:
         """
         根据条件过滤序列
-        
+
         Args:
             min_length: 最小长度
             max_length: 最大长度
             min_gc: 最小GC含量
             max_gc: 最大GC含量
-            
+
         Returns:
             List[FASTARecord]: 过滤后的序列列表
         """
@@ -205,11 +205,11 @@ class FASTAProcessor:
     def save_file(self, output_path: str, records: List[FASTARecord] = None) -> bool:
         """
         保存FASTA文件
-        
+
         Args:
             output_path: 输出文件路径
             records: 要保存的记录列表，默认为所有记录
-            
+
         Returns:
             bool: 是否成功保存
         """
@@ -240,10 +240,10 @@ class FASTAProcessor:
     def get_sequence_by_id(self, sequence_id: str) -> Optional[FASTARecord]:
         """
         根据ID获取序列
-        
+
         Args:
             sequence_id: 序列ID
-            
+
         Returns:
             Optional[FASTARecord]: 找到的序列记录
         """
@@ -255,11 +255,11 @@ class FASTAProcessor:
     def search_sequences(self, pattern: str, case_sensitive: bool = False) -> List[FASTARecord]:
         """
         搜索序列（在头部和描述中搜索）
-        
+
         Args:
             pattern: 搜索模式
             case_sensitive: 是否区分大小写
-            
+
         Returns:
             List[FASTARecord]: 匹配的序列列表
         """
@@ -276,10 +276,10 @@ class FASTAProcessor:
     def reverse_complement(self, sequence: str) -> str:
         """
         获取序列的反向互补序列
-        
+
         Args:
             sequence: 原始序列
-            
+
         Returns:
             str: 反向互补序列
         """
@@ -289,7 +289,7 @@ class FASTAProcessor:
     def create_reverse_complement_records(self) -> List[FASTARecord]:
         """
         为所有序列创建反向互补记录
-        
+
         Returns:
             List[FASTARecord]: 反向互补序列记录列表
         """
@@ -311,11 +311,11 @@ def batch_process_fasta_files(file_paths: List[str],
                              output_dir: str = "output") -> Dict[str, Dict]:
     """
     批量处理FASTA文件
-    
+
     Args:
         file_paths: FASTA文件路径列表
         output_dir: 输出目录
-        
+
     Returns:
         Dict[str, Dict]: 处理结果字典
     """

@@ -487,7 +487,6 @@ def test_runner_persists_summarize_succeeded_on_success(tmp_path):
     manifest_path = tmp_path / "run" / "06_reports" / "run_manifest.json"
     summary_path = tmp_path / "run" / "06_reports" / "run.log"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    summary = summary_path.read_text(encoding="utf-8")
 
     assert result.step_status["Summarize"] == "succeeded"
     assert manifest["steps"]["Summarize"] == "succeeded"

@@ -3,11 +3,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import tempfile
 import time
 from typing import Any, Dict, List
-
-import sys
 
 from PyQt6.QtCore import QByteArray, QDataStream, QIODevice, QMimeData, Qt
 from PyQt6.QtGui import QAction, QColor, QDrag
