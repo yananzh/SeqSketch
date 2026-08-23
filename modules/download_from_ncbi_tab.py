@@ -385,7 +385,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         # ── Control buttons in status bar ──
         self.run_btn = QPushButton("Run")
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.setFixedWidth(90)
         self.example_btn.clicked.connect(self._load_example)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.example_btn)
@@ -414,7 +414,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.db_combo.setCurrentText("nucleotide")
         self.email_edit.setText("your_email@example.com")
         self.acc_edit.setPlainText("NM_001101.5\nXM_123456.1")
-        self.show_status(self.tr("Example loaded: NM_001101.5, XM_123456.1"))
+        self.show_status("Example loaded: NM_001101.5, XM_123456.1")
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(

@@ -34,7 +34,7 @@ class ComplementTab(BaseTabWidget):
         self.input_hint.hide()
 
         # Place Example button horizontally with upload_btn
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
@@ -49,19 +49,19 @@ class ComplementTab(BaseTabWidget):
         if not text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("Loaded example data: 16s_primers.fasta"))
+        self.show_status("Loaded example data: 16s_primers.fasta")
 
     def _setup_mode_controls(self):
-        grp = QGroupBox(self.tr("Mode"))
+        grp = QGroupBox("Mode")
         grp.setFlat(True)
         mode_layout = QHBoxLayout(grp)
         mode_layout.setContentsMargins(6, 16, 6, 4)
-        mode_layout.addWidget(QLabel(self.tr("Mode:")))
+        mode_layout.addWidget(QLabel("Mode:"))
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["Complement", "Reverse Complement"])
         self.mode_combo.setMinimumWidth(220)

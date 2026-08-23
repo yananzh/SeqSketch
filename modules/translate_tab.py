@@ -86,14 +86,14 @@ class TranslateTab(BaseTabWidget):
 
     def _setup_parameters(self):
         """Setup parameter controls in a QGroupBox."""
-        grp = QGroupBox(self.tr("Parameters"))
+        grp = QGroupBox("Parameters")
         grp.setFlat(True)
         grid = QGridLayout(grp)
         grid.setContentsMargins(6, 16, 6, 4)
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(8)
 
-        grid.addWidget(QLabel(self.tr("Reading Frame:")), 0, 0)
+        grid.addWidget(QLabel("Reading Frame:"), 0, 0)
         self.frame_box = QComboBox()
         self.frame_box.addItems([
             "+1 (forward, from position 1)",
@@ -106,7 +106,7 @@ class TranslateTab(BaseTabWidget):
         self.frame_box.setMinimumWidth(320)
         grid.addWidget(self.frame_box, 0, 1)
 
-        grid.addWidget(QLabel(self.tr("Amino Acid Format:")), 0, 2)
+        grid.addWidget(QLabel("Amino Acid Format:"), 0, 2)
         self.aa_mode_box = QComboBox()
         self.aa_mode_box.addItems([
             "1-letter (e.g., MKTF)",
@@ -115,16 +115,14 @@ class TranslateTab(BaseTabWidget):
         self.aa_mode_box.setMinimumWidth(200)
         grid.addWidget(self.aa_mode_box, 0, 3)
 
-        grid.addWidget(QLabel(self.tr("Genetic Code:")), 1, 0)
+        grid.addWidget(QLabel("Genetic Code:"), 1, 0)
         self.genetic_code_box = QComboBox()
         self.genetic_code_box.addItems(list(GENETIC_CODES.keys()))
         self.genetic_code_box.setMinimumWidth(320)
         self.genetic_code_box.setToolTip(
-            self.tr(
-                "NCBI genetic code table used for translation. "
+            "NCBI genetic code table used for translation. "
                 "Choose an alternative (e.g. mitochondrial) code if your "
                 "sequence doesn't use the standard code."
-            )
         )
         grid.addWidget(self.genetic_code_box, 1, 1)
 
@@ -135,7 +133,7 @@ class TranslateTab(BaseTabWidget):
         self._param_layout.addWidget(grp)
 
         # Place Example button horizontally with upload_btn (unified pattern)
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
@@ -152,12 +150,12 @@ class TranslateTab(BaseTabWidget):
 
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("Loaded example data: brca1_egfr_cds.fasta"))
+        self.show_status("Loaded example data: brca1_egfr_cds.fasta")
 
     def run(self):
         raw = self.input_text.toPlainText().strip()

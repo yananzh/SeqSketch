@@ -18,7 +18,7 @@ from utils.app_paths import resource_path
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(self.tr("SeqSketch"))
+        self.setWindowTitle("SeqSketch")
         self.resize(920, 700)
         # Lock the default size as the minimum: some tabs (e.g. the MSA tabs'
         # batch page) carry a large minimumSizeHint that would otherwise
@@ -63,7 +63,7 @@ class MainWindow(QMainWindow):
 
     def show_message(self, text, error=False):
         if error:
-            QMessageBox.critical(self, self.tr("Error"), text)
+            QMessageBox.critical(self, "Error", text)
         else:
             self.status.showMessage(text, 5000)
 
@@ -72,7 +72,7 @@ class MainWindow(QMainWindow):
 
         Args:
             tab_class: tab class used for the isinstance reuse check.
-            title: tab title text (wrapped in self.tr()).
+            title: tab title text.
             factory: callable returning a new tab; defaults to tab_class().
             reuse: when True, focus an existing tab instead of creating a new one.
         """
@@ -82,7 +82,7 @@ class MainWindow(QMainWindow):
                     self.tabs.setCurrentIndex(i)
                     return None
         tab = (factory or tab_class)()
-        self.tabs.addTab(tab, self.tr(title))
+        self.tabs.addTab(tab, title)
         self.tabs.setCurrentWidget(tab)
         # Prevent wider tabs from expanding the main window
         if hasattr(self, "_init_width"):
@@ -197,7 +197,7 @@ class MainWindow(QMainWindow):
                 return
         tab = ComplementTab()
         tab.set_mode(mode)
-        self.tabs.addTab(tab, self.tr("Complement/Reverse Complement"))
+        self.tabs.addTab(tab, "Complement/Reverse Complement")
         self.tabs.setCurrentWidget(tab)
 
     def open_complement_tab(self):
@@ -334,7 +334,7 @@ class MainWindow(QMainWindow):
         tab = BlastLocalTab(
             status_callback=self.status.showMessage,
         )
-        self.tabs.addTab(tab, self.tr("Local BLAST"))
+        self.tabs.addTab(tab, "Local BLAST")
         self.tabs.setCurrentWidget(tab)
         tab.switch_to(sub_index)
 
@@ -426,16 +426,14 @@ class MainWindow(QMainWindow):
     def check_for_updates(self):
         QMessageBox.information(
             self,
-            self.tr("Check for Updates"),
-            self.tr(
-                "Current version: v1.0.0\n\nNo updates available.\n\n"
+            "Check for Updates",
+            "Current version: v1.0.0\n\nNo updates available.\n\n"
                 "Visit the project page for the latest info:\n"
-                "https://github.com/yananzh/SeqSketch"
-            ),
+                "https://github.com/yananzh/SeqSketch",
         )
 
     def show_about_dialog(self):
-        about_text = self.tr("""
+        about_text = """
 <div style="text-align:center;">
 <h2 style="color:#2c7fb8; font-size:26px; margin-bottom:6px;">SeqSketch</h2>
 <p style="color:#888; font-size:14px; margin:0 0 16px 0;">Sequence Analysis &amp; Visualization Toolkit</p>
@@ -453,11 +451,11 @@ Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
 <a href="https://github.com/yananzh/SeqSketch" style="color:#2c7fb8; text-decoration:none;">github.com/yananzh/SeqSketch</a>
 </p>
 </div>
-        """)
+        """
         from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout
 
         dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("About SeqSketch"))
+        dlg.setWindowTitle("About SeqSketch")
         dlg.setFixedSize(340, 240)
         dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
         layout = QVBoxLayout(dlg)

@@ -31,7 +31,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.app_paths import resource_path, tool_path_from_config, user_data_file
+from utils.app_paths import bundled_tool_path, resource_path, tool_path_from_config, user_data_file
 from utils.common_components import BaseTabWidget, apply_input_list_style, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
 from utils.process_control import kill_process_tree
@@ -47,7 +47,7 @@ def _resolve_muscle_exe() -> str:
     configured = tool_path_from_config("MUSCLE", "exe")
     if configured and os.path.isfile(configured):
         return configured
-    return resource_path("softwares", "muscle-win64.v5.3.exe")
+    return bundled_tool_path("muscle-win64.v5.3.exe")
 
 
 MUSCLE_EXE = _resolve_muscle_exe()
@@ -440,20 +440,19 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self._setup_drag_drop()
         self._setup_mode_tabs()
         self._setup_stop_button()
-        self.help_btn.setFixedWidth(75)
-        self.run_btn.setFixedWidth(75)
         self.clear_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
+        self.help_btn.setFixedWidth(75)
         unify_status_button_sizes(self)
 
     def _setup_stop_button(self):
-        self.stop_btn = QPushButton(self.tr("Stop"))
-        self.stop_btn.setFixedWidth(75)
+        self.stop_btn = QPushButton("Stop")
         self.stop_btn.setVisible(False)
         self.stop_btn.clicked.connect(self._cancel_batch)
         self.status_layout.insertWidget(self.status_layout.indexOf(self.run_btn) + 1, self.stop_btn)
 
         # Result Folder: opens the folder of the output file / batch dir
-        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn = QPushButton("Result Folder")
         self.open_folder_btn.setFixedWidth(110)
         self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.clicked.connect(self._open_output_folder)
@@ -471,18 +470,18 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         elif hasattr(self, "output_file_edit"):
             target = self.output_file_edit.text().strip()
         if not target:
-            self.show_status(self.tr("No output path selected yet"))
+            self.show_status("No output path selected yet")
             return
         folder = target if os.path.isdir(target) else os.path.dirname(os.path.abspath(target))
         if not os.path.isdir(folder):
-            self.show_status(self.tr("Output folder does not exist yet"))
+            self.show_status("Output folder does not exist yet")
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
     def _cancel_batch(self):
         if self._batch_worker is not None and self._batch_worker.isRunning():
             self._batch_worker.stop()
-            self.status_label.setText(self.tr("Cancelling…"))
+            self.status_label.setText("Cancelling…")
 
     # ---------------------------------------------------------------- layout
 
@@ -502,7 +501,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         btn_row.setSpacing(8)
         btn_row.addWidget(self.upload_btn, 1)
         self.example_btn = QPushButton("Example")
-        self.example_btn.setToolTip(self.tr("Load example sequences for MSA"))
+        self.example_btn.setToolTip("Load example sequences for MSA")
         self.example_btn.clicked.connect(self._load_example)
         btn_row.addWidget(self.example_btn, 1)
         ig.insertLayout(1, btn_row)
@@ -549,8 +548,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, min(64, (os.cpu_count() or 4)))
         self.threads_spin.setValue(1)
-        self.threads_spin.setFixedWidth(70)
 
+        self.threads_spin.setFixedWidth(70)
         pg_layout.addWidget(method_label, 0, 0)
         pg_layout.addWidget(self.method_combo, 0, 1)
         pg_layout.addWidget(order_label, 0, 2)
@@ -641,7 +640,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_files_btn.setFixedWidth(90)
         self.batch_files_btn.clicked.connect(self._select_batch_files)
         self.batch_example_btn = QPushButton("Example")
-        self.batch_example_btn.setToolTip(self.tr("Load example FASTA files for batch MSA"))
+        self.batch_example_btn.setToolTip("Load example FASTA files for batch MSA")
         self.batch_example_btn.clicked.connect(self._load_batch_example)
         row_files.addWidget(self.batch_files_edit)
         row_files.addWidget(self.batch_files_btn)
@@ -721,8 +720,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_threads_spin = QSpinBox()
         self.batch_threads_spin.setRange(1, min(64, os.cpu_count() or 4))
         self.batch_threads_spin.setValue(1)
-        self.batch_threads_spin.setFixedWidth(70)
 
+        self.batch_threads_spin.setFixedWidth(70)
         bpg_layout.addWidget(method_label, 3, 0)
         bpg_layout.addWidget(self.batch_method_combo, 3, 1)
         bpg_layout.addWidget(threads_label, 3, 2)
@@ -884,10 +883,10 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _load_example(self):
         text = load_example_text("protein", "msa_example_pro.fasta")
         if not text:
-            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            QMessageBox.information(self, "Example", "Example data not found.")
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("Example loaded"))
+        self.show_status("Example loaded")
 
     def _load_batch_example(self):
         """Stage two example FASTA files and add them to the batch file list."""
@@ -897,7 +896,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             if staged:
                 paths.append(staged)
         if not paths:
-            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            QMessageBox.information(self, "Example", "Example data not found.")
             return
         self.batch_files_list.clear()
         for p in paths:
@@ -907,7 +906,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             parent_dir = os.path.dirname(paths[0])
             if parent_dir:
                 self.batch_out_dir_edit.setText(parent_dir)
-        self.show_status(self.tr("Example files loaded for batch"))
+        self.show_status("Example files loaded for batch")
 
     def clear(self):
         self.input_text.clear()
@@ -1239,85 +1238,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.output_file_edit.setText(path)
         return path
 
-    def _to_clustal(self, seqs: dict) -> str:
-        """Convert aligned FASTA to CLUSTAL-W format."""
-        headers = list(seqs.keys())
-        sequences = list(seqs.values())
-        aln_len = len(sequences[0]) if sequences else 0
-
-        # Pad / trim header labels to consistent width
-        label_w = min(max(len(h) for h in headers), 20) + 4
-        col_w = 60
-
-        lines = ["CLUSTAL W (MUSCLE v5 alignment)", ""]
-        for start in range(0, aln_len, col_w):
-            block_seqs = [s[start : start + col_w] for s in sequences]
-            # Conservation line
-            cons = []
-            for col in range(len(block_seqs[0])):
-                chars = {s[col] for s in block_seqs if col < len(s)} - {"-"}
-                if len(chars) == 1:
-                    cons.append("*")
-                else:
-                    cons.append(" ")
-            for hdr, col_seq in zip(headers, block_seqs):
-                label = hdr[:20]
-                lines.append(f"{label:<{label_w}}{col_seq}")
-            lines.append(f"{'':<{label_w}}{''.join(cons)}")
-            lines.append("")
-        return "\n".join(lines)
-
-    def _make_summary(self, seqs: dict) -> str:
-        """Alignment statistics."""
-        sequences = list(seqs.values())
-        headers = list(seqs.keys())
-        n_seq = len(sequences)
-        aln_len = len(sequences[0]) if sequences else 0
-        if aln_len == 0:
-            return "No alignment data."
-
-        conserved = variable = gap_only = 0
-        col_gaps = []
-        for col in range(aln_len):
-            chars = [s[col] for s in sequences if col < len(s)]
-            n_gap = chars.count("-")
-            col_gaps.append(n_gap)
-            non_gap = [c for c in chars if c != "-"]
-            if n_gap == len(chars):
-                gap_only += 1
-            elif len(set(non_gap)) == 1:
-                conserved += 1
-            else:
-                variable += 1
-
-        avg_gap_pct = sum(col_gaps) / (n_seq * aln_len) * 100 if n_seq * aln_len else 0
-        conserved_pct = conserved / aln_len * 100
-        variable_pct = variable / aln_len * 100
-
-        seq_lens = [len(s.replace("-", "")) for s in sequences]
-
-        sep = "=" * 60
-        lines = [
-            sep,
-            "  Multiple Sequence Alignment — Summary",
-            sep,
-            f"  Sequences      : {n_seq}",
-            f"  Alignment len  : {aln_len}",
-            f"  Conserved cols : {conserved}  ({conserved_pct:.1f}%)",
-            f"  Variable cols  : {variable}   ({variable_pct:.1f}%)",
-            f"  Gap-only cols  : {gap_only}",
-            f"  Avg gap content: {avg_gap_pct:.1f}%",
-            sep,
-            "",
-            f"  {'Sequence':<30}  {'Orig. Length':>12}  {'Gaps':>6}",
-            "  " + "-" * 52,
-        ]
-        for hdr, seq, orig_len in zip(headers, sequences, seq_lens):
-            n_gaps = len(seq) - orig_len
-            lines.append(f"  {hdr[:30]:<30}  {orig_len:>12}  {n_gaps:>6}")
-        return "\n".join(lines)
-
-    # ------------------------------------------------------------- help
+            # ------------------------------------------------------------- help
 
     def show_help(self):
         html = """
@@ -1378,7 +1299,7 @@ on the command line.</p>
         browser.setHtml(html)
         browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
-        btn = QPushButton(self.tr("Close"))
+        btn = QPushButton("Close")
         btn.clicked.connect(dlg.accept)
         layout.addWidget(btn)
         dlg.exec()

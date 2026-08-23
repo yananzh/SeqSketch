@@ -55,15 +55,15 @@ class PrimerAnalysisTab(QWidget):
         root.setSpacing(8)
 
         # ── 1. Primer Input ────────────────────────────────────────
-        input_group = QGroupBox(self.tr("1. Primer Sequences"))
+        input_group = QGroupBox("Primer Sequences")
         input_v = QVBoxLayout(input_group)
 
         fwd_row = QHBoxLayout()
-        fwd_label = QLabel(self.tr("Forward (5'→3'):"))
+        fwd_label = QLabel("Forward (5'→3'):")
         fwd_label.setFixedWidth(130)
         fwd_row.addWidget(fwd_label)
         self.fwd_edit = QLineEdit()
-        self.fwd_edit.setPlaceholderText(self.tr("e.g. ATCGATCGATCGATCGATCG"))
+        self.fwd_edit.setPlaceholderText("e.g. ATCGATCGATCGATCGATCG")
         self.fwd_edit.setMinimumWidth(240)
         self.fwd_len_label = QLabel("0 nt")
         fwd_row.addWidget(self.fwd_edit, 1)
@@ -71,11 +71,11 @@ class PrimerAnalysisTab(QWidget):
         input_v.addLayout(fwd_row)
 
         rev_row = QHBoxLayout()
-        rev_label = QLabel(self.tr("Reverse (5'→3'):"))
+        rev_label = QLabel("Reverse (5'→3'):")
         rev_label.setFixedWidth(130)
         rev_row.addWidget(rev_label)
         self.rev_edit = QLineEdit()
-        self.rev_edit.setPlaceholderText(self.tr("e.g. GCTAGCTAGCTAGCTAGCTA"))
+        self.rev_edit.setPlaceholderText("e.g. GCTAGCTAGCTAGCTAGCTA")
         self.rev_edit.setMinimumWidth(240)
         self.rev_len_label = QLabel("0 nt")
         rev_row.addWidget(self.rev_edit, 1)
@@ -85,12 +85,12 @@ class PrimerAnalysisTab(QWidget):
         root.addWidget(input_group)
 
         # ── 2. Template (optional) ──────────────────────────────────
-        template_group = QGroupBox(self.tr("2. Template Sequence (optional)"))
+        template_group = QGroupBox("Template Sequence (optional)")
         template_v = QVBoxLayout(template_group)
         self.template_edit = QTextEdit()
         apply_sequence_editor_style(self.template_edit)
         self.template_edit.setPlaceholderText(
-            self.tr("Paste template to check binding positions and product size...")
+            "Paste template to check binding positions and product size..."
         )
         self.template_edit.setMinimumHeight(60)
         self.template_edit.setMaximumHeight(120)
@@ -98,53 +98,51 @@ class PrimerAnalysisTab(QWidget):
         root.addWidget(template_group)
 
         # ── 3. Salt Conditions ──────────────────────────────────────
-        salt_group = QGroupBox(self.tr("3. Salt Conditions"))
+        salt_group = QGroupBox("Salt Conditions")
         salt_row = QHBoxLayout(salt_group)
-        salt_row.addWidget(QLabel(self.tr("Salt (mM):")))
+        salt_row.addWidget(QLabel("Salt (mM):"))
         self.mv_spin = QDoubleSpinBox()
         self.mv_spin.setRange(10, 200)
         self.mv_spin.setDecimals(0)
         self.mv_spin.setSingleStep(1)
         self.mv_spin.setValue(50)
-        self.mv_spin.setFixedWidth(104)
-        self.mv_spin.setToolTip(self.tr("Monovalent salt (Na⁺/K⁺) concentration"))
+        self.mv_spin.setToolTip("Monovalent salt (Na⁺/K⁺) concentration")
         salt_row.addWidget(self.mv_spin)
 
         salt_row.addSpacing(16)
-        salt_row.addWidget(QLabel(self.tr("Mg²⁺ (mM):")))
+        salt_row.addWidget(QLabel("Mg²⁺ (mM):"))
         self.dv_spin = QDoubleSpinBox()
         self.dv_spin.setRange(1, 10)
         self.dv_spin.setDecimals(0)
         self.dv_spin.setSingleStep(1)
         self.dv_spin.setValue(3)
-        self.dv_spin.setFixedWidth(104)
-        self.dv_spin.setToolTip(self.tr("Divalent salt (Mg²⁺) concentration"))
+        self.dv_spin.setToolTip("Divalent salt (Mg²⁺) concentration")
         salt_row.addWidget(self.dv_spin)
         salt_row.addStretch()
         root.addWidget(salt_group)
 
         # ── 4. Results ──────────────────────────────────────────────
-        results_group = QGroupBox(self.tr("4. Analysis Results"))
+        results_group = QGroupBox("Analysis Results")
         results_v = QVBoxLayout(results_group)
         self.results_text = QTextEdit()
         self.results_text.setReadOnly(True)
         self.results_text.setPlaceholderText(
-            self.tr("Enter forward and reverse primer sequences, then click Run.")
+            "Enter forward and reverse primer sequences, then click Run."
         )
         results_v.addWidget(self.results_text)
         root.addWidget(results_group, 1)
 
         # ── Bottom bar: Status + Analyze / Copy / Help ──────────────
         self.status_layout = QHBoxLayout()
-        self.status_label = QLabel(self.tr("Ready"))
+        self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet("color: #666; padding: 2px 8px;")
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
-        self.run_btn = QPushButton(self.tr("Run"))
-        self.example_btn = QPushButton(self.tr("Example"))
-        self.example_btn.setToolTip(self.tr("Load example primer pair and template"))
-        self.clear_btn = QPushButton(self.tr("Clear"))
-        self.help_btn = QPushButton(self.tr("Help"))
+        self.run_btn = QPushButton("Run")
+        self.example_btn = QPushButton("Example")
+        self.example_btn.setToolTip("Load example primer pair and template")
+        self.clear_btn = QPushButton("Clear")
+        self.help_btn = QPushButton("Help")
         self.status_layout.addWidget(self.run_btn)
         self.status_layout.addWidget(self.example_btn)
         self.status_layout.addWidget(self.clear_btn)
@@ -167,8 +165,8 @@ class PrimerAnalysisTab(QWidget):
         if not text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         # Parse multi-record FASTA — extract first two as primers, third as template
@@ -184,8 +182,8 @@ class PrimerAnalysisTab(QWidget):
         if len(records) < 2:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Example file has insufficient records."),
+                "Example",
+                "Example file has insufficient records.",
             )
             return
         self.fwd_edit.setText(records[0][1])
@@ -194,7 +192,7 @@ class PrimerAnalysisTab(QWidget):
             # Reconstruct FASTA for template display
             template_text = f">{records[2][0]}\n{records[2][1]}"
             self.template_edit.setPlainText(template_text)
-        self.status_label.setText(self.tr("Loaded example: primer_example.fasta"))
+        self.status_label.setText("Loaded example: primer_example.fasta")
 
     def _clear_all(self):
         self.fwd_edit.clear()
@@ -209,7 +207,7 @@ class PrimerAnalysisTab(QWidget):
         from PyQt6.QtWidgets import QLabel, QPushButton, QScrollArea, QVBoxLayout
 
         dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("Help - Primer Analysis"))
+        dlg.setWindowTitle("Help - Primer Analysis")
         dlg.setFixedSize(680, 500)
         layout = QVBoxLayout(dlg)
 
@@ -219,7 +217,7 @@ class PrimerAnalysisTab(QWidget):
         scroll.setVerticalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAsNeeded)
 
         label = QLabel(
-            self.tr("""
+            """
 <h2>Primer Analysis &mdash; Evaluate a Primer Pair</h2>
 
 <p><b>What does this tool do?</b><br>
@@ -269,7 +267,7 @@ expected product size.</p>
 <p>When a template is provided, the tool searches for both forward and
 reverse primer binding sites (including reverse-complement matches)
 and calculates the expected PCR product size.</p>
-""")
+"""
         )
         label.setTextFormat(QtCore.TextFormat.RichText)
         label.setWordWrap(True)
@@ -345,29 +343,6 @@ and calculates the expected PCR product size.</p>
         fwd_gc = _gc_percent(fwd)
         rev_gc = _gc_percent(rev)
         tm_diff = abs(fwd_tm - rev_tm)
-
-        # Color helpers
-        def _tm_color(tm):
-            if 58 <= tm <= 62:
-                return "#2e7d32"
-            if 55 <= tm <= 65:
-                return "#e65100"
-            return "#c62828"
-
-        def _gc_color(gc):
-            if 40 <= gc <= 60:
-                return "#2e7d32"
-            if 30 <= gc <= 70:
-                return "#e65100"
-            return "#c62828"
-
-        def _dg_color(dimer):
-            dg = dimer.dg
-            if dg >= -3:
-                return "#2e7d32"
-            if dg >= -6:
-                return "#e65100"
-            return "#c62828"
 
         def _dim_label(dimer):
             return "✓ None" if not dimer.ascii_structure else f"⚠ {dimer.dg:.1f}"

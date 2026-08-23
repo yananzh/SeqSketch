@@ -45,12 +45,20 @@ def _detect_bundled_bin() -> str | None:
 
     candidates: list[str] = []
     try:
-        for name in os.listdir(softwares_dir):
-            if not name.startswith("ncbi-blast-"):
-                continue
-            bin_dir = os.path.join(softwares_dir, name, "bin")
-            if os.path.isfile(os.path.join(bin_dir, "blastn.exe")):
-                candidates.append(bin_dir)
+        # tools live under a per-platform subfolder (softwares/windows/...) with
+        # a fallback to the historical flat layout (softwares/ncbi-blast-*/...)
+        roots = [softwares_dir]
+        plat = "windows" if sys.platform.startswith("win") else "Mac"
+        plat_dir = os.path.join(softwares_dir, plat)
+        if os.path.isdir(plat_dir):
+            roots.append(plat_dir)
+        for root in roots:
+            for name in os.listdir(root):
+                if not name.startswith("ncbi-blast-"):
+                    continue
+                bin_dir = os.path.join(root, name, "bin")
+                if os.path.isfile(os.path.join(bin_dir, "blastn.exe")):
+                    candidates.append(bin_dir)
     except OSError:
         return None
 

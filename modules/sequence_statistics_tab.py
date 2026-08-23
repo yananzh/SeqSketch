@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import (
     BaseTabWidget,
-    FASTAWorker,
     FileDropLineEdit,
     unify_status_button_sizes,
 )
@@ -201,38 +200,6 @@ def write_statistics_report(output_path: str, summary: dict, per_sequence_stats:
         handle.write("\n".join(lines))
 
 
-class SequenceStatisticsWorker(FASTAWorker):
-    """Sequence length statistics worker"""
-
-    # 信号必须定义为类变量，不能在__init__或run中定义
-    stats_finished = pyqtSignal(dict)
-
-    def __init__(self, input_path: str, output_path: str):
-        super().__init__(input_path, output_path)
-
-    def run(self):
-        try:
-            if not self.validate_files():
-                return
-            self.emit_progress("Loading FASTA file...")
-            processor = self.load_fasta_processor()
-            if not processor:
-                return
-
-            summary, per_sequence_stats, warnings = build_statistics_report(processor.records)
-            self.emit_progress("Saving statistics report...")
-            write_statistics_report(self.output_path, summary, per_sequence_stats)
-
-            for warning in warnings:
-                self.progress.emit(f"Warning: {warning}")
-
-            self.stats_finished.emit(summary)
-            self.emit_finished(f"Statistics complete! Results saved to: {self.output_path}")
-        except Exception as e:
-            import traceback
-
-            self.emit_error(f"Unexpected error: {e}\n{traceback.format_exc()}")
-
 
 class SequenceStatisticsTab(BaseTabWidget):
     """Sequence length statistics Tab"""
@@ -261,8 +228,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
-        self.input_btn.setFixedWidth(90)
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.setFixedWidth(90)
         self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
@@ -286,7 +252,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         io_layout.addLayout(output_layout)
 
         # 全局统计信息显示区
-        self.stats_group = QGroupBox(self.tr("Summary Statistics"))
+        self.stats_group = QGroupBox("Summary Statistics")
         self.stats_layout = QGridLayout(self.stats_group)
         self.stat_labels = {}
         stats = [
@@ -384,8 +350,8 @@ class SequenceStatisticsTab(BaseTabWidget):
         if not path:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. The installation may be incomplete."),
+                "Example",
+                "Failed to load example data. The installation may be incomplete.",
             )
             return
         self.handle_input_file_selected(path)

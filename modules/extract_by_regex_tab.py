@@ -106,8 +106,7 @@ class ExtractByRegexTab(BaseTabWidget):
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
-        self.input_btn.setFixedWidth(90)
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.setFixedWidth(90)
         self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
@@ -247,8 +246,8 @@ class ExtractByRegexTab(BaseTabWidget):
         if not path:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. The installation may be incomplete."),
+                "Example",
+                "Failed to load example data. The installation may be incomplete.",
             )
             return
         self.handle_input_file_selected(path)
@@ -257,7 +256,7 @@ class ExtractByRegexTab(BaseTabWidget):
         # since the accession lives in the ID part.
         self.regex_edit.setText(r"tr\|[^|]+\|A0AAI7Z")
         self.match_scope_combo.setCurrentText("Sequence ID Only")
-        self.show_status(self.tr("Example loaded"))
+        self.show_status("Example loaded")
 
     def clear_all(self):
         self.input_edit.clear()

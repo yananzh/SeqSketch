@@ -30,7 +30,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.app_paths import resource_path, tool_path_from_config
+from utils.app_paths import bundled_tool_path, resource_path, tool_path_from_config
 from utils.common_components import (
     BaseTabWidget,
     BaseWorker,
@@ -55,10 +55,10 @@ def _default_mafft_exe() -> str:
                 return candidate
     # Fallback: bundled path (correct directory name)
     for name in ("mafft.bat", "mafft-signed.ps1"):
-        candidate = resource_path("softwares", "mafft-win_v7.526", name)
+        candidate = bundled_tool_path("mafft-win_v7.526", name)
         if os.path.isfile(candidate):
             return candidate
-    return resource_path("softwares", "mafft-win_v7.526", "mafft.bat")
+    return bundled_tool_path("mafft-win_v7.526", "mafft.bat")
 
 
 def _strategy_key(strategy: str) -> str:
@@ -477,20 +477,19 @@ class MafftAlignmentTab(BaseTabWidget):
         self._setup_drag_drop()
         self._setup_mode_tabs()
         self._setup_stop_button()
-        self.help_btn.setFixedWidth(75)
-        self.run_btn.setFixedWidth(75)
         self.clear_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
+        self.help_btn.setFixedWidth(75)
         unify_status_button_sizes(self)
 
     def _setup_stop_button(self):
-        self.stop_btn = QPushButton(self.tr("Stop"))
-        self.stop_btn.setFixedWidth(75)
+        self.stop_btn = QPushButton("Stop")
         self.stop_btn.setVisible(False)
         self.stop_btn.clicked.connect(self._cancel_batch)
         self.status_layout.insertWidget(self.status_layout.indexOf(self.run_btn) + 1, self.stop_btn)
 
         # Result Folder: opens the folder of the output file / batch dir
-        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn = QPushButton("Result Folder")
         self.open_folder_btn.setFixedWidth(110)
         self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.clicked.connect(self._open_output_folder)
@@ -508,18 +507,18 @@ class MafftAlignmentTab(BaseTabWidget):
         elif hasattr(self, "output_file_edit"):
             target = self.output_file_edit.text().strip()
         if not target:
-            self.show_status(self.tr("No output path selected yet"))
+            self.show_status("No output path selected yet")
             return
         folder = target if os.path.isdir(target) else os.path.dirname(os.path.abspath(target))
         if not os.path.isdir(folder):
-            self.show_status(self.tr("Output folder does not exist yet"))
+            self.show_status("Output folder does not exist yet")
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
     def _cancel_batch(self):
         if self._batch_worker is not None and self._batch_worker.isRunning():
             self._batch_worker.stop()
-            self.status_label.setText(self.tr("Cancelling…"))
+            self.status_label.setText("Cancelling…")
 
     def _rebuild_input_area(self):
         self.input_label.setText("Input Sequences (FASTA):")
@@ -539,7 +538,7 @@ class MafftAlignmentTab(BaseTabWidget):
         btn_row.setSpacing(8)
         btn_row.addWidget(self.upload_btn, 1)
         self.example_btn = QPushButton("Example")
-        self.example_btn.setToolTip(self.tr("Load example sequences for MSA"))
+        self.example_btn.setToolTip("Load example sequences for MSA")
         self.example_btn.clicked.connect(self._load_example)
         btn_row.addWidget(self.example_btn, 1)
         ig.insertLayout(1, btn_row)
@@ -577,8 +576,8 @@ class MafftAlignmentTab(BaseTabWidget):
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, min(64, os.cpu_count() or 4))
         self.threads_spin.setValue(1)
-        self.threads_spin.setFixedWidth(70)
 
+        self.threads_spin.setFixedWidth(70)
         pg_layout.addWidget(strategy_label, 0, 0)
         pg_layout.addWidget(self.strategy_combo, 0, 1)
         pg_layout.addWidget(order_label, 0, 2)
@@ -655,7 +654,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_files_btn.setFixedWidth(90)
         self.batch_files_btn.clicked.connect(self._select_batch_files)
         self.batch_example_btn = QPushButton("Example")
-        self.batch_example_btn.setToolTip(self.tr("Load example FASTA files for batch MSA"))
+        self.batch_example_btn.setToolTip("Load example FASTA files for batch MSA")
         self.batch_example_btn.clicked.connect(self._load_batch_example)
         row_files.addWidget(self.batch_files_edit)
         row_files.addWidget(self.batch_files_btn)
@@ -733,8 +732,8 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_threads_spin = QSpinBox()
         self.batch_threads_spin.setRange(1, min(64, os.cpu_count() or 4))
         self.batch_threads_spin.setValue(1)
-        self.batch_threads_spin.setFixedWidth(70)
 
+        self.batch_threads_spin.setFixedWidth(70)
         bpg_layout.addWidget(strategy_label, 3, 0)
         bpg_layout.addWidget(self.batch_strategy_combo, 3, 1)
         bpg_layout.addWidget(threads_label, 3, 2)
@@ -827,10 +826,10 @@ class MafftAlignmentTab(BaseTabWidget):
         """Load the bundled MSA protein example for alignment."""
         text = load_example_text("protein", "msa_example_pro.fasta")
         if not text:
-            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            QMessageBox.information(self, "Example", "Example data not found.")
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("Example loaded"))
+        self.show_status("Example loaded")
 
     def _load_batch_example(self):
         """Stage two example FASTA files and add them to the batch file list."""
@@ -840,7 +839,7 @@ class MafftAlignmentTab(BaseTabWidget):
             if staged:
                 paths.append(staged)
         if not paths:
-            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            QMessageBox.information(self, "Example", "Example data not found.")
             return
         self.batch_files_list.clear()
         for p in paths:
@@ -850,7 +849,7 @@ class MafftAlignmentTab(BaseTabWidget):
             parent_dir = os.path.dirname(paths[0])
             if parent_dir:
                 self.batch_out_dir_edit.setText(parent_dir)
-        self.show_status(self.tr("Example files loaded for batch"))
+        self.show_status("Example files loaded for batch")
 
     def _browse_output_file(self):
         path, selected_filter = QFileDialog.getSaveFileName(
@@ -1213,7 +1212,7 @@ iterative refinement.</p>
         browser.setHtml(html)
         browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
-        btn = QPushButton(self.tr("Close"))
+        btn = QPushButton("Close")
         btn.clicked.connect(dlg.accept)
         layout.addWidget(btn)
         dlg.exec()

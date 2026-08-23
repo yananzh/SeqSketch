@@ -147,7 +147,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
         self.current_figure = None
 
         # Place Example button horizontally with upload_btn
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
@@ -157,7 +157,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
         ig_layout.insertLayout(1, btn_row)
 
         # Export Plot button between Plot and Clear in the status row.
-        self.export_plot_btn = QPushButton(self.tr("Export Plot"))
+        self.export_plot_btn = QPushButton("Export Plot")
         self.export_plot_btn.setFixedWidth(110)
         self.export_plot_btn.setProperty("accentButton", True)
         self.export_plot_btn.setEnabled(False)
@@ -167,7 +167,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
         _idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(_idx + 1, self.export_plot_btn)
         # Add Result Folder button after Export Plot
-        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn = QPushButton("Result Folder")
         self.open_folder_btn.setFixedWidth(110)
         self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
@@ -184,8 +184,8 @@ class HydrophobicityPlotTab(BaseTabWidget):
         if not text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         try:
@@ -196,7 +196,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
             header, seq = records[0]
             text = f">{header}\n{seq}\n"
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("Loaded example data: protein_example.fasta"))
+        self.show_status("Loaded example data: protein_example.fasta")
 
     # ── Layout ──────────────────────────────────────────────────────────────
 

@@ -53,7 +53,7 @@ class GCPlotTab(BaseTabWidget):
         self._setup_file_input()
 
         # Add Save Figure button in the status row after Plot
-        self._save_fig_btn = QPushButton(self.tr("Save Figure"))
+        self._save_fig_btn = QPushButton("Save Figure")
         self._save_fig_btn.setFixedWidth(110)
         self._save_fig_btn.clicked.connect(self.export_result)
         _idx = self.status_layout.indexOf(self.run_btn)
@@ -74,22 +74,22 @@ class GCPlotTab(BaseTabWidget):
         self.input_path_edit = FileDropLineEdit()
         self.input_path_edit.setReadOnly(True)
         self.input_path_edit.setPlaceholderText(
-            self.tr("Select a FASTA file or drag & drop it here...")
+            "Select a FASTA file or drag & drop it here..."
         )
         self.input_path_edit.setToolTip(
-            self.tr("DNA sequence (FASTA format) for GC content / GC skew analysis")
+            "DNA sequence (FASTA format) for GC content / GC skew analysis"
         )
 
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
 
         ig_layout = self.input_group.layout()
         ig_layout.setContentsMargins(6, 16, 6, 4)
         ig_layout.removeWidget(self.upload_btn)
         row = QHBoxLayout()
-        row.addWidget(QLabel(self.tr("Sequence File:")))
+        row.addWidget(QLabel("Sequence File:"))
         row.addWidget(self.input_path_edit, 1)
-        self.browse_btn = QPushButton(self.tr("Browse"))
+        self.browse_btn = QPushButton("Browse")
         self.browse_btn.clicked.connect(self._browse_input_file)
         row.addWidget(self.example_btn)
         row.addWidget(self.browse_btn)
@@ -98,9 +98,9 @@ class GCPlotTab(BaseTabWidget):
     def _browse_input_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            self.tr("Open FASTA File"),
+            "Open FASTA File",
             "",
-            self.tr("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
+            "FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)",
         )
         if path:
             self.input_path_edit.setText(os.path.normpath(path))
@@ -117,13 +117,13 @@ class GCPlotTab(BaseTabWidget):
         if not path:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.input_path_edit.setText(path)
         self._auto_adjust_window()
-        self.show_status(self.tr("Loaded example data: pBR322.fasta"))
+        self.show_status("Loaded example data: pBR322.fasta")
 
     def _auto_adjust_window(self):
         """Set window size automatically based on the current input file length."""
@@ -153,7 +153,7 @@ class GCPlotTab(BaseTabWidget):
     # ── Layout ──────────────────────────────────────────────────────────────
 
     def _setup_parameters(self):
-        param_group = QGroupBox(self.tr("Plot Options"))
+        param_group = QGroupBox("Plot Options")
         param_group.setFlat(True)
         pg_layout = QVBoxLayout(param_group)
         pg_layout.setContentsMargins(12, 12, 0, 12)
@@ -162,30 +162,26 @@ class GCPlotTab(BaseTabWidget):
         row = QHBoxLayout()
         row.setSpacing(16)
 
-        row.addWidget(QLabel(self.tr("Window:")))
+        row.addWidget(QLabel("Window:"))
         self.window_spin = QSpinBox()
         self.window_spin.setRange(21, 10001)
         self.window_spin.setSingleStep(2)
         self.window_spin.setValue(101)
-        self.window_spin.setSuffix(self.tr(" bp"))
+        self.window_spin.setSuffix(" bp")
         self.window_spin.setToolTip(
-            self.tr(
-                "Sliding window size. Automatically adjusted based on sequence length. "
+            "Sliding window size. Automatically adjusted based on sequence length. "
                 "Larger windows produce smoother curves."
-            )
         )
         row.addWidget(self.window_spin)
 
-        row.addWidget(QLabel(self.tr("Step:")))
+        row.addWidget(QLabel("Step:"))
         self.step_spin = QSpinBox()
         self.step_spin.setRange(1, 10001)
         self.step_spin.setValue(101)
-        self.step_spin.setSuffix(self.tr(" bp"))
+        self.step_spin.setSuffix(" bp")
         self.step_spin.setToolTip(
-            self.tr(
-                "Step size between windows. "
+            "Step size between windows. "
                 "Equal to window = non-overlapping; smaller = smoother curve."
-            )
         )
         row.addWidget(self.step_spin)
 
@@ -193,15 +189,13 @@ class GCPlotTab(BaseTabWidget):
         pg_layout.addLayout(row)
 
         self._cumulative_cb = QCheckBox(
-            self.tr("Cumulative GC Skew (Σ (G−C)/(G+C) — shows oriC/terC boundaries)")
+            "Cumulative GC Skew (Σ (G−C)/(G+C) — shows oriC/terC boundaries)"
         )
         self._cumulative_cb.setToolTip(
-            self.tr(
-                "When checked, GC skew values are accumulated (running sum) across the "
+            "When checked, GC skew values are accumulated (running sum) across the "
                 "sequence. The global minimum indicates the replication origin (oriC); "
                 "the global maximum indicates the terminus (terC). Uncheck to show "
                 "per-window (local) GC skew instead."
-            )
         )
         self._cumulative_cb.setVisible(False)
         pg_layout.addWidget(self._cumulative_cb)
@@ -213,16 +207,16 @@ class GCPlotTab(BaseTabWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(4)
 
-        self._btn_gc = QPushButton(self.tr("GC Content"))
+        self._btn_gc = QPushButton("GC Content")
         self._btn_gc.setCheckable(True)
         self._btn_gc.setChecked(True)
         self._btn_gc.clicked.connect(lambda: self._switch_view(0))
 
-        self._btn_skew = QPushButton(self.tr("GC Skew"))
+        self._btn_skew = QPushButton("GC Skew")
         self._btn_skew.setCheckable(True)
         self._btn_skew.clicked.connect(lambda: self._switch_view(1))
 
-        self._btn_cumul = QPushButton(self.tr("Cumulative GC Skew"))
+        self._btn_cumul = QPushButton("Cumulative GC Skew")
         self._btn_cumul.setCheckable(True)
         self._btn_cumul.clicked.connect(lambda: self._switch_view(2))
 
@@ -265,9 +259,9 @@ class GCPlotTab(BaseTabWidget):
 
     def _draw_placeholder_plot(self):
         labels = [
-            self.tr("GC Content"),
-            self.tr("GC Skew"),
-            self.tr("Cumulative GC Skew"),
+            "GC Content",
+            "GC Skew",
+            "Cumulative GC Skew",
         ]
         for fig, canvas, label in zip(self._figs, self._canvases, labels):
             fig.clear()
@@ -275,7 +269,7 @@ class GCPlotTab(BaseTabWidget):
             ax.text(
                 0.5,
                 0.5,
-                self.tr(f"{label} plot will appear here after clicking 'Plot'"),
+                f"{label} plot will appear here after clicking 'Plot'",
                 ha="center",
                 va="center",
                 fontsize=12,
@@ -303,14 +297,14 @@ class GCPlotTab(BaseTabWidget):
         path = self.input_path_edit.text().strip()
         if not path:
             QMessageBox.warning(
-                self, self.tr("Input Error"), self.tr("Please select a DNA sequence file.")
+                self, "Input Error", "Please select a DNA sequence file."
             )
             return
         try:
             with open(path, "r", encoding="utf-8") as fh:
                 text = fh.read()
         except OSError as exc:
-            QMessageBox.warning(self, self.tr("Input Error"), str(exc))
+            QMessageBox.warning(self, "Input Error", str(exc))
             return
         text = text.strip()
 
@@ -318,8 +312,8 @@ class GCPlotTab(BaseTabWidget):
         if not records:
             QMessageBox.warning(
                 self,
-                self.tr("Input Error"),
-                self.tr("No valid FASTA sequences detected."),
+                "Input Error",
+                "No valid FASTA sequences detected.",
             )
             return
 
@@ -328,24 +322,20 @@ class GCPlotTab(BaseTabWidget):
         if len(clean) < self.window_spin.value():
             QMessageBox.warning(
                 self,
-                self.tr("Sequence Too Short"),
-                self.tr(
-                    f"Sequence length ({len(clean)} bp) is shorter than the window "
+                "Sequence Too Short",
+                f"Sequence length ({len(clean)} bp) is shorter than the window "
                     f"size ({self.window_spin.value()} bp). "
-                    "Please use a longer sequence or a smaller window."
-                ),
+                    "Please use a longer sequence or a smaller window.",
             )
             return
 
         if not self._validate_dna(clean):
             QMessageBox.warning(
                 self,
-                self.tr("Input Warning"),
-                self.tr(
-                    "The input does not appear to be a DNA sequence "
+                "Input Warning",
+                "The input does not appear to be a DNA sequence "
                     "(fewer than 60% ACGT bases). "
-                    "GC content / GC skew analysis requires a DNA sequence."
-                ),
+                    "GC content / GC skew analysis requires a DNA sequence.",
             )
             return
 
@@ -379,8 +369,8 @@ class GCPlotTab(BaseTabWidget):
         if len(sample_x) < 2:
             QMessageBox.warning(
                 self,
-                self.tr("Analysis Error"),
-                self.tr("Not enough data points. Try a smaller window or step size."),
+                "Analysis Error",
+                "Not enough data points. Try a smaller window or step size.",
             )
             return
 
@@ -394,7 +384,7 @@ class GCPlotTab(BaseTabWidget):
         self._draw_gc_skew(clean, gc_skew, window, header)
         self._draw_cumul_skew(clean, cumul_skew, window, header)
         mean_gc = np.nanmean(gc_content)
-        self.status_label.setText(self.tr(f"Plotted \u2014 {n:,} bp, mean GC = {mean_gc:.1f}%"))
+        self.status_label.setText(f"Plotted \u2014 {n:,} bp, mean GC = {mean_gc:.1f}%")
 
         if not self._logo_generated:
             self._logo_generated = True
@@ -414,11 +404,11 @@ class GCPlotTab(BaseTabWidget):
             color="#d32f2f",
             linestyle="--",
             linewidth=1.0,
-            label=self.tr(f"Mean GC = {mean_gc:.1f}%"),
+            label=f"Mean GC = {mean_gc:.1f}%",
         )
-        ax.set_ylabel(self.tr("GC Content (%)"), fontsize=12)
+        ax.set_ylabel("GC Content (%)", fontsize=12)
         ax.set_title(
-            self.tr(f"GC Content — {header} (window={window})"),
+            f"GC Content — {header} (window={window})",
             fontsize=13,
             fontweight="bold",
         )
@@ -433,10 +423,10 @@ class GCPlotTab(BaseTabWidget):
                     lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
                 )
             )
-            ax.set_xlabel(self.tr("Position (kb)"), fontsize=12)
+            ax.set_xlabel("Position (kb)", fontsize=12)
         else:
             ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
-            ax.set_xlabel(self.tr("Position (bp)"), fontsize=12)
+            ax.set_xlabel("Position (bp)", fontsize=12)
 
         fig.tight_layout()
         self._canvases[0].draw()
@@ -458,7 +448,7 @@ class GCPlotTab(BaseTabWidget):
             where=(gc_skew > 0),
             color="#388e3c",
             alpha=0.15,
-            label=self.tr("G excess"),
+            label="G excess",
         )
         ax.fill_between(
             x,
@@ -467,11 +457,11 @@ class GCPlotTab(BaseTabWidget):
             where=(gc_skew < 0),
             color="#d32f2f",
             alpha=0.15,
-            label=self.tr("C excess"),
+            label="C excess",
         )
-        ax.set_ylabel(self.tr("GC Skew"), fontsize=12)
+        ax.set_ylabel("GC Skew", fontsize=12)
         ax.set_title(
-            self.tr(f"GC Skew = (G−C)/(G+C) — {header}"),
+            f"GC Skew = (G−C)/(G+C) — {header}",
             fontsize=13,
             fontweight="bold",
         )
@@ -484,10 +474,10 @@ class GCPlotTab(BaseTabWidget):
                     lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
                 )
             )
-            ax.set_xlabel(self.tr("Position (kb)"), fontsize=12)
+            ax.set_xlabel("Position (kb)", fontsize=12)
         else:
             ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
-            ax.set_xlabel(self.tr("Position (bp)"), fontsize=12)
+            ax.set_xlabel("Position (bp)", fontsize=12)
         ax.legend(loc="upper right", fontsize=9)
 
         fig.tight_layout()
@@ -510,7 +500,7 @@ class GCPlotTab(BaseTabWidget):
             where=(cumul_skew > 0),
             color="#7b1fa2",
             alpha=0.12,
-            label=self.tr("G excess (leading)"),
+            label="G excess (leading)",
         )
         ax.fill_between(
             x,
@@ -519,11 +509,11 @@ class GCPlotTab(BaseTabWidget):
             where=(cumul_skew < 0),
             color="#e65100",
             alpha=0.12,
-            label=self.tr("C excess (lagging)"),
+            label="C excess (lagging)",
         )
-        ax.set_ylabel(self.tr("Cumulative GC Skew"), fontsize=12)
+        ax.set_ylabel("Cumulative GC Skew", fontsize=12)
         ax.set_title(
-            self.tr(f"Cumulative GC Skew = Σ (G−C)/(G+C) — {header}"),
+            f"Cumulative GC Skew = Σ (G−C)/(G+C) — {header}",
             fontsize=13,
             fontweight="bold",
         )
@@ -535,7 +525,7 @@ class GCPlotTab(BaseTabWidget):
             color="#d32f2f",
             s=60,
             zorder=5,
-            label=self.tr(f"oriC ≈ {int(x[idx_min])} bp"),
+            label=f"oriC ≈ {int(x[idx_min])} bp",
         )
         ax.scatter(
             x[idx_max],
@@ -543,7 +533,7 @@ class GCPlotTab(BaseTabWidget):
             color="#2e7d32",
             s=60,
             zorder=5,
-            label=self.tr(f"terC ≈ {int(x[idx_max])} bp"),
+            label=f"terC ≈ {int(x[idx_max])} bp",
         )
 
         n = len(seq)
@@ -553,10 +543,10 @@ class GCPlotTab(BaseTabWidget):
                     lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
                 )
             )
-            ax.set_xlabel(self.tr("Position (kb)"), fontsize=12)
+            ax.set_xlabel("Position (kb)", fontsize=12)
         else:
             ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
-            ax.set_xlabel(self.tr("Position (bp)"), fontsize=12)
+            ax.set_xlabel("Position (bp)", fontsize=12)
         ax.legend(loc="upper right", fontsize=9)
 
         fig.tight_layout()
@@ -566,30 +556,30 @@ class GCPlotTab(BaseTabWidget):
         self.input_path_edit.clear()
         self._draw_placeholder_plot()
         self._logo_generated = False
-        self.status_label.setText(self.tr("Cleared"))
+        self.status_label.setText("Cleared")
 
     def export_result(self):
         """Save the currently displayed figure to a file."""
         idx = self._stack.currentIndex()
         fig = self._figs[idx]
         if fig is None:
-            QMessageBox.warning(self, self.tr("Export Error"), self.tr("Generate a plot first."))
+            QMessageBox.warning(self, "Export Error", "Generate a plot first.")
             return
         from PyQt6.QtWidgets import QFileDialog
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            self.tr("Save GC Plot"),
+            "Save GC Plot",
             "gc_plot.png",
-            self.tr("PNG Files (*.png);;PDF Files (*.pdf);;SVG Files (*.svg);;All Files (*)"),
+            "PNG Files (*.png);;PDF Files (*.pdf);;SVG Files (*.svg);;All Files (*)",
         )
         if file_path:
             try:
                 fig.savefig(file_path, dpi=300, bbox_inches="tight")
-                self.status_label.setText(self.tr("Figure saved"))
+                self.status_label.setText("Figure saved")
             except Exception as e:
                 QMessageBox.warning(
-                    self, self.tr("Export Error"), self.tr(f"Failed to save figure:\n{str(e)}")
+                    self, "Export Error", f"Failed to save figure:\n{str(e)}"
                 )
 
     def show_help(self):
@@ -601,7 +591,7 @@ class GCPlotTab(BaseTabWidget):
             QVBoxLayout,
         )
 
-        help_text = self.tr("""
+        help_text = """
 <h2>GC Content / GC Skew Plot &mdash; Sliding-Window Analysis</h2>
 
 <p><b>What does this tool do?</b><br>
@@ -683,9 +673,9 @@ circular replicon where the leading/lagging strand bias is clearly visible</li>
 <li>The first FASTA record in the selected file is used if multiple are present</li>
 <li>N bases are ignored in GC calculations within each window</li>
 </ul>
-""")
+"""
         dialog = QDialog(self)
-        dialog.setWindowTitle(self.tr("Help - GC Content / GC Skew Plot"))
+        dialog.setWindowTitle("Help - GC Content / GC Skew Plot")
         dialog.resize(620, 500)
         dialog.setMinimumSize(400, 300)
         layout = QVBoxLayout()

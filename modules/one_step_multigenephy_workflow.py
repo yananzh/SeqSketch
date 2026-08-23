@@ -21,7 +21,7 @@ from modules.one_step_multigenephy_io import (
     write_run_manifest,
 )
 from modules.one_step_multigenephy_models import RunArtifacts, WorkflowRunResult
-from utils.app_paths import resource_path, tool_path_from_config
+from utils.app_paths import bundled_tool_path, resource_path, tool_path_from_config
 from utils.process_control import kill_process_tree
 
 
@@ -66,10 +66,10 @@ def _mafft_executable() -> str:
             if os.path.isfile(candidate):
                 return candidate
     for name in ("mafft.bat", "mafft-signed.ps1"):
-        candidate = resource_path("softwares", "mafft-win_v7.526", name)
+        candidate = bundled_tool_path("mafft-win_v7.526", name)
         if os.path.isfile(candidate):
             return candidate
-    return resource_path("softwares", "mafft-win_v7.526", "mafft.bat")
+    return bundled_tool_path("mafft-win_v7.526", "mafft.bat")
 
 
 def _trimal_executable() -> str:
@@ -78,7 +78,7 @@ def _trimal_executable() -> str:
         exe = os.path.join(configured, "trimal.exe")
         if os.path.isfile(exe):
             return exe
-    return resource_path("softwares", "trimAl_Windows_v1.5.1", "trimal.exe")
+    return bundled_tool_path("trimAl_Windows_v1.5.1", "trimal.exe")
 
 
 def _iqtree_executable() -> str:
@@ -87,7 +87,7 @@ def _iqtree_executable() -> str:
         exe = os.path.join(configured, "iqtree3.exe")
         if os.path.isfile(exe):
             return exe
-    return resource_path("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
+    return bundled_tool_path("iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
 
 
 def _ensure_executable(path: str, tool_name: str) -> None:
@@ -488,28 +488,6 @@ def _parse_best_model_nex(path: str) -> dict[str, str]:
 
     return models
 
-
-def _write_summary(
-    path: Path | str,
-    step_status: dict[str, str],
-    warnings: list[str],
-    artifacts: RunArtifacts,
-) -> None:
-    lines = ["One Step MultiGenePhy Summary", "", "Steps:"]
-    lines.extend(f"- {step}: {status}" for step, status in step_status.items())
-    lines.append("")
-    lines.append("Warnings:")
-    if warnings:
-        lines.extend(f"- {warning}" for warning in warnings)
-    else:
-        lines.append("- none")
-    lines.append("")
-    lines.append("Artifacts:")
-    lines.append(f"- treefile: {artifacts.treefile_path or 'not generated'}")
-    lines.append(f"- manifest: {artifacts.manifest_path}")
-    lines.append(f"- report: {artifacts.report_path}")
-    lines.append(f"- HTML report: {artifacts.html_report_path}")
-    Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _write_html_report(

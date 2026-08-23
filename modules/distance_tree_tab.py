@@ -332,32 +332,32 @@ class DistanceTreeTab(BaseTabWidget):
         self._last_treefile = ""
         self._build_ui()
         self._connect_signals()
-        self.show_status(self.tr("Ready — load a FASTA alignment and click Run"))
+        self.show_status("Ready — load a FASTA alignment and click Run")
 
     # ── UI ──────────────────────────────────────────────────────────
     def _build_ui(self):
         lbl_w = 120
 
         # ── Input group ─────────────────────────────────────────────
-        grp_in = QGroupBox(self.tr("Input and Method"))
+        grp_in = QGroupBox("Input and Method")
         gl = QVBoxLayout(grp_in)
         gl.setSpacing(8)
 
         # file row
         fr = QHBoxLayout()
-        lbl_file = QLabel(self.tr("Alignment file:"))
+        lbl_file = QLabel("Alignment file:")
         lbl_file.setFixedWidth(lbl_w)
         fr.addWidget(lbl_file)
         self._file_edit = _DropLineEdit()
-        self._file_edit.setPlaceholderText(self.tr("Select or drag & drop a FASTA alignment..."))
+        self._file_edit.setPlaceholderText("Select or drag & drop a FASTA alignment...")
         fr.addWidget(self._file_edit, 1)
-        self._example_btn = QPushButton(self.tr("Example"))
+        self._example_btn = QPushButton("Example")
         self._example_btn.setToolTip(
-            self.tr("Load bundled example alignment (csrA_pro_mafft.fasta)")
+            "Load bundled example alignment (csrA_pro_mafft.fasta)"
         )
         self._example_btn.clicked.connect(self._load_example)
         fr.addWidget(self._example_btn)
-        self._browse_btn = QPushButton(self.tr("Browse"))
+        self._browse_btn = QPushButton("Browse")
         self._browse_btn.setFixedWidth(90)
         self._browse_btn.clicked.connect(self._browse_input)
         fr.addWidget(self._browse_btn)
@@ -365,43 +365,39 @@ class DistanceTreeTab(BaseTabWidget):
 
         # model + method + bootstrap row
         opt_row = QHBoxLayout()
-        lbl_model = QLabel(self.tr("Model Selection:"))
+        lbl_model = QLabel("Model Selection:")
         lbl_model.setFixedWidth(lbl_w)
         opt_row.addWidget(lbl_model)
         self._model_combo = QComboBox()
         for display, data in _DNA_MODELS:
-            self._model_combo.addItem(self.tr(display), data)
+            self._model_combo.addItem(display, data)
         self._model_combo.setMinimumWidth(220)
         self._model_combo.setToolTip(
-            self.tr(
-                "p-distance: fraction of differing sites  |  JC69: Jukes-Cantor correction  |  "
+            "p-distance: fraction of differing sites  |  JC69: Jukes-Cantor correction  |  "
                 "K80: Kimura 2-parameter (transitions vs transversions)\n"
                 "First time? NJ + p-distance is a safe start."
-            )
         )
         opt_row.addWidget(self._model_combo)
         opt_row.addSpacing(20)
-        opt_row.addWidget(QLabel(self.tr("Method:")))
+        opt_row.addWidget(QLabel("Method:"))
         self._method_combo = QComboBox()
         self._method_combo.addItem("NJ", "nj")
         self._method_combo.addItem("UPGMA", "upgma")
         self._method_combo.setMinimumWidth(100)
         self._method_combo.setToolTip(
-            self.tr(
-                "nj: Neighbor-Joining (fast, accurate, no clock assumption)  |  "
+            "nj: Neighbor-Joining (fast, accurate, no clock assumption)  |  "
                 "upgma: UPGMA (assumes a molecular clock — check before using)"
-            )
         )
         opt_row.addWidget(self._method_combo)
         opt_row.addSpacing(20)
-        opt_row.addWidget(QLabel(self.tr("Bootstrap:")))
+        opt_row.addWidget(QLabel("Bootstrap:"))
         self._bootstrap_spin = QSpinBox()
         self._bootstrap_spin.setRange(0, 10000)
         self._bootstrap_spin.setSingleStep(100)
         self._bootstrap_spin.setValue(1000)
-        self._bootstrap_spin.setSpecialValueText(self.tr("Off"))
+        self._bootstrap_spin.setSpecialValueText("Off")
         self._bootstrap_spin.setToolTip(
-            self.tr("Number of bootstrap replicates (0 = off). 100–1000 recommended.")
+            "Number of bootstrap replicates (0 = off). 100–1000 recommended."
         )
         opt_row.addWidget(self._bootstrap_spin)
         opt_row.addStretch()
@@ -409,20 +405,20 @@ class DistanceTreeTab(BaseTabWidget):
         self.content_area.addWidget(grp_in)
 
         # ── Output group ────────────────────────────────────────────
-        grp_out = QGroupBox(self.tr("Output"))
+        grp_out = QGroupBox("Output")
         ol = QVBoxLayout(grp_out)
         ol.setSpacing(8)
 
         out_row = QHBoxLayout()
-        lbl_out = QLabel(self.tr("Tree file (.nwk):"))
+        lbl_out = QLabel("Tree file (.nwk):")
         lbl_out.setFixedWidth(lbl_w)
         out_row.addWidget(lbl_out)
         self._out_edit = QLineEdit()
         self._out_edit.setPlaceholderText(
-            self.tr("Auto-generated from input name, or choose manually...")
+            "Auto-generated from input name, or choose manually..."
         )
         out_row.addWidget(self._out_edit, 1)
-        self._save_btn = QPushButton(self.tr("Browse"))
+        self._save_btn = QPushButton("Browse")
         self._save_btn.setFixedWidth(90)
         self._save_btn.clicked.connect(self._browse_output)
         out_row.addWidget(self._save_btn)
@@ -430,7 +426,7 @@ class DistanceTreeTab(BaseTabWidget):
         self.content_area.addWidget(grp_out)
 
         # ── Distance matrix table ───────────────────────────────────
-        matrix_grp = QGroupBox(self.tr("Distance Matrix"))
+        matrix_grp = QGroupBox("Distance Matrix")
         ml = QVBoxLayout(matrix_grp)
         self._table = QTableWidget()
         self._table.setAlternatingRowColors(True)
@@ -448,18 +444,18 @@ class DistanceTreeTab(BaseTabWidget):
         self.content_area.addStretch()
 
         # ── Action buttons in status bar, left of Help ─────────
-        self._run_btn = QPushButton(self.tr("Run"))
+        self._run_btn = QPushButton("Run")
         self._run_btn.clicked.connect(self._compute)
 
-        self._view_tree_btn = QPushButton(self.tr("View Tree"))
+        self._view_tree_btn = QPushButton("View Tree")
         self._view_tree_btn.setVisible(False)
         self._view_tree_btn.clicked.connect(self._open_tree_viewer)
 
-        self._export_csv_btn = QPushButton(self.tr("Export Matrix"))
+        self._export_csv_btn = QPushButton("Export Matrix")
         # Always blue; enabled/disabled not needed
         self._export_csv_btn.clicked.connect(self._export_csv)
 
-        self._clear_btn = QPushButton(self.tr("Clear"))
+        self._clear_btn = QPushButton("Clear")
         self._clear_btn.clicked.connect(self._clear_all)
 
         # Insert before Help button (rightmost in status_layout)
@@ -486,12 +482,10 @@ class DistanceTreeTab(BaseTabWidget):
     def _browse_input(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            self.tr("Select FASTA Alignment"),
+            "Select FASTA Alignment",
             "",
-            self.tr(
-                "Alignment Files (*.fasta *.fa *.fas *.fna *.ffn *.faa "
-                "*.phy *.phylip *.nex *.nxs *.aln *.clustal *.sto);;All Files (*)"
-            ),
+            "Alignment Files (*.fasta *.fa *.fas *.fna *.ffn *.faa "
+                "*.phy *.phylip *.nex *.nxs *.aln *.clustal *.sto);;All Files (*)",
         )
         if path:
             self._file_edit.setText(path)
@@ -516,14 +510,14 @@ class DistanceTreeTab(BaseTabWidget):
         if not path:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check the installation."),
+                "Example",
+                "Failed to load example data. Please check the installation.",
             )
             return
         self._file_edit.setText(path)
         self._auto_suggest_output(path)
         self._update_model_combo()
-        self.show_status(self.tr("Example loaded: csrA_pro_mafft.fasta"))
+        self.show_status("Example loaded: csrA_pro_mafft.fasta")
 
     def _update_model_combo(self):
         """Detect sequence type and update model choices accordingly."""
@@ -538,33 +532,29 @@ class DistanceTreeTab(BaseTabWidget):
         self._model_combo.clear()
         models = _DNA_MODELS if seq_type == "DNA" else _AA_MODELS
         for display, data in models:
-            self._model_combo.addItem(self.tr(display), data)
+            self._model_combo.addItem(display, data)
         # Restore previous selection if still valid
         idx = self._model_combo.findData(current_data)
         self._model_combo.setCurrentIndex(idx if idx >= 0 else 0)
         tip = (
-            self.tr(
-                "p-distance: fraction of differing sites  |  JC69: Jukes-Cantor correction  |  "
+            "p-distance: fraction of differing sites  |  JC69: Jukes-Cantor correction  |  "
                 "K80: Kimura 2-parameter (transitions vs transversions)\n"
                 "First time? NJ + p-distance is a safe start."
-            )
             if seq_type == "DNA"
-            else self.tr(
-                "BLOSUM62: widely used for proteins  |  Dayhoff: PAM-based  |  identity: simple p-distance"
-            )
+            else "BLOSUM62: widely used for proteins  |  Dayhoff: PAM-based  |  identity: simple p-distance"
         )
         self._model_combo.setToolTip(tip)
         self.log_message(
-            self.tr(f"Detected sequence type: {'DNA' if seq_type == 'DNA' else 'Protein (AA)'}"),
+            f"Detected sequence type: {'DNA' if seq_type == 'DNA' else 'Protein (AA)'}",
             "INFO",
         )
 
     def _browse_output(self):
         path, _ = QFileDialog.getSaveFileName(
             self,
-            self.tr("Save Tree File"),
+            "Save Tree File",
             self._out_edit.text() or "tree.nwk",
-            self.tr("Newick Files (*.nwk *.newick *.treefile *.tre);;All Files (*)"),
+            "Newick Files (*.nwk *.newick *.treefile *.tre);;All Files (*)",
         )
         if path:
             self._out_edit.setText(path)
@@ -590,15 +580,13 @@ class DistanceTreeTab(BaseTabWidget):
         self._set_running(True)
         if n_bootstrap > 0:
             self.log_message(
-                self.tr(
-                    f"Computing {method.upper()} tree ({model}) with {n_bootstrap} bootstrap replicates …"
-                )
+                f"Computing {method.upper()} tree ({model}) with {n_bootstrap} bootstrap replicates …"
             )
         else:
             self.log_message(
-                self.tr(f"Computing {method.upper()} tree ({model}) from {input_path} …")
+                f"Computing {method.upper()} tree ({model}) from {input_path} …"
             )
-        self.show_status(self.tr("Computing distance matrix…"))
+        self.show_status("Computing distance matrix…")
 
         self._thread = _DistanceTreeWorker(input_path, model, method, n_bootstrap)
         self._thread.finished_ok.connect(self._on_result)
@@ -610,7 +598,7 @@ class DistanceTreeTab(BaseTabWidget):
     def _on_bootstrap_progress(self, current: int, total: int):
         # Throttle: update status only every 10th replicate or at start/end
         if current % 10 == 0 or current == 1 or current == total:
-            self.show_status(self.tr(f"Bootstrap replicate {current}/{total}…"))
+            self.show_status(f"Bootstrap replicate {current}/{total}…")
 
     def _on_result(self, data: dict):
         self._matrix_data = data["matrix"]
@@ -620,8 +608,8 @@ class DistanceTreeTab(BaseTabWidget):
         n_bootstrap = data.get("n_bootstrap", 0)
         warning = data.get("warning", "")
         if warning:
-            self.log_message(self.tr(warning), "WARNING")
-            self.show_status(self.tr(warning))
+            self.log_message(warning, "WARNING")
+            self.show_status(warning)
 
         # Populate table
         self._populate_table(data["matrix"], data["names"])
@@ -635,23 +623,21 @@ class DistanceTreeTab(BaseTabWidget):
             self._last_treefile = output_path
             self._view_tree_btn.setVisible(True)
             boot_msg = f", {n_bootstrap} bootstrap replicates" if n_bootstrap else ""
-            self.log_message(self.tr(f"Tree saved → {output_path}  ({n_taxa} taxa{boot_msg})"))
-            status_msg = self.tr(
-                f"{self._method_combo.currentText()} tree saved ({n_taxa} taxa{boot_msg})"
-            )
+            self.log_message(f"Tree saved → {output_path}  ({n_taxa} taxa{boot_msg})")
+            status_msg = f"{self._method_combo.currentText()} tree saved ({n_taxa} taxa{boot_msg})"
             self.show_status(status_msg)
         except Exception as exc:
             self._last_treefile = ""
             self._view_tree_btn.setVisible(False)
-            self.log_message(self.tr(f"Failed to save tree: {exc}"), "ERROR")
-            self.show_status(self.tr("Tree computed but save failed"))
+            self.log_message(f"Failed to save tree: {exc}", "ERROR")
+            self.show_status("Tree computed but save failed")
 
         self._set_running(False)
         self._thread = None
 
     def _on_error(self, msg: str):
         self.log_message(msg, "ERROR")
-        self.show_status(self.tr(f"Error: {msg}"))
+        self.show_status(f"Error: {msg}")
         self._set_running(False)
         self._thread = None
 
@@ -715,9 +701,9 @@ class DistanceTreeTab(BaseTabWidget):
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            self.tr("Export Distance Matrix"),
+            "Export Distance Matrix",
             "distance_matrix.csv",
-            self.tr("CSV Files (*.csv);;Excel Files (*.xlsx);;All Files (*)"),
+            "CSV Files (*.csv);;Excel Files (*.xlsx);;All Files (*)",
         )
         if not path:
             return
@@ -740,10 +726,10 @@ class DistanceTreeTab(BaseTabWidget):
                             f"{v:.6f}" for v in self._matrix_data[i]
                         ]
                         f.write(name + "," + ",".join(row_vals) + "\n")
-            self.log_message(self.tr(f"Matrix exported → {path}"))
-            self.show_status(self.tr("Matrix exported"))
+            self.log_message(f"Matrix exported → {path}")
+            self.show_status("Matrix exported")
         except Exception as exc:
-            self.log_message(self.tr(f"Export failed: {exc}"), "ERROR")
+            self.log_message(f"Export failed: {exc}", "ERROR")
 
     def _clear_all(self):
         self._file_edit.clear()
@@ -760,10 +746,10 @@ class DistanceTreeTab(BaseTabWidget):
         # Reset model combo to DNA defaults
         self._model_combo.clear()
         for display, data in _DNA_MODELS:
-            self._model_combo.addItem(self.tr(display), data)
+            self._model_combo.addItem(display, data)
         self._model_combo.setCurrentIndex(0)
         self.log_area.clear()
-        self.show_status(self.tr("Cleared"))
+        self.show_status("Cleared")
 
     def _set_running(self, running: bool):
         self._run_btn.setEnabled(not running)

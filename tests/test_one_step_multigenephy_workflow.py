@@ -582,16 +582,16 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
     for path in (mafft_exe, trimal_exe, iqtree_exe):
         path.write_text("echo", encoding="utf-8")
 
-    resource_paths = {
-        ("softwares", "mafft-win_v7.526", "mafft.bat"): str(mafft_exe),
-        ("softwares", "mafft-win_v7.526", "mafft-signed.ps1"): str(tmp_path / "missing-mafft.ps1"),
-        ("softwares", "trimAl_Windows_v1.5.1", "trimal.exe"): str(trimal_exe),
-        ("softwares", "iqtree-3.0.1-Windows", "bin", "iqtree3.exe"): str(iqtree_exe),
+    tool_paths = {
+        ("mafft-win_v7.526", "mafft.bat"): str(mafft_exe),
+        ("mafft-win_v7.526", "mafft-signed.ps1"): str(tmp_path / "missing-mafft.ps1"),
+        ("trimAl_Windows_v1.5.1", "trimal.exe"): str(trimal_exe),
+        ("iqtree-3.0.1-Windows", "bin", "iqtree3.exe"): str(iqtree_exe),
     }
     calls = []
 
-    def fake_resource_path(*parts):
-        return resource_paths[parts]
+    def fake_bundled_tool_path(*parts):
+        return tool_paths[parts]
 
     def make_fake_popen():
         class _FakeStream:
@@ -635,7 +635,7 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
         return _FakePopen
 
     monkeypatch.setattr(workflow_module, "tool_path_from_config", lambda section, key: None)
-    monkeypatch.setattr(workflow_module, "resource_path", fake_resource_path)
+    monkeypatch.setattr(workflow_module, "bundled_tool_path", fake_bundled_tool_path)
     monkeypatch.setattr(workflow_module.subprocess, "Popen", make_fake_popen())
 
     adapters = build_default_tool_adapters()

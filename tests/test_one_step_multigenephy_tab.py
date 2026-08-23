@@ -69,9 +69,7 @@ def test_tab_renders_import_summary_and_gene_list(qapp):
     assert tab._checked_gene_columns() == ["ITS", "TEF1", "RPB2"]
 
 
-def test_tab_logs_import_summary_with_translated_labels(qapp, monkeypatch):
-    monkeypatch.setattr(OneStepMultiGenePhyTab, "tr", lambda self, text: f"T::{text}")
-
+def test_tab_logs_import_summary_labels(qapp):
     tab = OneStepMultiGenePhyTab()
     tab._log_import_summary({
         "strain_count": 2,
@@ -83,9 +81,9 @@ def test_tab_logs_import_summary_with_translated_labels(qapp, monkeypatch):
     })
 
     log_text = tab.log_area.toPlainText()
-    assert "T::Strains: 2" in log_text
-    assert "T::Genes: 3" in log_text
-    assert "T::Accessions: 4" in log_text
+    assert "Strains: 2" in log_text
+    assert "Genes: 3" in log_text
+    assert "Accessions: 4" in log_text
 
 
 def test_tab_loads_gene_columns_from_excel_header(qapp, monkeypatch, tmp_path):

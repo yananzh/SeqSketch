@@ -17,6 +17,19 @@ def resource_path(*parts: str) -> str:
     return os.path.join(runtime_root(), *parts)
 
 
+def bundled_tool_path(*parts: str) -> str:
+    """Path of a bundled external tool under softwares/.
+
+    The bundle is split per platform (softwares/windows/, softwares/Mac/);
+    fall back to the historical flat layout when the split is absent so
+    older checkouts keep working.
+    """
+    flat = resource_path("softwares", *parts)
+    plat = "windows" if sys.platform.startswith("win") else "Mac"
+    split = resource_path("softwares", plat, *parts)
+    return split if os.path.exists(split) else flat
+
+
 def portable_root() -> str:
     """Writable-data root.  Frozen → exe directory; dev → project root."""
     if getattr(sys, "frozen", False):

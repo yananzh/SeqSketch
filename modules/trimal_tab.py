@@ -39,7 +39,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.app_paths import resource_path, tool_path_from_config
+from utils.app_paths import bundled_tool_path, resource_path, tool_path_from_config
 from utils.common_components import (
     BaseTabWidget,
     apply_log_viewer_style,
@@ -58,7 +58,7 @@ def _resolve_trimal_exe() -> str:
         exe = os.path.join(configured, "trimal.exe")
         if os.path.isfile(exe):
             return exe
-    return resource_path("softwares", "trimAl_Windows_v1.5.1", "trimal.exe")
+    return bundled_tool_path("trimAl_Windows_v1.5.1", "trimal.exe")
 
 
 # 动态解析，避免模块级缓存导致 config.ini 运行时变更不生效
@@ -78,12 +78,6 @@ _ALIGN_FORMATS = {
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
-def _hline() -> QFrame:
-    line = QFrame()
-    line.setFrameShape(QFrame.Shape.HLine)
-    line.setFrameShadow(QFrame.Shadow.Sunken)
-    return line
-
 
 def _cleanup_file(path: str | None) -> None:
     if not path:
@@ -345,7 +339,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
     }
 
     def __init__(self, status_callback=None, parent=None):
-        super().__init__(self.tr("Alignment Trimming (trimAl)"), "file")
+        super().__init__("Alignment Trimming (trimAl)", "file")
         self.status_callback = status_callback
         self._thread: _BatchTrimThread | None = None
         self._build_ui()
@@ -353,7 +347,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
     # ── UI construction ───────────────────────────────────────────────────
     def _build_ui(self):
         # ── Input & Output group ────────────────────────────────────────────
-        io_box = QGroupBox(self.tr("Input and Output"))
+        io_box = QGroupBox("Input and Output")
         io_layout = QVBoxLayout(io_box)
         io_layout.setSpacing(10)
         io_layout.setContentsMargins(12, 12, 12, 12)
@@ -361,13 +355,13 @@ class AlignmentTrimmingTab(BaseTabWidget):
         # ── trimAl path ────────────────────────────────────────────────────
         exe_row = QHBoxLayout()
         self._exe_edit = _DropLineEdit(_resolve_trimal_exe())
-        self._exe_edit.setPlaceholderText(self.tr("Path to trimal.exe …"))
-        self._exe_edit.setToolTip(self.tr("Path to the trimAl executable"))
-        exe_chg = QPushButton(self.tr("Browse"))
+        self._exe_edit.setPlaceholderText("Path to trimal.exe …")
+        self._exe_edit.setToolTip("Path to the trimAl executable")
+        exe_chg = QPushButton("Browse")
         exe_chg.setFixedWidth(90)
-        exe_chg.setToolTip(self.tr("Choose trimal.exe manually"))
+        exe_chg.setToolTip("Choose trimal.exe manually")
         exe_chg.clicked.connect(self._choose_exe)
-        exe_row.addWidget(QLabel(self.tr("trimAl path:")))
+        exe_row.addWidget(QLabel("trimAl path:"))
         exe_row.addWidget(self._exe_edit, 1)
         exe_row.addWidget(exe_chg)
         io_layout.addLayout(exe_row)
@@ -375,21 +369,21 @@ class AlignmentTrimmingTab(BaseTabWidget):
         # ── input alignment files ──────────────────────────────────────────
 
         self.file_list = _DropFileList(
-            self.tr("Drag & drop alignment files here, or use the buttons below")
+            "Drag & drop alignment files here, or use the buttons below"
         )
         self.file_list.setMinimumHeight(96)
         self.file_list.files_added.connect(self._auto_fill_outdir)
         io_layout.addWidget(self.file_list)
 
         list_btns = QHBoxLayout()
-        add_btn = QPushButton(self.tr("Add Files"))
-        add_btn.setToolTip(self.tr("Select one or more alignment files."))
+        add_btn = QPushButton("Add Files")
+        add_btn.setToolTip("Select one or more alignment files.")
         add_btn.clicked.connect(self._add_files)
-        example_btn = QPushButton(self.tr("Example"))
+        example_btn = QPushButton("Example")
         example_btn.clicked.connect(self._load_example)
-        remove_btn = QPushButton(self.tr("Remove Selected"))
+        remove_btn = QPushButton("Remove Selected")
         remove_btn.clicked.connect(self._remove_selected)
-        clear_btn = QPushButton(self.tr("Clear All"))
+        clear_btn = QPushButton("Clear All")
         clear_btn.clicked.connect(self._clear_all)
         list_btns.addWidget(add_btn)
         list_btns.addWidget(example_btn)
@@ -405,24 +399,22 @@ class AlignmentTrimmingTab(BaseTabWidget):
         out_row = QHBoxLayout()
         self.outdir_edit = _DropLineEdit()
         self.outdir_edit.setPlaceholderText(
-            self.tr(
-                "Output folder  (auto-filled when files are added,  or drag & drop a folder here)"
-            )
+            "Output folder  (auto-filled when files are added,  or drag & drop a folder here)"
         )
-        outdir_btn = QPushButton(self.tr("Browse"))
+        outdir_btn = QPushButton("Browse")
         outdir_btn.setFixedWidth(90)
         outdir_btn.clicked.connect(self._choose_outdir)
         out_row.addWidget(self.outdir_edit)
         out_row.addWidget(outdir_btn)
-        out_lbl = QLabel(self.tr("Output folder:"))
-        out_lbl.setToolTip(self.tr("Trimmed files saved here as <original_name>.trimmed<ext>"))
+        out_lbl = QLabel("Output folder:")
+        out_lbl.setToolTip("Trimmed files saved here as <original_name>.trimmed<ext>")
         out_form.addRow(out_lbl, out_row)
         io_layout.addLayout(out_form)
 
         self.add_content_widget(io_box)
 
         # ── trimming method group ──────────────────────────────────────────
-        method_box = QGroupBox(self.tr("Trimming Method"))
+        method_box = QGroupBox("Trimming Method")
         method_layout = QVBoxLayout(method_box)
         method_layout.setSpacing(10)
         method_layout.setContentsMargins(12, 12, 12, 12)
@@ -436,11 +428,11 @@ class AlignmentTrimmingTab(BaseTabWidget):
         self.rb_nogaps = QRadioButton("nogaps")
 
         _auto_tooltips = {
-            self.rb_gappyout: self.tr("Removes only gap-rich columns. Conservative — keeps the most data."),
-            self.rb_auto1: self.tr("Recommended default — auto-balances similarity and data retention."),
-            self.rb_strict: self.tr("More aggressive trimming based on alignment statistics."),
-            self.rb_strictplus: self.tr("Aggressive trimming plus fragment filtering."),
-            self.rb_nogaps: self.tr("Removes every column that contains a gap — output has no missing residues."),
+            self.rb_gappyout: "Removes only gap-rich columns. Conservative — keeps the most data.",
+            self.rb_auto1: "Recommended default — auto-balances similarity and data retention.",
+            self.rb_strict: "More aggressive trimming based on alignment statistics.",
+            self.rb_strictplus: "Aggressive trimming plus fragment filtering.",
+            self.rb_nogaps: "Removes every column that contains a gap — output has no missing residues.",
         }
 
         for rb, desc in _auto_tooltips.items():
@@ -462,9 +454,9 @@ class AlignmentTrimmingTab(BaseTabWidget):
         self.add_content_widget(method_box)
 
         # ── output format group ────────────────────────────────────────────
-        fmt_box = QGroupBox(self.tr("Output Format"))
+        fmt_box = QGroupBox("Output Format")
         fmt_layout = QHBoxLayout(fmt_box)
-        fmt_lbl = QLabel(self.tr("Format:"))
+        fmt_lbl = QLabel("Format:")
         self.fmt_combo = QComboBox()
         self.fmt_combo.addItems([
             "FASTA",
@@ -475,11 +467,9 @@ class AlignmentTrimmingTab(BaseTabWidget):
         ])
         self.fmt_combo.setMinimumWidth(130)
         self.fmt_combo.setToolTip(
-            self.tr(
-                "FASTA   — default, compatible with most tools\n"
+            "FASTA   — default, compatible with most tools\n"
                 "PHYLIP  — for IQ-TREE / RAxML\n"
                 "NEXUS   — for MrBayes / BEAST"
-            )
         )
         fmt_layout.addWidget(fmt_lbl)
         fmt_layout.addWidget(self.fmt_combo)
@@ -487,12 +477,12 @@ class AlignmentTrimmingTab(BaseTabWidget):
         self.add_content_widget(fmt_box)
 
         # ── Run / Stop / Clear buttons (same row as Help, in status_layout) ──
-        self.run_btn = QPushButton(self.tr("Run"))
+        self.run_btn = QPushButton("Run")
         self.run_btn.clicked.connect(self._run)
-        self.stop_btn = QPushButton(self.tr("Stop"))
+        self.stop_btn = QPushButton("Stop")
         self.stop_btn.setVisible(False)
         self.stop_btn.clicked.connect(self._cancel)
-        self.clear_btn = QPushButton(self.tr("Clear"))
+        self.clear_btn = QPushButton("Clear")
         self.clear_btn.clicked.connect(self._clear)
         # Insert before Help (last widget in status_layout)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
@@ -579,12 +569,12 @@ or <b>MSA Visualization</b>.</li>
         if not loaded:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Example data failed to load. Please check your installation."),
+                "Example",
+                "Example data failed to load. Please check your installation.",
             )
             return
         self._auto_fill_outdir()
-        self.show_status(self.tr("Example data loaded: ") + ", ".join(loaded))
+        self.show_status("Example data loaded: " + ", ".join(loaded))
 
     def _add_files(self):
         files, _ = QFileDialog.getOpenFileNames(
@@ -596,24 +586,6 @@ or <b>MSA Visualization</b>.</li>
         )
         for path in files:
             self.file_list._add_path(path)
-        self._auto_fill_outdir()
-
-    def _add_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Select folder with alignment files")
-        if not folder:
-            return
-        added = 0
-        for fname in sorted(os.listdir(folder)):
-            if os.path.splitext(fname)[1].lower() in self._ALIGN_EXTS:
-                self.file_list._add_path(os.path.join(folder, fname))
-                added += 1
-        if added == 0:
-            QMessageBox.information(
-                self,
-                "No Files Found",
-                "No alignment files with recognised extensions were found.\n\n"
-                "Recognised: " + ", ".join(sorted(self._ALIGN_EXTS)),
-            )
         self._auto_fill_outdir()
 
     def _remove_selected(self):
@@ -629,7 +601,7 @@ or <b>MSA Visualization</b>.</li>
         self.outdir_edit.clear()
         if hasattr(self, "log_area"):
             self.log_area.clear()
-        self.show_status(self.tr("Cleared"))
+        self.show_status("Cleared")
 
     def _auto_fill_outdir(self):
         """Always set output folder to the first input file's directory."""
@@ -647,10 +619,10 @@ or <b>MSA Visualization</b>.</li>
         """Open the folder where trimmed results are written."""
         outdir = self.outdir_edit.text().strip()
         if not outdir:
-            self.show_status(self.tr("No output folder selected yet"))
+            self.show_status("No output folder selected yet")
             return
         if not os.path.isdir(outdir):
-            self.show_status(self.tr("Output folder does not exist yet"))
+            self.show_status("Output folder does not exist yet")
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(outdir))
 
@@ -813,7 +785,7 @@ or <b>MSA Visualization</b>.</li>
     def _cancel(self):
         if self._thread is not None and self._thread.isRunning():
             self._thread.stop()
-            self.show_status(self.tr("Cancelling…"))
+            self.show_status("Cancelling…")
 
     def _selected_method_name(self) -> str:
         if self.rb_auto1.isChecked():

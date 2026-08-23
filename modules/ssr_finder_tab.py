@@ -170,13 +170,13 @@ class SsrFinderTab(BaseTabWidget):
         self.input_path_edit = FileDropLineEdit()
         self.input_path_edit.setReadOnly(True)
         self.input_path_edit.setPlaceholderText(
-            self.tr("Select a FASTA file or drag & drop it here...")
+            "Select a FASTA file or drag & drop it here..."
         )
         self.input_path_edit.setToolTip(
-            self.tr("DNA sequence (FASTA format) to search for microsatellites")
+            "DNA sequence (FASTA format) to search for microsatellites"
         )
 
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
 
         ig_layout = self.input_group.layout()
@@ -187,24 +187,22 @@ class SsrFinderTab(BaseTabWidget):
         form = QGridLayout()
         form.setHorizontalSpacing(8)
         form.setVerticalSpacing(6)
-        form.addWidget(QLabel(self.tr("Sequence File:")), 0, 0)
+        form.addWidget(QLabel("Sequence File:"), 0, 0)
         form.addWidget(self.input_path_edit, 0, 1)
-        self.browse_btn = QPushButton(self.tr("Browse"))
+        self.browse_btn = QPushButton("Browse")
         self.browse_btn.clicked.connect(self._browse_input_file)
         form.addWidget(self.browse_btn, 0, 2)
         form.addWidget(self.example_btn, 0, 3)
 
         # Record selector: analyze all FASTA records or a single one.
-        form.addWidget(QLabel(self.tr("Sequence:")), 1, 0)
+        form.addWidget(QLabel("Sequence:"), 1, 0)
         self._record_combo = PlaceholderComboBox()
         self._record_combo.setPlaceholderText(
-            self.tr("Run first, then select a record to view (multi-record files)")
+            "Run first, then select a record to view (multi-record files)"
         )
         self._record_combo.setToolTip(
-            self.tr(
-                "Analyze all FASTA records, or pick one record "
+            "Analyze all FASTA records, or pick one record "
                 "(single-record files show just the record)"
-            )
         )
         form.addWidget(self._record_combo, 1, 1, 1, 3)
         form.setColumnStretch(1, 1)
@@ -214,15 +212,15 @@ class SsrFinderTab(BaseTabWidget):
     def _browse_input_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            self.tr("Open FASTA File"),
+            "Open FASTA File",
             "",
-            self.tr("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
+            "FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)",
         )
         if path:
             self.input_path_edit.setText(os.path.normpath(path))
 
     def _setup_parameters(self):
-        grp = QGroupBox(self.tr("Parameters"))
+        grp = QGroupBox("Parameters")
         grp.setFlat(True)
         grid = QVBoxLayout(grp)
         grid.setContentsMargins(6, 16, 6, 4)
@@ -238,17 +236,15 @@ class SsrFinderTab(BaseTabWidget):
 
         unit_names = ("Mono", "Di", "Tri", "Tetra", "Penta", "Hexa")
         row1 = QHBoxLayout()
-        row1.addWidget(QLabel(self.tr("Min repeats:")))
+        row1.addWidget(QLabel("Min repeats:"))
         self._thresh_spins: Dict[int, QSpinBox] = {}
         for unit_len in range(1, 7):
             row1.addStretch(1)  # spread the six groups evenly across the row
-            row1.addWidget(QLabel(self.tr(f"{unit_names[unit_len - 1]}:")))
+            row1.addWidget(QLabel(f"{unit_names[unit_len - 1]}:"))
             sp = thresh_spin(
                 DEFAULT_THRESHOLDS[unit_len],
-                self.tr(
-                    f"Min repeats for {unit_names[unit_len - 1].lower()}-nucleotide SSRs "
-                    f"(MISA default {DEFAULT_THRESHOLDS[unit_len]})"
-                ),
+                f"Min repeats for {unit_names[unit_len - 1].lower()}-nucleotide SSRs "
+                    f"(MISA default {DEFAULT_THRESHOLDS[unit_len]})",
             )
             row1.addWidget(sp)
             self._thresh_spins[unit_len] = sp
@@ -256,32 +252,28 @@ class SsrFinderTab(BaseTabWidget):
         grid.addLayout(row1)
 
         row2 = QHBoxLayout()
-        row2.addWidget(QLabel(self.tr("Preset:")))
+        row2.addWidget(QLabel("Preset:"))
         self._preset_combo = QComboBox()
         self._preset_combo.addItems(list(THRESHOLD_PRESETS.keys()) + ["Custom"])
         self._preset_combo.setFixedWidth(160)
         self._preset_combo.setToolTip(
-            self.tr(
-                "Apply a ready-made set of minimum repeat counts "
+            "Apply a ready-made set of minimum repeat counts "
                 "(MISA default / stringent / relaxed)"
-            )
         )
         row2.addWidget(self._preset_combo)
         row2.addStretch(1)  # spread the three groups evenly across the row
-        row2.addWidget(QLabel(self.tr("Compound distance:")))
+        row2.addWidget(QLabel("Compound distance:"))
         self._compound_dist_spin = QSpinBox()
         self._compound_dist_spin.setRange(0, 1000)
         self._compound_dist_spin.setValue(DEFAULT_COMPOUND_DIST)
-        self._compound_dist_spin.setSuffix(self.tr(" bp"))
+        self._compound_dist_spin.setSuffix(" bp")
         self._compound_dist_spin.setFixedWidth(120)
         self._compound_dist_spin.setToolTip(
-            self.tr(
-                "Max gap (bp) between two SSRs to merge them into a compound SSR (MISA default 100)"
-            )
+            "Max gap (bp) between two SSRs to merge them into a compound SSR (MISA default 100)"
         )
         row2.addWidget(self._compound_dist_spin)
         row2.addStretch(1)
-        self._compound_check = QCheckBox(self.tr("Report compound SSRs"))
+        self._compound_check = QCheckBox("Report compound SSRs")
         self._compound_check.setChecked(True)
         row2.addWidget(self._compound_check)
         row2.addStretch(1)
@@ -313,7 +305,7 @@ class SsrFinderTab(BaseTabWidget):
             self._preset_combo.setCurrentText("Custom")
 
     def _setup_results_area(self):
-        grp = QGroupBox(self.tr("Microsatellites"))
+        grp = QGroupBox("Microsatellites")
         grp.setFlat(True)
         gl = QVBoxLayout(grp)
         gl.setContentsMargins(0, 14, 0, 4)
@@ -349,7 +341,7 @@ class SsrFinderTab(BaseTabWidget):
     def run(self):
         path = self.input_path_edit.text().strip()
         if not path:
-            self.show_status(self.tr("Please select a DNA sequence file"))
+            self.show_status("Please select a DNA sequence file")
             return
         try:
             with open(path, "r", encoding="utf-8") as fh:
@@ -358,12 +350,12 @@ class SsrFinderTab(BaseTabWidget):
             with open(path, "r", encoding="latin-1") as fh:
                 text = fh.read()
         except OSError as exc:
-            self.show_status(self.tr(f"Error: Cannot read file \u2014 {exc}"))
+            self.show_status(f"Error: Cannot read file \u2014 {exc}")
             return
 
         records = _parse_fasta(text)
         if not records:
-            self.show_status(self.tr("No valid FASTA sequence found"))
+            self.show_status("No valid FASTA sequence found")
             return
         cleaned: List[Tuple[str, str]] = []
         for header, seq in records:
@@ -371,11 +363,11 @@ class SsrFinderTab(BaseTabWidget):
             if not seq:
                 continue
             if not all(c in "ACGTN" for c in seq):
-                self.show_status(self.tr("Invalid characters. Only A/T/G/C/N allowed"))
+                self.show_status("Invalid characters. Only A/T/G/C/N allowed")
                 return
             cleaned.append((header, seq))
         if not cleaned:
-            self.show_status(self.tr("No valid sequence found"))
+            self.show_status("No valid sequence found")
             return
         self._records = cleaned
 
@@ -384,7 +376,7 @@ class SsrFinderTab(BaseTabWidget):
         self._record_combo.blockSignals(True)
         self._record_combo.clear()
         if len(cleaned) > 1:
-            self._record_combo.addItem(self.tr(f"All records ({len(cleaned)})"))
+            self._record_combo.addItem(f"All records ({len(cleaned)})")
         for i, (header, _seq) in enumerate(cleaned, 1):
             self._record_combo.addItem(self._record_label(header, i))
         index = self._record_combo.findText(previous) if previous else 0
@@ -479,16 +471,16 @@ class SsrFinderTab(BaseTabWidget):
         # ── Status / export state ──
         self._export_btn.setEnabled(bool(self._perfect or self._compound))
         if not self._perfect and not self._compound:
-            self.show_status(self.tr("No microsatellites found"))
+            self.show_status("No microsatellites found")
             return
         if self._all_records_mode:
-            scope = self.tr(f" across {len(self._record_results)} sequences")
+            scope = f" across {len(self._record_results)} sequences"
         else:
             rec = self._record_results[0]
-            scope = self.tr(f" ({rec['name']}, {len(rec['seq']):,} bp)")
+            scope = f" ({rec['name']}, {len(rec['seq']):,} bp)"
         msg = (
-            self.tr(f"Found {len(self._perfect)} perfect SSR(s)")
-            + (self.tr(f", {len(self._compound)} compound") if self._compound else "")
+            f"Found {len(self._perfect)} perfect SSR(s)"
+            + (f", {len(self._compound)} compound" if self._compound else "")
             + scope
         )
         self.show_status(msg)
@@ -511,7 +503,7 @@ class SsrFinderTab(BaseTabWidget):
 
     def _setup_export_button(self):
         """Export CSV button between Clear and Help in the status row."""
-        self._export_btn = QPushButton(self.tr("Export CSV"))
+        self._export_btn = QPushButton("Export CSV")
         self._export_btn.setFixedWidth(110)
         self._export_btn.setProperty("accentButton", True)
         self._export_btn.setEnabled(False)
@@ -529,7 +521,7 @@ class SsrFinderTab(BaseTabWidget):
         if not self._perfect and not self._compound:
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, self.tr("Save CSV"), "ssr_results.csv", self.tr("CSV Files (*.csv)")
+            self, "Save CSV", "ssr_results.csv", "CSV Files (*.csv)"
         )
         if not path:
             return
@@ -549,9 +541,9 @@ class SsrFinderTab(BaseTabWidget):
                         self._ssr_table.item(row_idx, col).text()
                         for col in range(self._ssr_table.columnCount())
                     ])
-            self.show_status(self.tr(f"Exported: {os.path.normpath(path)}"))
+            self.show_status(f"Exported: {os.path.normpath(path)}")
         except OSError as exc:
-            self.show_status(self.tr(f"Error: Cannot write CSV \u2014 {exc}"))
+            self.show_status(f"Error: Cannot write CSV \u2014 {exc}")
 
     def _statistics(self) -> List[Tuple[str, str]]:
         """Summary statistics for the current view (single record or all)."""
@@ -595,12 +587,12 @@ class SsrFinderTab(BaseTabWidget):
         if not path:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.input_path_edit.setText(path)
-        self.show_status(self.tr("Loaded example data: ssr_example.fasta"))
+        self.show_status("Loaded example data: ssr_example.fasta")
 
     def clear(self):
         self.input_path_edit.clear()

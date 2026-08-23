@@ -192,13 +192,13 @@ class CpGIslandTab(BaseTabWidget):
         self.input_path_edit = FileDropLineEdit()
         self.input_path_edit.setReadOnly(True)
         self.input_path_edit.setPlaceholderText(
-            self.tr("Select a FASTA file or drag & drop it here...")
+            "Select a FASTA file or drag & drop it here..."
         )
         self.input_path_edit.setToolTip(
-            self.tr("Genomic DNA sequence (FASTA format) to scan for CpG islands")
+            "Genomic DNA sequence (FASTA format) to scan for CpG islands"
         )
 
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
 
         ig_layout = self.input_group.layout()
@@ -209,24 +209,22 @@ class CpGIslandTab(BaseTabWidget):
         form = QGridLayout()
         form.setHorizontalSpacing(8)
         form.setVerticalSpacing(6)
-        form.addWidget(QLabel(self.tr("Sequence File:")), 0, 0)
+        form.addWidget(QLabel("Sequence File:"), 0, 0)
         form.addWidget(self.input_path_edit, 0, 1)
-        self.browse_btn = QPushButton(self.tr("Browse"))
+        self.browse_btn = QPushButton("Browse")
         self.browse_btn.clicked.connect(self._browse_input_file)
         form.addWidget(self.browse_btn, 0, 2)
         form.addWidget(self.example_btn, 0, 3)
 
         # Record selector: analyze all FASTA records or a single one.
-        form.addWidget(QLabel(self.tr("Sequence:")), 1, 0)
+        form.addWidget(QLabel("Sequence:"), 1, 0)
         self._record_combo = PlaceholderComboBox()
         self._record_combo.setPlaceholderText(
-            self.tr("Run first, then select a record to view (multi-record files)")
+            "Run first, then select a record to view (multi-record files)"
         )
         self._record_combo.setToolTip(
-            self.tr(
-                "Scan all FASTA records, or pick one record "
+            "Scan all FASTA records, or pick one record "
                 "(single-record files show just the record)"
-            )
         )
         form.addWidget(self._record_combo, 1, 1, 1, 3)
         form.setColumnStretch(1, 1)
@@ -236,15 +234,15 @@ class CpGIslandTab(BaseTabWidget):
     def _browse_input_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            self.tr("Open FASTA File"),
+            "Open FASTA File",
             "",
-            self.tr("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
+            "FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)",
         )
         if path:
             self.input_path_edit.setText(os.path.normpath(path))
 
     def _setup_parameters(self):
-        grp = QGroupBox(self.tr("Parameters"))
+        grp = QGroupBox("Parameters")
         grp.setFlat(True)
         grid = QVBoxLayout(grp)
         grid.setContentsMargins(6, 16, 6, 4)
@@ -261,25 +259,23 @@ class CpGIslandTab(BaseTabWidget):
 
         # Row 1: criteria preset + window size (compact, left-aligned).
         row1 = QHBoxLayout()
-        row1.addWidget(QLabel(self.tr("Criteria:")))
+        row1.addWidget(QLabel("Criteria:"))
         self._criteria_combo = QComboBox()
         self._criteria_combo.addItems(list(CRITERIA_PRESETS.keys()) + ["Custom"])
         self._criteria_combo.setFixedWidth(280)
         self._criteria_combo.setToolTip(
-            self.tr(
-                "Apply a ready-made set of window / length / GC / CpG o/e "
+            "Apply a ready-made set of window / length / GC / CpG o/e "
                 "criteria (classic definitions from the literature)"
-            )
         )
         row1.addWidget(self._criteria_combo)
         row1.addSpacing(16)
-        row1.addWidget(QLabel(self.tr("Window:")))
+        row1.addWidget(QLabel("Window:"))
         self.window_spin = int_spin(
             int(DEFAULT_CRITERIA["window"]),
             50,
             1000,
-            self.tr(" bp"),
-            self.tr("Sliding window size (classic: 100 bp)"),
+            " bp",
+            "Sliding window size (classic: 100 bp)",
         )
         row1.addWidget(self.window_spin)
         row1.addStretch()
@@ -287,37 +283,36 @@ class CpGIslandTab(BaseTabWidget):
 
         # Row 2: step / min length / GC% / CpG o/e (compact, left-aligned).
         row2 = QHBoxLayout()
-        row2.addWidget(QLabel(self.tr("Step:")))
+        row2.addWidget(QLabel("Step:"))
         self.step_spin = int_spin(
             int(DEFAULT_CRITERIA["step"]),
             1,
             100,
-            self.tr(" bp"),
-            self.tr("Distance between windows (classic: 1 bp)"),
+            " bp",
+            "Distance between windows (classic: 1 bp)",
         )
         row2.addWidget(self.step_spin)
         row2.addSpacing(16)
-        row2.addWidget(QLabel(self.tr("Min length:")))
+        row2.addWidget(QLabel("Min length:"))
         self.min_len_spin = int_spin(
             int(DEFAULT_CRITERIA["min_len"]),
             100,
             10000,
-            self.tr(" bp"),
-            self.tr("Minimum island length (classic: 200 bp)"),
+            " bp",
+            "Minimum island length (classic: 200 bp)",
         )
         row2.addWidget(self.min_len_spin)
         row2.addSpacing(16)
-        row2.addWidget(QLabel(self.tr("Min GC%:")))
+        row2.addWidget(QLabel("Min GC%:"))
         self.gc_spin = QDoubleSpinBox()
         self.gc_spin.setRange(30, 80)
         self.gc_spin.setDecimals(1)
         self.gc_spin.setValue(float(DEFAULT_CRITERIA["min_gc"]))
         self.gc_spin.setSuffix("%")
-        self.gc_spin.setFixedWidth(100)
-        self.gc_spin.setToolTip(self.tr("Minimum GC content in a window (classic: 50%)"))
+        self.gc_spin.setToolTip("Minimum GC content in a window (classic: 50%)")
         row2.addWidget(self.gc_spin)
         row2.addSpacing(16)
-        row2.addWidget(QLabel(self.tr("Min CpG o/e:")))
+        row2.addWidget(QLabel("Min CpG o/e:"))
         self.oe_spin = QDoubleSpinBox()
         self.oe_spin.setRange(0.1, 2.0)
         self.oe_spin.setDecimals(2)
@@ -325,10 +320,8 @@ class CpGIslandTab(BaseTabWidget):
         self.oe_spin.setValue(float(DEFAULT_CRITERIA["min_oe"]))
         self.oe_spin.setFixedWidth(100)
         self.oe_spin.setToolTip(
-            self.tr(
-                "Minimum observed/expected CpG ratio in a window "
+            "Minimum observed/expected CpG ratio in a window "
                 "(classic: 0.6; expected = C x G / length)"
-            )
         )
         row2.addWidget(self.oe_spin)
         row2.addStretch()
@@ -369,7 +362,7 @@ class CpGIslandTab(BaseTabWidget):
             self._criteria_combo.setCurrentText("Custom")
 
     def _setup_results_area(self):
-        grp = QGroupBox(self.tr("CpG Islands"))
+        grp = QGroupBox("CpG Islands")
         grp.setFlat(True)
         gl = QVBoxLayout(grp)
         gl.setContentsMargins(0, 14, 0, 4)
@@ -402,7 +395,7 @@ class CpGIslandTab(BaseTabWidget):
     def run(self):
         path = self.input_path_edit.text().strip()
         if not path:
-            self.show_status(self.tr("Please select a DNA sequence file"))
+            self.show_status("Please select a DNA sequence file")
             return
         try:
             with open(path, "r", encoding="utf-8") as fh:
@@ -411,12 +404,12 @@ class CpGIslandTab(BaseTabWidget):
             with open(path, "r", encoding="latin-1") as fh:
                 text = fh.read()
         except OSError as exc:
-            self.show_status(self.tr(f"Error: Cannot read file \u2014 {exc}"))
+            self.show_status(f"Error: Cannot read file \u2014 {exc}")
             return
 
         records = _parse_fasta(text)
         if not records:
-            self.show_status(self.tr("No valid FASTA sequence found"))
+            self.show_status("No valid FASTA sequence found")
             return
         cleaned: List[Tuple[str, str]] = []
         for header, seq in records:
@@ -424,11 +417,11 @@ class CpGIslandTab(BaseTabWidget):
             if not seq:
                 continue
             if not all(c in "ACGTN" for c in seq):
-                self.show_status(self.tr("Invalid characters. Only A/T/G/C/N allowed"))
+                self.show_status("Invalid characters. Only A/T/G/C/N allowed")
                 return
             cleaned.append((header, seq))
         if not cleaned:
-            self.show_status(self.tr("No valid sequence found"))
+            self.show_status("No valid sequence found")
             return
         self._records = cleaned
 
@@ -437,7 +430,7 @@ class CpGIslandTab(BaseTabWidget):
         self._record_combo.blockSignals(True)
         self._record_combo.clear()
         if len(cleaned) > 1:
-            self._record_combo.addItem(self.tr(f"All records ({len(cleaned)})"))
+            self._record_combo.addItem(f"All records ({len(cleaned)})")
         for i, (header, _seq) in enumerate(cleaned, 1):
             self._record_combo.addItem(self._record_label(header, i))
         index = self._record_combo.findText(previous) if previous else 0
@@ -515,16 +508,16 @@ class CpGIslandTab(BaseTabWidget):
         # ── Status / export state ──
         self._export_btn.setEnabled(bool(self._results))
         if not self._results:
-            self.show_status(self.tr("No CpG islands found with the current criteria"))
+            self.show_status("No CpG islands found with the current criteria")
             return
         total = sum(r["length"] for r in self._results)
         if self._all_records_mode:
-            scope = self.tr(f" across {len(self._record_results)} sequences")
+            scope = f" across {len(self._record_results)} sequences"
         else:
             rec = self._record_results[0]
-            scope = self.tr(f" ({rec['name']})")
+            scope = f" ({rec['name']})"
         self.show_status(
-            self.tr(f"Found {len(self._results)} CpG island(s), total {total:,} bp") + scope
+            f"Found {len(self._results)} CpG island(s), total {total:,} bp" + scope
         )
 
     def _fill_row(self, row_idx: int, values: List[str]):
@@ -545,7 +538,7 @@ class CpGIslandTab(BaseTabWidget):
 
     def _setup_export_button(self):
         """Export CSV button between Clear and Help in the status row."""
-        self._export_btn = QPushButton(self.tr("Export CSV"))
+        self._export_btn = QPushButton("Export CSV")
         self._export_btn.setFixedWidth(110)
         self._export_btn.setProperty("accentButton", True)
         self._export_btn.setEnabled(False)
@@ -563,7 +556,7 @@ class CpGIslandTab(BaseTabWidget):
         if not self._results:
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, self.tr("Save CSV"), "cpg_islands.csv", self.tr("CSV Files (*.csv)")
+            self, "Save CSV", "cpg_islands.csv", "CSV Files (*.csv)"
         )
         if not path:
             return
@@ -583,9 +576,9 @@ class CpGIslandTab(BaseTabWidget):
                         self._island_table.item(row_idx, col).text()
                         for col in range(self._island_table.columnCount())
                     ])
-            self.show_status(self.tr(f"Exported: {os.path.normpath(path)}"))
+            self.show_status(f"Exported: {os.path.normpath(path)}")
         except OSError as exc:
-            self.show_status(self.tr(f"Error: Cannot write CSV \u2014 {exc}"))
+            self.show_status(f"Error: Cannot write CSV \u2014 {exc}")
 
     def _statistics(self) -> List[Tuple[str, str]]:
         """Summary statistics for the current view (single record or all)."""
@@ -621,12 +614,12 @@ class CpGIslandTab(BaseTabWidget):
         if not path:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.input_path_edit.setText(path)
-        self.show_status(self.tr("Loaded example data: cpg_island_example.fasta"))
+        self.show_status("Loaded example data: cpg_island_example.fasta")
 
     def clear(self):
         self.input_path_edit.clear()

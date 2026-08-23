@@ -72,14 +72,14 @@ class ORFTab(BaseTabWidget):
         self._results: list = []
 
         # Add export button between Run and Clear in the status row
-        self.export_orf_btn = QPushButton(self.tr("Export ORFs"))
+        self.export_orf_btn = QPushButton("Export ORFs")
         self.export_orf_btn.setFixedWidth(110)
         self.export_orf_btn.clicked.connect(self.export_result)
         idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(idx + 1, self.export_orf_btn)
 
         # Place Example button horizontally with upload_btn
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
@@ -97,30 +97,30 @@ class ORFTab(BaseTabWidget):
 
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("Loaded example data: lambda_1kb.fasta"))
+        self.show_status("Loaded example data: lambda_1kb.fasta")
 
     def _setup_parameters(self):
         """Setup parameter controls in a QGroupBox."""
-        grp = QGroupBox(self.tr("Parameters"))
+        grp = QGroupBox("Parameters")
         grp.setFlat(True)
         grid = QGridLayout(grp)
         grid.setContentsMargins(6, 16, 6, 4)
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(8)
 
-        grid.addWidget(QLabel(self.tr("Min ORF Length:")), 0, 0)
+        grid.addWidget(QLabel("Min ORF Length:"), 0, 0)
         self.min_len_box = QSpinBox()
         self.min_len_box.setRange(30, 10000)
         self.min_len_box.setValue(75)
         self.min_len_box.setSuffix(" nt")
         grid.addWidget(self.min_len_box, 0, 1)
 
-        grid.addWidget(QLabel(self.tr("Search Strand:")), 0, 2)
+        grid.addWidget(QLabel("Search Strand:"), 0, 2)
         self.chain_box = QComboBox()
         self.chain_box.addItems([
             "Forward strand only",
@@ -130,7 +130,7 @@ class ORFTab(BaseTabWidget):
         self.chain_box.setCurrentIndex(2)
         grid.addWidget(self.chain_box, 0, 3)
 
-        grid.addWidget(QLabel(self.tr("Start Codons:")), 1, 0)
+        grid.addWidget(QLabel("Start Codons:"), 1, 0)
         self.start_codon_box = QComboBox()
         self.start_codon_box.addItems([
             "ATG only (standard)",
@@ -138,15 +138,13 @@ class ORFTab(BaseTabWidget):
         ])
         grid.addWidget(self.start_codon_box, 1, 1)
 
-        grid.addWidget(QLabel(self.tr("Genetic Code:")), 1, 2)
+        grid.addWidget(QLabel("Genetic Code:"), 1, 2)
         self.genetic_code_box = QComboBox()
         self.genetic_code_box.addItems(list(GENETIC_CODES.keys()))
         self.genetic_code_box.setToolTip(
-            self.tr(
-                "NCBI genetic code table used to detect stop codons and "
+            "NCBI genetic code table used to detect stop codons and "
                 "translate ORFs. Choose an alternative (e.g. mitochondrial) "
                 "code if your sequence doesn't use the standard code."
-            )
         )
         grid.addWidget(self.genetic_code_box, 1, 3)
 
@@ -158,7 +156,7 @@ class ORFTab(BaseTabWidget):
     def _build_results_area(self):
         """Build the QTableWidget + Matplotlib ORF map below parameters."""
         # Insert results QGroupBox before the output group
-        grp_results = QGroupBox(self.tr("ORF Results"))
+        grp_results = QGroupBox("ORF Results")
         grp_results.setFlat(True)
         gr_layout = QVBoxLayout(grp_results)
         gr_layout.setContentsMargins(0, 16, 0, 4)

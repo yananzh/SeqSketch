@@ -327,18 +327,18 @@ def test_design_tab_clear_resets_all(qapp):
     assert "cleared" in tab.status_label.text().lower()
 
 
-def test_design_tab_export_csv_enables_result_folder(qapp, monkeypatch, tmp_path):
+def test_design_tab_export_excel_enables_result_folder(qapp, monkeypatch, tmp_path):
     tab = PrimerDesignTab()
     tab.results_table.setRowCount(1)
     tab.results_table.setItem(0, 0, QTableWidgetItem("1"))
     tab.results_table.setItem(0, 1, QTableWidgetItem("Fwd"))
     tab.results_table.setItem(0, 2, QTableWidgetItem("ACGT" * 5))
 
-    out_file = tmp_path / "results.csv"
+    out_file = tmp_path / "results.xlsx"
     monkeypatch.setattr(
         QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(out_file), ""))
     )
-    tab.export_results_csv()
+    tab.export_results_excel()
     assert out_file.is_file()
     assert tab.open_folder_btn.isEnabled()
     assert tab._last_export_dir == str(tmp_path)

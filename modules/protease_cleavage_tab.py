@@ -165,7 +165,7 @@ class ProteaseCleavageTab(BaseTabWidget):
         self.current_results = []
 
         # Add Export CSV button to status row after Digest
-        self.export_csv_btn = QPushButton(self.tr("Export CSV"))
+        self.export_csv_btn = QPushButton("Export CSV")
         self.export_csv_btn.setFixedWidth(110)
         self.export_csv_btn.setProperty("accentButton", True)
         self.export_csv_btn.setEnabled(False)
@@ -175,7 +175,7 @@ class ProteaseCleavageTab(BaseTabWidget):
         _idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(_idx + 1, self.export_csv_btn)
         # Add Result Folder button after Export CSV
-        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn = QPushButton("Result Folder")
         self.open_folder_btn.setFixedWidth(110)
         self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
@@ -186,7 +186,7 @@ class ProteaseCleavageTab(BaseTabWidget):
         self._last_export_dir = ""
 
         # Place Example button horizontally with upload_btn
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
@@ -228,12 +228,12 @@ class ProteaseCleavageTab(BaseTabWidget):
         if not text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("Loaded example data: protein_example.fasta"))
+        self.show_status("Loaded example data: protein_example.fasta")
 
     # ── Parameters ───────────────────────────────────────────────────────────
 
@@ -401,15 +401,15 @@ class ProteaseCleavageTab(BaseTabWidget):
         if not self.current_results:
             QMessageBox.warning(
                 self,
-                self.tr("Export Error"),
-                self.tr("Run a digestion first to generate fragments."),
+                "Export Error",
+                "Run a digestion first to generate fragments.",
             )
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            self.tr("Export CSV"),
+            "Export CSV",
             "protease_fragments.csv",
-            self.tr("CSV Files (*.csv);;All Files (*)"),
+            "CSV Files (*.csv);;All Files (*)",
         )
         if not path:
             return
@@ -439,7 +439,7 @@ class ProteaseCleavageTab(BaseTabWidget):
             self._last_export_dir = os.path.dirname(path)
             self.open_folder_btn.setEnabled(True)
         except Exception as e:
-            QMessageBox.warning(self, self.tr("Export Error"), str(e))
+            QMessageBox.warning(self, "Export Error", str(e))
 
     def show_help(self):
         from PyQt6.QtWidgets import (

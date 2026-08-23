@@ -128,8 +128,7 @@ class SimplifyIDsTab(BaseTabWidget):
         self.input_edit.setPlaceholderText("Select or drop a FASTA file...")
         self.input_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.input_btn = QPushButton("Browse")
-        self.input_btn.setFixedWidth(90)
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.setFixedWidth(90)
         self.example_btn.clicked.connect(self._load_example)
         input_layout.addWidget(self.input_edit)
@@ -153,7 +152,7 @@ class SimplifyIDsTab(BaseTabWidget):
         io_layout.addLayout(output_layout)
 
         # ── Mode selector with dynamic hint ──
-        mode_group = QGroupBox(self.tr("Simplification Mode"))
+        mode_group = QGroupBox("Simplification Mode")
         mode_group.setFlat(True)
         mode_layout = QVBoxLayout(mode_group)
         mode_layout.setContentsMargins(6, 16, 0, 4)
@@ -244,7 +243,7 @@ class SimplifyIDsTab(BaseTabWidget):
         self.preview_panel.setProperty("previewPanel", True)
 
         # ── Options & transformations group ──
-        options_group = QGroupBox(self.tr("Options"))
+        options_group = QGroupBox("Options")
         options_layout = QVBoxLayout(options_group)
         options_layout.setContentsMargins(6, 16, 0, 4)
         options_layout.setSpacing(6)

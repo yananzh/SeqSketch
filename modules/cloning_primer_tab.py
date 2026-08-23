@@ -323,10 +323,8 @@ class CloningPrimerTab(BaseTabWidget):
         self._setup_results_table()
         self._setup_input_buttons()
         self.input_text.setPlaceholderText(
-            self.tr(
-                "Select or drag & drop a file, or paste a sequence — "
+            "Select or drag & drop a file, or paste a sequence — "
                 "one FASTA record only"
-            )
         )
         # The designed-primers table is the only result view, so drop the
         # shared "Output Result" group from the sequence-mode base layout.
@@ -335,7 +333,7 @@ class CloningPrimerTab(BaseTabWidget):
         unify_status_button_sizes(self)
 
     def _setup_parameter_ui(self):
-        grp = QGroupBox(self.tr("Cloning Parameters"))
+        grp = QGroupBox("Cloning Parameters")
         grp.setFlat(True)
         grid = QGridLayout(grp)
         grid.setContentsMargins(8, 16, 8, 4)
@@ -362,25 +360,25 @@ class CloningPrimerTab(BaseTabWidget):
         self.enz5_combo = QComboBox()
         self._fill_enzyme_combo(self.enz5_combo, default_index=0)
         self.enz5_combo.setToolTip(
-            self.tr("Restriction site added to the 5' end; None = blunt / TA ligation")
+            "Restriction site added to the 5' end; None = blunt / TA ligation"
         )
-        param_pair(self.tr("5' Enzyme"), self.enz5_combo, 0)
+        param_pair("5' Enzyme", self.enz5_combo, 0)
 
         self.enz3_combo = QComboBox()
         self._fill_enzyme_combo(self.enz3_combo, default_index=1)
         self.enz3_combo.setToolTip(
-            self.tr("Restriction site added to the 3' end; None = blunt / TA ligation")
+            "Restriction site added to the 3' end; None = blunt / TA ligation"
         )
-        param_pair(self.tr("3' Enzyme"), self.enz3_combo, 1)
+        param_pair("3' Enzyme", self.enz3_combo, 1)
 
         self.core_len_spin = QSpinBox()
         self.core_len_spin.setRange(15, 30)
         self.core_len_spin.setValue(20)
-        self.core_len_spin.setSuffix(self.tr(" nt"))
+        self.core_len_spin.setSuffix(" nt")
         self.core_len_spin.setToolTip(
-            self.tr("Gene-specific primer length (without the restriction overhang)")
+            "Gene-specific primer length (without the restriction overhang)"
         )
-        param_pair(self.tr("Core (nt)"), self.core_len_spin, 2)
+        param_pair("Core (nt)", self.core_len_spin, 2)
 
         self.target_tm_spin = QDoubleSpinBox()
         self.target_tm_spin.setRange(50.0, 70.0)
@@ -389,12 +387,10 @@ class CloningPrimerTab(BaseTabWidget):
         self.target_tm_spin.setValue(60.0)
         self.target_tm_spin.setSuffix(" °C")
         self.target_tm_spin.setToolTip(
-            self.tr(
-                "Target melting temperature (°C) for the primer cores; "
+            "Target melting temperature (°C) for the primer cores; "
                 "the tool searches ±3 nt around the core length to approach it"
-            )
         )
-        param_pair(self.tr("Tm (°C)"), self.target_tm_spin, 3)
+        param_pair("Tm (°C)", self.target_tm_spin, 3)
 
         self._param_layout.addWidget(grp)
 
@@ -406,7 +402,7 @@ class CloningPrimerTab(BaseTabWidget):
         combo.setCurrentIndex(default_index)
 
     def _setup_results_table(self):
-        table_grp = QGroupBox(self.tr("Designed Primers"))
+        table_grp = QGroupBox("Designed Primers")
         table_grp.setFlat(True)
         tl = QVBoxLayout(table_grp)
         tl.setContentsMargins(0, 16, 0, 4)
@@ -414,15 +410,15 @@ class CloningPrimerTab(BaseTabWidget):
 
         self.results_table = QTableWidget(0, 9)
         self.results_table.setHorizontalHeaderLabels([
-            self.tr("Primer"),
-            self.tr("Full Sequence (5'→3')"),
-            self.tr("Length (nt)"),
-            self.tr("Overhang"),
-            self.tr("Core"),
-            self.tr("Tm (°C)"),
-            self.tr("GC (%)"),
-            self.tr("Dimer ΔG"),
-            self.tr("Flags"),
+            "Primer",
+            "Full Sequence (5'→3')",
+            "Length (nt)",
+            "Overhang",
+            "Core",
+            "Tm (°C)",
+            "GC (%)",
+            "Dimer ΔG",
+            "Flags",
         ])
         self.results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -441,36 +437,34 @@ class CloningPrimerTab(BaseTabWidget):
         self.results_table.itemDoubleClicked.connect(self._copy_full_sequence)
         tl.addWidget(self.results_table)
 
-        self.export_table_btn = QPushButton(self.tr("Export Table"))
+        self.export_table_btn = QPushButton("Export Table")
         self.export_table_btn.setToolTip(
-            self.tr("Save the primer table as Excel, CSV or TSV")
+            "Save the primer table as Excel, CSV or TSV"
         )
         self.export_table_btn.clicked.connect(self._export_table)
-        self.export_table_btn.setFixedWidth(110)
         self.status_layout.insertWidget(
             self.status_layout.indexOf(self.run_btn) + 1, self.export_table_btn
         )
 
-        self.result_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.result_folder_btn = QPushButton("Result Folder")
         self.result_folder_btn.setToolTip(
-            self.tr("Open the folder containing the last exported table")
+            "Open the folder containing the last exported table"
         )
         self.result_folder_btn.clicked.connect(self._open_result_folder)
-        self.result_folder_btn.setFixedWidth(110)
         self.status_layout.insertWidget(
             self.status_layout.indexOf(self.export_table_btn) + 1, self.result_folder_btn
         )
         # Match other tabs: one-word buttons 90 px, two-word buttons 110 px.
-        self.help_btn.setFixedWidth(90)
 
+        self.help_btn.setFixedWidth(90)
         self.content_area.addWidget(table_grp)
 
     def _setup_input_buttons(self):
         """Wire the Example button and pin Example + Upload to one stretched
         row at the bottom of the input group."""
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.setToolTip(
-            self.tr("Load a synthetic insert example (no internal EcoRI/BamHI sites)")
+            "Load a synthetic insert example (no internal EcoRI/BamHI sites)"
         )
         self.example_btn.clicked.connect(self._load_example)
 
@@ -490,14 +484,14 @@ class CloningPrimerTab(BaseTabWidget):
         if not text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.input_text.setPlainText(text)
         self.enz5_combo.setCurrentIndex(0)  # EcoRI
         self.enz3_combo.setCurrentIndex(1)  # BamHI
-        self.show_status(self.tr("Example loaded"))
+        self.show_status("Example loaded")
 
     def _reject_multi_record(self, text: str) -> bool:
         """Warn and return True when the text holds more than one FASTA record."""
@@ -505,18 +499,16 @@ class CloningPrimerTab(BaseTabWidget):
             return False
         QMessageBox.warning(
             self,
-            self.tr("Unsupported Input"),
-            self.tr(
-                "Only one FASTA sequence is supported — "
-                "multi-sequence input is not allowed."
-            ),
+            "Unsupported Input",
+            "Only one FASTA sequence is supported — "
+                "multi-sequence input is not allowed.",
         )
         return True
 
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            self.tr("Select sequence file"),
+            "Select sequence file",
             "",
             "FASTA/TXT (*.fasta *.fa *.fas *.txt);;All Files (*)",
         )
@@ -526,12 +518,12 @@ class CloningPrimerTab(BaseTabWidget):
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
-            QMessageBox.warning(self, self.tr("File Read Error"), str(e))
+            QMessageBox.warning(self, "File Read Error", str(e))
             return
         if self._reject_multi_record(content):
             return
         self.input_text.setPlainText(content)
-        self.input_hint.setText(self.tr(f"Loaded file: {file_path}"))
+        self.input_hint.setText(f"Loaded file: {file_path}")
 
     def _drop_event(self, event):
         urls = event.mimeData().urls()
@@ -543,32 +535,30 @@ class CloningPrimerTab(BaseTabWidget):
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
-            self.show_status(self.tr(f"Error loading file: {e}"))
+            self.show_status(f"Error loading file: {e}")
             event.ignore()
             return
         if self._reject_multi_record(content):
             event.ignore()
             return
         self.input_text.setPlainText(content)
-        self.input_hint.setText(self.tr(f"Loaded file: {file_path}"))
+        self.input_hint.setText(f"Loaded file: {file_path}")
         event.acceptProposedAction()
 
     def run(self):
         raw = self.input_text.toPlainText()
         if not raw.strip():
-            self.show_status(self.tr("Please paste an insert sequence first"))
+            self.show_status("Please paste an insert sequence first")
             return
         if count_fasta_records(raw) > 1:
             self.show_status(
-                self.tr(
-                    "Only one FASTA record allowed"
-                )
+                "Only one FASTA record allowed"
             )
             return
         seq = normalize_sequence(raw)
         if not seq or not all(base in "ACGTUN" for base in seq):
             self.show_status(
-                self.tr("Invalid sequence: A/C/G/T/U/N only")
+                "Invalid sequence: A/C/G/T/U/N only"
             )
             return
         same_enzyme = (
@@ -584,16 +574,16 @@ class CloningPrimerTab(BaseTabWidget):
                 target_tm=self.target_tm_spin.value(),
             )
         except ValueError as exc:
-            self.show_status(self.tr(str(exc)))
+            self.show_status(str(exc))
             return
         if same_enzyme:
             design["warnings"].append(
-                self.tr("Same enzyme on both ends (non-directional ligation)")
+                "Same enzyme on both ends (non-directional ligation)"
             )
         self._last_design = design
         self._fill_table(design)
         self._warn_internal_cut_sites(design)
-        self.show_status(self.tr("Designed 2 primers"))
+        self.show_status("Designed 2 primers")
 
     def _warn_internal_cut_sites(self, design: dict[str, Any]) -> None:
         """Pop up a warning when a chosen enzyme cuts inside the insert."""
@@ -602,8 +592,8 @@ class CloningPrimerTab(BaseTabWidget):
             return
         QMessageBox.warning(
             self,
-            self.tr("Internal Cut Site Detected"),
-            self.tr("A selected restriction enzyme cuts inside the insert:\n")
+            "Internal Cut Site Detected",
+            "A selected restriction enzyme cuts inside the insert:\n"
             + "\n".join(hits),
         )
 
@@ -616,7 +606,7 @@ class CloningPrimerTab(BaseTabWidget):
             self.results_table.setItem(row, 0, QTableWidgetItem(data["label"]))
             full_item = QTableWidgetItem(data["full"])
             full_item.setFont(mono)
-            full_item.setToolTip(self.tr("Double-click to copy this sequence"))
+            full_item.setToolTip("Double-click to copy this sequence")
             self.results_table.setItem(row, 1, full_item)
             self.results_table.setItem(row, 2, QTableWidgetItem(str(len(data["full"]))))
             overhang_item = QTableWidgetItem(data["overhang"])
@@ -630,12 +620,12 @@ class CloningPrimerTab(BaseTabWidget):
             tm_item = QTableWidgetItem(f"{tm_core:.1f}" if tm_core else "-")
             if tm_full:
                 tm_item.setToolTip(
-                    self.tr(f"Full primer Tm: {tm_full:.1f} °C (core {tm_core:.1f} °C)")
+                    f"Full primer Tm: {tm_full:.1f} °C (core {tm_core:.1f} °C)"
                 )
             self.results_table.setItem(row, 5, tm_item)
             gc_item = QTableWidgetItem(f"{data['gc']:.1f}")
             gc_item.setToolTip(
-                self.tr("GC content of the primer core; 35-65% is recommended")
+                "GC content of the primer core; 35-65% is recommended"
             )
             self.results_table.setItem(row, 6, gc_item)
             dimer = data["dimer"]
@@ -647,18 +637,18 @@ class CloningPrimerTab(BaseTabWidget):
     def _copy_full_sequence(self, item) -> None:
         if item.column() == 1 and item.text():
             QApplication.clipboard().setText(item.text())
-            self.show_status(self.tr("Copied to clipboard"))
+            self.show_status("Copied to clipboard")
 
     def _export_table(self) -> None:
         """Export the primer table as Excel, CSV or TSV."""
         if self.results_table.rowCount() == 0:
-            self.show_status(self.tr("Nothing to export — run a design first"))
+            self.show_status("Nothing to export — run a design first")
             return
         file_path, selected_filter = QFileDialog.getSaveFileName(
             self,
-            self.tr("Export Primers Table"),
+            "Export Primers Table",
             "primers_table.xlsx",
-            self.tr("Excel (*.xlsx);;CSV (*.csv);;TSV (*.tsv)"),
+            "Excel (*.xlsx);;CSV (*.csv);;TSV (*.tsv)",
         )
         if not file_path:
             return
@@ -687,15 +677,15 @@ class CloningPrimerTab(BaseTabWidget):
                 self._export_delimited(file_path, headers, rows, "\t")
         except Exception as exc:
             QMessageBox.warning(
-                self, self.tr("Export Failed"), self.tr(f"Could not export: {exc}")
+                self, "Export Failed", f"Could not export: {exc}"
             )
             return
         self._last_export_dir = os.path.dirname(os.path.abspath(file_path))
-        self.show_status(self.tr(f"Exported: {os.path.basename(file_path)}"))
+        self.show_status(f"Exported: {os.path.basename(file_path)}")
 
     def _open_result_folder(self) -> None:
         if not self._last_export_dir or not os.path.isdir(self._last_export_dir):
-            self.show_status(self.tr("No exported file yet — use Export Table first"))
+            self.show_status("No exported file yet — use Export Table first")
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_export_dir))
 
@@ -724,9 +714,8 @@ class CloningPrimerTab(BaseTabWidget):
 
     def show_help(self):
         self.show_help_dialog(
-            self.tr("Help - Cloning Primer Design"),
-            self.tr(
-                """
+            "Help - Cloning Primer Design",
+            """
 <h2>Cloning Primer Design &mdash; Restriction-Site PCR Primers</h2>
 
 <p><b>What does this tool do?</b><br>
@@ -783,7 +772,6 @@ Rev:  [protective bases][site][rc of insert 3' end ~20 nt]</pre>
     use.</li>
 </ul>
 """,
-            ),
             640,
             560,
         )

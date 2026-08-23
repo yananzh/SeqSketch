@@ -195,11 +195,11 @@ class ConcatFastaTab(BaseTabWidget):
         if not loaded:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check the installation."),
+                "Example",
+                "Failed to load example data. Please check the installation.",
             )
             return
-        self.show_status(self.tr("Example loaded: ") + ", ".join(loaded))
+        self.show_status("Example loaded: " + ", ".join(loaded))
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(

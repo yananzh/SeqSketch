@@ -245,23 +245,6 @@ def _render_svg_bytes(tree_file: str, params: dict) -> bytes:
     return svg_bytes
 
 
-def _render_pdf_bytes(tree_file: str, params: dict) -> bytes:
-    """Render tree to PDF bytes using toytree + toyplot.
-
-    PDF rendering does not suffer from the SVG background issue on Windows
-    dark mode, so it is used for the in-app preview.
-    """
-    import toyplot.pdf
-
-    tre = _load_and_root(tree_file, params)
-
-    draw_kwargs = _build_draw_kwargs(params, tre)
-    canvas, _axes, _mark = tre.draw(**draw_kwargs)
-
-    buf = io.BytesIO()
-    toyplot.pdf.render(canvas, buf)
-    return buf.getvalue()
-
 
 def _build_draw_kwargs(params: dict, tre) -> dict:
     """Build keyword arguments for ToyTree.draw() from UI parameters."""
@@ -472,31 +455,29 @@ class ToytreeVisualizationTab(BaseTabWidget):
         splitter.addWidget(ctrl_outer)
 
         # ── Input ──────────────────────────────────────────────────
-        grp_file = QGroupBox(self.tr("Input"))
+        grp_file = QGroupBox("Input")
         gl = QVBoxLayout(grp_file)
         gl.setSpacing(5)
 
         self._file_edit = _DropLineEdit()
-        self._file_edit.setPlaceholderText(self.tr("Tree file (drag & drop or Browse)"))
+        self._file_edit.setPlaceholderText("Tree file (drag & drop or Browse)")
         self._file_edit.fileDropped.connect(self._on_file_selected)
         gl.addWidget(self._file_edit)
 
         # Tip name mapping file (optional, drag & drop)
         self._mapping_edit = _DropLineEdit()
-        self._mapping_edit.setPlaceholderText(self.tr("Drop a mapping file (optional)"))
+        self._mapping_edit.setPlaceholderText("Drop a mapping file (optional)")
         self._mapping_edit.setToolTip(
-            self.tr(
-                "Two-column file: old_name,new_name — replaces tip labels in the tree (CSV/TSV, optional)"
-            )
+            "Two-column file: old_name,new_name — replaces tip labels in the tree (CSV/TSV, optional)"
         )
         self._mapping_edit.fileDropped.connect(self._on_mapping_selected)
         self._mapping_edit.textChanged.connect(self._on_param_changed)
         gl.addWidget(self._mapping_edit)
 
         btn_row = QHBoxLayout()
-        browse_btn = QPushButton(self.tr("Browse"))
+        browse_btn = QPushButton("Browse")
         browse_btn.clicked.connect(self._browse_file)
-        file_example_btn = QPushButton(self.tr("Example"))
+        file_example_btn = QPushButton("Example")
         file_example_btn.clicked.connect(self._load_example)
         btn_row.addWidget(browse_btn, 1)
         btn_row.addWidget(file_example_btn, 1)
@@ -504,13 +485,13 @@ class ToytreeVisualizationTab(BaseTabWidget):
         ctrl_vbox.addWidget(grp_file)
 
         # ── Tree Options ───────────────────────────────────────────
-        grp_opts = QGroupBox(self.tr("Tree Options"))
+        grp_opts = QGroupBox("Tree Options")
         ol = QVBoxLayout(grp_opts)
         ol.setSpacing(5)
 
         # layout row
         lo_row = QHBoxLayout()
-        lbl_layout = QLabel(self.tr("Layout:"))
+        lbl_layout = QLabel("Layout:")
         lbl_layout.setFixedWidth(80)
         lo_row.addWidget(lbl_layout)
         self._layout_combo = QComboBox()
@@ -524,26 +505,26 @@ class ToytreeVisualizationTab(BaseTabWidget):
 
         # rooting row
         rm_row = QHBoxLayout()
-        lbl_rooting = QLabel(self.tr("Rooting:"))
+        lbl_rooting = QLabel("Rooting:")
         lbl_rooting.setFixedWidth(80)
         rm_row.addWidget(lbl_rooting)
         self._root_method_combo = QComboBox()
         self._root_method_combo.addItems(["None", "Midpoint", "Outgroup"])
         self._root_method_combo.setToolTip(
-            self.tr("None: as-is | Midpoint: longest branch | Outgroup: specify taxon")
+            "None: as-is | Midpoint: longest branch | Outgroup: specify taxon"
         )
         rm_row.addWidget(self._root_method_combo, 1)
         ol.addLayout(rm_row)
 
         # outgroup row
         og_row = QHBoxLayout()
-        lbl_outgroup = QLabel(self.tr("Outgroup:"))
+        lbl_outgroup = QLabel("Outgroup:")
         lbl_outgroup.setFixedWidth(80)
         og_row.addWidget(lbl_outgroup)
         self._outgroup_combo = QComboBox()
         self._outgroup_combo.setEditable(True)
         self._outgroup_combo.setEnabled(False)
-        self._outgroup_combo.lineEdit().setPlaceholderText(self.tr("Select a leaf name"))
+        self._outgroup_combo.lineEdit().setPlaceholderText("Select a leaf name")
         og_row.addWidget(self._outgroup_combo, 1)
         ol.addLayout(og_row)
 
@@ -556,32 +537,32 @@ class ToytreeVisualizationTab(BaseTabWidget):
         self._root_method_combo.currentTextChanged.connect(_on_root_method_changed)
 
         # checkboxes
-        self._show_support_check = QCheckBox(self.tr("Show support values"))
+        self._show_support_check = QCheckBox("Show support values")
         self._show_support_check.setChecked(False)
         ol.addWidget(self._show_support_check)
 
-        self._show_scale_check = QCheckBox(self.tr("Show scale bar"))
+        self._show_scale_check = QCheckBox("Show scale bar")
         self._show_scale_check.setChecked(True)
         ol.addWidget(self._show_scale_check)
 
-        self._align_check = QCheckBox(self.tr("Align tip labels"))
+        self._align_check = QCheckBox("Align tip labels")
         self._align_check.setChecked(False)
         ol.addWidget(self._align_check)
 
-        self._edge_lengths_check = QCheckBox(self.tr("Use edge lengths"))
+        self._edge_lengths_check = QCheckBox("Use edge lengths")
         self._edge_lengths_check.setChecked(True)
         ol.addWidget(self._edge_lengths_check)
 
         ctrl_vbox.addWidget(grp_opts)
 
         # ── Style Options ──────────────────────────────────────────
-        grp_style = QGroupBox(self.tr("Style"))
+        grp_style = QGroupBox("Style")
         sl = QVBoxLayout(grp_style)
         sl.setSpacing(5)
 
         # tip label size
         ts_row = QHBoxLayout()
-        ts_row.addWidget(QLabel(self.tr("Tip font:")))
+        ts_row.addWidget(QLabel("Tip font:"))
         self._tip_size_spin = QSpinBox()
         self._tip_size_spin.setRange(6, 36)
         self._tip_size_spin.setValue(12)
@@ -590,17 +571,17 @@ class ToytreeVisualizationTab(BaseTabWidget):
 
         # node size
         ns_row = QHBoxLayout()
-        ns_row.addWidget(QLabel(self.tr("Node size:")))
+        ns_row.addWidget(QLabel("Node size:"))
         self._node_size_spin = QSpinBox()
         self._node_size_spin.setRange(0, 30)
         self._node_size_spin.setValue(0)
-        self._node_size_spin.setToolTip(self.tr("0 = hidden"))
+        self._node_size_spin.setToolTip("0 = hidden")
         ns_row.addWidget(self._node_size_spin)
         sl.addLayout(ns_row)
 
         # edge width
         ew_row = QHBoxLayout()
-        ew_row.addWidget(QLabel(self.tr("Edge width:")))
+        ew_row.addWidget(QLabel("Edge width:"))
         self._edge_width_spin = QSpinBox()
         self._edge_width_spin.setRange(1, 10)
         self._edge_width_spin.setValue(1)
@@ -609,7 +590,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
 
         # support value font size
         sv_row = QHBoxLayout()
-        sv_row.addWidget(QLabel(self.tr("Support font:")))
+        sv_row.addWidget(QLabel("Support font:"))
         self._support_size_spin = QSpinBox()
         self._support_size_spin.setRange(6, 24)
         self._support_size_spin.setValue(9)
@@ -636,15 +617,15 @@ class ToytreeVisualizationTab(BaseTabWidget):
         self.add_content_widget(splitter)
 
         # ── Buttons in status bar ────────────────────────────────────
-        self._draw_btn = QPushButton(self.tr("Run"))
+        self._draw_btn = QPushButton("Run")
         self._draw_btn.clicked.connect(self._draw)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._draw_btn)
 
-        self._clear_btn = QPushButton(self.tr("Clear"))
+        self._clear_btn = QPushButton("Clear")
         self._clear_btn.clicked.connect(self._clear)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._clear_btn)
 
-        self._export_btn = QPushButton(self.tr("Export Image"))
+        self._export_btn = QPushButton("Export Image")
         self._export_btn.clicked.connect(self._export)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._export_btn)
 
@@ -664,18 +645,18 @@ class ToytreeVisualizationTab(BaseTabWidget):
         # Consistent status-bar button widths across the app's tabs
         unify_status_button_sizes(self)
 
-        self.show_status(self.tr("Ready — load a tree file and adjust parameters"))
+        self.show_status("Ready — load a tree file and adjust parameters")
 
     # ------------------------------------------------------------------
     # Help
     # ------------------------------------------------------------------
     def show_help(self):
         self.show_help_dialog(
-            self.tr("Help - Tree Visualization"), self._help_html(), 640, 520
+            "Help - Tree Visualization", self._help_html(), 640, 520
         )
 
     def _help_html(self) -> str:
-        return self.tr("""
+        return """
 <h2>Tree Visualization (Toytree) &mdash; Advanced Tree Rendering</h2>
 
 <p><b>What does this tool do?</b><br>
@@ -748,7 +729,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
   <li>For large trees, the <b>Circular</b> layout uses space more efficiently.</li>
   <li>Exported SVG files can be further edited in Inkscape or Illustrator.</li>
 </ul>
-""")
+"""
 
     # ------------------------------------------------------------------
     # Canvas helpers
@@ -756,7 +737,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
     def _show_placeholder(self):
         self._scene.clear()
         self._scene.setSceneRect(QRectF(-400, -300, 800, 600))
-        text_item = self._scene.addSimpleText(self.tr("Load a tree file and click Run"))
+        text_item = self._scene.addSimpleText("Load a tree file and click Run")
         text_item.setBrush(QColor("#aaa"))
         br = text_item.boundingRect()
         text_item.setPos(-br.width() / 2, -br.height() / 2)
@@ -811,8 +792,8 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         if not path:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check the installation."),
+                "Example",
+                "Failed to load example data. Please check the installation.",
             )
             return
         self._file_edit.setText(path)
@@ -822,16 +803,14 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         if mapping_path:
             self._mapping_edit.setText(mapping_path)
 
-        self.show_status(self.tr("Example loaded: csrA_pro_mafft_tree.nwk"))
+        self.show_status("Example loaded: csrA_pro_mafft_tree.nwk")
 
     def _browse_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            self.tr("Open tree file"),
+            "Open tree file",
             "",
-            self.tr(
-                "Tree files (*.nwk *.treefile *.tree *.newick *.tre *.nex *.nxs);;All Files (*)"
-            ),
+            "Tree files (*.nwk *.treefile *.tree *.newick *.tre *.nex *.nxs);;All Files (*)",
         )
         if path:
             self._file_edit.setText(path)
@@ -855,7 +834,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             tre = toytree.tree(path)
             ntips = tre.ntips
             nnodes = tre.nnodes
-            self.show_status(self.tr(f"Loaded: {ntips} tips, {nnodes - ntips} internal nodes"))
+            self.show_status(f"Loaded: {ntips} tips, {nnodes - ntips} internal nodes")
         except (OSError, ValueError, RuntimeError):
             pass
 
@@ -900,7 +879,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         """Read leaf names from the tree file and populate the outgroup combo."""
         tree_file = self._file_edit.text().strip()
         if not tree_file or not os.path.isfile(tree_file):
-            self.show_status(self.tr("⚠ Please select a tree file first"))
+            self.show_status("⚠ Please select a tree file first")
             return
         try:
             import toytree
@@ -924,9 +903,9 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self._outgroup_combo.addItems(names)
             self._outgroup_combo.setCurrentIndex(-1)  # no auto-selection
             self._outgroup_combo.blockSignals(False)
-            self.show_status(self.tr(f"✔ Loaded {len(names)} tip names"))
+            self.show_status(f"✔ Loaded {len(names)} tip names")
         except Exception as exc:
-            self.show_status(self.tr(f"✖ Could not read tree: {exc}"))
+            self.show_status(f"✖ Could not read tree: {exc}")
 
     # ------------------------------------------------------------------
     # Draw / Render
@@ -934,20 +913,20 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
     def _draw(self):
         tree_file = self._file_edit.text().strip()
         if not tree_file:
-            self.show_status(self.tr("Please select a tree file"))
+            self.show_status("Please select a tree file")
             return
         valid, err = validate_input_path(tree_file)
         if not valid:
-            self.show_status(self.tr("File not found"))
+            self.show_status("File not found")
             return
 
         self._cancel_render()
 
         self._draw_btn.setEnabled(False)
-        self.show_status(self.tr("Rendering tree..."))
+        self.show_status("Rendering tree...")
         self._scene.clear()
         self._scene.setSceneRect(QRectF(-400, -300, 800, 600))
-        text_item = self._scene.addSimpleText(self.tr("Rendering..."))
+        text_item = self._scene.addSimpleText("Rendering...")
         text_item.setBrush(QColor("#aaa"))
         br = text_item.boundingRect()
         text_item.setPos(-br.width() / 2, -br.height() / 2)
@@ -979,12 +958,12 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         self._draw_btn.setEnabled(True)
         if success:
             self._show_svg_bytes(svg_bytes)
-            self.show_status(self.tr("Tree rendered"))
+            self.show_status("Tree rendered")
         else:
             self._scene.clear()
-            text_item = self._scene.addSimpleText(self.tr(f"Render error:\n{msg}"))
+            text_item = self._scene.addSimpleText(f"Render error:\n{msg}")
             text_item.setBrush(QColor("#c62828"))
-            self.show_status(self.tr(f"Error: {msg}"))
+            self.show_status(f"Error: {msg}")
 
     # ------------------------------------------------------------------
     # Export
@@ -992,21 +971,21 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
     def _export(self):
         tree_file = self._file_edit.text().strip()
         if not tree_file or not os.path.isfile(tree_file):
-            self.show_status(self.tr("Please load a tree file first"))
+            self.show_status("Please load a tree file first")
             return
 
         out_path, _ = QFileDialog.getSaveFileName(
             self,
-            self.tr("Export tree image"),
+            "Export tree image",
             "",
-            self.tr("SVG vector (*.svg);;PDF document (*.pdf);;PNG image (*.png)"),
+            "SVG vector (*.svg);;PDF document (*.pdf);;PNG image (*.png)",
         )
         if not out_path:
             return
 
         self._cancel_export()
 
-        self.show_status(self.tr("Exporting..."))
+        self.show_status("Exporting...")
         self._export_thread = _ExportThread(
             tree_file=tree_file,
             params=self._collect_params(),
@@ -1035,6 +1014,6 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self._export_thread.deleteLater()
             self._export_thread = None
         if success:
-            self.show_status(self.tr(f"✔ Exported: {os.path.basename(path)}"))
+            self.show_status(f"✔ Exported: {os.path.basename(path)}")
         else:
-            self.show_status(self.tr(f"✖ Export failed: {msg}"))
+            self.show_status(f"✖ Export failed: {msg}")

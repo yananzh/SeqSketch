@@ -507,11 +507,11 @@ class PartitionConcatTab(BaseTabWidget):
     # ------------------------------------------------------------------
     def _build_ui(self) -> None:
         # ── Input section ─────────────────────────────────────────────────
-        input_group = QGroupBox(self.tr("Input – Aligned Gene Files"))
+        input_group = QGroupBox("Input – Aligned Gene Files")
         input_layout = QVBoxLayout(input_group)
 
         self._file_list = _DropFileList(
-            self.tr("Drag & drop aligned FASTA files here, or click Add Files")
+            "Drag & drop aligned FASTA files here, or click Add Files"
         )
         self._file_list.setMinimumHeight(100)
         self._file_list.setMaximumHeight(160)
@@ -519,16 +519,16 @@ class PartitionConcatTab(BaseTabWidget):
         input_layout.addWidget(self._file_list)
 
         file_btn_row = QHBoxLayout()
-        add_btn = QPushButton(self.tr("Add Files"))
+        add_btn = QPushButton("Add Files")
         add_btn.clicked.connect(self._add_files)
-        example_btn = QPushButton(self.tr("Example"))
-        example_btn.setToolTip(self.tr("Load bundled example gene files"))
+        example_btn = QPushButton("Example")
+        example_btn.setToolTip("Load bundled example gene files")
         example_btn.clicked.connect(self._load_example)
-        remove_btn = QPushButton(self.tr("Remove Selected"))
+        remove_btn = QPushButton("Remove Selected")
         remove_btn.clicked.connect(self._remove_selected)
-        validate_btn = QPushButton(self.tr("Validate Input"))
+        validate_btn = QPushButton("Validate Input")
         validate_btn.setToolTip(
-            self.tr("Pre-flight check of input files, gene names, and output settings")
+            "Pre-flight check of input files, gene names, and output settings"
         )
         validate_btn.clicked.connect(self._validate_input)
         file_btn_row.addWidget(add_btn)
@@ -541,7 +541,7 @@ class PartitionConcatTab(BaseTabWidget):
         self.add_content_widget(input_group)
 
         # ── Parameters section ────────────────────────────────────────────
-        param_group = QGroupBox(self.tr("Parameters"))
+        param_group = QGroupBox("Parameters")
         param_form = QFormLayout(param_group)
         param_form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         param_form.setVerticalSpacing(10)
@@ -552,49 +552,46 @@ class PartitionConcatTab(BaseTabWidget):
         fmt_prefix_row.setContentsMargins(0, 0, 0, 0)
 
         self._format_combo = QComboBox()
-        self._format_combo.addItem(self.tr("NEXUS charset (IQ-TREE)"), "iqtree")
-        self._format_combo.addItem(self.tr("NEXUS DATA (MrBayes)"), "mrbayes")
+        self._format_combo.addItem("NEXUS charset (IQ-TREE)", "iqtree")
+        self._format_combo.addItem("NEXUS DATA (MrBayes)", "mrbayes")
         self._format_combo.setFixedWidth(210)
         self._format_combo.setToolTip(
-            self.tr(
-                "IQ-TREE: partition-only charset block (load with -p)  |  "
+            "IQ-TREE: partition-only charset block (load with -p)  |  "
                 "MrBayes: complete NEXUS data file (matrix + charset block)"
-            )
         )
         fmt_prefix_row.addWidget(self._format_combo)
 
         fmt_prefix_row.addSpacing(20)
 
-        fmt_prefix_row.addWidget(QLabel(self.tr("Output prefix:")))
+        fmt_prefix_row.addWidget(QLabel("Output prefix:"))
         self._prefix_edit = QLineEdit("concat_partition")
-        self._prefix_edit.setFixedWidth(130)
-        self._prefix_edit.setToolTip(self.tr("Output files: <prefix>.fasta and <prefix>.nex"))
+        self._prefix_edit.setToolTip("Output files: <prefix>.fasta and <prefix>.nex")
         fmt_prefix_row.addWidget(self._prefix_edit)
         fmt_prefix_row.addStretch()
-        param_form.addRow(self.tr("Partition format:"), _wrap_layout(fmt_prefix_row))
+        param_form.addRow("Partition format:", _wrap_layout(fmt_prefix_row))
 
         # Output directory
         outdir_row = QHBoxLayout()
         outdir_row.setContentsMargins(0, 0, 0, 0)
         self._output_dir_edit = QLineEdit()
         self._output_dir_edit.setPlaceholderText(
-            self.tr("Auto-filled from first file; or choose a folder")
+            "Auto-filled from first file; or choose a folder"
         )
-        outdir_browse = QPushButton(self.tr("Browse"))
+        outdir_browse = QPushButton("Browse")
         outdir_browse.setFixedWidth(90)
         outdir_browse.clicked.connect(self._browse_output_dir)
         outdir_row.addWidget(self._output_dir_edit, 1)
         outdir_row.addWidget(outdir_browse)
-        param_form.addRow(self.tr("Output directory:"), _wrap_layout(outdir_row))
+        param_form.addRow("Output directory:", _wrap_layout(outdir_row))
 
         self.add_content_widget(param_group)
 
         # ── Run / Clear buttons in status bar ─────────────────────────────
-        self.run_btn = QPushButton(self.tr("Run"))
+        self.run_btn = QPushButton("Run")
         self.run_btn.clicked.connect(self.run)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
 
-        self.clear_btn = QPushButton(self.tr("Clear"))
+        self.clear_btn = QPushButton("Clear")
         self.clear_btn.clicked.connect(self.clear)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
         # Result Folder button (opens the output directory), before Help
@@ -618,9 +615,9 @@ class PartitionConcatTab(BaseTabWidget):
     def _add_files(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(
             self,
-            self.tr("Select alignment files"),
+            "Select alignment files",
             "",
-            self.tr("FASTA files (*.fasta *.fa *.fas *.txt);;All Files (*)"),
+            "FASTA files (*.fasta *.fa *.fas *.txt);;All Files (*)",
         )
         for path in paths:
             existing = [
@@ -634,7 +631,7 @@ class PartitionConcatTab(BaseTabWidget):
                 self._file_list.addItem(item)
         if paths:
             self._auto_fill_outdir()
-            self.show_status(self.tr("Added {n} file(s)").format(n=len(paths)))
+            self.show_status("Added {n} file(s)".format(n=len(paths)))
 
     def _load_example(self) -> None:
         """Load bundled example gene files into the file list."""
@@ -660,12 +657,12 @@ class PartitionConcatTab(BaseTabWidget):
         if not loaded:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check the installation."),
+                "Example",
+                "Failed to load example data. Please check the installation.",
             )
             return
         self._auto_fill_outdir()
-        self.show_status(self.tr("Example loaded: ") + ", ".join(loaded))
+        self.show_status("Example loaded: " + ", ".join(loaded))
 
     def _auto_fill_outdir(self) -> None:
         """Set output directory to the first input file's directory."""
@@ -694,7 +691,7 @@ class PartitionConcatTab(BaseTabWidget):
         warnings: list[str] = []
 
         if not files:
-            problems.append(self.tr("No gene files have been added."))
+            problems.append("No gene files have been added.")
         else:
             for fpath, raw in zip(files, raw_names):
                 valid, err = validate_input_path(fpath)
@@ -746,28 +743,28 @@ class PartitionConcatTab(BaseTabWidget):
 
         out_dir = self._output_dir_edit.text().strip()
         if not out_dir:
-            problems.append(self.tr("Output directory is not set."))
+            problems.append("Output directory is not set.")
         else:
             valid, err = validate_output_path(os.path.join(out_dir, "concat.out"))
             if not valid:
-                problems.append(self.tr("Output directory unusable: {error}").format(error=err))
+                problems.append("Output directory unusable: {error}".format(error=err))
 
         if problems:
             QMessageBox.warning(
                 self,
-                self.tr("Input Validation Failed"),
-                self.tr("The following problems must be fixed before running:\n\n")
+                "Input Validation Failed",
+                "The following problems must be fixed before running:\n\n"
                 + "\n".join(f"• {p}" for p in problems),
             )
-            self.show_status(self.tr("Validation failed — see dialog"))
+            self.show_status("Validation failed — see dialog")
         elif warnings:
             QMessageBox.information(
                 self,
-                self.tr("Input Validation Passed (with notes)"),
-                self.tr("Inputs look ready to run. Notes:\n\n")
+                "Input Validation Passed (with notes)",
+                "Inputs look ready to run. Notes:\n\n"
                 + "\n".join(f"• {w}" for w in warnings),
             )
-            self.show_status(self.tr("Validation passed with notes"))
+            self.show_status("Validation passed with notes")
         else:
             try:
                 ids, _ = _read_fasta(files[0])
@@ -775,18 +772,16 @@ class PartitionConcatTab(BaseTabWidget):
                 ids = []
             QMessageBox.information(
                 self,
-                self.tr("Input Validation Passed"),
-                self.tr(
-                    "{count} file(s), {taxa} taxon/taxa, {genes} gene(s). "
-                    "All inputs passed the pre-flight check — click Run to concatenate."
-                ).format(count=len(files), taxa=len(ids), genes=len(raw_names)),
+                "Input Validation Passed",
+                "{count} file(s), {taxa} taxon/taxa, {genes} gene(s). "
+                    "All inputs passed the pre-flight check — click Run to concatenate.".format(count=len(files), taxa=len(ids), genes=len(raw_names)),
             )
-            self.show_status(self.tr("Validation passed"))
+            self.show_status("Validation passed")
 
     def _browse_output_dir(self) -> None:
         directory = QFileDialog.getExistingDirectory(
             self,
-            self.tr("Select output directory"),
+            "Select output directory",
             self._output_dir_edit.text().strip(),
         )
         if directory:
@@ -796,10 +791,10 @@ class PartitionConcatTab(BaseTabWidget):
         """Open the folder where the concatenated files are written."""
         out_dir = self._output_dir_edit.text().strip()
         if not out_dir:
-            self.show_status(self.tr("No output folder selected yet"))
+            self.show_status("No output folder selected yet")
             return
         if not os.path.isdir(out_dir):
-            self.show_status(self.tr("Output folder does not exist yet"))
+            self.show_status("Output folder does not exist yet")
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(out_dir))
 
@@ -819,7 +814,7 @@ class PartitionConcatTab(BaseTabWidget):
                     valid, err = validate_input_path(fpath)
                     if not valid:
                         self.log_message(
-                            self.tr(f"File not found or unreadable: {fpath}"), "WARNING"
+                            f"File not found or unreadable: {fpath}", "WARNING"
                         )
                         continue
                     fname = os.path.splitext(os.path.basename(fpath))[0]
@@ -827,8 +822,8 @@ class PartitionConcatTab(BaseTabWidget):
                     gene_names.append(fname)
 
         if not files:
-            self.show_status(self.tr("Please add at least one aligned FASTA file"))
-            self.log_message(self.tr("No input files selected."), "WARNING")
+            self.show_status("Please add at least one aligned FASTA file")
+            self.log_message("No input files selected.", "WARNING")
             return
 
         # Sanitize gene names for the NEXUS partition file (spaces / special
@@ -837,27 +832,25 @@ class PartitionConcatTab(BaseTabWidget):
         if name_changes:
             for msg in name_changes:
                 self.log_message(
-                    self.tr("Gene name adjusted: {change}").format(change=msg), "WARNING"
+                    "Gene name adjusted: {change}".format(change=msg), "WARNING"
                 )
             QMessageBox.information(
                 self,
-                self.tr("Gene Names Adjusted"),
-                self.tr(
-                    "Some gene names contain characters that are invalid in NEXUS "
+                "Gene Names Adjusted",
+                "Some gene names contain characters that are invalid in NEXUS "
                     "charset definitions (e.g. spaces), or are duplicated. They were "
-                    "adjusted for the partition file:\n\n{changes}"
-                ).format(changes="\n".join(f"• {c}" for c in name_changes)),
+                    "adjusted for the partition file:\n\n{changes}".format(changes="\n".join(f"• {c}" for c in name_changes)),
             )
 
         # Validate output directory
         out_dir = self._output_dir_edit.text().strip()
         if not out_dir:
-            self.show_status(self.tr("Please select an output directory"))
-            self.log_message(self.tr("Output directory is required."), "WARNING")
+            self.show_status("Please select an output directory")
+            self.log_message("Output directory is required.", "WARNING")
             return
         valid, err = validate_output_path(os.path.join(out_dir, "concat.out"))
         if not valid:
-            self.show_status(self.tr("Cannot create output directory"))
+            self.show_status("Cannot create output directory")
             self.log_message(err, "ERROR")
             return
 
@@ -906,7 +899,7 @@ class PartitionConcatTab(BaseTabWidget):
         self._output_dir_edit.clear()
         self._prefix_edit.setText("concat_partition")
         self.log_area.clear()
-        self.show_status(self.tr("Cleared"))
+        self.show_status("Cleared")
 
     # ------------------------------------------------------------------
     # Worker result handlers
@@ -932,7 +925,7 @@ class PartitionConcatTab(BaseTabWidget):
         )
 
     def _help_html(self) -> str:
-        return self.tr("""
+        return """
 <h2>Sequence Concatenation &mdash; Build a Supermatrix for Multi-Gene Phylogenetics</h2>
 
 <p><b>What does this tool do?</b><br>
@@ -1020,4 +1013,4 @@ MrBayes.</p>
   <li>Taxa names must match across all input files &mdash; only the first word of
   each header is used, so descriptions after the ID are ignored.</li>
 </ul>
-""")
+"""

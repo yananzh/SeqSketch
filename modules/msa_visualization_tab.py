@@ -61,12 +61,12 @@ class MSAVisualizationTab(BaseTabWidget):
             self.status_layout.indexOf(self.run_btn) + 1, self.export_btn
         )
         self.output_group.hide()
-        self.help_btn.setFixedWidth(75)
-        self.run_btn.setFixedWidth(75)
-        self.clear_btn.setFixedWidth(75)
 
+        self.clear_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
+        self.help_btn.setFixedWidth(75)
         # Result Folder button (before Clear; enabled after export)
-        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn = QPushButton("Result Folder")
         self.open_folder_btn.setFixedWidth(110)
         self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
@@ -93,8 +93,8 @@ class MSAVisualizationTab(BaseTabWidget):
         ig.removeWidget(self.upload_btn)
 
         self.input_label.setText("Input FASTA file:")
-        self.input_label.setFixedWidth(120)
 
+        self.input_label.setFixedWidth(120)
         self.path_edit = FileDropLineEdit()
         self.path_edit.setPlaceholderText(
             "Select or drop an aligned FASTA file (sequences must be equal length)..."
@@ -108,8 +108,7 @@ class MSAVisualizationTab(BaseTabWidget):
         row.addWidget(self.path_edit, 1)
 
         self.example_btn = QPushButton("Example")
-        self.example_btn.setFixedWidth(90)
-        self.example_btn.setToolTip(self.tr("Load example MSA alignment"))
+        self.example_btn.setToolTip("Load example MSA alignment")
         self.example_btn.clicked.connect(self._load_example)
         row.addWidget(self.example_btn)
 
@@ -329,7 +328,7 @@ class MSAVisualizationTab(BaseTabWidget):
     def _load_example(self):
         staged = stage_example("protein", "aligned_pro_example.fasta")
         if not staged:
-            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            QMessageBox.information(self, "Example", "Example data not found.")
             return
         try:
             with open(staged, "r", encoding="utf-8") as f:
@@ -339,7 +338,7 @@ class MSAVisualizationTab(BaseTabWidget):
             return
         self.input_hint.clear()
         self.path_edit.setText(staged)
-        self.show_status(self.tr("Example loaded"))
+        self.show_status("Example loaded")
 
     def clear(self):
         self.input_text.clear()
@@ -570,7 +569,7 @@ MSA figures.</p>
         browser.setHtml(html)
         browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
-        btn = QPushButton(self.tr("Close"))
+        btn = QPushButton("Close")
         btn.clicked.connect(dlg.accept)
         layout.addWidget(btn)
         dlg.exec()

@@ -2,7 +2,6 @@
 PCR Primer Assistant (PyQt6 + primer3-py)
 """
 
-import csv
 import importlib
 import os
 import sys
@@ -115,7 +114,7 @@ class PrimerDesignTab(QWidget):
         left_layout.setContentsMargins(8, 8, 8, 8)
         left_layout.setSpacing(8)
 
-        seq_group = QGroupBox(self.tr("1. Template Sequence"))
+        seq_group = QGroupBox("Template Sequence")
         seq_v = QVBoxLayout(seq_group)
         self.seq_input = QTextEdit()
         apply_sequence_editor_style(self.seq_input)
@@ -129,7 +128,7 @@ class PrimerDesignTab(QWidget):
         # Manual line break: QTextEdit placeholders do not word-wrap, and the
         # splitter's left panel is too narrow for the full one-line text.
         self.seq_input.setPlaceholderText(
-            self.tr("Paste FASTA or raw DNA sequence here,\nor drag & drop a file...")
+            "Paste FASTA or raw DNA sequence here,\nor drag & drop a file..."
         )
 
         # Patch drag-drop to load file content directly
@@ -161,10 +160,10 @@ class PrimerDesignTab(QWidget):
         self.seq_input.dropEvent = types.MethodType(_drop, self.seq_input)
 
         seq_btn_row = QHBoxLayout()
-        self.load_seq_btn = QPushButton(self.tr("Browse"))
-        self.example_seq_btn = QPushButton(self.tr("Example"))
-        self.example_seq_btn.setToolTip(self.tr("Load HBB exon 1 example sequence"))
-        self.clear_seq_btn = QPushButton(self.tr("Clear"))
+        self.load_seq_btn = QPushButton("Browse")
+        self.example_seq_btn = QPushButton("Example")
+        self.example_seq_btn.setToolTip("Load HBB exon 1 example sequence")
+        self.clear_seq_btn = QPushButton("Clear")
         seq_btn_row.addWidget(self.load_seq_btn)
         seq_btn_row.addWidget(self.example_seq_btn)
         seq_btn_row.addStretch()
@@ -172,7 +171,7 @@ class PrimerDesignTab(QWidget):
         seq_v.addWidget(self.seq_input)
         seq_v.addLayout(seq_btn_row)
 
-        general_group = QGroupBox(self.tr("2. Product Parameters"))
+        general_group = QGroupBox("Product Parameters")
         general_form = QFormLayout(general_group)
 
         self.prod_size_min = QSpinBox()
@@ -181,16 +180,14 @@ class PrimerDesignTab(QWidget):
         self.prod_size_max.setRange(50, 10000)
         self.prod_size_min.setValue(80)
         self.prod_size_max.setValue(150)
-        self.prod_size_min.setFixedWidth(76)
         self.prod_size_max.setFixedWidth(76)
+        self.prod_size_min.setFixedWidth(76)
         self.prod_size_min.setToolTip(
-            self.tr(
-                "Minimum expected PCR product size (bp).\n"
+            "Minimum expected PCR product size (bp).\n"
                 "Recommended: 80-200 bp for qPCR, 200-1000 bp for conventional PCR."
-            )
         )
         self.prod_size_max.setToolTip(
-            self.tr("Maximum expected PCR product size (bp).\nMust be >= minimum size.")
+            "Maximum expected PCR product size (bp).\nMust be >= minimum size."
         )
         size_box = QWidget()
         size_h = QHBoxLayout(size_box)
@@ -205,10 +202,8 @@ class PrimerDesignTab(QWidget):
         self.num_primers_spin.setValue(5)
         self.num_primers_spin.setFixedWidth(76)
         self.num_primers_spin.setToolTip(
-            self.tr(
-                "Number of primer pairs to return.\n"
+            "Number of primer pairs to return.\n"
                 "Higher values give more options but take longer to compute."
-            )
         )
         count_box = QWidget()
         count_h = QHBoxLayout(count_box)
@@ -217,14 +212,14 @@ class PrimerDesignTab(QWidget):
         count_h.addWidget(self.num_primers_spin)
         count_h.addStretch()
 
-        size_label = QLabel(self.tr("Product Size (Min/Max):"))
+        size_label = QLabel("Product Size (Min/Max):")
         size_label.setFixedWidth(180)
         general_form.addRow(size_label, size_box)
-        count_label = QLabel(self.tr("Primer Pair Count:"))
+        count_label = QLabel("Primer Pair Count:")
         count_label.setFixedWidth(180)
         general_form.addRow(count_label, count_box)
 
-        primer_group = QGroupBox(self.tr("3. Primer Parameters"))
+        primer_group = QGroupBox("Primer Parameters")
         primer_form = QFormLayout(primer_group)
 
         self.p_len_min = QSpinBox()
@@ -236,11 +231,11 @@ class PrimerDesignTab(QWidget):
         self.p_len_min.setValue(18)
         self.p_len_opt.setValue(20)
         self.p_len_max.setValue(25)
-        self.p_len_min.setToolTip(self.tr("Minimum acceptable primer length (nt)."))
+        self.p_len_min.setToolTip("Minimum acceptable primer length (nt).")
         self.p_len_opt.setToolTip(
-            self.tr("Optimal primer length (nt). Primer3 will prefer this length.")
+            "Optimal primer length (nt). Primer3 will prefer this length."
         )
-        self.p_len_max.setToolTip(self.tr("Maximum acceptable primer length (nt)."))
+        self.p_len_max.setToolTip("Maximum acceptable primer length (nt).")
         len_box = QWidget()
         len_h = QHBoxLayout(len_box)
         len_h.setContentsMargins(0, 0, 0, 0)
@@ -261,13 +256,13 @@ class PrimerDesignTab(QWidget):
         self.p_tm_opt.setValue(60)
         self.p_tm_max.setValue(63)
         self.p_tm_min.setToolTip(
-            self.tr("Minimum acceptable melting temperature (°C).\nTypical range: 55-60°C.")
+            "Minimum acceptable melting temperature (°C).\nTypical range: 55-60°C."
         )
         self.p_tm_opt.setToolTip(
-            self.tr("Optimal melting temperature (°C).\nPrimer3 will prefer primers near this Tm.")
+            "Optimal melting temperature (°C).\nPrimer3 will prefer primers near this Tm."
         )
         self.p_tm_max.setToolTip(
-            self.tr("Maximum acceptable melting temperature (°C).\nTypical range: 60-65°C.")
+            "Maximum acceptable melting temperature (°C).\nTypical range: 60-65°C."
         )
         tm_box = QWidget()
         tm_h = QHBoxLayout(tm_box)
@@ -289,13 +284,13 @@ class PrimerDesignTab(QWidget):
         self.p_gc_opt.setValue(50)
         self.p_gc_max.setValue(60)
         self.p_gc_min.setToolTip(
-            self.tr("Minimum acceptable GC content (%).\nTypical range: 40-60%.")
+            "Minimum acceptable GC content (%).\nTypical range: 40-60%."
         )
         self.p_gc_opt.setToolTip(
-            self.tr("Optimal GC content (%).\nPrimer3 will prefer primers near this GC%.")
+            "Optimal GC content (%).\nPrimer3 will prefer primers near this GC%."
         )
         self.p_gc_max.setToolTip(
-            self.tr("Maximum acceptable GC content (%).\nTypical range: 40-60%.")
+            "Maximum acceptable GC content (%).\nTypical range: 40-60%."
         )
         gc_box = QWidget()
         gc_h = QHBoxLayout(gc_box)
@@ -305,18 +300,18 @@ class PrimerDesignTab(QWidget):
         gc_h.addWidget(self.p_gc_opt)
         gc_h.addWidget(self.p_gc_max)
 
-        len_label = QLabel(self.tr("Length (Min/Opt/Max):"))
+        len_label = QLabel("Length (Min/Opt/Max):")
         len_label.setFixedWidth(150)
         primer_form.addRow(len_label, len_box)
-        tm_label = QLabel(self.tr("Tm (°C) (Min/Opt/Max):"))
+        tm_label = QLabel("Tm (°C) (Min/Opt/Max):")
         tm_label.setFixedWidth(150)
         primer_form.addRow(tm_label, tm_box)
-        gc_label = QLabel(self.tr("GC (%) (Min/Opt/Max):"))
+        gc_label = QLabel("GC (%) (Min/Opt/Max):")
         gc_label.setFixedWidth(150)
         primer_form.addRow(gc_label, gc_box)
 
         # ── 4. Advanced Parameters ──────────────────────────────────
-        adv_group = QGroupBox(self.tr("4. Advanced Parameters"))
+        adv_group = QGroupBox("Advanced Parameters")
         adv_form = QFormLayout(adv_group)
 
         self.salt_mono_spin = QDoubleSpinBox()
@@ -327,12 +322,10 @@ class PrimerDesignTab(QWidget):
         self.salt_mono_spin.setFixedWidth(104)
         self.salt_mono_spin.setSuffix(" mM")
         self.salt_mono_spin.setToolTip(
-            self.tr(
-                "Monovalent salt concentration (Na⁺/K⁺).\n"
+            "Monovalent salt concentration (Na⁺/K⁺).\n"
                 "Affects Tm calculation. Standard PCR: 50 mM."
-            )
         )
-        salt_label = QLabel(self.tr("Salt (Monovalent):"))
+        salt_label = QLabel("Salt (Monovalent):")
         salt_label.setFixedWidth(150)
         adv_form.addRow(salt_label, self.salt_mono_spin)
 
@@ -344,12 +337,10 @@ class PrimerDesignTab(QWidget):
         self.mg_spin.setFixedWidth(104)
         self.mg_spin.setSuffix(" mM")
         self.mg_spin.setToolTip(
-            self.tr(
-                "Divalent salt concentration (Mg²⁺).\n"
+            "Divalent salt concentration (Mg²⁺).\n"
                 "Standard PCR: 1.5 mM; qPCR typically: 2.5-3.5 mM."
-            )
         )
-        mg_label = QLabel(self.tr("Mg²⁺:"))
+        mg_label = QLabel("Mg²⁺:")
         mg_label.setFixedWidth(150)
         adv_form.addRow(mg_label, self.mg_spin)
 
@@ -375,17 +366,17 @@ class PrimerDesignTab(QWidget):
         self.gc_clamp_spin = QSpinBox()
         self.gc_clamp_spin.setValue(1)
 
-        self.design_button = QPushButton(self.tr("Run"))
-        self.help_btn = QPushButton(self.tr("Help"))
-        self.export_excel_btn = QPushButton(self.tr("Export Excel"))
-        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.design_button = QPushButton("Run")
+        self.help_btn = QPushButton("Help")
+        self.export_excel_btn = QPushButton("Export Excel")
+        self.open_folder_btn = QPushButton("Result Folder")
         self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
-        self.open_folder_btn.setToolTip(self.tr("Open the folder of the last exported results"))
+        self.open_folder_btn.setToolTip("Open the folder of the last exported results")
         if not _HAS_OPENPYXL:
             self.export_excel_btn.setEnabled(False)
             self.export_excel_btn.setToolTip(
-                self.tr("Excel export requires openpyxl. Install: pip install openpyxl")
+                "Excel export requires openpyxl. Install: pip install openpyxl"
             )
 
         left_layout.addWidget(seq_group)
@@ -400,7 +391,7 @@ class PrimerDesignTab(QWidget):
         right_layout.setSpacing(8)
 
         # ── Primer binding site map (Matplotlib) ─────────────────
-        map_group = QGroupBox(self.tr("Primer Binding Site Map"))
+        map_group = QGroupBox("Primer Binding Site Map")
         map_v = QVBoxLayout(map_group)
         map_v.setContentsMargins(4, 4, 4, 4)
         map_v.setSpacing(2)
@@ -453,7 +444,7 @@ class PrimerDesignTab(QWidget):
 
         # ── Status bar with buttons at the bottom ──
         self.status_layout = QHBoxLayout()
-        self.status_label = QLabel(self.tr("Ready"))
+        self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet("color: #666; padding: 2px 8px;")
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
@@ -513,12 +504,12 @@ class PrimerDesignTab(QWidget):
         if not text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.seq_input.setPlainText(text)
-        self.status_label.setText(self.tr("Loaded example data: hbb_exon1.fasta"))
+        self.status_label.setText("Loaded example data: hbb_exon1.fasta")
 
     def clear_sequence(self):
         self.seq_input.clear()
@@ -528,7 +519,7 @@ class PrimerDesignTab(QWidget):
         self._current_template_seq = ""
         self._clear_primer_map()
         self.open_folder_btn.setEnabled(False)
-        self.status_label.setText(self.tr("Sequence and results cleared."))
+        self.status_label.setText("Sequence and results cleared.")
 
     def apply_standard_presets(self):
         """Apply balanced preset values for qPCR primer design."""
@@ -743,80 +734,10 @@ class PrimerDesignTab(QWidget):
                 self.row_detail_cache.append(detail)
                 row_idx += 1
 
-        self.status_label.setText(self.tr("Found %d primer pairs.") % num_returned)
+        self.status_label.setText("Found %d primer pairs." % num_returned)
         self.design_button.setEnabled(True)
         if self.results_table.rowCount() > 0:
             self.results_table.selectRow(0)
-
-    def _table_to_tsv(self, selected_only: bool) -> str:
-        headers = [
-            self.results_table.horizontalHeaderItem(c).text()
-            for c in range(self.results_table.columnCount())
-        ]
-        lines = ["\t".join(headers)]
-
-        if selected_only:
-            rows = sorted({idx.row() for idx in self.results_table.selectionModel().selectedRows()})
-        else:
-            rows = list(range(self.results_table.rowCount()))
-
-        for row in rows:
-            vals = []
-            for col in range(self.results_table.columnCount()):
-                item = self.results_table.item(row, col)
-                vals.append(item.text() if item else "")
-            lines.append("\t".join(vals))
-        return "\n".join(lines)
-
-    def copy_selected_rows(self):
-        if self.results_table.rowCount() == 0:
-            self.show_error_message("No results to copy.")
-            return
-        text = self._table_to_tsv(selected_only=True)
-        QApplication.clipboard().setText(text)
-        self.status_label.setText("Selected rows copied to clipboard.")
-
-    def copy_all_rows(self):
-        if self.results_table.rowCount() == 0:
-            self.show_error_message("No results to copy.")
-            return
-        text = self._table_to_tsv(selected_only=False)
-        QApplication.clipboard().setText(text)
-        self.status_label.setText("All rows copied to clipboard.")
-
-    def export_results_csv(self):
-        if self.results_table.rowCount() == 0:
-            self.show_error_message("No results to export.")
-            return
-
-        out_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Export Primer Results",
-            "primer_results.csv",
-            "CSV files (*.csv)",
-        )
-        if not out_path:
-            return
-
-        headers = [
-            self.results_table.horizontalHeaderItem(c).text()
-            for c in range(self.results_table.columnCount())
-        ]
-        try:
-            with open(out_path, "w", newline="", encoding="utf-8-sig") as handle:
-                writer = csv.writer(handle)
-                writer.writerow(headers)
-                for row in range(self.results_table.rowCount()):
-                    vals = []
-                    for col in range(self.results_table.columnCount()):
-                        item = self.results_table.item(row, col)
-                        vals.append(item.text() if item else "")
-                    writer.writerow(vals)
-            self.status_label.setText(f"Exported: {os.path.basename(out_path)}")
-            self._last_export_dir = os.path.dirname(out_path)
-            self.open_folder_btn.setEnabled(True)
-        except Exception as exc:
-            self.show_error_message(f"Failed to export CSV: {exc}")
 
     # ── Excel Export ─────────────────────────────────────────────────
 
@@ -829,16 +750,16 @@ class PrimerDesignTab(QWidget):
         """Export primer results to an Excel (.xlsx) file."""
         if not _HAS_OPENPYXL:
             self.show_error_message(
-                self.tr("Excel export requires openpyxl. Install: pip install openpyxl")
+                "Excel export requires openpyxl. Install: pip install openpyxl"
             )
             return
         if self.results_table.rowCount() == 0:
-            self.show_error_message(self.tr("No results to export."))
+            self.show_error_message("No results to export.")
             return
 
         out_path, _ = QFileDialog.getSaveFileName(
             self,
-            self.tr("Export Primer Results to Excel"),
+            "Export Primer Results to Excel",
             "primer_results.xlsx",
             "Excel files (*.xlsx)",
         )
@@ -900,11 +821,11 @@ class PrimerDesignTab(QWidget):
             ws.freeze_panes = "A2"
 
             wb.save(out_path)
-            self.status_label.setText(self.tr("Exported Excel: %s") % out_path)
+            self.status_label.setText("Exported Excel: %s" % out_path)
             self._last_export_dir = os.path.dirname(out_path)
             self.open_folder_btn.setEnabled(True)
         except Exception as exc:
-            self.show_error_message(self.tr("Failed to export Excel: %s") % exc)
+            self.show_error_message("Failed to export Excel: %s" % exc)
 
     # ── Primer Binding Site Map (Matplotlib) ─────────────────────────
 
@@ -1036,7 +957,7 @@ class PrimerDesignTab(QWidget):
         from PyQt6.QtWidgets import QLabel, QPushButton, QScrollArea, QVBoxLayout
 
         dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("Help - qPCR Primer Design"))
+        dlg.setWindowTitle("Help - qPCR Primer Design")
         dlg.setFixedSize(720, 540)
         layout = QVBoxLayout(dlg)
 
@@ -1046,7 +967,7 @@ class PrimerDesignTab(QWidget):
         scroll.setVerticalScrollBarPolicy(QtCore.ScrollBarPolicy.ScrollBarAsNeeded)
 
         label = QLabel(
-            self.tr("""
+            """
 <h2>qPCR Primer Design &mdash; PCR Primers via Primer3</h2>
 
 <p><b>What does this tool do?</b><br>
@@ -1114,7 +1035,7 @@ Orange arrows = Reverse primers, drawn on the template line to scale.</p>
 <h3>After Design — Analyze Your Primers</h3>
 <p>Open <b>Primer Design &rarr; Primer Analysis</b> to check hairpin,
 self-dimer, and cross-dimer properties of any primer pair from the results.</p>
-""")
+"""
         )
         label.setTextFormat(QtCore.TextFormat.RichText)
         label.setWordWrap(True)

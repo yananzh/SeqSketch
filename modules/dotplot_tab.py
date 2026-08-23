@@ -39,7 +39,7 @@ class DotPlotTab(BaseTabWidget):
         self._seq_b_name = "Sequence B"
 
         # Accent Save Figure button right after Run
-        self.export_plot_btn = QPushButton(self.tr("Save Figure"))
+        self.export_plot_btn = QPushButton("Save Figure")
         self.export_plot_btn.setFixedWidth(110)
         self.export_plot_btn.setProperty("accentButton", True)
         self.export_plot_btn.setEnabled(False)
@@ -51,7 +51,7 @@ class DotPlotTab(BaseTabWidget):
         )
 
         # Result Folder button (before Clear; enabled after export)
-        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn = QPushButton("Result Folder")
         self.open_folder_btn.setFixedWidth(110)
         self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
@@ -63,10 +63,10 @@ class DotPlotTab(BaseTabWidget):
         )
         self._last_export_dir = ""
 
-        self.help_btn.setFixedWidth(75)
-        self.run_btn.setFixedWidth(75)
-        self.clear_btn.setFixedWidth(75)
 
+        self.clear_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
+        self.help_btn.setFixedWidth(75)
         self._update_ui_layout()
         self._setup_parameters()
         self._setup_plot_canvas()
@@ -84,11 +84,11 @@ class DotPlotTab(BaseTabWidget):
         ig.removeWidget(self.input_text)
         ig.removeWidget(self.upload_btn)
 
-        self.input_group.setTitle(self.tr("Input Sequence and Mode Selection"))
+        self.input_group.setTitle("Input Sequence and Mode Selection")
 
         self.input_label.setText("Input FASTA file:")
-        self.input_label.setFixedWidth(120)
 
+        self.input_label.setFixedWidth(120)
         self.path_edit = FileDropLineEdit()
         self.path_edit.setPlaceholderText("Select or drop a FASTA file (one or two sequences)...")
         self.path_edit.file_dropped.connect(self._load_file_path)
@@ -100,8 +100,7 @@ class DotPlotTab(BaseTabWidget):
         row.addWidget(self.path_edit, 1)
 
         self.example_btn = QPushButton("Example")
-        self.example_btn.setFixedWidth(90)
-        self.example_btn.setToolTip(self.tr("Load example sequences for DotPlot"))
+        self.example_btn.setToolTip("Load example sequences for DotPlot")
         self.example_btn.clicked.connect(self._load_example)
         row.addWidget(self.example_btn)
 
@@ -204,7 +203,7 @@ class DotPlotTab(BaseTabWidget):
     def _load_example(self):
         staged = stage_example("protein", "pairwise_pro.fasta")
         if not staged:
-            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            QMessageBox.information(self, "Example", "Example data not found.")
             return
         try:
             with open(staged, "r", encoding="utf-8") as f:
@@ -213,7 +212,7 @@ class DotPlotTab(BaseTabWidget):
             QMessageBox.warning(self, "File Read Error", str(e))
             return
         self.path_edit.setText(staged)
-        self.show_status(self.tr("Example loaded"))
+        self.show_status("Example loaded")
 
     def _parse_fasta_records(self, text: str):
         records = []
@@ -459,7 +458,7 @@ sequences give a pairwise comparison.</li>
         browser.setHtml(help_text)
         browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
-        btn = QPushButton(self.tr("Close"))
+        btn = QPushButton("Close")
         btn.clicked.connect(dlg.accept)
         layout.addWidget(btn)
         dlg.exec()

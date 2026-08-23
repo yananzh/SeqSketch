@@ -30,7 +30,7 @@ def _status_call_arg(node: ast.Call):
         if not node.args:
             return None
         arg = node.args[0]
-        if isinstance(arg, ast.Call) and arg.args:  # self.tr("...")
+        if isinstance(arg, ast.Call) and arg.args:  # tolerate tr("...") wrappers
             arg = arg.args[0]
         return arg
     return None

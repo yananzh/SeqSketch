@@ -72,12 +72,12 @@ tests/               -> Pytest regression coverage
 
 - `examples/phylo/` holds a read-only 8-species cytb dataset (CDS, protein, aligned variants, Newick tree, README) used by the "Example" buttons on the 7 core teaching-chain tabs (FASTA Statistics, Translate, Physicochemical, MAFFT, trimAl, IQ-TREE, Tree Visualization).
 - `utils/example_data.py` is the **only** module that knows where examples live: `example_path(*parts)` (read-only bundled source), `stage_example(*parts)` (copies to `user_data_dir()/example_work/` for file-mode tabs so outputs can write), `load_example_text(*parts)` (reads text for sequence-mode tabs). Use these instead of open-coded `resource_path("examples", ...)` calls in tabs.
-- When adding an "Example" button to a new tab, follow the existing pattern: load → empty-check with `QMessageBox.information` → fill the tab's specific input control → `self.show_status(self.tr("已载入示例数据: ..."))`. File-mode tabs stage a writable copy; sequence-mode tabs fill `input_text` directly.
+- When adding an "Example" button to a new tab, follow the existing pattern: load → empty-check with `QMessageBox.information` → fill the tab's specific input control → `self.show_status("Example loaded: ...")`. File-mode tabs stage a writable copy; sequence-mode tabs fill `input_text` directly.
 - `examples/` is bundled via `SeqSketch.spec` `datas` (`('examples', 'examples')`); any new example subfolder is picked up automatically.
 
 ## Threading Guidance
 
-- Use a `BaseWorker`/`DataWorker` subclass plus `QThread` for heavy CPU work, long-running external-tool calls, or network operations.
+- Use a `BaseWorker` subclass plus `QThread` for heavy CPU work, long-running external-tool calls, or network operations.
 - Do not update Qt widgets directly from a worker `run()` method. Emit signals and update UI in the tab class.
 - Small synchronous FASTA Tools operations may run on the main thread, but keep the method structured so it can be moved into a worker later if needed.
 
@@ -118,7 +118,7 @@ tests/               -> Pytest regression coverage
 
 - `styles.qss` is the primary stylesheet; `resources/styles/modern_theme.qss` is the alternate theme.
 - Do not hard-code one-off colors in Python when the styling belongs in QSS.
-- When touching UI text, prefer wrapping new or edited user-visible strings in `self.tr(...)` even if older code in the repo is not fully converted yet.
+- The UI is English-only by decision — i18n was dropped (2026-08). Do not wrap user-visible strings in `self.tr(...)`; write plain English literals. Never mix CJK characters into UI text, status messages, or help dialogs.
 
 ## Dependencies
 

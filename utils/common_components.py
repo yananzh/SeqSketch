@@ -260,19 +260,6 @@ class BaseWorker(QObject):
         raise NotImplementedError("Subclass must implement run()")
 
 
-class DataWorker(BaseWorker):
-    """
-    Data worker base class for tasks returning processed data
-    """
-
-    data_finished = pyqtSignal(dict)
-
-    def emit_data_finished(self, data: Dict[str, Any], message: str = "Completed"):
-        """Emit data finished signal"""
-        self.logger.info(f"Data task completed: {message}")
-        self.data_finished.emit(data)
-        self.finished.emit(message)
-
 
 def park_qthread(thread: Optional[QThread]):
     """Detach a possibly still-running QThread without destroying it.
@@ -392,7 +379,7 @@ class BaseTabWidget(QWidget):
 
         # Log area (file mode only)
         if self.tab_type == "file":
-            self.log_group = QGroupBox(self.tr("Operation Log"))
+            self.log_group = QGroupBox("Operation Log")
             self.log_group.setProperty("logGroup", True)
             self.log_area = QTextEdit()
             self.log_area.setReadOnly(True)
@@ -401,7 +388,7 @@ class BaseTabWidget(QWidget):
             self.log_area.setMaximumHeight(160)
             self.log_area.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
             self.log_area.setPlaceholderText(
-                self.tr("Run a FASTA tool to see progress and results here...")
+                "Run a FASTA tool to see progress and results here..."
             )
 
             log_layout = QVBoxLayout(self.log_group)
@@ -416,7 +403,7 @@ class BaseTabWidget(QWidget):
     def init_sequence_ui(self):
         """Initialize sequence processing UI with QGroupBox sections"""
         # ── Input QGroupBox ───────────────────────────────────────────
-        self.input_group = QGroupBox(self.tr("Input Sequence"))
+        self.input_group = QGroupBox("Input Sequence")
         self.input_group.setFlat(True)
         ig_layout = QVBoxLayout(self.input_group)
         ig_layout.setContentsMargins(0, 16, 0, 4)
@@ -425,7 +412,7 @@ class BaseTabWidget(QWidget):
         self.input_text = QTextEdit()
         apply_sequence_editor_style(self.input_text)
         self.input_text.setPlaceholderText("Paste DNA/RNA sequence, or upload a file...")
-        self.upload_btn = QPushButton(self.tr("Upload File"))
+        self.upload_btn = QPushButton("Upload File")
         self.upload_btn.clicked.connect(self.open_file)
         self.input_hint = QLabel("")
         self.input_hint.setStyleSheet("color: #888;")
@@ -436,14 +423,13 @@ class BaseTabWidget(QWidget):
         self.content_area.addWidget(self.input_group)
 
         # ── Parameter insertion point ─────────────────────────────────
-        # Subclasses add parameter controls here via add_parameter_layout()
-        # or add_content_layout()
+        # Subclasses add parameter controls here via add_content_layout()
         self._param_layout = QVBoxLayout()
         self._param_layout.setContentsMargins(0, 0, 0, 0)
         self.content_area.addLayout(self._param_layout)
 
         # ── Output QGroupBox ──────────────────────────────────────────
-        self.output_group = QGroupBox(self.tr("Output Result"))
+        self.output_group = QGroupBox("Output Result")
         self.output_group.setFlat(True)
         og_layout = QVBoxLayout(self.output_group)
         og_layout.setContentsMargins(0, 16, 0, 4)
@@ -463,8 +449,8 @@ class BaseTabWidget(QWidget):
             _style = _style.replace("border: 1px solid #94a3b8;", "border: none;")
             _editor.setStyleSheet(_style)
 
-        self.export_btn = QPushButton(self.tr("Export Result"))
-        self.copy_btn = QPushButton(self.tr("Copy to Clipboard"))
+        self.export_btn = QPushButton("Export Result")
+        self.copy_btn = QPushButton("Copy to Clipboard")
         self.export_btn.clicked.connect(self.export_result)
         self.copy_btn.clicked.connect(self.copy_result)
 
@@ -482,8 +468,8 @@ class BaseTabWidget(QWidget):
         self.output_label = QLabel()
 
         # ── Run / Clear buttons (placed in status row by init_common_ui) ──
-        self.run_btn = QPushButton(self.tr("Run"))
-        self.clear_btn = QPushButton(self.tr("Clear"))
+        self.run_btn = QPushButton("Run")
+        self.clear_btn = QPushButton("Clear")
         self.run_btn.clicked.connect(self.run)
         self.clear_btn.clicked.connect(self.clear)
 
@@ -604,13 +590,13 @@ class BaseTabWidget(QWidget):
         if not path:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. The installation may be incomplete."),
+                "Example",
+                "Failed to load example data. The installation may be incomplete.",
             )
             return None
         if hasattr(self, "handle_input_file_selected"):
             self.handle_input_file_selected(path)
-        self.show_status(self.tr(f"Example loaded: {status_label or os.path.basename(path)}"))
+        self.show_status(f"Example loaded: {status_label or os.path.basename(path)}")
         return path
 
     # ── Drag-and-drop helpers (sequence mode) ────────────────────────────
@@ -646,11 +632,6 @@ class BaseTabWidget(QWidget):
 
     # ── Layout helpers ──────────────────────────────────────────────────
 
-    def add_parameter_layout(self, layout):
-        """Insert a parameter layout between the input and output sections."""
-        if hasattr(self, "_param_layout"):
-            self._param_layout.addLayout(layout)
-
     def add_content_layout(self, layout):
         """Add content layout — redirects to _param_layout in sequence mode."""
         if hasattr(self, "_param_layout"):
@@ -676,7 +657,7 @@ class BaseTabWidget(QWidget):
         status bar (before Help). It opens the folder containing the current
         output file.
         """
-        self.open_output_btn = QPushButton(self.tr("Result Folder"))
+        self.open_output_btn = QPushButton("Result Folder")
         self.open_output_btn.clicked.connect(self._open_output_folder)
         # Insert right before the Help button (always the last status widget)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.open_output_btn)
@@ -690,14 +671,14 @@ class BaseTabWidget(QWidget):
         output_edit = getattr(self, "output_edit", None)
         output_path = output_edit.text().strip() if output_edit is not None else ""
         if not output_path:
-            self.show_status(self.tr("No output file selected yet."))
+            self.show_status("No output file selected yet.")
             return
         if os.path.isdir(output_path):
             target_dir = output_path
         else:
             target_dir = os.path.dirname(os.path.abspath(output_path))
         if not os.path.isdir(target_dir):
-            self.show_status(self.tr("Output directory does not exist yet."))
+            self.show_status("Output directory does not exist yet.")
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(target_dir))
 
@@ -784,53 +765,6 @@ class BaseTabWidget(QWidget):
         self.worker_thread.start()
         return True
 
-
-class FASTAWorker(BaseWorker):
-    """
-    FASTA文件处理专用工作线程基类
-    """
-
-    def __init__(self, input_path: str, output_path: str):
-        super().__init__()
-        self.input_path = input_path
-        self.output_path = output_path
-
-    def validate_files(self) -> bool:
-        """验证输入输出文件路径"""
-        import os
-
-        if not self.input_path or not os.path.isfile(self.input_path):
-            self.emit_error("输入文件无效或不存在")
-            return False
-
-        if not self.output_path:
-            self.emit_error("输出文件路径不能为空")
-            return False
-
-        # 检查输出目录是否存在，不存在则创建
-        output_dir = os.path.dirname(self.output_path)
-        if output_dir and not os.path.exists(output_dir):
-            try:
-                os.makedirs(output_dir)
-            except Exception as e:
-                self.emit_error(f"无法创建输出目录: {e}")
-                return False
-
-        return True
-
-    def load_fasta_processor(self):
-        """加载FASTA处理器"""
-        try:
-            from modules.fasta_processor import FASTAProcessor
-
-            processor = FASTAProcessor()
-            if not processor.read_file(self.input_path):
-                self.emit_error("无法读取FASTA文件")
-                return None
-            return processor
-        except Exception as e:
-            self.emit_error(f"加载FASTA处理器失败: {e}")
-            return None
 
 
 # 常用工具函数

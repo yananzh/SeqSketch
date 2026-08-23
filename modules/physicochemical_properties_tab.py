@@ -75,7 +75,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         if hasattr(self, "export_btn"):
             self.export_btn.hide()
         # Add Export CSV button to status row after Analyze
-        self.export_csv_btn = QPushButton(self.tr("Export CSV"))
+        self.export_csv_btn = QPushButton("Export CSV")
         self.export_csv_btn.setFixedWidth(110)
         self.export_csv_btn.setProperty("accentButton", True)
         self.export_csv_btn.setEnabled(False)
@@ -85,7 +85,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         _idx = self.status_layout.indexOf(self.run_btn)
         self.status_layout.insertWidget(_idx + 1, self.export_csv_btn)
         # Add Result Folder button after Export CSV
-        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn = QPushButton("Result Folder")
         self.open_folder_btn.setFixedWidth(110)
         self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
@@ -109,7 +109,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         self._setup_drag_drop()
 
         # Place Example button horizontally with upload_btn
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
@@ -163,12 +163,12 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         if not text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("Loaded example data: protein_example.fasta"))
+        self.show_status("Loaded example data: protein_example.fasta")
 
     def run(self):
         self.status_label.setText("")
@@ -327,8 +327,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         return records
 
     def show_help(self):
-        help_text = self.tr(
-            "<h2>Physicochemical Properties &mdash; Protein Property Calculator</h2>"
+        help_text = ("<h2>Physicochemical Properties &mdash; Protein Property Calculator</h2>"
             "<p><b>What does this tool do?</b><br>"
             "It computes key physicochemical properties for one or more protein sequences, "
             "including molecular weight, theoretical pI, extinction coefficient, "
@@ -374,7 +373,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         )
 
         dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("Help - Physicochemical Properties"))
+        dlg.setWindowTitle("Help - Physicochemical Properties")
         dlg.resize(600, 480)
         dlg.setMinimumSize(400, 300)
         layout = QVBoxLayout()

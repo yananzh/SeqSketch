@@ -794,7 +794,7 @@ class CodonUsageTab(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(10)
 
-        grp_input = QGroupBox(self.tr("Input Sequence"))
+        grp_input = QGroupBox("Input Sequence")
         gi = QVBoxLayout(grp_input)
         gi.setContentsMargins(6, 16, 6, 4)
         gi.setSpacing(6)
@@ -823,7 +823,7 @@ class CodonUsageTab(QWidget):
         gi.addLayout(row)
         lay.addWidget(grp_input)
 
-        grp_opt = QGroupBox(self.tr("Options"))
+        grp_opt = QGroupBox("Options")
         go = QVBoxLayout(grp_opt)
         go.setContentsMargins(6, 16, 6, 4)
 
@@ -1042,8 +1042,8 @@ class CodonUsageTab(QWidget):
         if not text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self._input_text.setPlainText(text)
@@ -1591,8 +1591,7 @@ class CodonUsageTab(QWidget):
             QMessageBox.critical(self, "Export Error", str(e))
 
     def _show_help(self):
-        help_text = self.tr(
-            "<h2>Codon Usage Analysis &mdash; Comprehensive Codon Bias Toolkit</h2>"
+        help_text = ("<h2>Codon Usage Analysis &mdash; Comprehensive Codon Bias Toolkit</h2>"
             "<p><b>What does this tool do?</b><br>"
             "It performs a complete codon usage analysis of protein-coding sequences (CDS). "
             "The tool computes key metrics including <b>RSCU</b> (Relative Synonymous Codon Usage), "
@@ -1669,7 +1668,7 @@ class CodonUsageTab(QWidget):
         )
 
         dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("Help - Codon Usage Analysis"))
+        dlg.setWindowTitle("Help - Codon Usage Analysis")
         dlg.resize(640, 520)
         dlg.setMinimumSize(400, 300)
         layout = QVBoxLayout()

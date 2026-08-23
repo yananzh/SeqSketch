@@ -55,14 +55,14 @@ class SangerTab(QWidget):
         outer.setSpacing(6)
 
         # ── 1. Input QGroupBox ────────────────────────────────────────
-        grp_input = QGroupBox(self.tr("Input Sequences"))
+        grp_input = QGroupBox("Input Sequences")
         grp_input.setFlat(True)
         gi = QVBoxLayout(grp_input)
         gi.setContentsMargins(6, 16, 0, 4)
         gi.setSpacing(6)
 
-        fwd_label = QLabel(self.tr("Forward Sequence (5' \u2192 3'):"))
-        rev_label = QLabel(self.tr("Reverse Sequence (5' \u2192 3'):"))
+        fwd_label = QLabel("Forward Sequence (5' \u2192 3'):")
+        rev_label = QLabel("Reverse Sequence (5' \u2192 3'):")
         label_w = max(fwd_label.sizeHint().width(), rev_label.sizeHint().width())
         fwd_label.setMinimumWidth(label_w)
         rev_label.setMinimumWidth(label_w)
@@ -71,10 +71,10 @@ class SangerTab(QWidget):
         fwd_row.addWidget(fwd_label)
         self.fwd_edit = FileDropLineEdit()
         self.fwd_edit.setReadOnly(True)
-        self.fwd_edit.setPlaceholderText(self.tr("Select a FASTA file or drag & drop it here..."))
-        self.fwd_edit.setToolTip(self.tr("Forward Sanger read (5'\u21923') as a FASTA file"))
+        self.fwd_edit.setPlaceholderText("Select a FASTA file or drag & drop it here...")
+        self.fwd_edit.setToolTip("Forward Sanger read (5'\u21923') as a FASTA file")
         fwd_row.addWidget(self.fwd_edit, 1)
-        self._btn_browse_fwd = QPushButton(self.tr("Browse"))
+        self._btn_browse_fwd = QPushButton("Browse")
         self._btn_browse_fwd.clicked.connect(lambda: self._browse_input_file(self.fwd_edit))
         fwd_row.addWidget(self._btn_browse_fwd)
         gi.addLayout(fwd_row)
@@ -84,39 +84,37 @@ class SangerTab(QWidget):
         self.rev_edit = FileDropLineEdit()
         self.rev_edit.setReadOnly(True)
         self.rev_edit.setPlaceholderText(
-            self.tr(
-                "Auto reverse-complemented \u2014 select a FASTA file or drag & drop it here..."
-            )
+            "Auto reverse-complemented \u2014 select a FASTA file or drag & drop it here..."
         )
         self.rev_edit.setToolTip(
-            self.tr("Reverse Sanger read (as-read; auto reverse-complemented) as a FASTA file")
+            "Reverse Sanger read (as-read; auto reverse-complemented) as a FASTA file"
         )
         rev_row.addWidget(self.rev_edit, 1)
-        self._btn_browse_rev = QPushButton(self.tr("Browse"))
+        self._btn_browse_rev = QPushButton("Browse")
         self._btn_browse_rev.clicked.connect(lambda: self._browse_input_file(self.rev_edit))
         rev_row.addWidget(self._btn_browse_rev)
         gi.addLayout(rev_row)
         outer.addWidget(grp_input)
 
         # ── 2. Parameters QGroupBox ───────────────────────────────────
-        grp_params = QGroupBox(self.tr("Assembly Parameters"))
+        grp_params = QGroupBox("Assembly Parameters")
         grp_params.setFlat(True)
         gp = QVBoxLayout(grp_params)
         gp.setContentsMargins(6, 16, 0, 4)
 
         params_hbox = QHBoxLayout()
-        params_hbox.addWidget(QLabel(self.tr("Min overlap:")))
+        params_hbox.addWidget(QLabel("Min overlap:"))
         self.min_overlap_spin = QSpinBox()
         self.min_overlap_spin.setRange(5, 5000)
         self.min_overlap_spin.setValue(20)
         self.min_overlap_spin.setToolTip(
-            self.tr("Minimum overlap length to consider during assembly")
+            "Minimum overlap length to consider during assembly"
         )
         self.min_overlap_spin.setMinimumWidth(80)
         params_hbox.addWidget(self.min_overlap_spin)
 
         params_hbox.addSpacing(20)
-        params_hbox.addWidget(QLabel(self.tr("Min identity:")))
+        params_hbox.addWidget(QLabel("Min identity:"))
         self.min_identity_spin = QDoubleSpinBox()
         self.min_identity_spin.setRange(50, 100)
         self.min_identity_spin.setDecimals(1)
@@ -124,7 +122,7 @@ class SangerTab(QWidget):
         self.min_identity_spin.setValue(90)
         self.min_identity_spin.setSuffix("%")
         self.min_identity_spin.setToolTip(
-            self.tr("Minimum identity in the overlap region (50-100%)")
+            "Minimum identity in the overlap region (50-100%)"
         )
         self.min_identity_spin.setMinimumWidth(80)
         params_hbox.addWidget(self.min_identity_spin)
@@ -133,7 +131,7 @@ class SangerTab(QWidget):
         outer.addWidget(grp_params)
 
         # ── 3. Overlap visualisation QGroupBox ────────────────────────
-        grp_overlap = QGroupBox(self.tr("Overlap Alignment"))
+        grp_overlap = QGroupBox("Overlap Alignment")
         grp_overlap.setFlat(True)
         gv = QVBoxLayout(grp_overlap)
         gv.setContentsMargins(0, 16, 0, 4)
@@ -148,7 +146,7 @@ class SangerTab(QWidget):
         outer.addWidget(grp_overlap)
 
         # ── 4. Output QGroupBox ───────────────────────────────────────
-        grp_out = QGroupBox(self.tr("Assembly Result"))
+        grp_out = QGroupBox("Assembly Result")
         grp_out.setFlat(True)
         go = QVBoxLayout(grp_out)
         go.setContentsMargins(6, 16, 6, 4)
@@ -162,17 +160,17 @@ class SangerTab(QWidget):
         _style = self.assembly_result.styleSheet()
         _style = _style.replace("border: 1px solid #94a3b8;", "border: none;")
         self.assembly_result.setStyleSheet(_style)
-        self.assembly_result.setPlaceholderText(self.tr("Assembled sequence will appear here..."))
+        self.assembly_result.setPlaceholderText("Assembled sequence will appear here...")
         self.assembly_result.setMinimumHeight(100)
-        self.assembly_result.setToolTip(self.tr("FASTA-formatted assembled contig"))
+        self.assembly_result.setToolTip("FASTA-formatted assembled contig")
         go.addWidget(self.assembly_result)
 
         export_hbox = QHBoxLayout()
-        self.copy_assembly_btn = QPushButton(self.tr("Copy to Clipboard"))
+        self.copy_assembly_btn = QPushButton("Copy to Clipboard")
         self.copy_assembly_btn.clicked.connect(self.copy_assembled_to_clipboard)
         export_hbox.addWidget(self.copy_assembly_btn)
 
-        self.save_assembly_btn = QPushButton(self.tr("Save to File"))
+        self.save_assembly_btn = QPushButton("Save to File")
         self.save_assembly_btn.clicked.connect(self.save_assembly_result)
         export_hbox.addWidget(self.save_assembly_btn)
         export_hbox.addStretch()
@@ -181,23 +179,23 @@ class SangerTab(QWidget):
 
         # ── Status row: Run / Clear / Example / Help ──────────────────
         self.status_layout = QHBoxLayout()
-        self.status_label = QLabel(self.tr("Ready"))
+        self.status_label = QLabel("Ready")
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
 
-        self.run_btn = QPushButton(self.tr("Run"))
+        self.run_btn = QPushButton("Run")
         self.run_btn.clicked.connect(self.run_assembly)
         self.status_layout.addWidget(self.run_btn)
 
-        self.clear_btn = QPushButton(self.tr("Clear"))
+        self.clear_btn = QPushButton("Clear")
         self.clear_btn.clicked.connect(self._clear_all)
         self.status_layout.addWidget(self.clear_btn)
 
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
         self.status_layout.addWidget(self.example_btn)
 
-        self.help_btn = QPushButton(self.tr("Help"))
+        self.help_btn = QPushButton("Help")
         self.help_btn.clicked.connect(self.show_help)
         self.status_layout.addWidget(self.help_btn)
 
@@ -212,29 +210,29 @@ class SangerTab(QWidget):
         rev_path = self.rev_edit.text().strip()
         if not fwd_path or not rev_path:
             self.status_label.setText(
-                self.tr("Error: Select both forward and reverse sequence files")
+                "Error: Select both forward and reverse sequence files"
             )
             QMessageBox.warning(
                 self,
-                self.tr("Input Error"),
-                self.tr("Select both forward and reverse sequence files"),
+                "Input Error",
+                "Select both forward and reverse sequence files",
             )
             return
         try:
             fwd = self._sequence_from_input(self._load_input_file(fwd_path))
             rev = self._sequence_from_input(self._load_input_file(rev_path))
         except OSError as exc:
-            self.status_label.setText(self.tr("Error: Cannot read input file"))
-            QMessageBox.warning(self, self.tr("Input Error"), str(exc))
+            self.status_label.setText("Error: Cannot read input file")
+            QMessageBox.warning(self, "Input Error", str(exc))
             return
         if not fwd or not rev:
-            self.status_label.setText(self.tr("Error: No sequence found in the input files"))
+            self.status_label.setText("Error: No sequence found in the input files")
             QMessageBox.warning(
-                self, self.tr("Input Error"), self.tr("No sequence found in the input files")
+                self, "Input Error", "No sequence found in the input files"
             )
             return
 
-        self.status_label.setText(self.tr("Running assembly..."))
+        self.status_label.setText("Running assembly...")
         rev_rc = self.reverse_complement(rev)
         min_overlap = self.min_overlap_spin.value()
         min_identity = self.min_identity_spin.value() / 100.0
@@ -253,23 +251,21 @@ class SangerTab(QWidget):
 
         if overlap < min_overlap or identity < min_identity:
             self.status_label.setText(
-                self.tr(f"No clear overlap ({overlap}bp, {identity:.0%})")
+                f"No clear overlap ({overlap}bp, {identity:.0%})"
             )
             QMessageBox.warning(
                 self,
-                self.tr("Assembly Warning"),
-                self.tr(
-                    f"No clear overlap detected (overlap={overlap}, identity={identity:.2f}); "
-                    f"concatenating ends directly"
-                ),
+                "Assembly Warning",
+                f"No clear overlap detected (overlap={overlap}, identity={identity:.2f}); "
+                    f"concatenating ends directly",
             )
         else:
             self.status_label.setText(
-                self.tr(f"Assembled: {overlap}bp, {identity:.1%} identity")
+                f"Assembled: {overlap}bp, {identity:.1%} identity"
             )
             QMessageBox.information(
                 self,
-                self.tr("Assembly Complete"),
+                "Assembly Complete",
                 f"<h3>Assembly Successful!</h3>"
                 f"<p><b>Overlap:</b> {overlap} bp  |  "
                 f"<b>Identity:</b> {identity:.1%} ({int(identity * overlap)}/{overlap} matches)</p>"
@@ -304,9 +300,9 @@ class SangerTab(QWidget):
     def _browse_input_file(self, edit: FileDropLineEdit) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            self.tr("Open FASTA File"),
+            "Open FASTA File",
             "",
-            self.tr("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
+            "FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)",
         )
         if path:
             edit.setText(os.path.normpath(path))
@@ -487,16 +483,16 @@ class SangerTab(QWidget):
         if not text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         records = text.strip().split("\n>")
         if len(records) < 2:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         fwd = records[0].strip()
@@ -516,13 +512,13 @@ class SangerTab(QWidget):
         except OSError:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.fwd_edit.setText(fwd_path)
         self.rev_edit.setText(rev_path)
-        self.status_label.setText(self.tr("Loaded example data: sanger_assembly_example.fasta"))
+        self.status_label.setText("Loaded example data: sanger_assembly_example.fasta")
 
     def _clear_all(self):
         self.fwd_edit.clear()
@@ -534,7 +530,7 @@ class SangerTab(QWidget):
         self._last_identity = 0.0
         self._overlap_fig.clear()
         self._overlap_canvas.draw_idle()
-        self.status_label.setText(self.tr("Ready"))
+        self.status_label.setText("Ready")
 
     @staticmethod
     def reverse_complement(seq):
@@ -567,39 +563,38 @@ class SangerTab(QWidget):
     def save_assembly_result(self):
         seq = self.assembly_result.toPlainText().strip()
         if not seq:
-            self.status_label.setText(self.tr("Error: No assembly result to save"))
-            QMessageBox.warning(self, self.tr("No Assembly Result"), self.tr("Run assembly first"))
+            self.status_label.setText("Error: No assembly result to save")
+            QMessageBox.warning(self, "No Assembly Result", "Run assembly first")
             return
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            self.tr("Save assembled sequence"),
+            "Save assembled sequence",
             "assembled_seq.fasta",
-            self.tr("FASTA Files (*.fasta);;Text Files (*.txt)"),
+            "FASTA Files (*.fasta);;Text Files (*.txt)",
         )
         if file_path:
             with open(file_path, "w") as f:
                 f.write(seq)
-            self.status_label.setText(self.tr(f"Saved: {os.path.basename(file_path)}"))
+            self.status_label.setText(f"Saved: {os.path.basename(file_path)}")
             QMessageBox.information(
-                self, self.tr("Save Successful"), self.tr(f"Saved to: {file_path}")
+                self, "Save Successful", f"Saved to: {file_path}"
             )
 
     def copy_assembled_to_clipboard(self):
         seq = self.assembly_result.toPlainText().strip()
         if not seq:
-            self.status_label.setText(self.tr("Error: No assembly result to copy"))
-            QMessageBox.warning(self, self.tr("No Assembly Result"), self.tr("Run assembly first"))
+            self.status_label.setText("Error: No assembly result to copy")
+            QMessageBox.warning(self, "No Assembly Result", "Run assembly first")
             return
         from PyQt6.QtWidgets import QApplication
 
         QApplication.clipboard().setText(seq)
-        self.status_label.setText(self.tr("Copied to clipboard"))
+        self.status_label.setText("Copied to clipboard")
 
     # ── Help ───────────────────────────────────────────────────────────
 
     def show_help(self):
-        help_text = self.tr(
-            "<h2>Sanger Sequence Assembly &mdash; Pairwise Read Merging</h2>"
+        help_text = ("<h2>Sanger Sequence Assembly &mdash; Pairwise Read Merging</h2>"
             "<p><b>What does this tool do?</b><br>"
             "It assembles forward and reverse Sanger sequencing reads into a single "
             "merged contig by detecting the overlapping region between them. "
@@ -649,7 +644,7 @@ class SangerTab(QWidget):
         )
 
         dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("Help - Sanger Sequence Assembly"))
+        dlg.setWindowTitle("Help - Sanger Sequence Assembly")
         dlg.resize(600, 480)
         dlg.setMinimumSize(400, 300)
         layout = QVBoxLayout()

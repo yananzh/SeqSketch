@@ -156,8 +156,7 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         self.input_btn = QPushButton("Browse")
         self.input_btn.setFixedWidth(90)
         self.example_btn = QPushButton("Example")
-        self.example_btn.setFixedWidth(90)
-        self.example_btn.setToolTip(self.tr("Load example alignment file"))
+        self.example_btn.setToolTip("Load example alignment file")
         self.example_btn.clicked.connect(self._load_example)
         input_row.addWidget(self.input_edit)
         input_row.addWidget(self.example_btn)
@@ -213,8 +212,8 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         # ── Buttons: Run / Clear / Result Folder in status_layout ──
         self.run_btn = QPushButton("Run")
         self.clear_btn = QPushButton("Clear")
-        self.run_btn.setFixedWidth(75)
         self.clear_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.run_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.clear_btn)
         self.add_open_output_dir_button()
@@ -223,17 +222,17 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         self.status_layout.insertWidget(
             self.status_layout.indexOf(self.clear_btn), self.open_output_btn
         )
-        self.help_btn.setFixedWidth(75)
 
+        self.help_btn.setFixedWidth(75)
         self.content_area.addStretch()
 
     def _load_example(self):
         staged = stage_example("protein", "aligned_pro_example.fasta")
         if not staged:
-            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            QMessageBox.information(self, "Example", "Example data not found.")
             return
         self.handle_input_file_selected(staged)
-        self.show_status(self.tr("Example loaded"))
+        self.show_status("Example loaded")
 
     def connect_signals(self):
         self.input_btn.clicked.connect(self.select_input_file)
@@ -397,7 +396,7 @@ Click <b>Browse</b> next to the output field to choose a different location.</p>
         browser.setHtml(html)
         browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
-        btn = QPushButton(self.tr("Close"))
+        btn = QPushButton("Close")
         btn.clicked.connect(dlg.accept)
         layout.addWidget(btn)
         dlg.exec()

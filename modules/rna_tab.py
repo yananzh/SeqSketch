@@ -27,7 +27,7 @@ class RNATab(BaseTabWidget):
         self.input_hint.hide()
 
         # Place Example button horizontally with upload_btn
-        self.example_btn = QPushButton(self.tr("Example"))
+        self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
@@ -42,12 +42,12 @@ class RNATab(BaseTabWidget):
         if not text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. Please check your installation."),
+                "Example",
+                "Failed to load example data. Please check your installation.",
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status(self.tr("Loaded example data: hbb_exon1.fasta"))
+        self.show_status("Loaded example data: hbb_exon1.fasta")
 
     def run(self):
         seq = self.input_text.toPlainText().strip()

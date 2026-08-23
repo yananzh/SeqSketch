@@ -338,13 +338,12 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
         # --- Example button in the status bar (before Help) -------------
         self.example_btn = QPushButton("Example")
-        self.example_btn.setFixedWidth(80)
-        self.example_btn.setToolTip(self.tr("Load example sequences for pairwise alignment"))
+        self.example_btn.setToolTip("Load example sequences for pairwise alignment")
         self.example_btn.clicked.connect(self._load_example)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self.example_btn)
 
         # --- Result Folder button (before Clear; enabled after export) --
-        self.open_folder_btn = QPushButton(self.tr("Result Folder"))
+        self.open_folder_btn = QPushButton("Result Folder")
         self.open_folder_btn.setFixedWidth(110)
         self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
@@ -355,10 +354,10 @@ class PairwiseAlignmentTab(BaseTabWidget):
             self.status_layout.indexOf(self.clear_btn), self.open_folder_btn
         )
         self._last_export_dir = ""
-        self.help_btn.setFixedWidth(75)
-        self.run_btn.setFixedWidth(75)
-        self.clear_btn.setFixedWidth(75)
 
+        self.clear_btn.setFixedWidth(75)
+        self.run_btn.setFixedWidth(75)
+        self.help_btn.setFixedWidth(75)
     # ------------------------------------------------------------ drag & drop
 
     def _setup_drag_drop(self):
@@ -382,7 +381,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
                     with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
                     widget.setPlainText(content)
-                    self.show_status(self.tr(f"{label}: loaded {os.path.basename(file_path)}"))
+                    self.show_status(f"{label}: loaded {os.path.basename(file_path)}")
                     e.acceptProposedAction()
                 except Exception as ex:
                     QMessageBox.warning(self, "File Read Error", str(ex))
@@ -396,14 +395,14 @@ class PairwiseAlignmentTab(BaseTabWidget):
     def _load_example(self):
         text = load_example_text("protein", "pairwise_pro.fasta")
         if not text:
-            QMessageBox.information(self, self.tr("Example"), self.tr("Example data not found."))
+            QMessageBox.information(self, "Example", "Example data not found.")
             return
         # Parse two FASTA records from the example text
         records = _parse_fasta_text(text)
         if len(records) >= 2:
             self.input_text.setPlainText(f">{records[0][0]}\n{records[0][1]}")
             self.seq2_text.setPlainText(f">{records[1][0]}\n{records[1][1]}")
-        self.show_status(self.tr("Example loaded"))
+        self.show_status("Example loaded")
 
     # ------------------------------------------------------------- file open
 
@@ -420,7 +419,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 self.input_text.setPlainText(content)
-                self.show_status(self.tr(f"Loaded: {os.path.basename(file_path)}"))
+                self.show_status(f"Loaded: {os.path.basename(file_path)}")
             except Exception as e:
                 QMessageBox.warning(self, "File Read Error", str(e))
 
@@ -843,7 +842,7 @@ equivalent to the classic EMBOSS Needle and Water algorithms.</p>
         browser.setHtml(help_text)
         browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
-        btn = QPushButton(self.tr("Close"))
+        btn = QPushButton("Close")
         btn.clicked.connect(dlg.accept)
         layout.addWidget(btn)
         dlg.exec()
