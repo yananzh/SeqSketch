@@ -30,6 +30,34 @@ def bundled_tool_path(*parts: str) -> str:
     return split if os.path.exists(split) else flat
 
 
+def find_bundled_tool(dir_prefix: str, *parts: str) -> str:
+    """Locate a bundled tool whose directory name starts with *dir_prefix*.
+
+    Version-numbered tool folders (e.g. ``iqtree-3.1.3-Windows``) change
+    with every upgrade; matching by prefix keeps the code working without
+    edits.  Both the flat (softwares/<tool>) and platform-split
+    (softwares/windows/<tool>) layouts are scanned, preferring the split one.
+    Returns the last candidate path even if it does not exist yet, so callers
+    can produce a useful error message.
+    """
+    candidates = []
+    for base in (
+        resource_path("softwares"),
+        resource_path("softwares", "windows" if sys.platform.startswith("win") else "Mac"),
+    ):
+        if not os.path.isdir(base):
+            continue
+        for name in sorted(os.listdir(base)):
+            if name.startswith(dir_prefix):
+                candidates.append(os.path.join(base, name, *parts))
+    if candidates:
+        return candidates[-1]
+    # No match: return the split-layout path with the prefix as directory
+    # name so the caller's "not found" error names a plausible location.
+    plat = "windows" if sys.platform.startswith("win") else "Mac"
+    return resource_path("softwares", plat, dir_prefix.rstrip("-") + "-", *parts)
+
+
 def portable_root() -> str:
     """Writable-data root.  Frozen → exe directory; dev → project root."""
     if getattr(sys, "frozen", False):

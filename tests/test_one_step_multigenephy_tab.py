@@ -163,7 +163,7 @@ def test_start_run_parses_sheet_builds_runner_and_starts_worker(qapp, monkeypatc
         observed["parse_args"] = (path, sheet_name, strain_column, list(gene_columns))
         return parsed
 
-    def fake_build_default_tool_adapters(commands=None):
+    def fake_build_default_tool_adapters(commands=None, log_dir=""):
         observed["adapters_built"] = True
         return adapters
 

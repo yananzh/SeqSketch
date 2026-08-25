@@ -780,7 +780,7 @@ and one or more <b>gene columns</b>.</p>
         )
         commands: list[str] = []
         runner = OneStepMultiGenePhyRunner(
-            adapters=build_default_tool_adapters(commands=commands),
+            adapters=build_default_tool_adapters(commands=commands, log_dir=output_dir),
             commands=commands,
         )
         worker = WorkflowWorker(

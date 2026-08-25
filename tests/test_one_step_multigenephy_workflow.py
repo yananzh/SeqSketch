@@ -421,7 +421,8 @@ def test_runner_marks_summarize_failed_when_summary_write_raises(tmp_path, monke
     )
 
     def fail_summary_write(
-        path, step_status, warnings, artifacts, commands, gene_stats, concat_info, gene_models
+        path, step_status, warnings, artifacts, commands, gene_stats, concat_info, gene_models,
+        tool_versions=None,
     ):
         raise OSError("summary disk full")
 
@@ -586,12 +587,15 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
         ("mafft-win_v7.526", "mafft.bat"): str(mafft_exe),
         ("mafft-win_v7.526", "mafft-signed.ps1"): str(tmp_path / "missing-mafft.ps1"),
         ("trimAl_Windows_v1.5.1", "trimal.exe"): str(trimal_exe),
-        ("iqtree-3.0.1-Windows", "bin", "iqtree3.exe"): str(iqtree_exe),
+        ("iqtree-", "bin", "iqtree3.exe"): str(iqtree_exe),
     }
     calls = []
 
     def fake_bundled_tool_path(*parts):
         return tool_paths[parts]
+
+    def fake_find_bundled_tool(dir_prefix, *parts):
+        return tool_paths[(dir_prefix, *parts)]
 
     def make_fake_popen():
         class _FakeStream:
@@ -636,9 +640,17 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
 
     monkeypatch.setattr(workflow_module, "tool_path_from_config", lambda section, key: None)
     monkeypatch.setattr(workflow_module, "bundled_tool_path", fake_bundled_tool_path)
+    monkeypatch.setattr(workflow_module, "find_bundled_tool", fake_find_bundled_tool)
     monkeypatch.setattr(workflow_module.subprocess, "Popen", make_fake_popen())
+    # Version probing must not hit the real executables in tests
+    monkeypatch.setattr(
+        workflow_module.subprocess,
+        "run",
+        lambda cmd, **kwargs: type("R", (), {"stdout": "", "stderr": ""})(),
+    )
 
-    adapters = build_default_tool_adapters()
+    log_dir = str(tmp_path / "run_logs")
+    adapters = build_default_tool_adapters(log_dir=log_dir)
 
     aligned_sequences, aligned_path = adapters.run_alignment(
         "ITS",
@@ -675,6 +687,15 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
     assert calls[2]["cmd"][0] == str(iqtree_exe)
     assert calls[2]["cmd"][calls[2]["cmd"].index("-T") + 1] == "AUTO"
     assert calls[2]["cmd"][calls[2]["cmd"].index("-B") + 1] == "1000"
+
+    # Reproducibility: one run_log entry per external command
+    run_log = Path(log_dir) / "run_log.txt"
+    assert run_log.is_file()
+    content = run_log.read_text(encoding="utf-8")
+    assert content.count("Tool: MAFFT") == 1
+    assert content.count("Tool: trimAl") == 1
+    assert content.count("Tool: IQ-TREE") == 1
+    assert "Command:" in content
 
 
 def test_runner_concatenates_in_project_gene_column_order(tmp_path):

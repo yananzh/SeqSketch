@@ -48,6 +48,7 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import stage_example
+from utils.run_provenance import record_tool_run
 
 
 # ── bundled trimAl path ────────────────────────────────────────────────────
@@ -294,6 +295,13 @@ class _BatchTrimThread(QThread):
                 output_exists = os.path.isfile(out_path)
                 if self._proc.returncode == 0 and output_exists:
                     succeeded += 1
+                    record_tool_run(
+                        os.path.dirname(out_path),
+                        tool="trimAl",
+                        exe=cmd[0] if cmd else "",
+                        cmd=cmd,
+                        output_path=out_path,
+                    )
                     self.file_done.emit(True, out_path, log)
                 else:
                     failed += 1

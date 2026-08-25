@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.app_paths import bundled_tool_path, resource_path, tool_path_from_config
+from utils.app_paths import find_bundled_tool, resource_path, tool_path_from_config
 from utils.common_components import (
     BaseTabWidget,
     FileDropLineEdit,
@@ -34,6 +34,7 @@ from utils.common_components import (
 )
 from utils.example_data import stage_example
 from utils.process_control import kill_process_tree
+from utils.run_provenance import record_tool_run
 
 
 def _resolve_iqtree_exe() -> str:
@@ -43,7 +44,9 @@ def _resolve_iqtree_exe() -> str:
         exe = os.path.join(configured, "iqtree3.exe")
         if os.path.isfile(exe):
             return exe
-    return bundled_tool_path("iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
+    # Version-numbered folder (iqtree-3.x-Windows) — match by prefix so
+    # upgrades don't break the resolution.
+    return find_bundled_tool("iqtree-", "bin", "iqtree3.exe")
 
 
 def _detect_alignment_format(path: str) -> str:
@@ -114,6 +117,13 @@ class _IqTreeThread(QThread):
                         prefix = self.cmd[i + 1]
                         break
                 treefile = prefix + ".treefile" if prefix else ""
+                record_tool_run(
+                    os.path.dirname(prefix) if prefix else "",
+                    tool="IQ-TREE",
+                    exe=self.cmd[0] if self.cmd else "",
+                    cmd=self.cmd,
+                    output_path=treefile,
+                )
                 self.finished.emit(True, treefile, output)
             else:
                 self.finished.emit(False, "", output)

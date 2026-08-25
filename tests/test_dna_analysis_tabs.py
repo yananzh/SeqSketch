@@ -731,6 +731,7 @@ def test_mafft_worker_emits_aligned_fasta_with_auto_strategy(monkeypatch, tmp_pa
         threads=4,
         mafft_exe=str(mafft_exe),
         output_format="FASTA",
+        output_path=str(tmp_path / "aligned.fasta"),
     )
     commands = []
     results = []
@@ -750,7 +751,12 @@ def test_mafft_worker_emits_aligned_fasta_with_auto_strategy(monkeypatch, tmp_pa
         def wait(self, timeout=None):
             return self.returncode
 
+    def fake_run(cmd, **kwargs):
+        # Version probe — no real subprocess in tests
+        return type("R", (), {"stdout": "", "stderr": ""})()
+
     monkeypatch.setattr("modules.mafft_alignment_tab.subprocess.Popen", _FakePopen)
+    monkeypatch.setattr("modules.mafft_alignment_tab.subprocess.run", fake_run)
     worker.finished.connect(results.append)
 
     worker.run()
@@ -761,6 +767,16 @@ def test_mafft_worker_emits_aligned_fasta_with_auto_strategy(monkeypatch, tmp_pa
     assert "--thread" in commands[0]
     assert "--clustalout" not in commands[0]
     assert results == [">seq1\nATG-C\n>seq2\nATGTC\n"]
+
+    # Reproducibility: run_log.txt lands next to the requested output
+    from utils.run_provenance import RUN_LOG_FILENAME
+
+    log_path = tmp_path / RUN_LOG_FILENAME
+    assert log_path.is_file()
+    content = log_path.read_text(encoding="utf-8")
+    assert "Tool: MAFFT" in content
+    assert "Command:" in content
+
 
 
 def test_mafft_single_file_tab_hides_output_panel_and_uses_mode_subtabs(qapp):

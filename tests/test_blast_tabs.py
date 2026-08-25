@@ -404,6 +404,11 @@ def _run_dialog_with_fake_blast(monkeypatch, tmp_path, outfmt, blast_output):
     monkeypatch.setattr(
         "modules.blast_run_dialog.subprocess.Popen", _FakePopen
     )
+    # Version probing must not hit the real BLAST binaries in tests
+    monkeypatch.setattr(
+        "modules.blast_run_dialog.subprocess.run",
+        lambda cmd, **kwargs: type("R", (), {"stdout": "", "stderr": ""})(),
+    )
 
     thread = _RunBlastThread(
         bin_dir=str(tmp_path),
@@ -432,6 +437,16 @@ def test_blast_run_dialog_tsv_outfmt_writes_header(monkeypatch, tmp_path):
     content = open(out_file, encoding="utf-8").read()
     assert content.startswith("qseqid\tsseqid\tpident")
     assert content.endswith("hit1\thit2\n")
+
+    # Reproducibility: run_log.txt sits next to the BLAST output
+    from utils.run_provenance import RUN_LOG_FILENAME
+
+    run_log = tmp_path / RUN_LOG_FILENAME
+    assert run_log.is_file()
+    log_content = run_log.read_text(encoding="utf-8")
+    assert "Tool: BLAST" in log_content
+    assert "Command:" in log_content
+    assert "Version:" in log_content
 
 
 def test_blast_run_dialog_pairwise_and_xml_outfmt_have_no_header(monkeypatch, tmp_path):

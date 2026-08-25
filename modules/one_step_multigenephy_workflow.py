@@ -21,8 +21,14 @@ from modules.one_step_multigenephy_io import (
     write_run_manifest,
 )
 from modules.one_step_multigenephy_models import RunArtifacts, WorkflowRunResult
-from utils.app_paths import bundled_tool_path, resource_path, tool_path_from_config
+from utils.app_paths import (
+    bundled_tool_path,
+    find_bundled_tool,
+    resource_path,
+    tool_path_from_config,
+)
 from utils.process_control import kill_process_tree
+from utils.run_provenance import probe_tool_version, record_tool_run
 
 
 def _creation_flags() -> int:
@@ -87,7 +93,9 @@ def _iqtree_executable() -> str:
         exe = os.path.join(configured, "iqtree3.exe")
         if os.path.isfile(exe):
             return exe
-    return bundled_tool_path("iqtree-3.0.1-Windows", "bin", "iqtree3.exe")
+    # Version-numbered folder (iqtree-3.x-Windows) — match by prefix so
+    # upgrades don't break the resolution.
+    return find_bundled_tool("iqtree-", "bin", "iqtree3.exe")
 
 
 def _ensure_executable(path: str, tool_name: str) -> None:
@@ -95,21 +103,45 @@ def _ensure_executable(path: str, tool_name: str) -> None:
         raise FileNotFoundError(f"{tool_name} executable not found: {path}")
 
 
+def _tool_display_name(exe: str) -> str:
+    """Map an executable path to the display name used in run logs."""
+    base = os.path.basename(exe).lower()
+    display_names = {
+        "mafft": "MAFFT",
+        "trimal": "trimAl",
+        "iqtree": "IQ-TREE",
+        "muscle": "MUSCLE",
+        "blastn": "BLAST",
+        "makeblastdb": "makeblastdb",
+    }
+    for prefix, name in display_names.items():
+        if base.startswith(prefix):
+            return name
+    return base
+
+
 def _run_command(
     cmd: list[str],
     cwd: str | None = None,
     is_aborted: Callable[[], bool] | None = None,
+    log_dir: str = "",
+    output_path: str = "",
 ) -> subprocess.CompletedProcess:
     """Run an external tool, interruptible via *is_aborted* polling.
 
     On abort the whole process tree is killed (launchers like mafft.bat spawn
     cmd.exe whose children would otherwise survive as orphans) and
     RuntimeError("Workflow cancelled by user") propagates to the runner.
+
+    When *log_dir* is given, a reproducibility entry (tool + version + full
+    argv + timestamp) is appended to ``log_dir/run_log.txt`` on success.
     """
     if is_aborted is None:
 
         def is_aborted():
             return False
+
+    tool_name = _tool_display_name(cmd[0]) if cmd else ""
 
     proc = subprocess.Popen(
         cmd,
@@ -162,6 +194,14 @@ def _run_command(
     if result.returncode != 0:
         details = (result.stderr or result.stdout or "").strip()
         raise RuntimeError(details or f"Command failed with exit code {result.returncode}")
+    if log_dir and tool_name:
+        record_tool_run(
+            log_dir,
+            tool=tool_name,
+            exe=cmd[0] if cmd else "",
+            cmd=cmd,
+            output_path=output_path,
+        )
     return result
 
 
@@ -174,6 +214,7 @@ def _write_sequences_file(path: Path, sequences: dict[str, str]) -> None:
 
 def build_default_tool_adapters(
     commands: list[str] | None = None,
+    log_dir: str = "",
 ) -> ToolAdapters:
     if commands is None:
         commands = []
@@ -242,7 +283,9 @@ def build_default_tool_adapters(
         cmd.extend(["--thread", "1", str(input_path)])
 
         _track(cmd)
-        result = _run_command(cmd, is_aborted=_is_aborted)
+        result = _run_command(
+            cmd, is_aborted=_is_aborted, log_dir=log_dir, output_path=str(output_path)
+        )
         aligned_text = (result.stdout or "").strip()
         if not aligned_text:
             raise RuntimeError("MAFFT produced no alignment output")
@@ -281,7 +324,9 @@ def build_default_tool_adapters(
                 cmd.append(f"-{normalized_mode}")
 
         _track(cmd)
-        _run_command(cmd, is_aborted=_is_aborted)
+        _run_command(
+            cmd, is_aborted=_is_aborted, log_dir=log_dir, output_path=str(output_path)
+        )
 
         if not output_path.is_file():
             raise RuntimeError("trimAl did not produce an output FASTA")
@@ -324,7 +369,13 @@ def build_default_tool_adapters(
                 cmd.extend(["-B", str(bootstrap)])
 
         _track(cmd)
-        _run_command(cmd, cwd=str(stage_dir), is_aborted=_is_aborted)
+        _run_command(
+            cmd,
+            cwd=str(stage_dir),
+            is_aborted=_is_aborted,
+            log_dir=log_dir,
+            output_path=f"{prefix}.treefile",
+        )
 
         treefile_path = Path(f"{prefix}.treefile")
         if not treefile_path.is_file():
@@ -389,11 +440,15 @@ def _build_manifest_payload(
     warnings: list[str],
     artifacts: RunArtifacts,
     input_fingerprint: str = "",
+    commands: list[str] | None = None,
+    tool_versions: dict[str, str] | None = None,
 ) -> dict:
     return {
         "steps": step_status,
         "warnings": warnings,
         "input_fingerprint": input_fingerprint,
+        "commands": [subprocess.list2cmdline(c.split()) for c in (commands or [])],
+        "tool_versions": tool_versions or {},
         "artifacts": {
             "normalized": artifacts.normalized_files,
             "aligned": artifacts.aligned_files,
@@ -499,6 +554,7 @@ def _write_html_report(
     gene_stats: dict[str, dict] | None = None,
     concat_info: list | None = None,
     gene_models: dict[str, str] | None = None,
+    tool_versions: dict[str, str] | None = None,
 ) -> None:
     if gene_stats is None:
         gene_stats = {}
@@ -506,6 +562,8 @@ def _write_html_report(
         concat_info = []
     if gene_models is None:
         gene_models = {}
+    if tool_versions is None:
+        tool_versions = {}
     status_color = {
         "succeeded": "#2e7d32",
         "warning": "#e65100",
@@ -564,14 +622,15 @@ def _write_html_report(
         items = "".join(f"<li><code>{c}</code></li>" for c in cmds)
         return f"<h3>{title} <small>({version})</small></h3><ul>{items}</ul>"
 
-    # Extract version hints from executable paths
+    # Extract version hints from executable paths (used only when the
+    # probed version is unavailable)
     def _version_hint(cmds: list[str], exe_name: str) -> str:
         for c in cmds:
             parts = c.split()
             if parts:
                 exe = parts[0].replace("\\", "/")
                 if exe_name in exe.lower():
-                    # e.g. softwares/iqtree-3.0.1-Windows/bin/iqtree3.exe
+                    # e.g. softwares/iqtree-3.1.3-Windows/bin/iqtree3.exe
                     import re
 
                     m = re.search(r"([\w.-]+-\d[\d.]*)", exe)
@@ -580,10 +639,16 @@ def _write_html_report(
                     return exe
         return exe_name
 
+    def _section_version(title: str, cmds: list[str]) -> str:
+        probed = tool_versions.get(title)
+        if probed and probed != "unknown":
+            return probed
+        return _version_hint(cmds, title.lower())
+
     commands_html = ""
-    commands_html += _tool_section("MAFFT", _version_hint(mafft_cmds, "mafft"), mafft_cmds)
-    commands_html += _tool_section("trimAl", _version_hint(trimal_cmds, "trimal"), trimal_cmds)
-    commands_html += _tool_section("IQ-TREE", _version_hint(iqtree_cmds, "iqtree"), iqtree_cmds)
+    commands_html += _tool_section("MAFFT", _section_version("MAFFT", mafft_cmds), mafft_cmds)
+    commands_html += _tool_section("trimAl", _section_version("trimAl", trimal_cmds), trimal_cmds)
+    commands_html += _tool_section("IQ-TREE", _section_version("IQ-TREE", iqtree_cmds), iqtree_cmds)
     if other_cmds:
         commands_html += _tool_section("Other", "", other_cmds)
 
@@ -663,6 +728,8 @@ class OneStepMultiGenePhyRunner:
         self.log_lines: list[str] = []
         self.concat_info: list[tuple[str, int, int]] = []
         self.gene_models: dict[str, str] = {}
+        # Probed lazily on the first run; used by the manifest and HTML report.
+        self.tool_versions: dict[str, str] = {}
 
     def run(
         self,
@@ -694,6 +761,14 @@ class OneStepMultiGenePhyRunner:
         set_abort = getattr(self.adapters, "set_abort", None)
         if callable(set_abort):
             set_abort(is_aborted)
+
+        # Probe engine versions once per run (cached inside run_provenance).
+        if not self.tool_versions:
+            self.tool_versions = {
+                "MAFFT": probe_tool_version(_mafft_executable()),
+                "trimAl": probe_tool_version(_trimal_executable()),
+                "IQ-TREE": probe_tool_version(_iqtree_executable()),
+            }
 
         def _check_abort() -> None:
             if is_aborted():
@@ -772,7 +847,12 @@ class OneStepMultiGenePhyRunner:
                 write_run_manifest(
                     artifacts.manifest_path,
                     _build_manifest_payload(
-                        persisted_step_status, warnings, artifacts, input_fingerprint
+                        persisted_step_status,
+                        warnings,
+                        artifacts,
+                        input_fingerprint,
+                        commands=self.commands,
+                        tool_versions=self.tool_versions,
                     ),
                 )
                 manifest_written = True
@@ -799,6 +879,7 @@ class OneStepMultiGenePhyRunner:
                     dict(gene_stats),
                     list(self.concat_info),
                     dict(self.gene_models),
+                    tool_versions=self.tool_versions,
                 )
             except Exception as exc:
                 handle_persistence_error(exc)
@@ -808,7 +889,12 @@ class OneStepMultiGenePhyRunner:
                     write_run_manifest(
                         artifacts.manifest_path,
                         _build_manifest_payload(
-                            step_status, warnings, artifacts, input_fingerprint
+                            step_status,
+                            warnings,
+                            artifacts,
+                            input_fingerprint,
+                            commands=self.commands,
+                            tool_versions=self.tool_versions,
                         ),
                     )
                 except OSError:

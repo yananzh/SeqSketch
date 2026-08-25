@@ -18,6 +18,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from utils.run_provenance import record_tool_run
+
 from .blast_config import get_blast_bin_dir, set_blast_bin_dir
 
 
@@ -69,6 +71,13 @@ class _MakeDbThread(QThread):
             if self._cancelled:
                 self.finished.emit(False, "Cancelled by user.")
             elif self._proc.returncode == 0:
+                record_tool_run(
+                    os.path.dirname(self.outpath),
+                    tool="makeblastdb",
+                    exe=exe,
+                    cmd=cmd,
+                    output_path=os.path.abspath(self.outpath),
+                )
                 self.finished.emit(True, stdout.strip())
             else:
                 self.finished.emit(False, (stderr or stdout).strip())

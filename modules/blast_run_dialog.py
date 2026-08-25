@@ -18,6 +18,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from utils.run_provenance import record_tool_run
+
 from .blast_config import get_blast_bin_dir, set_blast_bin_dir
 
 # outfmt 6 column names (header written to TSV)
@@ -119,6 +121,13 @@ class _RunBlastThread(QThread):
                     if os.path.exists(tmp_out):
                         with open(tmp_out, "r", encoding="utf-8") as fin:
                             fout.write(fin.read())
+                record_tool_run(
+                    os.path.dirname(self.out_file),
+                    tool="BLAST",
+                    exe=exe,
+                    cmd=cmd,
+                    output_path=self.out_file,
+                )
                 self.finished.emit(True, self.out_file, "")
             else:
                 self.finished.emit(False, "", (stderr or stdout).strip())

@@ -39,6 +39,7 @@ from utils.common_components import (
 )
 from utils.example_data import load_example_text, stage_example
 from utils.process_control import kill_process_tree
+from utils.run_provenance import record_tool_run
 
 
 def _default_mafft_exe() -> str:
@@ -197,6 +198,7 @@ class _MafftWorker(BaseWorker):
         threads: int,
         mafft_exe: str,
         output_format: str,
+        output_path: str = "",
     ):
         super().__init__()
         self.fasta_text = fasta_text
@@ -204,6 +206,7 @@ class _MafftWorker(BaseWorker):
         self.threads = threads
         self.mafft_exe = mafft_exe
         self.output_format = output_format
+        self.output_path = output_path
         self._proc: subprocess.Popen | None = None
 
     def stop(self):
@@ -273,6 +276,13 @@ class _MafftWorker(BaseWorker):
                 self.emit_error("MAFFT produced no alignment output.")
                 return
 
+            record_tool_run(
+                os.path.dirname(self.output_path) if self.output_path else "",
+                tool="MAFFT",
+                exe=self.mafft_exe,
+                cmd=cmd,
+                output_path=self.output_path,
+            )
             self.emit_finished(aligned_text + "\n")
         except subprocess.TimeoutExpired:
             self.emit_error("MAFFT timed out (>20 min). Try a faster strategy.")
@@ -365,6 +375,7 @@ class _MafftBatchWorker(QThread):
         total = len(self.input_files)
         ok = 0
         fail_msgs = []
+        first_cmd: list[str] | None = None
 
         for idx, in_path in enumerate(self.input_files, start=1):
             if self._killed:
@@ -395,6 +406,8 @@ class _MafftBatchWorker(QThread):
                     tmp_in,
                     "FASTA",
                 )
+                if first_cmd is None:
+                    first_cmd = cmd
                 self._proc = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
@@ -453,6 +466,15 @@ class _MafftBatchWorker(QThread):
                         os.remove(tmp_in)
                     except OSError:
                         pass
+
+        if first_cmd is not None:
+            record_tool_run(
+                self.output_dir,
+                tool="MAFFT",
+                exe=self.mafft_exe,
+                cmd=first_cmd,
+                note=f"batch run over {total} input file(s)",
+            )
 
         if self._killed:
             self.finished.emit(f"Batch cancelled: {ok}/{total} succeeded before cancel.")
@@ -1072,6 +1094,7 @@ class MafftAlignmentTab(BaseTabWidget):
             threads,
             mafft_exe,
             "FASTA",
+            output_path=output_path,
         )
         self.start_worker(self._worker)
 

@@ -81,6 +81,14 @@ tests/               -> Pytest regression coverage
 - Do not update Qt widgets directly from a worker `run()` method. Emit signals and update UI in the tab class.
 - Small synchronous FASTA Tools operations may run on the main thread, but keep the method structured so it can be moved into a worker later if needed.
 
+## Reproducibility (run_log.txt)
+
+- Every external-tool run (MAFFT, MUSCLE, IQ-TREE, trimAl, BLAST, makeblastdb) must append a provenance block — tool, probed version, full argv (`list2cmdline`), timestamp — to `run_log.txt` in the output directory.
+- Use `utils/run_provenance.py`: `record_tool_run(output_dir, tool, exe, cmd, ...)` in the worker thread after a successful run (never on the GUI thread — version probing spawns a subprocess, cached per exe).
+- Single-file modes record one entry per run into the output file's directory; batch modes record one entry per batch run (with a note listing the input count) into the batch output dir; per-task tools like trimAl record one entry per task.
+- Version probing is best-effort and cached; it never raises and reports "unknown" on failure. Keep data files machine-clean — provenance goes to `run_log.txt`, not into TSV/FASTA outputs.
+- The One Step pipeline records centrally in `_run_command()` and mirrors the same data into `run_manifest.json` (`commands`, `tool_versions`) and the HTML report.
+
 ## FASTA / Bioinformatics Semantics
 
 - Always use `FASTAProcessor` from [modules/fasta_processor.py](modules/fasta_processor.py) for FASTA IO unless there is a strong reason not to.

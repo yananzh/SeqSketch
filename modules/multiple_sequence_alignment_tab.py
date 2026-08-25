@@ -35,6 +35,7 @@ from utils.app_paths import bundled_tool_path, resource_path, tool_path_from_con
 from utils.common_components import BaseTabWidget, apply_input_list_style, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
 from utils.process_control import kill_process_tree
+from utils.run_provenance import record_tool_run
 
 # Per-user config file where the user-selected MUSCLE path is persisted.
 # Mirrors the pattern used by blast_config.py (legacy repo-root config.ini is
@@ -61,12 +62,20 @@ class _MuscleWorker(QThread):
     error = pyqtSignal(str)
     progress = pyqtSignal(str)
 
-    def __init__(self, fasta_text: str, method: str, threads: int, muscle_exe: str):
+    def __init__(
+        self,
+        fasta_text: str,
+        method: str,
+        threads: int,
+        muscle_exe: str,
+        output_path: str = "",
+    ):
         super().__init__()
         self.fasta_text = fasta_text
         self.method = method  # "accurate" | "fast"
         self.threads = threads
         self.muscle_exe = muscle_exe
+        self.output_path = output_path
 
     def run(self):
         tmp_in = tmp_out = None
@@ -108,6 +117,13 @@ class _MuscleWorker(QThread):
             with open(tmp_out, "r", encoding="utf-8") as fout:
                 aligned = fout.read()
 
+            record_tool_run(
+                os.path.dirname(self.output_path) if self.output_path else "",
+                tool="MUSCLE",
+                exe=self.muscle_exe,
+                cmd=cmd,
+                output_path=self.output_path,
+            )
             self.alignment_finished.emit(aligned)
 
         except FileNotFoundError:
@@ -327,6 +343,7 @@ class _MuscleBatchWorker(QThread):
         total = len(self.input_files)
         ok = 0
         fail_msgs = []
+        first_cmd: list[str] | None = None
         flag = "-align" if self.method == "accurate" else "-super5"
 
         for idx, in_path in enumerate(self.input_files, start=1):
@@ -359,6 +376,8 @@ class _MuscleBatchWorker(QThread):
                     "-threads",
                     str(self.threads),
                 ]
+                if first_cmd is None:
+                    first_cmd = cmd
                 self._proc = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
@@ -410,6 +429,15 @@ class _MuscleBatchWorker(QThread):
                             os.remove(p)
                         except OSError:
                             pass
+
+        if first_cmd is not None:
+            record_tool_run(
+                self.output_dir,
+                tool="MUSCLE",
+                exe=self.muscle_exe,
+                cmd=first_cmd,
+                note=f"batch run over {total} input file(s)",
+            )
 
         if self._killed:
             self.batch_finished.emit(f"Batch cancelled: {ok}/{total} succeeded before cancel.")
@@ -1108,7 +1136,9 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.run_btn.setEnabled(False)
         self.status_label.setText(f"Running MUSCLE ({method}) on {len(seqs)} sequences…")
 
-        self._worker = _MuscleWorker(clean_fasta, method, threads, muscle_exe)
+        self._worker = _MuscleWorker(
+            clean_fasta, method, threads, muscle_exe, output_path=output_path
+        )
         self._worker.alignment_finished.connect(self._on_alignment_done)
         self._worker.error.connect(self._on_alignment_error)
         self._worker.progress.connect(lambda msg: self.status_label.setText(msg))
