@@ -671,8 +671,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_example_btn.setToolTip("Load example FASTA files for batch MSA")
         self.batch_example_btn.clicked.connect(self._load_batch_example)
         row_files.addWidget(self.batch_files_edit)
-        row_files.addWidget(self.batch_files_btn)
         row_files.addWidget(self.batch_example_btn)
+        row_files.addWidget(self.batch_files_btn)
         bl.addLayout(row_files)
 
         self.batch_files_list = QListWidget()
@@ -909,12 +909,13 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
                 QMessageBox.warning(self, "File Read Error", str(e))
 
     def _load_example(self):
-        text = load_example_text("protein", "msa_example_pro.fasta")
+        """Load the bundled gyrB protein example for alignment."""
+        text = load_example_text("protein", "gyrB_pro_renamed.fasta")
         if not text:
             QMessageBox.information(self, "Example", "Example data not found.")
             return
         self.input_text.setPlainText(text)
-        self.show_status("Example loaded")
+        self.show_status("Example loaded: gyrB_pro_renamed.fasta")
 
     def _load_batch_example(self):
         """Stage two example FASTA files and add them to the batch file list."""

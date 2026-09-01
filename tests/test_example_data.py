@@ -80,7 +80,8 @@ def test_translate_example_fills_input_text(qapp):
     btn.click()
     text = tab.input_text.toPlainText()
     assert text.startswith(">")
-    assert text.count(">") == 2  # BRCA1 + EGFR CDS records
+    assert text.count(">") == 8  # 8 gyrB CDS records from ncbi_gyrB.fasta
+    assert "AB190226.1" in text
 
 
 def test_physicochemical_example_fills_input_text(qapp):
@@ -94,7 +95,21 @@ def test_physicochemical_example_fills_input_text(qapp):
     btn.click()
     text = tab.input_text.toPlainText()
     assert text.startswith(">")
-    assert "P00370" in text
+    assert text.count(">") == 8  # 8 gyrB records from gyrB_pro_renamed.fasta
+    assert "Bacillus_cereus" in text
+
+
+def test_amino_acid_composition_example_fills_input_text(qapp):
+    from modules.amino_acid_composition_tab import AminoAcidCompositionTab
+
+    tab = AminoAcidCompositionTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "Amino Acid Composition tab has no Example button"
+    btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert text.count(">") == 8  # 8 gyrB records from gyrB_pro_renamed.fasta
+    assert "Bacillus_cereus" in text
 
 
 def test_mafft_example_fills_input_text(qapp):
@@ -105,7 +120,20 @@ def test_mafft_example_fills_input_text(qapp):
     tab.example_btn.click()
     text = tab.input_text.toPlainText()
     assert text.startswith(">")
-    assert text.count(">") == 3
+    assert text.count(">") == 8  # 8 gyrB records from gyrB_pro_renamed.fasta
+    assert "Bacillus_cereus" in text
+
+
+def test_muscle_example_fills_input_text(qapp):
+    from modules.multiple_sequence_alignment_tab import MultipleSequenceAlignmentTab
+
+    tab = MultipleSequenceAlignmentTab()
+    assert hasattr(tab, "example_btn"), "Muscle5 tab has no Example button"
+    tab.example_btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert text.count(">") == 8  # 8 gyrB records from gyrB_pro_renamed.fasta
+    assert "Bacillus_cereus" in text
 
 
 def test_trimal_example_adds_file_to_list(qapp):
@@ -141,6 +169,21 @@ def test_tree_vis_example_fills_file_edit(qapp):
     btn.click()
     assert tab._file_edit.text().strip() != ""
     assert os.path.isfile(tab._file_edit.text().strip())
+
+
+def test_msa_visualization_example_fills_input(qapp):
+    from modules.msa_visualization_tab import MSAVisualizationTab
+
+    tab = MSAVisualizationTab()
+    btn = _find_button(tab, "Example")
+    assert btn is not None, "MSA Visualization tab has no Example button"
+    btn.click()
+    text = tab.input_text.toPlainText()
+    assert text.startswith(">")
+    assert text.count(">") == 8  # 8 gyrB records from mafft_alignment_gyrB.fasta
+    assert "Bacillus_cereus" in text
+    assert tab.path_edit.text().strip() != ""
+    assert os.path.isfile(tab.path_edit.text().strip())
 
 
 # ── DNA Analysis tabs Example buttons ───────────────────────────────────────
@@ -303,8 +346,10 @@ def test_ncbi_download_example_fills_acc_edit(qapp):
     assert btn is not None, "NCBI Download tab has no Example button"
     btn.click()
     acc_text = tab.acc_edit.toPlainText().strip()
-    assert acc_text != ""
-    assert "NM_" in acc_text
+    lines = [line for line in acc_text.splitlines() if line.strip()]
+    assert len(lines) == 8  # gyrB_accession.txt has 8 accessions
+    assert lines[0] == "AB190226.1"
+    assert "KM668548.1" in lines
 
 
 def test_rename_ids_example_fills_input_edit(qapp):
@@ -314,10 +359,14 @@ def test_rename_ids_example_fills_input_edit(qapp):
     btn = _find_button(tab, "Example")
     assert btn is not None, "Rename IDs tab has no Example button"
     btn.click()
-    assert tab.input_edit.text().strip() != ""
-    assert os.path.isfile(tab.input_edit.text().strip())
-    assert tab.mapping_edit.text().strip() != ""
-    assert os.path.isfile(tab.mapping_edit.text().strip())
+    input_path = tab.input_edit.text().strip()
+    assert input_path != ""
+    assert os.path.isfile(input_path)
+    assert os.path.basename(input_path) == "gyrB_pro.fasta"
+    mapping_path = tab.mapping_edit.text().strip()
+    assert mapping_path != ""
+    assert os.path.isfile(mapping_path)
+    assert os.path.basename(mapping_path) == "gyrB_pro_id_mapping.xlsx"
 
 
 def test_deduplicate_example_fills_input_edit(qapp):

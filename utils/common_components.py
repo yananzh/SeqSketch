@@ -502,8 +502,8 @@ class BaseTabWidget(QWidget):
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "Export Result",
-            "result.txt",
-            "Text Files (*.txt);;FASTA Files (*.fasta);;CSV Files (*.csv)",
+            "result.fasta",
+            "FASTA Files (*.fasta);;Text Files (*.txt);;CSV Files (*.csv)",
         )
         if file_path:
             try:

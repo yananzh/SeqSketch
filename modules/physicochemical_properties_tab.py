@@ -158,8 +158,8 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         return name if len(name) <= 20 else name[:17] + "..."
 
     def _load_example(self):
-        """Load the bundled protein example for property analysis."""
-        text = load_example_text("protein", "protein_example.fasta")
+        """Load the bundled gyrB protein example for property analysis."""
+        text = load_example_text("protein", "gyrB_pro_renamed.fasta")
         if not text:
             QMessageBox.information(
                 self,
@@ -168,7 +168,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status("Loaded example data: protein_example.fasta")
+        self.show_status("Loaded example data: gyrB_pro_renamed.fasta")
 
     def run(self):
         self.status_label.setText("")

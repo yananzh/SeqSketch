@@ -541,7 +541,8 @@ def test_download_from_ncbi_happy_path(qapp, tmp_path: Path, monkeypatch):
         "retmode": "text",
     }
     assert Entrez.email == "tester@example.com"
-    assert "Download complete. 2 sequences saved to:" in log_text(tab)
+    assert "Download complete. 2/2 accession(s) succeeded, 0 failed" in log_text(tab)
+    assert "Succeeded accessions (2): NM_001, NP_001" in log_text(tab)
     assert tab.status_label.text() == "Ready"
     print("[Download from NCBI] finished successfully")
 
@@ -719,6 +720,51 @@ def test_download_from_ncbi_empty_result_exports_failure_report(qapp, tmp_path: 
     assert "NCBI returned error or no sequences found." in log_text(tab)
 
 
+def test_download_from_ncbi_logs_success_and_failure_summary(
+    qapp, tmp_path: Path, monkeypatch
+):
+    output_path = tmp_path / "downloaded_summary.fasta"
+    tab = DownloadFromNCBITab()
+
+    class DummyHandle:
+        def __init__(self, data: str):
+            self._data = data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return self._data
+
+    def fake_efetch(**kwargs):
+        accession = kwargs["id"]
+        if accession == "BAD001":
+            return DummyHandle("")
+        return DummyHandle(f">{accession} sequence\nATGC\n")
+
+    from Bio import Entrez
+
+    monkeypatch.setattr(Entrez, "efetch", fake_efetch)
+
+    tab.email_edit.setText("tester@example.com")
+    tab.acc_edit.setPlainText("NM_001\nBAD001\nNP_001")
+    tab.output_edit.setText(str(output_path))
+    tab.batch_size_spin.setValue(1)
+    tab.run_download()
+    _wait_for_worker(tab)
+
+    log = log_text(tab)
+    assert "Detected 3 accession(s): 3 unique, 0 duplicate(s) ignored" in log
+    assert "Succeeded accessions (2): NM_001, NP_001" in log
+    assert "Failed accessions (1): BAD001" in log
+    assert "Download complete. 2/3 accession(s) succeeded, 1 failed" in log
+    assert output_path.exists()
+    assert read_text(output_path).count(">") == 2
+
+
 def test_batch_rename_ids_happy_path(
     qapp, sample_fasta_file: Path, mapping_csv_file: Path, tmp_path: Path
 ):
@@ -734,15 +780,36 @@ def test_batch_rename_ids_happy_path(
 
     assert output_path.exists()
     assert fasta_headers(output_path) == [
-        "renamed_seq1 alpha description",
-        "seq2 beta description",
-        "renamed_gene_alpha product_x",
-        "chr10_sample annotation",
+        "renamed_seq1",
+        "seq2",
+        "renamed_gene_alpha",
+        "chr10_sample",
     ]
     assert "Loaded 2 ID mappings" in log_text(tab)
     assert "renamed 2" in log_text(tab)
     assert tab.status_label.text() == "Ready"
     print("[Batch Rename IDs] finished successfully")
+
+
+def test_batch_rename_ids_keep_descriptions_when_checked(
+    qapp, sample_fasta_file: Path, mapping_csv_file: Path, tmp_path: Path
+):
+    output_path = tmp_path / "renamed_keep_desc.fasta"
+    tab = BatchRenameIDsTab()
+
+    tab.input_edit.setText(str(sample_fasta_file))
+    tab.mapping_edit.setText(str(mapping_csv_file))
+    tab.output_edit.setText(str(output_path))
+    tab.keep_description_checkbox.setChecked(True)
+    tab.run_rename()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == [
+        "renamed_seq1 alpha description",
+        "seq2 beta description",
+        "renamed_gene_alpha product_x",
+        "chr10_sample annotation",
+    ]
 
 
 def test_batch_rename_ids_reads_excel_mapping_file(qapp, sample_fasta_file: Path, tmp_path: Path):
@@ -763,10 +830,10 @@ def test_batch_rename_ids_reads_excel_mapping_file(qapp, sample_fasta_file: Path
 
     assert output_path.exists()
     assert fasta_headers(output_path) == [
-        "renamed_seq1 alpha description",
-        "seq2 beta description",
-        "renamed_gene_alpha product_x",
-        "chr10_sample annotation",
+        "renamed_seq1",
+        "seq2",
+        "renamed_gene_alpha",
+        "chr10_sample",
     ]
     assert "Loaded 2 ID mappings" in log_text(tab)
     assert "renamed 2" in log_text(tab)
@@ -854,10 +921,10 @@ def test_batch_rename_ids_exports_report_and_logs_unused_mapping_ids(
     assert output_path.exists()
     assert report_path.exists()
     assert fasta_headers(output_path) == [
-        "renamed_seq1 alpha description",
-        "seq2 beta description",
-        "gene_alpha product_x",
-        "chr10_sample annotation",
+        "renamed_seq1",
+        "seq2",
+        "gene_alpha",
+        "chr10_sample",
     ]
     report_text = read_text(report_path)
     assert "Renamed_Count\t1" in report_text

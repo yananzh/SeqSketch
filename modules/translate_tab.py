@@ -143,8 +143,8 @@ class TranslateTab(BaseTabWidget):
         ig_layout.insertLayout(1, btn_row)
 
     def _load_example(self):
-        """Load the bundled BRCA1/EGFR CDS example for translation."""
-        text = load_example_text("dna", "brca1_egfr_cds.fasta")
+        """Load the bundled NCBI gyrB CDS example for translation."""
+        text = load_example_text("dna", "ncbi_gyrB.fasta")
         if not text:
             from PyQt6.QtWidgets import QMessageBox
 
@@ -155,7 +155,7 @@ class TranslateTab(BaseTabWidget):
             )
             return
         self.input_text.setPlainText(text)
-        self.show_status("Loaded example data: brca1_egfr_cds.fasta")
+        self.show_status("Loaded example data: ncbi_gyrB.fasta")
 
     def run(self):
         raw = self.input_text.toPlainText().strip()

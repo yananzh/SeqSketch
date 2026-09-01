@@ -4,6 +4,7 @@ from types import SimpleNamespace
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
+from matplotlib.figure import Figure
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QPalette
 from PyQt6.QtWidgets import QFrame, QLabel, QMessageBox, QPushButton
@@ -720,6 +721,69 @@ def test_msa_visualization_tab_shows_save_figure_button(qapp):
     tab = MSAVisualizationTab()
 
     assert not tab.export_btn.isHidden()
+
+
+def test_msa_visualization_param_rows_align_labels_and_controls(qapp):
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QLabel
+
+    tab = MSAVisualizationTab()
+    param_group = tab.content_area.itemAt(1).widget()
+    pg_layout = param_group.layout()
+    row1 = pg_layout.itemAt(0).layout()
+    row2 = pg_layout.itemAt(1).layout()
+
+    # Row 1: 4 right-aligned labels with equal width, 4 uniform-width controls,
+    # plus an extra 24px spacer between Color Scheme and Wrap Length.
+    assert row1.count() == 9
+    assert row1.itemAt(2).spacerItem() is not None
+    label_widths = set()
+    label_texts = []
+    for i in (0, 3, 5, 7):
+        label = row1.itemAt(i).widget()
+        assert isinstance(label, QLabel)
+        assert label.alignment() & Qt.AlignmentFlag.AlignRight
+        label_widths.add((label.minimumWidth(), label.maximumWidth()))
+        label_texts.append(label.text())
+    assert label_widths == {(105, 105)}
+    assert label_texts == ["Color Scheme:", "Wrap Length:", "Font Size:", "Pixel Density:"]
+    assert tab.color_combo.minimumWidth() == 130 and tab.color_combo.maximumWidth() == 130
+    for widget in (tab.wrap_spin, tab.font_spin, tab.dpi_spin):
+        assert widget.minimumWidth() == 100 and widget.maximumWidth() == 100
+
+    # Row 2: checkboxes in order, then the glued highlight unit last.
+    assert row2.itemAt(0).widget() is tab.chk_seq_char
+    assert row2.itemAt(1).widget() is tab.chk_grid
+    assert row2.itemAt(2).widget() is tab.chk_count
+    assert row2.itemAt(3).widget() is tab.chk_consensus
+    assert row2.itemAt(4).widget() is tab.chk_sort
+    hl_unit = row2.itemAt(row2.count() - 1).layout()
+    assert hl_unit.itemAt(0).widget() is tab.chk_highlight
+    assert hl_unit.itemAt(1).widget() is tab.ident_spin
+    assert hl_unit.spacing() == 2
+    assert tab.ident_spin.minimumWidth() == 100 and tab.ident_spin.maximumWidth() == 100
+    assert tab.ident_spin.text() == "70%"
+
+    # Defaults: wrap 80, font 10, dpi 150.
+    assert tab.wrap_spin.value() == 80
+    assert tab.font_spin.value() == 10
+    assert tab.dpi_spin.value() == 150
+
+
+def test_msa_visualization_adds_right_padding_to_figure(qapp):
+    tab = MSAVisualizationTab()
+    fig = Figure(figsize=(5, 2), dpi=100)
+    ax = fig.add_subplot(111)
+    old_w_px = fig.get_figwidth() * fig.dpi
+    ax_right_px = ax.get_position().x1 * old_w_px
+
+    tab._add_right_padding(fig, pad_inches=1.0)
+
+    assert fig.get_figwidth() == pytest.approx(6.0)
+    # Axes stay at their original pixel position; blank space lands on the right.
+    new_ax_right_px = ax.get_position().x1 * fig.get_figwidth() * fig.dpi
+    assert new_ax_right_px == pytest.approx(ax_right_px)
+    assert fig.get_figwidth() * fig.dpi - new_ax_right_px >= 1.0 * fig.dpi
 
 
 def test_mafft_worker_emits_aligned_fasta_with_auto_strategy(monkeypatch, tmp_path):

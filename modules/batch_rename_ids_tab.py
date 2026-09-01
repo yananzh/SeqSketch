@@ -290,6 +290,13 @@ class BatchRenameIDsTab(BaseTabWidget):
             "Save a TSV file showing every old → new ID change with status"
         )
         map_opts.addWidget(self.export_report_checkbox)
+        self.keep_description_checkbox = QCheckBox("Keep original descriptions")
+        self.keep_description_checkbox.setChecked(False)
+        self.keep_description_checkbox.setToolTip(
+            "Keep the original header description (text after the ID) in the "
+            "output. Unchecked by default — output headers contain the new ID only."
+        )
+        map_opts.addWidget(self.keep_description_checkbox)
         map_opts.addStretch()
         mapping_main.addLayout(map_opts)
 
@@ -368,13 +375,13 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.show_status("Input file selected")
 
     def _load_example(self):
-        """Load the bundled cytb teaching example (FASTA + ID mapping file)."""
+        """Load the bundled gyrB teaching example (protein FASTA + ID mapping file)."""
         from PyQt6.QtWidgets import QMessageBox
 
         from utils.example_data import stage_example
 
-        fasta_path = stage_example("phylo", "cytb_cds_raw.fasta")
-        mapping_path = stage_example("dna", "cytb_id_mapping.xlsx")
+        fasta_path = stage_example("protein", "gyrB_pro.fasta")
+        mapping_path = stage_example("protein", "gyrB_pro_id_mapping.xlsx")
         if not fasta_path or not mapping_path:
             QMessageBox.information(
                 self,
@@ -384,7 +391,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             return
         self.handle_input_file_selected(fasta_path)
         self.handle_mapping_file_selected(mapping_path)
-        self.show_status("Example loaded")
+        self.show_status("Example loaded: gyrB_pro.fasta + gyrB_pro_id_mapping.xlsx")
 
     def select_mapping_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -702,6 +709,12 @@ class BatchRenameIDsTab(BaseTabWidget):
                 if row["status"] == "renamed":
                     row["record"].header = row["new_id"]
 
+            # Output headers contain only the ID unless the user opts to keep
+            # the original description (text after the first space).
+            if not self.keep_description_checkbox.isChecked():
+                for row in rename_plan["rename_rows"]:
+                    row["record"].description = ""
+
             # Save
             self.show_status("Saving results...")
             if not processor.save_file(output_path):
@@ -750,6 +763,7 @@ class BatchRenameIDsTab(BaseTabWidget):
         self.header_checkbox.setChecked(True)
         self.export_report_checkbox.setChecked(False)
         self.block_on_collisions_checkbox.setChecked(True)
+        self.keep_description_checkbox.setChecked(False)
         self.export_ids_btn.setEnabled(False)
         self.preview_panel.clear()
         if hasattr(self, "log_area"):
@@ -814,11 +828,12 @@ mapping, whether it was applied, and why.</li>
 
 <h3>Tips</h3>
 <ul>
-<li>Click <b>Example</b> to load the bundled cytb FASTA plus a ready-made
+<li>Click <b>Example</b> to load the bundled gyrB protein FASTA plus a ready-made
 ID mapping file (Excel, <code>old_id → new_id</code>) — great for a first try.</li>
 <li>Always <b>Preview</b> before running — mapping errors are easy to miss.</li>
-<li>Only the primary FASTA ID (the part before the first space) is replaced;
-descriptions are preserved.</li>
+<li>Only the primary FASTA ID (the part before the first space) is replaced.
+By default the original description is dropped from the output headers —
+check <b>Keep original descriptions</b> to preserve it.</li>
 <li>IDs not listed in the mapping file stay unchanged.</li>
 <li>If no IDs match the mapping file, no FASTA output is written (a rename report is still saved if that option is enabled).</li>
 </ul>

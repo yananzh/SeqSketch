@@ -129,59 +129,66 @@ class MSAVisualizationTab(BaseTabWidget):
         param_group.setFlat(True)
         param_group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         pg_layout = QVBoxLayout(param_group)
-        pg_layout.setContentsMargins(8, 16, 8, 4)
+        pg_layout.setContentsMargins(12, 16, 12, 4)
         pg_layout.setSpacing(6)
 
-        # Row 1 — color scheme, wrap length, font size, DPI
+        # Row 1 — appearance parameters: right-aligned labels, uniform controls.
         row1 = QHBoxLayout()
-        row1.setSpacing(10)
+        row1.setSpacing(8)
+        _label_width = 105
+        _control_width = 100
 
-        row1.addWidget(QLabel("Color Scheme:"))
+        def _add_param(label_text: str, widget: QWidget) -> None:
+            label = QLabel(label_text)
+            label.setFixedWidth(_label_width)
+            label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            row1.addWidget(label)
+            row1.addWidget(widget)
+
         self.color_combo = QComboBox()
         self.color_combo.addItems(_COLOR_SCHEMES)
         self.color_combo.setCurrentText("Clustal")
-        self.color_combo.setFixedWidth(100)
+        # Wider than the other controls so scheme names are not truncated.
+        self.color_combo.setFixedWidth(130)
         self.color_combo.setToolTip(
             "Residue coloring scheme.\n"
             "DNA: Nucleotide recommended.\n"
             "Protein: Clustal, Zappo, Taylor, Hydrophobicity."
         )
-        row1.addWidget(self.color_combo)
+        _add_param("Color Scheme:", self.color_combo)
 
-        row1.addSpacing(10)
-        row1.addWidget(QLabel("Wrap Length:"))
+        # Extra gap before Wrap Length so it sits further right.
+        row1.addSpacing(24)
+
         self.wrap_spin = QSpinBox()
         self.wrap_spin.setRange(0, 9999)
-        self.wrap_spin.setValue(60)
-        self.wrap_spin.setFixedWidth(100)
+        self.wrap_spin.setValue(80)
+        self.wrap_spin.setFixedWidth(_control_width)
         self.wrap_spin.setSpecialValueText("No wrap")  # 0 → None
         self.wrap_spin.setToolTip(
             "Number of residues per row before wrapping.\nSet to 0 for a single continuous row."
         )
-        row1.addWidget(self.wrap_spin)
+        _add_param("Wrap Length:", self.wrap_spin)
 
-        row1.addSpacing(10)
-        row1.addWidget(QLabel("Font Size:"))
         self.font_spin = QSpinBox()
         self.font_spin.setRange(4, 24)
         self.font_spin.setValue(10)
-        self.font_spin.setFixedWidth(100)
+        self.font_spin.setFixedWidth(_control_width)
         self.font_spin.setToolTip(
             "Base font size for sequence characters and labels.\n"
             "Default 10 gives a compact alignment view."
         )
-        row1.addWidget(self.font_spin)
+        _add_param("Font Size:", self.font_spin)
 
-        row1.addSpacing(10)
-        row1.addWidget(QLabel("DPI:"))
         self.dpi_spin = QSpinBox()
         self.dpi_spin.setRange(72, 600)
         self.dpi_spin.setValue(150)
-        self.dpi_spin.setFixedWidth(100)
+        self.dpi_spin.setFixedWidth(_control_width)
         self.dpi_spin.setToolTip("Preview resolution. Export always uses ≥300 DPI.")
-        row1.addWidget(self.dpi_spin)
+        _add_param("Pixel Density:", self.dpi_spin)
 
-        # Row 2 — display toggles + highlight threshold
+        # Row 2 — display toggles; threshold spinbox is glued to its checkbox
+        # so "Highlight Conserved + %" reads as one unit.
         row2 = QHBoxLayout()
         row2.setSpacing(12)
 
@@ -204,19 +211,22 @@ class MSAVisualizationTab(BaseTabWidget):
         ):
             row2.addWidget(chk)
 
-        row2.addSpacing(12)
         self.chk_highlight = QCheckBox("Highlight Conserved")
         self.chk_highlight.setChecked(True)
         self.ident_spin = QSpinBox()
         self.ident_spin.setRange(0, 100)
         self.ident_spin.setValue(70)
         self.ident_spin.setSuffix("%")
-        self.ident_spin.setFixedWidth(100)
+        self.ident_spin.setFixedWidth(_control_width)
         self.ident_spin.setToolTip(
             "Columns where ≥ this % of residues are identical will be highlighted."
         )
-        row2.addWidget(self.chk_highlight)
-        row2.addWidget(self.ident_spin)
+
+        highlight_unit = QHBoxLayout()
+        highlight_unit.setSpacing(2)
+        highlight_unit.addWidget(self.chk_highlight)
+        highlight_unit.addWidget(self.ident_spin)
+        row2.addLayout(highlight_unit)
 
         pg_layout.addLayout(row1)
         pg_layout.addLayout(row2)
@@ -326,7 +336,7 @@ class MSAVisualizationTab(BaseTabWidget):
             QMessageBox.warning(self, "Export Error", str(e))
 
     def _load_example(self):
-        staged = stage_example("protein", "aligned_pro_example.fasta")
+        staged = stage_example("phylo", "mafft_alignment_gyrB.fasta")
         if not staged:
             QMessageBox.information(self, "Example", "Example data not found.")
             return
@@ -338,7 +348,7 @@ class MSAVisualizationTab(BaseTabWidget):
             return
         self.input_hint.clear()
         self.path_edit.setText(staged)
-        self.show_status("Example loaded")
+        self.show_status("Example loaded: mafft_alignment_gyrB.fasta")
 
     def clear(self):
         self.input_text.clear()
@@ -375,6 +385,27 @@ class MSAVisualizationTab(BaseTabWidget):
             if any(text.get_text() in header_set for text in ax.texts):
                 left, right = ax.get_xlim()
                 ax.set_xlim(left - label_space, right)
+
+    def _add_right_padding(self, fig, pad_inches: float = 1.0):
+        """Widen the figure so the rightmost content is not flush with the edge.
+
+        pyMSAviz stretches every axes edge-to-edge (left=0, right=1) and the
+        position-count labels sit just outside the plotting area, so the
+        rightmost characters touch the figure border.  Widen the figure while
+        keeping each axes at its current pixel position; the extra width stays
+        blank on the right instead of stretching the axes.
+        """
+        fig_w_px = fig.get_figwidth() * fig.dpi
+        new_w_px = fig_w_px + pad_inches * fig.dpi
+        fig.set_size_inches(new_w_px / fig.dpi, fig.get_figheight())
+        shrink = fig_w_px / new_w_px
+        for ax in fig.axes:
+            rect = ax.get_position()
+            # Scale both the origin and the width so the axes keeps its exact
+            # pixel position; the added width lands entirely on the right.
+            ax.set_position(
+                [rect.x0 * shrink, rect.y0, rect.width * shrink, rect.height * shrink]
+            )
 
     def _clear_canvas(self):
         if self.canvas is not None:
@@ -456,6 +487,7 @@ class MSAVisualizationTab(BaseTabWidget):
 
             fig = mv.plotfig(dpi=self.dpi_spin.value())
             self._reserve_label_space(fig, headers)
+            self._add_right_padding(fig)
 
             # Apply user-chosen font size & unclip all texts so count labels
             # (drawn outside axis xlim by pyMSAviz) are visible.
