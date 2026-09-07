@@ -26,6 +26,10 @@ _test_taxa.py
 
 # Ad-hoc alignment outputs produced while running the app
 *_alignment_*.fasta
+# ...except the bundled gyrB teaching chain (MAFFT output → trimAl → IQ-TREE),
+# which is deliberately versioned as read-only example data
+!examples/phylo/mafft_alignment_gyrB.fasta
+!examples/phylo/mafft_alignment_gyrB.trimmed.fasta
 
 # PyInstaller spec backups
 *.spec.bak
