@@ -1,0 +1,8 @@
+================================================================================
+Run: 2026-09-07T19:26:37
+SeqSketch: 1.0.0
+Tool: MAFFT
+Version: v7.526
+Command: f:\SeqSketch\softwares\windows\mafft-win_v7.526\mafft.bat --auto --thread 1 C:\Users\yananzh\AppData\Local\Temp\tmprcscjqbj.fasta
+Output: F:/SeqSketch/examples/protein/mafft_gryB_alignment.fasta
+Executable: f:\SeqSketch\softwares\windows\mafft-win_v7.526\mafft.bat

@@ -813,7 +813,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
                         widget.setPlainText(f.read())
                     hint.clear()
                     base, _ = os.path.splitext(path)
-                    self.output_file_edit.setText(base + "_muscle5.fasta")
+                    self.output_file_edit.setText(os.path.normpath(base + "_muscle5.fasta"))
                     e.acceptProposedAction()
                 except Exception as ex:
                     QMessageBox.warning(self, "File Read Error", str(ex))
@@ -845,7 +845,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             return
         if not os.path.splitext(path)[1] and selected_filter.startswith("FASTA"):
             path += ".fasta"
-        self.output_file_edit.setText(path)
+        self.output_file_edit.setText(os.path.normpath(path))
 
     def _browse_batch_muscle_exe(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -904,7 +904,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
                     self.input_text.setPlainText(f.read())
                 self.input_hint.clear()
                 base, _ = os.path.splitext(path)
-                self.output_file_edit.setText(base + "_muscle5.fasta")
+                self.output_file_edit.setText(os.path.normpath(base + "_muscle5.fasta"))
             except Exception as e:
                 QMessageBox.warning(self, "File Read Error", str(e))
 
@@ -929,12 +929,12 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             return
         self.batch_files_list.clear()
         for p in paths:
-            self.batch_files_list.addItem(QListWidgetItem(p))
+            self.batch_files_list.addItem(QListWidgetItem(os.path.normpath(p)))
         self.batch_files_edit.setText(f"{len(paths)} file(s) selected")
         if not self.batch_out_dir_edit.text().strip() and paths:
             parent_dir = os.path.dirname(paths[0])
             if parent_dir:
-                self.batch_out_dir_edit.setText(parent_dir)
+                self.batch_out_dir_edit.setText(os.path.normpath(parent_dir))
         self.show_status("Example files loaded for batch")
 
     def clear(self):
@@ -969,17 +969,17 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             return
         self.batch_files_list.clear()
         for p in paths:
-            self.batch_files_list.addItem(QListWidgetItem(p))
+            self.batch_files_list.addItem(QListWidgetItem(os.path.normpath(p)))
         self.batch_files_edit.setText(f"{len(paths)} file(s) selected")
         if not self.batch_out_dir_edit.text().strip():
             parent_dir = os.path.dirname(paths[0])
             if parent_dir:
-                self.batch_out_dir_edit.setText(parent_dir)
+                self.batch_out_dir_edit.setText(os.path.normpath(parent_dir))
 
     def _select_batch_output_dir(self):
         out_dir = QFileDialog.getExistingDirectory(self, "Select output directory")
         if out_dir:
-            self.batch_out_dir_edit.setText(out_dir)
+            self.batch_out_dir_edit.setText(os.path.normpath(out_dir))
 
     def _run_batch(self):
         input_files = [
@@ -1018,6 +1018,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             )
             return
 
+        out_dir = os.path.normpath(out_dir)
         out_mode = self.batch_fmt_combo.currentText()
         self.run_btn.setEnabled(False)
         self.stop_btn.setVisible(True)
@@ -1237,8 +1238,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             return ""
         root, ext = os.path.splitext(path)
         if not ext:
-            return path + ".fasta"
-        return path
+            path += ".fasta"
+        return os.path.normpath(path)
 
     def _apply_single_file_output_order(self, seqs: dict) -> dict:
         if self.order_combo.currentText() != "Input sequence order":

@@ -172,7 +172,7 @@ class IqTreeTab(BaseTabWidget):
         self._input_edit.textChanged.connect(self._refresh_outgroup_taxa)
         self._example_btn = QPushButton("Example")
         self._example_btn.setToolTip(
-            "Load bundled example alignment (cytb_protein_aligned.fasta)"
+            "Load bundled example alignment (mafft_alignment_gyrB.trimmed.fasta)"
         )
         self._example_btn.clicked.connect(self._load_example)
         in_row.addWidget(self._input_edit, 1)
@@ -378,8 +378,8 @@ class IqTreeTab(BaseTabWidget):
             self._exe_edit.setText(path)
 
     def _load_example(self):
-        """Load the bundled cytb protein alignment example for tree building."""
-        path = stage_example("phylo", "cytb_protein_aligned.fasta")
+        """Load the bundled gyrB trimmed alignment example for tree building."""
+        path = stage_example("phylo", "mafft_alignment_gyrB.trimmed.fasta")
         if not path:
             QMessageBox.information(
                 self,
@@ -388,7 +388,7 @@ class IqTreeTab(BaseTabWidget):
             )
             return
         self._input_edit.setText(path)
-        self.show_status("Example loaded: cytb_protein_aligned.fasta")
+        self.show_status("Example loaded")
 
     def _browse_input(self):
         path, _ = QFileDialog.getOpenFileName(

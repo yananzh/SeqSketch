@@ -528,6 +528,10 @@ class ToytreeVisualizationTab(BaseTabWidget):
         og_row.addWidget(self._outgroup_combo, 1)
         ol.addLayout(og_row)
 
+        # Uniform height for the Layout/Rooting/Outgroup dropdowns
+        for combo in (self._layout_combo, self._root_method_combo, self._outgroup_combo):
+            combo.setFixedHeight(25)
+
         def _on_root_method_changed(text: str):
             is_og = text == "Outgroup"
             self._outgroup_combo.setEnabled(is_og)
@@ -787,8 +791,8 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
     # Slots
     # ------------------------------------------------------------------
     def _load_example(self):
-        """Load the bundled csrA tree example and a sample tip-mapping file."""
-        path = stage_example("phylo", "csrA_pro_mafft_tree.nwk")
+        """Load the bundled gyrB IQ-TREE tree file (no tip-mapping file)."""
+        path = stage_example("phylo", "mafft_alignment_gyrB.trimmed.treefile")
         if not path:
             QMessageBox.information(
                 self,
@@ -797,13 +801,9 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             )
             return
         self._file_edit.setText(path)
-
-        # Stage the bundled tip-mapping file to the writable example_work directory
-        mapping_path = stage_example("phylo", "csrA_tip_mapping.csv")
-        if mapping_path:
-            self._mapping_edit.setText(mapping_path)
-
-        self.show_status("Example loaded: csrA_pro_mafft_tree.nwk")
+        # The gyrB example has no tip-mapping file — leave the mapping input empty.
+        self._mapping_edit.clear()
+        self.show_status("Example loaded")
 
     def _browse_file(self):
         path, _ = QFileDialog.getOpenFileName(

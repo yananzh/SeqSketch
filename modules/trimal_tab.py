@@ -565,7 +565,7 @@ or <b>MSA Visualization</b>.</li>
         """Load bundled aligned example files into the file list."""
         examples = [
             ("phylo", "cytb_protein_aligned.fasta"),
-            ("phylo", "aligned_pro.fasta"),
+            ("phylo", "mafft_alignment_gyrB.fasta"),
         ]
         loaded = []
         self.file_list.clear()
@@ -582,7 +582,7 @@ or <b>MSA Visualization</b>.</li>
             )
             return
         self._auto_fill_outdir()
-        self.show_status("Example data loaded: " + ", ".join(loaded))
+        self.show_status("Example data loaded")
 
     def _add_files(self):
         files, _ = QFileDialog.getOpenFileNames(
