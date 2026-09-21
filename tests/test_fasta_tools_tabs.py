@@ -164,6 +164,32 @@ def test_fasta_tools_plain_text_editors_have_border_style(qapp):
         assert editor.property("listDisplay") is True
 
 
+@pytest.mark.parametrize(
+    "tab_class,suffix",
+    [
+        (SequenceStatisticsTab, "_length_statistics.txt"),
+        (ExtractByRegexTab, "_regex_extracted.fasta"),
+        (BatchRenameIDsTab, "_renamed.fasta"),
+    ],
+)
+def test_suggested_output_path_uses_native_separators(qapp, tab_class, suffix, tmp_path: Path):
+    """Selecting an input suggests a sibling output path built for *this* platform.
+
+    Regression guard: these tabs used to rewrite every "/" in the suggestion as
+    a backslash, which on macOS turned the separators into literal characters
+    instead of directory separators.
+    """
+    source = tmp_path / "sample.fasta"
+    source.write_text(">seq1\nATGC\n", encoding="utf-8")
+
+    tab = tab_class()
+    tab.handle_input_file_selected(str(source))
+
+    suggested = tab.output_edit.text()
+    assert suggested == str(tmp_path / f"sample{suffix}")
+    assert os.path.dirname(suggested) == str(tmp_path)
+
+
 def test_sequence_statistics_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
     print("[Sequence Statistics] start happy-path flow")
     output_path = tmp_path / "sequence_stats.txt"

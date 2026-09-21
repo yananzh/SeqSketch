@@ -33,36 +33,37 @@ def _fake_subprocess_run(stdout="", stderr="", returncode=0):
     "exe,stdout,stderr,expected",
     [
         # BLAST: stdout first line
+        # BLAST: stdout first line
         (
-            r"C:\tools\blastn.exe",
+            os.path.join("tools", "blastn.exe"),
             "blastn: 2.17.0+\n Package: blast 2.17.0, build Jul  1 2025\n",
             "",
             "2.17.0+",
         ),
         # IQ-TREE: stdout first line
         (
-            r"C:\tools\iqtree3.exe",
+            os.path.join("tools", "iqtree3.exe"),
             "IQ-TREE version 3.1.3 for Windows 64-bit built Jun 19 2026\n",
             "",
             "3.1.3",
         ),
         # MUSCLE: name has version suffix in the filename
         (
-            r"C:\tools\muscle-win64.v5.3.exe",
+            os.path.join("tools", "muscle-win64.v5.3.exe"),
             "muscle 5.3.win64 [d9725ac]\nBuilt Nov 10 2024 22:59:05\n",
             "",
             "5.3.win64",
         ),
         # trimAl: blank first line, version on line 2
         (
-            r"C:\tools\trimal.exe",
+            os.path.join("tools", "trimal.exe"),
             "\ntrimAl v1.5.rev1 build[2025-11-25]\n",
             "",
             "v1.5.rev1",
         ),
         # MAFFT: version on stderr, AFTER a banner
         (
-            r"C:\tools\mafft.bat",
+            os.path.join("tools", "mafft.bat"),
             "",
             "Active code page: 65001\n...\nv7.526 (2024/Apr/26)\n",
             "v7.526",
@@ -86,8 +87,9 @@ def test_probe_tool_version_caches_results(monkeypatch):
 
     monkeypatch.setattr(rp.subprocess, "run", fake_run)
     rp.clear_version_cache()
-    assert rp.probe_tool_version(r"C:\tools\blastn.exe") == "2.17.0+"
-    assert rp.probe_tool_version(r"C:\tools\blastn.exe") == "2.17.0+"
+    exe = os.path.join("tools", "blastn.exe")
+    assert rp.probe_tool_version(exe) == "2.17.0+"
+    assert rp.probe_tool_version(exe) == "2.17.0+"
     assert len(calls) == 1  # second call served from cache
 
 
@@ -97,7 +99,7 @@ def test_probe_tool_version_failure_returns_unknown(monkeypatch):
 
     monkeypatch.setattr(rp.subprocess, "run", boom)
     rp.clear_version_cache()
-    assert rp.probe_tool_version(r"C:\missing\blastn.exe") == "unknown"
+    assert rp.probe_tool_version(os.path.join("missing", "blastn.exe")) == "unknown"
 
 
 def test_probe_tool_version_unparseable_output_returns_unknown(monkeypatch):
@@ -107,7 +109,7 @@ def test_probe_tool_version_unparseable_output_returns_unknown(monkeypatch):
         _fake_subprocess_run(stdout="garbage output\nno version here\n"),
     )
     rp.clear_version_cache()
-    assert rp.probe_tool_version(r"C:\tools\blastn.exe") == "unknown"
+    assert rp.probe_tool_version(os.path.join("tools", "blastn.exe")) == "unknown"
 
 
 def test_probe_tool_version_empty_exe():
@@ -178,7 +180,7 @@ def test_record_tool_run_probes_and_appends(monkeypatch, tmp_path):
     rp.record_tool_run(
         str(out_dir),
         tool="IQ-TREE",
-        exe=r"C:\tools\iqtree3.exe",
+        exe=os.path.join("tools", "iqtree3.exe"),
         cmd=["iqtree3.exe", "-s", "aln.fasta", "-m", "GTR"],
     )
     log = (out_dir / "run_log.txt").read_text(encoding="utf-8")

@@ -366,9 +366,7 @@ class BatchRenameIDsTab(BaseTabWidget):
     def handle_input_file_selected(self, file_path: str):
         self.input_edit.setText(file_path)
         base = os.path.splitext(os.path.basename(file_path))[0]
-        suggested = os.path.join(os.path.dirname(file_path), base + "_renamed.fasta").replace(
-            "/", "\\"
-        )
+        suggested = os.path.join(os.path.dirname(file_path), base + "_renamed.fasta")
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.export_ids_btn.setEnabled(bool(file_path.strip()))
@@ -391,7 +389,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             return
         self.handle_input_file_selected(fasta_path)
         self.handle_mapping_file_selected(mapping_path)
-        self.show_status("Example loaded: gyrB_pro.fasta + gyrB_pro_id_mapping.xlsx")
+        self.show_status("Example loaded: gyrB + ID mapping")
 
     def select_mapping_file(self):
         file_path, _ = QFileDialog.getOpenFileName(

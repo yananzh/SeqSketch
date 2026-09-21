@@ -68,9 +68,35 @@
 
 ---
 
-## 安装与运行
+## 下载即用
 
-**要求：Python 3.10+（Windows）**
+不需要安装 Python，直接从 [Releases](https://github.com/yananzh/SeqSketch/releases) 下载对应平台的压缩包：
+
+| 平台 | 下载文件 | 解压后 |
+| --- | --- | --- |
+| Windows 10/11 (x64) | `SeqSketch-windows.zip` | 双击 `SeqSketch.exe` |
+| macOS 11+ — Apple Silicon（M 系列） | `SeqSketch-Mac-arm64.zip` | 双击 `SeqSketch.app` |
+| macOS 11+ — Intel | `SeqSketch-Mac-x86_64.zip` | 双击 `SeqSketch.app` |
+
+便携版：解压后整个文件夹可任意移动，首次运行会在程序目录旁创建 `user_data/` 存放配置与收藏夹。
+外部工具（BLAST / IQ-TREE / MAFFT / MUSCLE / trimAl）已随包内置，无需单独安装。
+
+> 💡 不确定是哪种 Mac？点左上角  →「关于本机」：「芯片」显示 **Apple M…** 就下 `arm64`，显示 **Intel** 就下 `x86_64`。
+
+> ⚠️ **首次运行会被系统拦截**：当前构建**未做代码签名**，系统会提示来源不明。
+>
+> - **Windows**：SmartScreen 提示「Windows 已保护你的电脑」→ 点「更多信息」→「仍要运行」
+> - **macOS**：提示「无法打开，因为 Apple 无法检查其是否包含恶意软件」→ 在 Finder 中**右键点 App → 打开**（只需一次）
+>
+> 想消除该提示需要代码签名（Windows OV/EV 证书；macOS 需 Apple Developer 账号，$99/年）。
+
+---
+
+## 从源码运行
+
+如果你要改代码或参与开发：
+
+**要求：Python 3.10+**
 
 ```bash
 # 1. 克隆 / 解压项目后进入根目录，安装依赖
@@ -79,9 +105,17 @@ pip install -r requirements.txt
 # 2. 安装开发依赖（pytest、ruff，可选）
 pip install -r dev-requirements.txt
 
-# 3. 启动应用
+# 3. 拉取外部工具二进制（BLAST / IQ-TREE / MAFFT / MUSCLE / trimAl）
+#    softwares/ 约 580 MB 且为第三方二进制，未纳入版本控制
+powershell -ExecutionPolicy Bypass -File scripts/fetch_softwares.ps1
+
+# 4. 启动应用
 python main.py
 ```
+
+> 💡 跳过第 3 步应用仍能启动，但外部工具类功能会提示 “not found”。
+> 仓库为私有，下载需先 `gh auth login`；若已有压缩包可用 `-Archive` 完全离线安装：
+> `./scripts/fetch_softwares.ps1 -Archive D:\softwares-windows.zip -Force`
 
 > 💡 启动时若根目录存在 `start_logo.png` 会显示启动画面（可选）。任务栏图标使用 `window_logo.ico`。
 
@@ -109,21 +143,31 @@ python main.py
 
 ## 外部工具与配置
 
-以下外部二进制默认随应用捆绑在 `softwares/` 目录：
+外部二进制按平台存放在 `softwares/` 子目录，**不纳入版本控制**（体积大且为第三方二进制），
+以 Release 资产分发，由 `scripts/fetch_softwares.ps1` 拉取（自动识别平台）：
 
-| 工具 | 路径 | 用途 |
-| --- | --- | --- |
-| BLAST | `softwares/ncbi-blast-2.17.0+/bin` | 本地 BLAST 搜索 / 建库 |
-| IQ-TREE | `softwares/iqtree-3.0.1-Windows/bin` | 最大似然建树 |
-| MAFFT | `softwares/mafft-win_v7.526` | 多序列比对 |
-| MUSCLE | `softwares/muscle-win64.v5.3.exe` | 多序列比对（Muscle5） |
-| TrimAl | `softwares/trimAl_Windows_v1.5.1` | 比对修剪 |
+| 工具 | Windows | macOS | 用途 |
+| --- | --- | --- | --- |
+| BLAST | `windows/ncbi-blast-2.17.0+/bin/blastn.exe` | `Mac/ncbi-blast-2.17.0-macOS/bin/blastn` | 本地 BLAST 搜索 / 建库 |
+| IQ-TREE | `windows/iqtree-3.1.3-Windows/bin/iqtree3.exe` | `Mac/iqtree-3.1.3-macOS/bin/iqtree3` | 最大似然建树 |
+| MAFFT | `windows/mafft-win_v7.526/mafft.bat` | `Mac/mafft-7.526-macOS/mafft.bat` | 多序列比对 |
+| MUSCLE | `windows/muscle-win64.v5.3.exe` | `Mac/muscle-5.3-MacOS-<arch>` | 多序列比对（Muscle5） |
+| TrimAl | `windows/trimAl_Windows_v1.5.1/trimal.exe` | `Mac/trimAl-1.51-MacOS-<arch>/bin/trimal` | 比对修剪 |
 
-如需使用自定义安装路径，编辑根目录 `config.ini`（相对路径相对于应用根目录解析）：
+工具路径由 `utils/tool_paths.py` 按平台自动解析（目录名带版本号，升级后无需改代码）。
+
+如需使用自定义安装（例如系统已装 BLAST+），编辑根目录 `config.ini`（留空即自动探测捆绑副本）：
 
 ```ini
 [BLAST]
-bin_dir = softwares/ncbi-blast-2.17.0+/bin   ; 改为绝对路径即使用自定义安装
+bin_dir = C:/tools/ncbi-blast-2.17.0+/bin   ; 改为绝对路径即使用自定义安装
+```
+
+维护者升级工具后需重新打包并上传 Release 资产：
+
+```powershell
+.\scripts\pack_softwares.ps1                 # 生成 dist/softwares-windows.zip，并打印 SHA256
+gh release upload tools-v1 dist/softwares-windows.zip --clobber
 ```
 
 ---
@@ -158,13 +202,40 @@ ruff check .
 
 ---
 
-## 打包发布（Windows 便携版）
+## 打包发布
+
+本地构建便携版（Windows 与 macOS 均可运行同一脚本，自动识别平台）：
 
 ```powershell
-.\scripts\build_onedir.ps1
+.\scripts\build_onedir.ps1 -Zip
 ```
 
-产物为 `dist/SeqSketch/`，是一个**自包含便携文件夹**（PyInstaller onedir），可整体复制到任意 Windows 机器直接运行，无需安装 Python 或外部工具。
+- Windows 产物：`dist/SeqSketch/` + 发布归档 `dist/SeqSketch-windows.zip`
+- macOS 产物：`dist/SeqSketch.app` + 发布归档 `dist/SeqSketch-Mac-<arch>.zip`（`arch` 为 `arm64` 或 `x86_64`）
+
+归档是一个自包含便携包（PyInstaller onedir，已内置外部工具），可直接分发，用户无需安装 Python。
+
+发布正式版本（**需先上传工具包**，见下）：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0          # 触发 .github/workflows/release.yml
+```
+
+工作流会在 Windows 和 macOS runner 上分别跑测试 → 拉取工具 → 构建 → 打包，
+然后把两个 zip 上传到对应的 GitHub Release。
+
+**前置条件：`softwares/` 是 gitignored 的**，CI 通过 `scripts/fetch_softwares.ps1`
+从 `tools-v1` Release 拉取。首次发布前必须先创建该 Release 并上传两个工具包：
+
+```powershell
+.\scripts\pack_softwares.ps1                  # → dist/softwares-windows.zip
+.\scripts\pack_softwares.ps1 -Platform Mac    # → dist/softwares-Mac.zip（需在 macOS 上执行）
+gh release create tools-v1 --title 'Bundled tools' --notes 'External tool bundles for SeqSketch'
+gh release upload tools-v1 dist/softwares-windows.zip dist/softwares-Mac.zip --clobber
+```
+
+升级某个外部工具后重新执行这两步（`--clobber` 会覆盖旧资产），无需修改任何代码。
 
 ---
 
@@ -184,9 +255,9 @@ SeqSketch/
 │   ├── *_tab.py            # 各功能 Tab（共 45 个，含 primer3_gui、favorites_manager）
 │   └── one_step_multigenephy_*.py  # 一步式多基因分析（io/models/workflow/tab 拆分）
 ├── utils/                  # 共享基础组件（BaseTabWidget/BaseWorker）、路径工具、示例数据加载
-├── scripts/                # 构建脚本
+├── scripts/                # 构建脚本（build_onedir / pack_softwares / fetch_softwares）
 ├── examples/               # 教学示例数据（phylo/、dna/、protein/、blast/、sanger/）
-├── softwares/              # 捆绑外部工具（BLAST、IQTree、MAFFT、MUSCLE、TrimAl）
+├── softwares/              # 外部工具（BLAST、IQTree、MAFFT、MUSCLE、TrimAl）— 需 fetch 拉取
 ├── resources/              # 图标、语言包、备用主题
 ├── config/                 # 设置管理（JSON 持久化）
 ├── docs/                   # 设计文档（superpowers specs/plans）

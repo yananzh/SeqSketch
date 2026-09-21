@@ -9,12 +9,18 @@ Run from the repository root on Windows:
 ```bash
 pip install -r requirements.txt
 pip install -r dev-requirements.txt   # pytest, pytest-timeout, ruff
+.\scripts\fetch_softwares.ps1         # external tool binaries (gitignored, ~80 MB download)
 python main.py
 py -m pytest tests/test_dna_analysis_tabs.py -q
 py -m pytest tests/test_fasta_tools_tabs.py -q
+py -m pytest tests/test_tool_paths.py -q   # platform tool resolution
 py -m pytest -q                       # full suite (auto-timeout 60s per test)
 ruff check .                          # lint
 ```
+
+CI (`.github/workflows/ci.yml`) runs `ruff check .` plus the suite on `windows-latest`
+and `macos-15`. It does **not** fetch the tools: tests that shell out to them mock the
+launcher, and the two that need a real bundle skip themselves.
 
 Build the Windows portable onedir distribution with PyInstaller:
 
@@ -51,7 +57,7 @@ modules/             -> Feature tabs and supporting modules
 utils/               -> Shared UI base classes, validation helpers, path utilities, example-data loader
 config/settings.py   -> JSON-backed settings manager (planned, currently unused)
 config.ini           -> External tool path overrides
-softwares/           -> Bundled BLAST, IQTree, MAFFT, MUSCLE, TrimAl binaries
+softwares/           -> External tool binaries per platform (gitignored; scripts/fetch_softwares.ps1)
 examples/            -> Bundled read-only teaching datasets (phylo/, labs/) resolved via resource_path
 tests/               -> Pytest regression coverage
 ```
@@ -116,11 +122,15 @@ tests/               -> Pytest regression coverage
 - Use `user_data_file(...)` / `user_data_dir(...)` for writable settings and user data; avoid writing mutable runtime state into the repo root or bundled resource tree.
 - `modules/blast_config.py` still reads the repo-root `config.ini` as a legacy fallback, then persists the resolved value into the per-user config file. Preserve equivalent migration behavior if you move or add persisted settings.
 - If you touch `main.py`, `main_window.py`, or launcher tabs that still derive paths from `__file__`, prefer moving toward `resource_path(...)` instead of copying legacy path-building patterns into new code.
-- External tool binaries live under `softwares/` by default:
-- BLAST: `softwares/ncbi-blast-2.17.0+/bin/`
-- IQTree: `softwares/iqtree-3.0.1-Windows/bin/`
-- TrimAl: `softwares/trimAl_Windows_v1.5.1/`
-- `config.ini` can override tool paths; preserve that behavior when modifying launcher code.
+- External tool binaries live under the per-platform `softwares/` folder:
+- Windows: `softwares/windows/`, macOS: `softwares/Mac/`
+- e.g. `windows/ncbi-blast-2.17.0+/bin/blastn.exe`, `Mac/iqtree-3.1.3-macOS/bin/iqtree3`
+- **Resolve them through `utils/tool_paths.py`** (`mafft_launcher()`, `trimal_executable()`,
+  `iqtree_executable()`, `muscle_executable()`) — it owns the per-platform folder and
+  executable names. Never hard-code a bundle folder or `.exe` suffix in a tab; tool folder
+  names are version-numbered and differ per platform (`tests/test_tool_paths.py` enforces this).
+- `config.ini` can override tool paths (empty = auto-detect the bundled copy); preserve that
+  behavior when modifying launcher code.
 
 ## UI and Styling
 

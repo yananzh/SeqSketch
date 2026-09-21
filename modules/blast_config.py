@@ -4,7 +4,13 @@ import os
 import sys
 from datetime import datetime
 
-from utils.app_paths import portable_root, resource_path, user_data_file
+from utils.app_paths import (
+    bundled_tool_entries,
+    exe_name,
+    portable_root,
+    resource_path,
+    user_data_file,
+)
 
 _LEGACY_CONFIG_FILE = os.path.join(portable_root(), "config.ini")
 
@@ -39,28 +45,16 @@ def _version_key(name: str) -> tuple[int, ...]:
 
 
 def _detect_bundled_bin() -> str | None:
-    softwares_dir = resource_path("softwares")
-    if not os.path.isdir(softwares_dir):
-        return None
+    """Newest bundled BLAST+ bin dir for this platform, or None.
 
+    Tool folders are version-numbered (ncbi-blast-2.17.0+), so they are matched
+    by prefix; the executable name is platform-specific (blastn / blastn.exe).
+    """
     candidates: list[str] = []
-    try:
-        # tools live under a per-platform subfolder (softwares/windows/...) with
-        # a fallback to the historical flat layout (softwares/ncbi-blast-*/...)
-        roots = [softwares_dir]
-        plat = "windows" if sys.platform.startswith("win") else "Mac"
-        plat_dir = os.path.join(softwares_dir, plat)
-        if os.path.isdir(plat_dir):
-            roots.append(plat_dir)
-        for root in roots:
-            for name in os.listdir(root):
-                if not name.startswith("ncbi-blast-"):
-                    continue
-                bin_dir = os.path.join(root, name, "bin")
-                if os.path.isfile(os.path.join(bin_dir, "blastn.exe")):
-                    candidates.append(bin_dir)
-    except OSError:
-        return None
+    for tool_dir in bundled_tool_entries("ncbi-blast-", dirs=True):
+        bin_dir = os.path.join(tool_dir, "bin")
+        if os.path.isfile(os.path.join(bin_dir, exe_name("blastn"))):
+            candidates.append(bin_dir)
 
     if not candidates:
         return None
@@ -367,13 +361,18 @@ def get_blast_bin_dir() -> str | None:
         if os.path.exists(cfg_path):
             config.read(cfg_path, encoding="utf-8")
             if CONFIG_SECTION in config and CONFIG_KEY in config[CONFIG_SECTION]:
-                stored = config[CONFIG_SECTION][CONFIG_KEY]
+                stored = config[CONFIG_SECTION][CONFIG_KEY].strip()
+                # An empty value means "not configured": os.path.join(root, "")
+                # is the app root itself, which passes isdir() and would be
+                # reported as the BLAST bin directory.
+                if not stored:
+                    continue
                 # Relative values in config.ini resolve against the app root
                 # (portable_root), not the process cwd.
                 candidate = (
                     stored if os.path.isabs(stored) else os.path.join(portable_root(), stored)
                 )
-                if candidate and os.path.isdir(candidate):
+                if os.path.isdir(candidate):
                     # Normalize to an absolute Windows-style path so the UI
                     # never shows forward slashes or cwd-relative values.
                     resolved = os.path.normpath(os.path.abspath(candidate))

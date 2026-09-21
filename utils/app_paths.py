@@ -1,5 +1,6 @@
 import configparser
 import os
+import platform
 import sys
 
 APP_NAME = "SeqSketch"
@@ -17,6 +18,74 @@ def resource_path(*parts: str) -> str:
     return os.path.join(runtime_root(), *parts)
 
 
+# ── Platform primitives ─────────────────────────────────────────────────────
+# Bundled tools live under softwares/<platform>/. Executable names differ too:
+# Windows appends ".exe", and some macOS bundles are split per CPU
+# architecture. Keeping that knowledge here stops the tab modules from
+# hard-coding Windows-only names (which silently broke the macOS paths).
+
+
+def platform_dir() -> str:
+    """Name of the softwares/ subfolder holding this platform's tools."""
+    if sys.platform.startswith("win"):
+        return "windows"
+    if sys.platform == "darwin":
+        return "Mac"
+    return "linux"
+
+
+def exe_suffix() -> str:
+    """Executable extension for this platform (".exe" on Windows, else "")."""
+    return ".exe" if sys.platform.startswith("win") else ""
+
+
+def exe_name(base: str) -> str:
+    """``"blastn"`` -> ``"blastn.exe"`` on Windows, ``"blastn"`` on macOS."""
+    return base + exe_suffix()
+
+
+def mac_arch() -> str:
+    """Architecture tag used by the arch-split macOS bundles ("arm64"/"x86")."""
+    machine = platform.machine().lower()
+    return "arm64" if machine in ("arm64", "aarch64") else "x86"
+
+
+def tool_search_roots() -> list[str]:
+    """Bundled-tool roots, most specific first.
+
+    The platform folder is scanned before the flat legacy root, so a stale
+    flat copy can never shadow the platform one.
+    """
+    return [
+        resource_path("softwares", platform_dir()),
+        resource_path("softwares"),
+    ]
+
+
+def bundled_tool_entries(prefix: str, *, dirs: bool = True) -> list[str]:
+    """Bundled entries under a search root whose name starts with *prefix*.
+
+    Returns full paths, sorted by name, taken from the first root that has a
+    match — the platform and flat layouts are never mixed. Empty when nothing
+    matches.
+    """
+    for root in tool_search_roots():
+        if not os.path.isdir(root):
+            continue
+        try:
+            names = sorted(os.listdir(root))
+        except OSError:
+            continue
+        matches = [
+            os.path.join(root, name)
+            for name in names
+            if name.startswith(prefix) and os.path.isdir(os.path.join(root, name)) == dirs
+        ]
+        if matches:
+            return matches
+    return []
+
+
 def bundled_tool_path(*parts: str) -> str:
     """Path of a bundled external tool under softwares/.
 
@@ -25,37 +94,24 @@ def bundled_tool_path(*parts: str) -> str:
     older checkouts keep working.
     """
     flat = resource_path("softwares", *parts)
-    plat = "windows" if sys.platform.startswith("win") else "Mac"
-    split = resource_path("softwares", plat, *parts)
+    split = resource_path("softwares", platform_dir(), *parts)
     return split if os.path.exists(split) else flat
 
 
 def find_bundled_tool(dir_prefix: str, *parts: str) -> str:
-    """Locate a bundled tool whose directory name starts with *dir_prefix*.
+    """Locate a bundled tool folder whose directory name starts with *dir_prefix*.
 
-    Version-numbered tool folders (e.g. ``iqtree-3.1.3-Windows``) change
-    with every upgrade; matching by prefix keeps the code working without
-    edits.  Both the flat (softwares/<tool>) and platform-split
-    (softwares/windows/<tool>) layouts are scanned, preferring the split one.
+    Version-numbered tool folders (e.g. ``iqtree-3.1.3-Windows``) change with
+    every upgrade; matching by prefix keeps the code working without edits.
     Returns the last candidate path even if it does not exist yet, so callers
     can produce a useful error message.
     """
-    candidates = []
-    for base in (
-        resource_path("softwares"),
-        resource_path("softwares", "windows" if sys.platform.startswith("win") else "Mac"),
-    ):
-        if not os.path.isdir(base):
-            continue
-        for name in sorted(os.listdir(base)):
-            if name.startswith(dir_prefix):
-                candidates.append(os.path.join(base, name, *parts))
-    if candidates:
-        return candidates[-1]
-    # No match: return the split-layout path with the prefix as directory
+    matches = bundled_tool_entries(dir_prefix, dirs=True)
+    if matches:
+        return os.path.join(matches[-1], *parts)
+    # No match: return the platform-layout path with the prefix as directory
     # name so the caller's "not found" error names a plausible location.
-    plat = "windows" if sys.platform.startswith("win") else "Mac"
-    return resource_path("softwares", plat, dir_prefix.rstrip("-") + "-", *parts)
+    return resource_path("softwares", platform_dir(), dir_prefix.rstrip("-") + "-", *parts)
 
 
 def portable_root() -> str:

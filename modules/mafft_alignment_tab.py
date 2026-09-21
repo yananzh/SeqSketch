@@ -30,7 +30,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.app_paths import bundled_tool_path, resource_path, tool_path_from_config
+from utils.app_paths import resource_path
 from utils.common_components import (
     BaseTabWidget,
     BaseWorker,
@@ -40,26 +40,12 @@ from utils.common_components import (
 from utils.example_data import load_example_text, stage_example
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
+from utils.tool_paths import mafft_launcher
 
 
 def _default_mafft_exe() -> str:
     """Resolve MAFFT launcher: config.ini → bundled fallback."""
-    configured = tool_path_from_config("MAFFT", "bin_dir")
-    if configured:
-        for name in ("mafft.bat", "mafft-signed.ps1"):
-            candidate = os.path.join(configured, name)
-            if os.path.isfile(candidate):
-                return candidate
-        for name in ("mafft.bat", "mafft-signed.ps1"):
-            candidate = os.path.join(configured, "usr", "bin", name)
-            if os.path.isfile(candidate):
-                return candidate
-    # Fallback: bundled path (correct directory name)
-    for name in ("mafft.bat", "mafft-signed.ps1"):
-        candidate = bundled_tool_path("mafft-win_v7.526", name)
-        if os.path.isfile(candidate):
-            return candidate
-    return bundled_tool_path("mafft-win_v7.526", "mafft.bat")
+    return mafft_launcher()
 
 
 def _strategy_key(strategy: str) -> str:

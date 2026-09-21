@@ -28,6 +28,8 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import (
     apply_transparent_text_edit_background,
+    park_qthread,
+    stop_worker_object,
     unify_status_button_sizes,
 )
 from utils.example_data import stage_example
@@ -49,20 +51,13 @@ _BASE_COLOR = {
 
 
 class _LoadThread(QThread):
-    """QThread that stops itself before C++ destruction.
+    """Loads and parses the AB1 file on a background thread.
 
-    Plain QThread instances abort the process with "QThread: Destroyed while
-    thread is still running" if they are garbage-collected (e.g. when a tab
-    is closed or a test ends) while the worker is still starting up.
+    Lifetime is owned by :class:`SangerViewerTab`, which stops and parks this
+    thread from ``shutdown()`` (called by ``MainWindow.close_tab``). Do not
+    add a ``__del__`` hook here: destroying a still-running QThread aborts
+    the process with "QThread: Destroyed while thread is still running".
     """
-
-    def __del__(self):
-        try:
-            self.quit()
-            self.wait(3000)
-        except RuntimeError:
-            pass
-        super().__del__()
 
 
 class _LoadWorker(QObject):
@@ -335,6 +330,19 @@ class SangerViewerTab(QWidget):
         self._worker = None
         self._thread = None
         self._btn_browse.setEnabled(True)
+
+    def shutdown(self) -> None:
+        """Stop and park the loader thread before the tab is destroyed.
+
+        Called by ``MainWindow.close_tab``. ``park_qthread`` defers C++
+        destruction of a still-running thread to its ``finished`` signal, so
+        Qt never aborts with "QThread: Destroyed while thread is still
+        running". ``self._worker`` is intentionally left alone here — it runs
+        inside the thread and must outlive it.
+        """
+        stop_worker_object(self._thread)
+        park_qthread(self._thread)
+        self._thread = None
 
     def _on_loaded(self, abi_data: dict, sequence: str, quality: List[int]) -> None:
         self._abi_data = abi_data

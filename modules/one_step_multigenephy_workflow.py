@@ -21,14 +21,9 @@ from modules.one_step_multigenephy_io import (
     write_run_manifest,
 )
 from modules.one_step_multigenephy_models import RunArtifacts, WorkflowRunResult
-from utils.app_paths import (
-    bundled_tool_path,
-    find_bundled_tool,
-    resource_path,
-    tool_path_from_config,
-)
 from utils.process_control import kill_process_tree
 from utils.run_provenance import probe_tool_version, record_tool_run
+from utils.tool_paths import iqtree_executable, mafft_launcher, trimal_executable
 
 
 def _creation_flags() -> int:
@@ -65,37 +60,15 @@ def _read_fasta_file(path: Path) -> dict[str, str]:
 
 
 def _mafft_executable() -> str:
-    configured = tool_path_from_config("MAFFT", "bin_dir")
-    if configured:
-        for name in ("mafft.bat", "mafft-signed.ps1"):
-            candidate = os.path.join(configured, name)
-            if os.path.isfile(candidate):
-                return candidate
-    for name in ("mafft.bat", "mafft-signed.ps1"):
-        candidate = bundled_tool_path("mafft-win_v7.526", name)
-        if os.path.isfile(candidate):
-            return candidate
-    return bundled_tool_path("mafft-win_v7.526", "mafft.bat")
+    return mafft_launcher()
 
 
 def _trimal_executable() -> str:
-    configured = tool_path_from_config("TrimAl", "bin_dir")
-    if configured:
-        exe = os.path.join(configured, "trimal.exe")
-        if os.path.isfile(exe):
-            return exe
-    return bundled_tool_path("trimAl_Windows_v1.5.1", "trimal.exe")
+    return trimal_executable()
 
 
 def _iqtree_executable() -> str:
-    configured = tool_path_from_config("IQTree", "bin_dir")
-    if configured:
-        exe = os.path.join(configured, "iqtree3.exe")
-        if os.path.isfile(exe):
-            return exe
-    # Version-numbered folder (iqtree-3.x-Windows) — match by prefix so
-    # upgrades don't break the resolution.
-    return find_bundled_tool("iqtree-", "bin", "iqtree3.exe")
+    return iqtree_executable()
 
 
 def _ensure_executable(path: str, tool_name: str) -> None:

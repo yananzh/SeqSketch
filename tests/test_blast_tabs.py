@@ -461,3 +461,24 @@ def test_blast_run_dialog_pairwise_and_xml_outfmt_have_no_header(monkeypatch, tm
         content = open(out_file, encoding="utf-8").read()
         assert content == payload
         assert not content.startswith("qseqid")
+
+
+def test_get_blast_bin_dir_ignores_empty_config_value(monkeypatch, tmp_path):
+    """An empty bin_dir must not resolve to the app root.
+
+    os.path.join(portable_root(), "") is the app root itself, which passes
+    os.path.isdir() — so an empty value used to be reported as the BLAST bin
+    directory instead of falling back to the bundled copy.
+    """
+    from modules import blast_config
+
+    config_file = tmp_path / "config.ini"
+    config_file.write_text("[BLAST]\nbin_dir =\n", encoding="utf-8")
+    bundled = tmp_path / "bundled-bin"
+    bundled.mkdir()
+
+    monkeypatch.setattr(blast_config, "CONFIG_FILE", str(config_file))
+    monkeypatch.setattr(blast_config, "_LEGACY_CONFIG_FILE", str(tmp_path / "legacy.ini"))
+    monkeypatch.setattr(blast_config, "_detect_bundled_bin", lambda: str(bundled))
+
+    assert blast_config.get_blast_bin_dir() == str(bundled)

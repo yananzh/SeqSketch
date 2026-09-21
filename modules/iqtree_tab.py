@@ -1,6 +1,7 @@
 """
 IQ-TREE local tab  —  ML Tree Construction (IQ-TREE)
-Uses the bundled iqtree3.exe at softwares/iqtree-3.0.1-Windows/bin/iqtree3.exe
+Uses the bundled iqtree3 executable (resolved per platform by
+utils.tool_paths.iqtree_executable).
 """
 
 import os
@@ -24,7 +25,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.app_paths import find_bundled_tool, resource_path, tool_path_from_config
+from utils.app_paths import resource_path
 from utils.common_components import (
     BaseTabWidget,
     FileDropLineEdit,
@@ -35,18 +36,12 @@ from utils.common_components import (
 from utils.example_data import stage_example
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
+from utils.tool_paths import iqtree_executable
 
 
 def _resolve_iqtree_exe() -> str:
     """Resolve IQTree executable path: config.ini → bundled fallback."""
-    configured = tool_path_from_config("IQTree", "bin_dir")
-    if configured:
-        exe = os.path.join(configured, "iqtree3.exe")
-        if os.path.isfile(exe):
-            return exe
-    # Version-numbered folder (iqtree-3.x-Windows) — match by prefix so
-    # upgrades don't break the resolution.
-    return find_bundled_tool("iqtree-", "bin", "iqtree3.exe")
+    return iqtree_executable()
 
 
 def _detect_alignment_format(path: str) -> str:

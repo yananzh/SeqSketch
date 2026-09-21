@@ -20,13 +20,30 @@ datas = [
     (os.path.join(root, 'window_logo.ico'),        '.'),
     # Resources directory (modern_theme.qss, etc.)
     (os.path.join(root, 'resources'),            'resources'),
-    # External tools (BLAST, IQTree, MAFFT, TrimAl, MUSCLE)
-    (os.path.join(root, 'softwares'),            'softwares'),
     # Teaching example datasets (cytb, etc.)
     (os.path.join(root, 'examples'),             'examples'),
     # Config template (pre-populated relative paths)
     (os.path.join(root, 'config.ini'),           '.'),
 ]
+
+# ── External tools (BLAST, IQTree, MAFFT, TrimAl, MUSCLE) ─────────────────────
+# Only this platform's tools are bundled: shipping the whole softwares/ tree put
+# roughly 375 MB of the other platform's binaries inside every distribution.
+# The folder names must stay in sync with utils.app_paths.platform_dir()
+# (tests/test_build_spec.py checks this).
+if sys.platform.startswith('win'):
+    _SOFTWARES_PLATFORM = 'windows'
+elif sys.platform == 'darwin':
+    _SOFTWARES_PLATFORM = 'Mac'
+else:
+    _SOFTWARES_PLATFORM = 'linux'
+
+_platform_tools = os.path.join(root, 'softwares', _SOFTWARES_PLATFORM)
+if os.path.isdir(_platform_tools):
+    datas.append((_platform_tools, os.path.join('softwares', _SOFTWARES_PLATFORM)))
+else:
+    # Older checkouts keep every tool in a flat softwares/ layout.
+    datas.append((os.path.join(root, 'softwares'), 'softwares'))
 
 # logomaker ships data files (font files, etc.)
 datas += collect_data_files('logomaker')
@@ -154,6 +171,17 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# Windows-only EXE options: a version resource, an application manifest and an
+# .ico icon. macOS wants an .icns instead (the repo does not ship one yet), and
+# rejects the other two, so they are added per platform.
+_win_exe_options = {}
+if sys.platform.startswith('win'):
+    _win_exe_options = {
+        'icon': os.path.join(root, 'window_logo.ico'),
+        'version': os.path.join(root, 'version_info.txt'),
+        'manifest': os.path.join(root, 'manifest.xml'),
+}
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -169,9 +197,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(root, 'window_logo.ico') if os.path.exists(os.path.join(root, 'window_logo.ico')) else None,
-    version=os.path.join(root, 'version_info.txt'),
-    manifest=os.path.join(root, 'manifest.xml'),
+    **_win_exe_options,
 )
 
 coll = COLLECT(
@@ -184,3 +210,18 @@ coll = COLLECT(
     upx_exclude=['Qt6*.dll', 'PyQt6*.pyd', 'python*.dll'],
     name='SeqSketch',
 )
+
+# macOS: wrap the onedir output in a double-clickable .app bundle. Without it the
+# download is a folder whose only launcher is the bare Mach-O executable, which
+# Finder will not open by double-click.
+if sys.platform == 'darwin':
+    app = BUNDLE(
+        coll,
+        name='SeqSketch.app',
+        bundle_identifier='org.seqsketch.app',
+        info_plist={
+            'NSHighResolutionCapable': True,
+            'LSMinimumSystemVersion': '11.0',
+            'CFBundleShortVersionString': '1.0.0',
+        },
+    )

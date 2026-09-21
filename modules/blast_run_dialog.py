@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from utils.app_paths import exe_name
 from utils.run_provenance import record_tool_run
 
 from .blast_config import get_blast_bin_dir, set_blast_bin_dir
@@ -72,10 +73,7 @@ class _RunBlastThread(QThread):
 
     def run(self):
         self._cancelled = False
-        exe = os.path.join(
-            self.bin_dir,
-            self.program + (".exe" if os.name == "nt" else ""),
-        )
+        exe = os.path.join(self.bin_dir, exe_name(self.program))
         query_tmp = self.out_file + ".query.tmp.fasta"
         tmp_out = self.out_file + ".tmp"
 

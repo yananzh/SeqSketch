@@ -333,9 +333,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         """Handle input selection from dialog or drag-and-drop"""
         self.input_edit.setText(file_path)
         base = os.path.splitext(os.path.basename(file_path))[0]
-        suggested = os.path.join(
-            os.path.dirname(file_path), base + "_length_statistics.txt"
-        ).replace("/", "\\")
+        suggested = os.path.join(os.path.dirname(file_path), base + "_length_statistics.txt")
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")

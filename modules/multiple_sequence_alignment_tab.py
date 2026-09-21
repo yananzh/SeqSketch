@@ -31,11 +31,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.app_paths import bundled_tool_path, resource_path, tool_path_from_config, user_data_file
+from utils.app_paths import resource_path, user_data_file
 from utils.common_components import BaseTabWidget, apply_input_list_style, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
+from utils.tool_paths import muscle_executable
 
 # Per-user config file where the user-selected MUSCLE path is persisted.
 # Mirrors the pattern used by blast_config.py (legacy repo-root config.ini is
@@ -45,10 +46,7 @@ CONFIG_INI = user_data_file("config.ini")
 
 def _resolve_muscle_exe() -> str:
     """Resolve MUSCLE executable: config.ini → bundled fallback."""
-    configured = tool_path_from_config("MUSCLE", "exe")
-    if configured and os.path.isfile(configured):
-        return configured
-    return bundled_tool_path("muscle-win64.v5.3.exe")
+    return muscle_executable()
 
 
 MUSCLE_EXE = _resolve_muscle_exe()
@@ -608,7 +606,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.muscle_path_edit.setPlaceholderText("Choose MUSCLE executable path")
         self.muscle_path_edit.setText(self._saved_muscle_path)
         self.muscle_path_edit.setToolTip(
-            "Path to MUSCLE executable (muscle-win64.v5.3.exe or custom build)"
+            "Path to the MUSCLE executable (bundled or custom build)"
         )
 
         self.muscle_browse_btn = QPushButton("Browse")

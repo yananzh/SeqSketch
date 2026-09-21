@@ -1,0 +1,115 @@
+name: Release
+
+# Builds the portable GUI for Windows and macOS and attaches both archives to a
+# GitHub release, so users can download and run without a Python install.
+#
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# or run it manually against an existing tag (Actions -> Release -> Run workflow).
+#
+# The bundled external tools are gitignored; the jobs pull them from the
+# 'tools-v1' release created by scripts/pack_softwares.ps1.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to attach the builds to (e.g. v1.0.0)"
+        required: true
+
+permissions:
+  contents: write # create the release and upload assets
+
+jobs:
+  build:
+    name: build (${{ matrix.platform }})
+    strategy:
+      # Publish whichever platform succeeds; a macOS-only problem should not
+      # block the Windows download.
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            artifact: dist/SeqSketch-windows.zip
+          # Two macOS builds: the tools bundle is universal (BLAST, IQ-TREE,
+          # MAFFT) or arch-split (trimAl, MUSCLE ship both), so both work.
+          - os: macos-15
+            platform: Mac
+            artifact: dist/SeqSketch-Mac-arm64.zip
+          - os: macos-15-intel
+            platform: Mac
+            artifact: dist/SeqSketch-Mac-x86_64.zip
+    runs-on: ${{ matrix.os }}
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r dev-requirements.txt
+
+      # Never publish a build whose own suite is red. Runs before the tools are
+      # fetched: the two tests that need a real bundle skip themselves.
+      - name: Test
+        run: python -m pytest -q
+
+      # gh is preinstalled on the runners; GITHUB_TOKEN can read release assets
+      # of this private repository.
+      - name: Fetch bundled tools
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/fetch_softwares.ps1 -Platform ${{ matrix.platform }}
+
+      - name: Build portable distribution
+        shell: pwsh
+        run: |
+          $python = python -c "import sys; print(sys.executable)"
+          ./scripts/build_onedir.ps1 -PythonExe $python -Zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SeqSketch-${{ matrix.platform }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
+
+  release:
+    name: publish release
+    needs: build
+    # Cheapest runner: this job only moves files around.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Upload archives to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+
+          ls -l artifacts
+
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" \
+              --title "SeqSketch $tag" \
+              --notes "Portable Windows and macOS builds. Download the archive for your platform, extract it and run SeqSketch."
+          fi
+
+          gh release upload "$tag" artifacts/*.zip --repo "$GITHUB_REPOSITORY" --clobber
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY"

@@ -41,7 +41,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.app_paths import resource_path
+from utils.app_paths import exe_name, resource_path
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 
 from .blast_config import (
@@ -455,9 +455,7 @@ class _BuildDbWidget(QWidget):
                 f"{detection_error}",
             )
             return
-        if not bin_dir or not os.path.isfile(
-            os.path.join(bin_dir, "makeblastdb" + (".exe" if os.name == "nt" else ""))
-        ):
+        if not bin_dir or not os.path.isfile(os.path.join(bin_dir, exe_name("makeblastdb"))):
             QMessageBox.warning(
                 self,
                 "Configuration Error",
@@ -1355,13 +1353,15 @@ class BlastLocalTab(BaseTabWidget):
         _ = index
 
     def _check_blast_bin(self):
+        """Report a missing BLAST+ bin dir without blocking tab creation.
+
+        This runs from __init__, so it must not open a modal dialog: a
+        QMessageBox here blocks every headless construction of the tab
+        (offscreen tests, CI) until it times out. Paths that actually need
+        the binaries still report the problem with a proper dialog.
+        """
         if not self._get_blast_bin_dir():
-            QMessageBox.information(
-                self,
-                "BLAST+ Not Found",
-                "Could not locate BLAST+ executables automatically.\n\n"
-                    "Please click BLAST+ Path... to specify the folder containing blastn.exe, makeblastdb.exe, and related tools.",
-            )
+            self.show_status("BLAST+ not found - browse to its bin folder")
 
     def show_help(self):
         """Show Local BLAST help dialog."""

@@ -10,6 +10,11 @@ SPEC_PATH = os.path.join(
 )
 
 
+def _spec_source() -> str:
+    with open(SPEC_PATH, "r", encoding="utf-8") as fh:
+        return fh.read()
+
+
 def test_spec_file_exists():
     """The .spec file must exist in the project root."""
     assert os.path.isfile(SPEC_PATH), f"Missing: {SPEC_PATH}"
@@ -37,6 +42,28 @@ def test_spec_bundles_softwares():
     assert "'softwares'" in source or '"softwares"' in source, (
         "softwares/ must be in datas"
     )
+
+
+def test_spec_adds_tools_per_platform_not_as_a_whole_tree():
+    """softwares/ is added per platform, never as the entire tree.
+
+    Bundling the whole tree put roughly 375 MB of the other platform's
+    binaries inside every distribution.
+    """
+    source = _spec_source()
+    start = source.index("datas = [")
+    static_datas = source[start : source.index("]", start)]
+    assert "softwares" not in static_datas, (
+        "the static datas list must not bundle all of softwares/"
+    )
+    assert "_SOFTWARES_PLATFORM" in source, "spec must select softwares/<platform>"
+
+
+def test_spec_platform_folder_matches_app_paths():
+    """The spec's platform folder must agree with utils.app_paths.platform_dir()."""
+    from utils.app_paths import platform_dir
+
+    assert f"_SOFTWARES_PLATFORM = '{platform_dir()}'" in _spec_source()
 
 
 def test_spec_bundles_config_ini():

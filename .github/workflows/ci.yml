@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    # Bundled external tools (softwares/) are gitignored, so CI runs without
+    # BLAST / IQ-TREE / MAFFT / MUSCLE / trimAl binaries: tests that shell out
+    # to them mock the launcher, and the two that need a real bundle skip
+    # themselves (see tests/test_tool_paths.py).
+    #
+    # Both platforms are tested because tool resolution is platform-specific:
+    # tests/test_tool_paths.py simulates the *other* platform on each runner,
+    # so the Windows and macOS jobs together cover both bundle layouts.
+    strategy:
+      # Let the other platform finish when one fails — the result is the data.
+      fail-fast: false
+      matrix:
+        # macos-15 is arm64 (Apple Silicon). Add macos-15-intel for an x86_64
+        # leg; it costs the same per minute.
+        os: [windows-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    env:
+      # Qt has no display on the runner; conftest.py also sets this.
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r dev-requirements.txt
+
+      # Lint results do not depend on the OS, so run it on one leg only.
+      - name: Lint (ruff)
+        if: matrix.os == 'windows-latest'
+        run: ruff check .
+
+      - name: Test (pytest, offscreen Qt)
+        run: python -m pytest -q

@@ -39,7 +39,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.app_paths import bundled_tool_path, resource_path, tool_path_from_config
+from utils.app_paths import resource_path
 from utils.common_components import (
     BaseTabWidget,
     apply_log_viewer_style,
@@ -49,17 +49,13 @@ from utils.common_components import (
 )
 from utils.example_data import stage_example
 from utils.run_provenance import record_tool_run
+from utils.tool_paths import trimal_executable
 
 
-# ── bundled trimAl path ────────────────────────────────────────────────────
+# ── bundled trimAl path ────────────────────────────────────────
 def _resolve_trimal_exe() -> str:
     """Resolve trimAl executable: config.ini → bundled fallback."""
-    configured = tool_path_from_config("TrimAl", "bin_dir")
-    if configured:
-        exe = os.path.join(configured, "trimal.exe")
-        if os.path.isfile(exe):
-            return exe
-    return bundled_tool_path("trimAl_Windows_v1.5.1", "trimal.exe")
+    return trimal_executable()
 
 
 # 动态解析，避免模块级缓存导致 config.ini 运行时变更不生效
@@ -696,8 +692,8 @@ or <b>MSA Visualization</b>.</li>
                 self,
                 "trimAl Not Found",
                 f"trimAl executable not found at:\n{exe}\n\n"
-                "Please use the Browse button to locate trimal.exe, "
-                "or verify that softwares/trimAl_Windows_v1.5.1/ is present.",
+                "Please use the Browse button to select the trimAl executable, "
+                "or verify that the bundled softwares/ folder is intact.",
             )
             return
 
