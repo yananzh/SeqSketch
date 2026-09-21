@@ -428,8 +428,8 @@ class MainWindow(QMainWindow):
             self,
             "Check for Updates",
             "Current version: v1.0.0\n\nNo updates available.\n\n"
-                "Visit the project page for the latest info:\n"
-                "https://github.com/yananzh/SeqSketch",
+            "Visit the project page for the latest info:\n"
+            "https://github.com/yananzh/SeqSketch",
         )
 
     def show_about_dialog(self):
@@ -440,7 +440,7 @@ class MainWindow(QMainWindow):
 
 <p style="font-size:14px; color:#555; margin:0; line-height:1.8;">
 <b>Version 1.0.0</b><br>
-yananzh &middot; MIT License
+yananzh &middot; GPL-3.0
 </p>
 
 <p style="font-size:13px; color:#999; margin:12px 0 0 0;">

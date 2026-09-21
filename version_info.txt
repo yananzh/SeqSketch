@@ -21,7 +21,7 @@ VSVersionInfo(
         StringStruct('FileDescription', 'Sequence Analysis & Visualization Toolkit'),
         StringStruct('FileVersion', '1.0.0'),
         StringStruct('InternalName', 'SeqSketch'),
-        StringStruct('LegalCopyright', 'MIT License'),
+          StringStruct('LegalCopyright', 'GNU General Public License v3.0'),
         StringStruct('OriginalFilename', 'SeqSketch.exe'),
         StringStruct('ProductName', 'SeqSketch'),
         StringStruct('ProductVersion', '1.0.0'),

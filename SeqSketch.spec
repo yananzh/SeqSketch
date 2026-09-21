@@ -24,6 +24,14 @@ datas = [
     (os.path.join(root, 'examples'),             'examples'),
     # Config template (pre-populated relative paths)
     (os.path.join(root, 'config.ini'),           '.'),
+    # Licence: the project's own GPL-3.0 text (the third-party texts are below).
+    (os.path.join(root, 'LICENSE'),               '.'),
+    # Third-party licence texts for the bundled Python packages. PyInstaller only
+    # carries over dist-info for a couple of packages, so the GPL components
+    # (PyQt6, primer3-py, patchworklib) would otherwise ship without their
+    # licence texts.
+    (os.path.join(root, 'third_party_licenses'), 'third_party_licenses'),
+    (os.path.join(root, 'THIRD-PARTY-NOTICES.md'), '.'),
 ]
 
 # ── External tools (BLAST, IQTree, MAFFT, TrimAl, MUSCLE) ─────────────────────

@@ -132,6 +132,22 @@ tests/               -> Pytest regression coverage
 - `config.ini` can override tool paths (empty = auto-detect the bundled copy); preserve that
   behavior when modifying launcher code.
 
+## Licensing (do not regress)
+
+- Every bundled tool must ship its licence text **inside its own folder** under
+  `softwares/<platform>/` — the conditions have to travel with the download. `tests/test_license_compliance.py`
+  enforces this plus the content markers that prove the text is the real licence.
+- Tool versions and licences are documented in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
+  (repo root, also bundled into the packaged app). Update it when a tool is added or upgraded.
+- Licence texts for the bundled Python packages live in `third_party_licenses/` and are regenerated with
+  `python scripts/collect_licenses.py` (`--check` verifies them). The directory is generated — do not
+  hand-edit it.
+- **The project is licensed `GPL-3.0`** ([LICENSE](LICENSE)), because PyQt6 is `GPL-3.0-only`. Do not
+  introduce a permissive project-licence claim in `README.MD`, `version_info.txt`, or the About
+  dialog; the section `## 许可与来源` records the status deliberately.
+- Take licences from the **shipped text**, not from PyPI classifiers — they disagree in
+  practice (e.g. `toytree` and `sangerseq-viewer` are listed as GPLv3 but ship BSD-3 and MIT).
+
 ## UI and Styling
 
 - `styles.qss` is the primary stylesheet; `resources/styles/modern_theme.qss` is the alternate theme.

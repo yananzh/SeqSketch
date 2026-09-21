@@ -143,6 +143,16 @@ $exe = Join-Path $distDir $ExeName
 if (-not (Test-Path $exe)) {
     throw "Build did not produce: $exe"
 }
+
+# Licence material next to the launcher, where a recipient will actually see it.
+# SeqSketch.spec already bundles both files into _internal/, but these copies put
+# them in the portable folder listing alongside the executable.
+foreach ($name in 'LICENSE', 'THIRD-PARTY-NOTICES.md') {
+    $source = Join-Path $root $name
+    if (Test-Path $source) {
+        Copy-Item $source (Join-Path $distDir $name) -Force
+    }
+}
 $dirSize = [math]::Round(
     (Get-ChildItem -Recurse $distDir | Measure-Object -Property Length -Sum).Sum / 1MB, 1
 )
@@ -208,7 +218,10 @@ Write-Host "  dist/SeqSketch/  <- copy this folder anywhere"
 Write-Host ""
 Write-Host "Contents:"
 Write-Host ("  {0,-20}- launch (no console)" -f $ExeName)
+Write-Host "  LICENSE              - GPL-3.0 text for this project"
+Write-Host "  THIRD-PARTY-NOTICES.md - licences of the bundled tools and libraries"
 Write-Host "  _internal/           - Python, Qt and the bundled tools"
+Write-Host "  _internal/third_party_licenses/ - full licence texts for the libraries"
 Write-Host "  _internal/config.ini - optional tool path overrides"
 Write-Host "  user_data/           - created on first run"
 Write-Host ""

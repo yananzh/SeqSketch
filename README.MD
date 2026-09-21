@@ -1,6 +1,6 @@
 # SeqSketch
 
-**版本 1.0.0** · **License: MIT**
+**版本 1.0.0** · **GPL-3.0** — 见 [许可与来源](#许可与来源)
 
 一个基于 PyQt6 的生物信息学序列分析桌面应用，集成本地计算与在线数据库工具，覆盖 **FASTA 处理 → DNA/RNA/蛋白分析 → 多序列比对 → BLAST → 引物设计 → 系统发育树构建与可视化 → 桑格测序** 的完整研究流程。无需命令行，全部功能通过图形界面（Tab 页）完成。
 
@@ -283,9 +283,63 @@ SeqSketch/
 
 ---
 
-## 许可证
+## 许可与来源
 
-本项目基于 **MIT License** 开源。
+本项目以 **GNU General Public License v3.0**（SPDX：`GPL-3.0-only`）发布，完整条款见 [LICENSE](LICENSE)。
+
+```
+SeqSketch — Sequence Analysis & Visualization Toolkit
+Copyright (C) 2026 yananzh
+
+本程序是自由软件：你可以依据自由软件基金会发布的 GNU 通用公共许可证第 3 版的
+条款重新分发和/或修改它。
+
+本程序的分发是希望它有用，但不提供任何担保，甚至没有适销性或特定用途适用性的
+默示担保。详见 GNU 通用公共许可证。
+
+你应当已随本程序收到一份 GNU 通用公共许可证副本；如果没有，见
+<https://www.gnu.org/licenses/>。
+```
+
+**为什么是 GPL-3.0**：应用链接的 **PyQt6 6.10.0** 在安装元数据中声明 `License-Expression: GPL-3.0-only`，
+因此打包分发的 SeqSketch 是包含 GPL-3.0-only 组件的组合作品，必须以 GPL-3.0 兼容的条件提供。
+其余著佐权组件均兼容：`primer3-py` 为 GPL-2.0-or-later（源码头声明 "or any later version"，可采用
+GPL-3.0）、`patchworklib` 为 GPL-3.0；`toytree`（BSD-3-Clause）与 `sangerseq-viewer`（MIT）不产生著佐权
+义务。完整依赖清单见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) 第 3、5 节。
+
+**再分发注意**：源码即本仓库；修改版同样需以 GPL-3.0 发布，并保留版权与许可声明。
+若以收费方式分发，请先阅读下方 MAFFT 扩展组件的限制。
+
+### 随包分发的第三方工具
+
+下载包中的 `softwares/` 目录包含下列命令行工具的**未修改**官方发行版。各自的许可证文件随二进制一同分发，
+就位于对应工具目录内（例如 `softwares/windows/ncbi-blast-2.17.0+/LICENSE`、
+`softwares/Mac/mafft-7.526-macOS/MAFFT-LICENSE.txt`）。
+
+| 工具 | 版本 | 许可证 | 上游来源 |
+| --- | --- | --- | --- |
+| NCBI BLAST+ | 2.17.0+ | Public Domain（美国政府作品） | <https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/> |
+| MAFFT | v7.526 | 核心 BSD-3-Clause；上游将含扩展的包标注为 GPL | <https://mafft.cbrc.jp/alignment/software/> |
+| IQ-TREE | 3.1.3 | GPL-2.0 | <https://github.com/iqtree/iqtree3> |
+| trimAl | 1.5.1 | GPL-3.0 | <https://github.com/scapella/trimal> |
+| MUSCLE | v5.3 | GPL-3.0 | <https://github.com/rcedgar/muscle> |
+
+GPL 组件的完整对应源码可从上表的上游地址按**相同版本**获取；若届时无法获取，可通过
+[Issues](https://github.com/yananzh/SeqSketch/issues) 索取，免费提供。命令行工具仅对输入输出做文件级调用，
+未做任何修改。
+
+### 许可限制
+
+- **MAFFT 扩展组件**（Vienna RNA package、MXSCARNA、ProbConsRNA）允许免费使用与修改（含商业用途），
+  但**不得以任何费用再分发**（媒体成本除外）。SeqSketch 免费提供，符合该条件；若将来改为收费分发，
+  须另行取得上游作者授权。详见包内 `MAFFT-EXTENSIONS-NOTICE.txt`。
+- 应用本身还打包了若干 Python 组件：PyQt6（GPL-3.0-only）、primer3-py（GPL-2.0-or-later，其源码头声明
+  "or any later version"，故可采用 GPL-3.0）、patchworklib（GPL-3.0）为强著佐权许可；其余（NumPy、pandas、
+  SciPy、Biopython、Matplotlib、requests、toytree、sangerseq-viewer 等）为 BSD/MIT/Apache 类宽松许可。
+  各组件许可正文随应用分发在 `third_party_licenses/python/` 目录下，完整清单见
+  [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+- Windows 版包含 MinGW-w64 运行时 DLL（`libgcc_s_seh-1.dll`、`libstdc++-6.dll`、`libwinpthread-1.dll`），
+  按 GPL-3.0 + GCC Runtime Library Exception 分发，不会限制本程序自身的许可证选择。
 
 ## 开发者文档
 
