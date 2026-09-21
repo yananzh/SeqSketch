@@ -76,6 +76,7 @@ _ALIGN_FORMATS = {
 
 # ── helpers ───────────────────────────────────────────────────────────────
 
+
 def _cleanup_file(path: str | None) -> None:
     if not path:
         return
@@ -372,9 +373,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
 
         # ── input alignment files ──────────────────────────────────────────
 
-        self.file_list = _DropFileList(
-            "Drag & drop alignment files here, or use the buttons below"
-        )
+        self.file_list = _DropFileList("Drag & drop alignment files here, or use the buttons below")
         self.file_list.setMinimumHeight(96)
         self.file_list.files_added.connect(self._auto_fill_outdir)
         io_layout.addWidget(self.file_list)
@@ -472,8 +471,8 @@ class AlignmentTrimmingTab(BaseTabWidget):
         self.fmt_combo.setMinimumWidth(130)
         self.fmt_combo.setToolTip(
             "FASTA   — default, compatible with most tools\n"
-                "PHYLIP  — for IQ-TREE / RAxML\n"
-                "NEXUS   — for MrBayes / BEAST"
+            "PHYLIP  — for IQ-TREE / RAxML\n"
+            "NEXUS   — for MrBayes / BEAST"
         )
         fmt_layout.addWidget(fmt_lbl)
         fmt_layout.addWidget(self.fmt_combo)

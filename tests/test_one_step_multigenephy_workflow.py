@@ -421,7 +421,14 @@ def test_runner_marks_summarize_failed_when_summary_write_raises(tmp_path, monke
     )
 
     def fail_summary_write(
-        path, step_status, warnings, artifacts, commands, gene_stats, concat_info, gene_models,
+        path,
+        step_status,
+        warnings,
+        artifacts,
+        commands,
+        gene_stats,
+        concat_info,
+        gene_models,
         tool_versions=None,
     ):
         raise OSError("summary disk full")
@@ -594,8 +601,17 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
                 return iter(self._lines)
 
         class _FakePopen:
-            def __init__(self, cmd, stdout=None, stderr=None, text=None,
-                         encoding=None, errors=None, creationflags=None, cwd=None):
+            def __init__(
+                self,
+                cmd,
+                stdout=None,
+                stderr=None,
+                text=None,
+                encoding=None,
+                errors=None,
+                creationflags=None,
+                cwd=None,
+            ):
                 calls.append({"cmd": list(cmd), "creationflags": creationflags, "cwd": cwd})
                 executable_name = Path(cmd[0]).name.lower()
                 if executable_name == "mafft.bat":
@@ -609,7 +625,9 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
                     self._stdout_text = ""
                 elif executable_name == "iqtree3.exe":
                     prefix = cmd[cmd.index("--prefix") + 1]
-                    Path(f"{prefix}.treefile").write_text("(strain_a,strain_b);\n", encoding="utf-8")
+                    Path(f"{prefix}.treefile").write_text(
+                        "(strain_a,strain_b);\n", encoding="utf-8"
+                    )
                     self._stdout_text = "ok"
                 else:
                     raise AssertionError(f"Unexpected command: {cmd}")
@@ -816,12 +834,8 @@ def test_runner_skips_fetch_align_trim_when_outputs_exist(tmp_path):
     trimmed.mkdir(parents=True)
     concat.mkdir(parents=True)
     reports.mkdir(parents=True)
-    (normalized / "ITS.fasta").write_text(
-        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
-    )
-    (trimmed / "ITS.fasta").write_text(
-        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
-    )
+    (normalized / "ITS.fasta").write_text(">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8")
+    (trimmed / "ITS.fasta").write_text(">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8")
     (concat / "supermatrix.fasta").write_text(
         ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
     )
@@ -877,9 +891,7 @@ def test_runner_align_mode_skips_fetch_but_runs_align_trim(tmp_path):
     reports = run_dir / "06_reports"
     normalized.mkdir(parents=True)
     reports.mkdir(parents=True)
-    (normalized / "ITS.fasta").write_text(
-        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
-    )
+    (normalized / "ITS.fasta").write_text(">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8")
 
     project = ProjectInput(
         excel_path="input.xlsx",
@@ -938,9 +950,7 @@ def test_runner_resume_falls_back_to_scratch_on_fingerprint_mismatch(tmp_path):
     reports = run_dir / "06_reports"
     normalized.mkdir(parents=True)
     reports.mkdir(parents=True)
-    (normalized / "ITS.fasta").write_text(
-        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
-    )
+    (normalized / "ITS.fasta").write_text(">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8")
     # Manifest recorded for different inputs (stale fingerprint)
     workflow_module.write_run_manifest(
         reports / "run_manifest.json", {"input_fingerprint": "stale-value"}
@@ -996,9 +1006,7 @@ def test_runner_resume_without_manifest_falls_back_to_scratch(tmp_path):
     run_dir = tmp_path / "run"
     normalized = run_dir / "01_normalized"
     normalized.mkdir(parents=True)
-    (normalized / "ITS.fasta").write_text(
-        ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
-    )
+    (normalized / "ITS.fasta").write_text(">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8")
     # No run_manifest.json at all — reuse must not happen silently.
 
     project = ProjectInput(

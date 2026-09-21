@@ -401,9 +401,7 @@ def _run_dialog_with_fake_blast(monkeypatch, tmp_path, outfmt, blast_output):
         def kill(self):
             pass
 
-    monkeypatch.setattr(
-        "modules.blast_run_dialog.subprocess.Popen", _FakePopen
-    )
+    monkeypatch.setattr("modules.blast_run_dialog.subprocess.Popen", _FakePopen)
     # Version probing must not hit the real BLAST binaries in tests
     monkeypatch.setattr(
         "modules.blast_run_dialog.subprocess.run",
@@ -429,7 +427,8 @@ def _run_dialog_with_fake_blast(monkeypatch, tmp_path, outfmt, blast_output):
 
 def test_blast_run_dialog_tsv_outfmt_writes_header(monkeypatch, tmp_path):
     out_file, results = _run_dialog_with_fake_blast(
-        monkeypatch, tmp_path,
+        monkeypatch,
+        tmp_path,
         "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
         "hit1\thit2\n",
     )
@@ -454,9 +453,7 @@ def test_blast_run_dialog_pairwise_and_xml_outfmt_have_no_header(monkeypatch, tm
         ("0", "Query= q\nLength=4\n"),
         ("5", '<?xml version="1.0"?>\n<BlastOutput/>'),
     ]:
-        out_file, results = _run_dialog_with_fake_blast(
-            monkeypatch, tmp_path, outfmt, payload
-        )
+        out_file, results = _run_dialog_with_fake_blast(monkeypatch, tmp_path, outfmt, payload)
         assert results == [(True, out_file, "")]
         content = open(out_file, encoding="utf-8").read()
         assert content == payload

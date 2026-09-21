@@ -70,9 +70,7 @@ def test_windows_layout_resolves(fake_bundle, monkeypatch):
 
     assert tool_paths.mafft_launcher() == str(bundle / "mafft-win_v7.526/mafft.bat")
     assert tool_paths.trimal_executable() == str(bundle / "trimAl_Windows_v1.5.1/trimal.exe")
-    assert tool_paths.iqtree_executable() == str(
-        bundle / "iqtree-3.1.3-Windows/bin/iqtree3.exe"
-    )
+    assert tool_paths.iqtree_executable() == str(bundle / "iqtree-3.1.3-Windows/bin/iqtree3.exe")
     assert tool_paths.muscle_executable() == str(bundle / "muscle-win64.v5.3.exe")
 
 

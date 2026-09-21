@@ -297,9 +297,7 @@ def build_default_tool_adapters(
                 cmd.append(f"-{normalized_mode}")
 
         _track(cmd)
-        _run_command(
-            cmd, is_aborted=_is_aborted, log_dir=log_dir, output_path=str(output_path)
-        )
+        _run_command(cmd, is_aborted=_is_aborted, log_dir=log_dir, output_path=str(output_path))
 
         if not output_path.is_file():
             raise RuntimeError("trimAl did not produce an output FASTA")
@@ -517,7 +515,6 @@ def _parse_best_model_nex(path: str) -> dict[str, str]:
     return models
 
 
-
 def _write_html_report(
     path: str,
     step_status: dict[str, str],
@@ -714,10 +711,12 @@ class OneStepMultiGenePhyRunner:
         is_aborted: Callable[[], bool] | None = None,
     ) -> WorkflowRunResult:
         if step_changed is None:
+
             def step_changed(step: str, status: str) -> None:
                 pass
 
         if log_line is None:
+
             def log_line(line: str) -> None:
                 pass
 
@@ -729,8 +728,10 @@ class OneStepMultiGenePhyRunner:
 
         log_line = _log
         if is_aborted is None:
+
             def is_aborted() -> bool:
                 return False
+
         set_abort = getattr(self.adapters, "set_abort", None)
         if callable(set_abort):
             set_abort(is_aborted)
@@ -950,9 +951,7 @@ class OneStepMultiGenePhyRunner:
                     }
                     dataset.artifacts["normalized"] = str(normalized_path)
                     artifacts.normalized_files[gene_name] = str(normalized_path)
-                    log_line(
-                        f"  {gene_name}: reusing existing normalized sequences (skip fetch)"
-                    )
+                    log_line(f"  {gene_name}: reusing existing normalized sequences (skip fetch)")
                     continue
                 acc_total = sum(1 for c in dataset.cells if c.value_type == "accession")
                 seq_total = sum(1 for c in dataset.cells if c.value_type == "sequence")
@@ -1136,9 +1135,7 @@ class OneStepMultiGenePhyRunner:
             concat_path = stage_dirs["concat"] / "supermatrix.fasta"
             partition_path = stage_dirs["concat"] / "partitions.nex"
             concat_skipped = (
-                project.resume_mode == "tree"
-                and concat_path.is_file()
-                and partition_path.is_file()
+                project.resume_mode == "tree" and concat_path.is_file() and partition_path.is_file()
             )
             if concat_skipped:
                 set_step("Concatenate", "skipped")

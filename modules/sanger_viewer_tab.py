@@ -116,12 +116,10 @@ class SangerViewerTab(QWidget):
         file_row.addWidget(QLabel("AB1 File:"))
         self._file_edit = QLineEdit()
         self._file_edit.setReadOnly(True)
-        self._file_edit.setPlaceholderText(
-            "Select an AB1 file, or drag & drop one here..."
-        )
+        self._file_edit.setPlaceholderText("Select an AB1 file, or drag & drop one here...")
         self._file_edit.setToolTip(
             "Path to the AB1 Sanger sequencing file.\n"
-                "Select or drop a file and it loads automatically."
+            "Select or drop a file and it loads automatically."
         )
         file_row.addWidget(self._file_edit, 1)
         self._btn_example = QPushButton("Example")
@@ -136,9 +134,7 @@ class SangerViewerTab(QWidget):
         opt_row = QHBoxLayout()
         self._chk_quality = QCheckBox("Show Phred quality track")
         self._chk_quality.setChecked(True)
-        self._chk_quality.setToolTip(
-            "Toggle the Phred quality bar chart below the chromatogram"
-        )
+        self._chk_quality.setToolTip("Toggle the Phred quality bar chart below the chromatogram")
         opt_row.addWidget(self._chk_quality)
         opt_row.addStretch()
         outer.addLayout(opt_row)
@@ -303,9 +299,7 @@ class SangerViewerTab(QWidget):
     def _load(self) -> None:
         path = self._file_edit.text().strip()
         if not path:
-            QMessageBox.warning(
-                self, "No File", "Please select an AB1 file first."
-            )
+            QMessageBox.warning(self, "No File", "Please select an AB1 file first.")
             return
         self._btn_browse.setEnabled(False)
         self._btn_copy.setEnabled(False)
@@ -517,9 +511,7 @@ class SangerViewerTab(QWidget):
         start = self._spin_start.value()
         end = self._spin_end.value()
         if start > end:
-            QMessageBox.warning(
-                self, "Invalid Range", "Start must be \u2264 End."
-            )
+            QMessageBox.warning(self, "Invalid Range", "Start must be \u2264 End.")
             return
         selected = self._sequence[start - 1 : end]
         if not selected:
@@ -669,17 +661,13 @@ class SangerViewerTab(QWidget):
         start = self._spin_start.value()
         end = self._spin_end.value()
         if start > end:
-            QMessageBox.warning(
-                self, "Invalid Range", "Start must be \u2264 End."
-            )
+            QMessageBox.warning(self, "Invalid Range", "Start must be \u2264 End.")
             return
         selected = self._sequence[start - 1 : end]
         if not selected:
             return
         QApplication.clipboard().setText(selected)
-        self._set_status(
-            f"Copied {len(selected)} bases (positions {start}\u2013{end})"
-        )
+        self._set_status(f"Copied {len(selected)} bases (positions {start}\u2013{end})")
 
     def _set_status(self, msg: str) -> None:
         self._status_label.setText(msg)

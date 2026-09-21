@@ -143,5 +143,3 @@ class _RunBlastThread(QThread):
                         os.remove(p)
                     except OSError:
                         pass
-
-

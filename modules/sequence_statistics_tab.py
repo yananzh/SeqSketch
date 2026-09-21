@@ -200,7 +200,6 @@ def write_statistics_report(output_path: str, summary: dict, per_sequence_stats:
         handle.write("\n".join(lines))
 
 
-
 class SequenceStatisticsTab(BaseTabWidget):
     """Sequence length statistics Tab"""
 

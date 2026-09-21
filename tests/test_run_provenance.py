@@ -70,9 +70,7 @@ def _fake_subprocess_run(stdout="", stderr="", returncode=0):
         ),
     ],
 )
-def test_probe_tool_version_parses_bundled_outputs(
-    monkeypatch, exe, stdout, stderr, expected
-):
+def test_probe_tool_version_parses_bundled_outputs(monkeypatch, exe, stdout, stderr, expected):
     monkeypatch.setattr(rp.subprocess, "run", _fake_subprocess_run(stdout, stderr))
     rp.clear_version_cache()
     assert rp.probe_tool_version(exe) == expected

@@ -746,9 +746,7 @@ def test_download_from_ncbi_empty_result_exports_failure_report(qapp, tmp_path: 
     assert "NCBI returned error or no sequences found." in log_text(tab)
 
 
-def test_download_from_ncbi_logs_success_and_failure_summary(
-    qapp, tmp_path: Path, monkeypatch
-):
+def test_download_from_ncbi_logs_success_and_failure_summary(qapp, tmp_path: Path, monkeypatch):
     output_path = tmp_path / "downloaded_summary.fasta"
     tab = DownloadFromNCBITab()
 

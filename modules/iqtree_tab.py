@@ -210,12 +210,12 @@ class IqTreeTab(BaseTabWidget):
         self._threads_spin.setSpecialValueText("AUTO")
         self._threads_spin.setToolTip(
             "Keep AUTO — IQ-TREE picks the thread count for you. "
-                "Only set a fixed number if you know your machine's core count."
+            "Only set a fixed number if you know your machine's core count."
         )
         self._model_edit = QLineEdit("TEST")
         self._model_edit.setToolTip(
             "Keep TEST for automatic model selection (ModelTest-NG).\n"
-                "Examples: GTR+G, LG+G+I, HKY+F+G4"
+            "Examples: GTR+G, LG+G+I, HKY+F+G4"
         )
         self._prefix_edit = QLineEdit()
         self._prefix_edit.setPlaceholderText("Prefix")
@@ -245,9 +245,7 @@ class IqTreeTab(BaseTabWidget):
         self._bootstrap_spin.setToolTip("Ultrafast bootstrap replicates (0 = skip)")
         self._ufboot_check = QCheckBox("UFBoot (ultrafast, recommended)")
         self._ufboot_check.setChecked(True)
-        self._ufboot_check.setToolTip(
-            "Checked: UFBoot (-B) | Unchecked: standard bootstrap (-b)"
-        )
+        self._ufboot_check.setToolTip("Checked: UFBoot (-B) | Unchecked: standard bootstrap (-b)")
         self._alrt_spin = QSpinBox()
         self._alrt_spin.setRange(100, 10000)
         self._alrt_spin.setValue(1000)
@@ -255,9 +253,7 @@ class IqTreeTab(BaseTabWidget):
         self._alrt_spin.setToolTip("Number of SH-aLRT replicates (default 1000)")
         self._alrt_check = QCheckBox("Enable SH-aLRT")
         self._alrt_check.setChecked(False)
-        self._alrt_check.setToolTip(
-            "SH-like approximate likelihood ratio test for branch support"
-        )
+        self._alrt_check.setToolTip("SH-like approximate likelihood ratio test for branch support")
         self._alrt_check.toggled.connect(self._alrt_spin.setEnabled)
         boot_row.addWidget(self._bootstrap_spin)
         boot_row.addWidget(self._ufboot_check)
@@ -274,9 +270,7 @@ class IqTreeTab(BaseTabWidget):
         self._outgroup_combo.lineEdit().setPlaceholderText(
             "Optional — select a taxon or type comma-separated taxa"
         )
-        self._outgroup_combo.setToolTip(
-            "Root the tree on these taxa (IQ-TREE -o option)"
-        )
+        self._outgroup_combo.setToolTip("Root the tree on these taxa (IQ-TREE -o option)")
         outgroup_row.addWidget(self._outgroup_combo, 1)
         outgroup_row.addStretch()
         form.addRow("Outgroup:", outgroup_row)
@@ -284,9 +278,7 @@ class IqTreeTab(BaseTabWidget):
         # Row 5: Output directory
         outdir_row = QHBoxLayout()
         self._outdir_edit = QLineEdit()
-        self._outdir_edit.setPlaceholderText(
-            "Optional — leave blank to save alongside input file"
-        )
+        self._outdir_edit.setPlaceholderText("Optional — leave blank to save alongside input file")
         self._outdir_edit.setToolTip("Directory for IQ-TREE output files")
         outdir_browse = QPushButton("Browse")
         outdir_browse.setFixedWidth(90)

@@ -605,9 +605,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.muscle_path_edit = QLineEdit()
         self.muscle_path_edit.setPlaceholderText("Choose MUSCLE executable path")
         self.muscle_path_edit.setText(self._saved_muscle_path)
-        self.muscle_path_edit.setToolTip(
-            "Path to the MUSCLE executable (bundled or custom build)"
-        )
+        self.muscle_path_edit.setToolTip("Path to the MUSCLE executable (bundled or custom build)")
 
         self.muscle_browse_btn = QPushButton("Browse")
         self.muscle_browse_btn.setFixedWidth(90)
@@ -1268,7 +1266,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.output_file_edit.setText(path)
         return path
 
-            # ------------------------------------------------------------- help
+        # ------------------------------------------------------------- help
 
     def show_help(self):
         html = """

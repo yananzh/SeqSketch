@@ -1071,9 +1071,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
         self._aligned_fasta = ""
         self.run_btn.setEnabled(False)
-        self.status_label.setText(
-            f"Running MAFFT ({_strategy_key(strategy)}), {len(seqs)} seqs…"
-        )
+        self.status_label.setText(f"Running MAFFT ({_strategy_key(strategy)}), {len(seqs)} seqs…")
 
         self._worker = _MafftWorker(
             clean_fasta,

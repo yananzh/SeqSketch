@@ -115,14 +115,12 @@ def _make_card(title: str, description: str = "") -> tuple[QFrame, QVBoxLayout]:
     return card, layout
 
 
-
 def _make_form() -> QFormLayout:
     form = QFormLayout()
     form.setSpacing(8)
     form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
     form.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
     return form
-
 
 
 def _show_help(parent: QWidget, title: str, html: str) -> None:
@@ -672,7 +670,7 @@ class _ManageDatabasesDialog(QDialog):
             self,
             "Remove Database",
             f"Remove '{record['name']}' from the saved list?\n\n"
-                "The database files on disk will NOT be deleted.",
+            "The database files on disk will NOT be deleted.",
         )
         if answer == QMessageBox.StandardButton.Yes:
             remove_blast_database(str(record["base_path"]))
@@ -691,9 +689,7 @@ class _ManageDatabasesDialog(QDialog):
                 f"Removed {removed} missing database record(s).",
             )
         else:
-            QMessageBox.information(
-                self, "Manage", "No missing database records found."
-            )
+            QMessageBox.information(self, "Manage", "No missing database records found.")
         self._reload()
 
 
@@ -855,9 +851,7 @@ class _RunQueryWidget(QWidget):
         self.manage_db_btn = QPushButton("Manage")
         _set_action_role(self.manage_db_btn, "secondary")
         self.manage_db_btn.setFixedWidth(90)
-        self.manage_db_btn.setToolTip(
-            "Select, pin, rename, remove, or locate your saved databases"
-        )
+        self.manage_db_btn.setToolTip("Select, pin, rename, remove, or locate your saved databases")
         self.manage_db_btn.clicked.connect(self._open_manage_dialog)
         name_lbl = QLabel("Database name")
         name_lbl.setFixedWidth(lbl_width)

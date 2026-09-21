@@ -85,5 +85,3 @@ class _MakeDbThread(QThread):
             self.finished.emit(False, "makeblastdb timed out after 300 seconds.")
         except Exception as exc:
             self.finished.emit(False, str(exc))
-
-
