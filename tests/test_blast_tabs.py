@@ -1,3 +1,4 @@
+import json
 import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -348,12 +349,16 @@ def test_blast_database_library_persists_pinned_and_recent_order(tmp_path, monke
 
     records = blast_config.list_blast_databases()
 
+    # Windows drive paths are not absolute on POSIX. They must be stored as
+    # given, not joined onto the process cwd (the macOS CI failure mode).
     assert [record["base_path"] for record in records] == [
         r"C:\db\favorite",
         r"C:\db\recent",
     ]
     assert records[0]["pinned"] is True
     assert records[1]["db_type"] == "nucl"
+    stored = json.loads(db_store.read_text(encoding="utf-8"))
+    assert all(not entry["base_path"].startswith(os.getcwd()) for entry in stored)
 
 
 def test_local_blast_actions_place_primary_action_left_of_help(qapp, monkeypatch):

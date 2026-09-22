@@ -128,9 +128,28 @@ def list_blast_databases() -> list[dict[str, str | bool]]:
     return records
 
 
+def _display_path(path: str) -> str:
+    """Normalize a stored BLAST database path without inventing a cwd prefix.
+
+    ``os.path.abspath`` joins anything ``os.path.isabs`` rejects onto the
+    process cwd. A Windows path such as ``C:\\db\\favorite`` is not absolute
+    on POSIX, so that join rewrites the saved location. Only resolve paths
+    that are absolute on this platform.
+    """
+    cleaned = str(path or "").strip()
+    if not cleaned:
+        return ""
+    if os.path.isabs(cleaned):
+        return os.path.normpath(os.path.abspath(cleaned))
+    return os.path.normpath(cleaned)
+
+
 def _norm_path(path: str) -> str:
     """Normalize a path for deduplication (case-insensitive on Windows)."""
-    return os.path.normcase(os.path.normpath(os.path.abspath(path)))
+    displayed = _display_path(path)
+    if not displayed:
+        return ""
+    return os.path.normcase(displayed)
 
 
 def remember_blast_database(
@@ -144,7 +163,7 @@ def remember_blast_database(
     normed = _norm_path(str(base_path or "").strip())
     if not normed or normed in (".", ".."):
         return
-    nice_path = os.path.normpath(os.path.abspath(str(base_path or "").strip()))
+    nice_path = _display_path(str(base_path or "").strip())
 
     records = _load_database_records()
     existing = next(
