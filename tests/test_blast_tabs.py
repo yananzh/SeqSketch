@@ -356,6 +356,23 @@ def test_blast_database_library_persists_pinned_and_recent_order(tmp_path, monke
     assert records[1]["db_type"] == "nucl"
 
 
+def test_blast_database_library_preserves_windows_absolute_paths_across_rewrites(
+    tmp_path, monkeypatch
+):
+    db_store = tmp_path / "blast_databases.json"
+    monkeypatch.setattr(blast_config, "DATABASES_FILE", str(db_store))
+
+    blast_config.remember_blast_database(r"c:\db\favorite", name="Favorite db")
+    blast_config.remember_blast_database(r"C:\DB\favorite", name="Updated name", pinned=True)
+
+    records = blast_config.list_blast_databases()
+
+    assert len(records) == 1
+    assert records[0]["base_path"] == r"c:\db\favorite"
+    assert records[0]["name"] == "Updated name"
+    assert records[0]["pinned"] is True
+
+
 def test_local_blast_actions_place_primary_action_left_of_help(qapp, monkeypatch):
     monkeypatch.setattr("modules.blast_local_tab.get_blast_bin_dir", lambda: r"C:\blast\bin")
 

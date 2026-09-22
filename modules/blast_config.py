@@ -1,5 +1,6 @@
 import configparser
 import json
+import ntpath
 import os
 import sys
 from datetime import datetime
@@ -128,9 +129,26 @@ def list_blast_databases() -> list[dict[str, str | bool]]:
     return records
 
 
+def _is_windows_absolute_path(path: str) -> bool:
+    drive, tail = ntpath.splitdrive(path)
+    return bool((drive and tail.startswith(("\\", "/"))) or path.startswith(("\\\\", "//")))
+
+
+def _normalized_path_string(path: str) -> str:
+    candidate = str(path or "").strip()
+    if not candidate:
+        return ""
+    if _is_windows_absolute_path(candidate):
+        return ntpath.normpath(candidate)
+    return os.path.normpath(os.path.abspath(candidate))
+
+
 def _norm_path(path: str) -> str:
     """Normalize a path for deduplication (case-insensitive on Windows)."""
-    return os.path.normcase(os.path.normpath(os.path.abspath(path)))
+    normalized = _normalized_path_string(path)
+    if _is_windows_absolute_path(normalized):
+        return ntpath.normcase(normalized)
+    return os.path.normcase(normalized)
 
 
 def remember_blast_database(
@@ -144,7 +162,7 @@ def remember_blast_database(
     normed = _norm_path(str(base_path or "").strip())
     if not normed or normed in (".", ".."):
         return
-    nice_path = os.path.normpath(os.path.abspath(str(base_path or "").strip()))
+    nice_path = _normalized_path_string(base_path)
 
     records = _load_database_records()
     existing = next(
