@@ -499,5 +499,3 @@ should be split before use</li>
 
         self.input_text.dragEnterEvent = drag_enter
         self.input_text.dropEvent = drop
-
-

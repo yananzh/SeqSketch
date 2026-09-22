@@ -343,6 +343,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.clear_btn.setFixedWidth(75)
         self.run_btn.setFixedWidth(75)
         self.help_btn.setFixedWidth(75)
+
     # ------------------------------------------------------------ drag & drop
 
     def _setup_drag_drop(self):

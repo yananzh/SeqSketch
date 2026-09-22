@@ -305,10 +305,9 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         except Exception as e:
             QMessageBox.critical(self, "Export Error", str(e))
 
-
-
     def show_help(self):
-        help_text = ("<h2>Physicochemical Properties &mdash; Protein Property Calculator</h2>"
+        help_text = (
+            "<h2>Physicochemical Properties &mdash; Protein Property Calculator</h2>"
             "<p><b>What does this tool do?</b><br>"
             "It computes key physicochemical properties for one or more protein sequences, "
             "including molecular weight, theoretical pI, extinction coefficient, "

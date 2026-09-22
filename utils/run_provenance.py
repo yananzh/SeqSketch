@@ -53,9 +53,7 @@ def probe_tool_version(exe: str) -> str:
     basename = os.path.basename(exe).lower()
     # Strip version-ish suffixes (muscle-win64.v5.3.exe → muscle) so known
     # tools are matched by their stable name prefix.
-    known = next(
-        (name for name in _VERSION_SPECS if basename.startswith(name)), None
-    )
+    known = next((name for name in _VERSION_SPECS if basename.startswith(name)), None)
     if known is not None:
         spec = _VERSION_SPECS[known]
     else:

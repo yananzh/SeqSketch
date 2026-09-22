@@ -64,7 +64,6 @@ class DotPlotTab(BaseTabWidget):
         )
         self._last_export_dir = ""
 
-
         self.clear_btn.setFixedWidth(75)
         self.run_btn.setFixedWidth(75)
         self.help_btn.setFixedWidth(75)
@@ -214,8 +213,6 @@ class DotPlotTab(BaseTabWidget):
             return
         self.path_edit.setText(staged)
         self.show_status("Example loaded")
-
-
 
     def _sanitize_seq(self, seq: str):
         seq = seq.upper().replace("U", "T")

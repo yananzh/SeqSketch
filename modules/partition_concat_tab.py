@@ -469,9 +469,7 @@ class PartitionConcatTab(BaseTabWidget):
         input_group = QGroupBox("Input – Aligned Gene Files")
         input_layout = QVBoxLayout(input_group)
 
-        self._file_list = _DropFileList(
-            "Drag & drop aligned FASTA files here, or click Add Files"
-        )
+        self._file_list = _DropFileList("Drag & drop aligned FASTA files here, or click Add Files")
         self._file_list.setMinimumHeight(100)
         self._file_list.setMaximumHeight(160)
         self._file_list.files_added.connect(self._auto_fill_outdir)
@@ -486,9 +484,7 @@ class PartitionConcatTab(BaseTabWidget):
         remove_btn = QPushButton("Remove Selected")
         remove_btn.clicked.connect(self._remove_selected)
         validate_btn = QPushButton("Validate Input")
-        validate_btn.setToolTip(
-            "Pre-flight check of input files, gene names, and output settings"
-        )
+        validate_btn.setToolTip("Pre-flight check of input files, gene names, and output settings")
         validate_btn.clicked.connect(self._validate_input)
         file_btn_row.addWidget(add_btn)
         file_btn_row.addWidget(example_btn)
@@ -516,7 +512,7 @@ class PartitionConcatTab(BaseTabWidget):
         self._format_combo.setFixedWidth(210)
         self._format_combo.setToolTip(
             "IQ-TREE: partition-only charset block (load with -p)  |  "
-                "MrBayes: complete NEXUS data file (matrix + charset block)"
+            "MrBayes: complete NEXUS data file (matrix + charset block)"
         )
         fmt_prefix_row.addWidget(self._format_combo)
 
@@ -533,9 +529,7 @@ class PartitionConcatTab(BaseTabWidget):
         outdir_row = QHBoxLayout()
         outdir_row.setContentsMargins(0, 0, 0, 0)
         self._output_dir_edit = QLineEdit()
-        self._output_dir_edit.setPlaceholderText(
-            "Auto-filled from first file; or choose a folder"
-        )
+        self._output_dir_edit.setPlaceholderText("Auto-filled from first file; or choose a folder")
         outdir_browse = QPushButton("Browse")
         outdir_browse.setFixedWidth(90)
         outdir_browse.clicked.connect(self._browse_output_dir)
@@ -667,9 +661,7 @@ class PartitionConcatTab(BaseTabWidget):
                     continue
                 lengths = {len(s) for s in seqs}
                 if len(lengths) > 1:
-                    problems.append(
-                        f"{raw}: sequences are not aligned (lengths {sorted(lengths)})"
-                    )
+                    problems.append(f"{raw}: sequences are not aligned (lengths {sorted(lengths)})")
                 duplicates = {x for x in ids if ids.count(x) > 1}
                 if duplicates:
                     problems.append(
@@ -720,8 +712,7 @@ class PartitionConcatTab(BaseTabWidget):
             QMessageBox.information(
                 self,
                 "Input Validation Passed (with notes)",
-                "Inputs look ready to run. Notes:\n\n"
-                + "\n".join(f"• {w}" for w in warnings),
+                "Inputs look ready to run. Notes:\n\n" + "\n".join(f"• {w}" for w in warnings),
             )
             self.show_status("Validation passed with notes")
         else:
@@ -733,7 +724,9 @@ class PartitionConcatTab(BaseTabWidget):
                 self,
                 "Input Validation Passed",
                 "{count} file(s), {taxa} taxon/taxa, {genes} gene(s). "
-                    "All inputs passed the pre-flight check — click Run to concatenate.".format(count=len(files), taxa=len(ids), genes=len(raw_names)),
+                "All inputs passed the pre-flight check — click Run to concatenate.".format(
+                    count=len(files), taxa=len(ids), genes=len(raw_names)
+                ),
             )
             self.show_status("Validation passed")
 
@@ -772,9 +765,7 @@ class PartitionConcatTab(BaseTabWidget):
                 if fpath:
                     valid, err = validate_input_path(fpath)
                     if not valid:
-                        self.log_message(
-                            f"File not found or unreadable: {fpath}", "WARNING"
-                        )
+                        self.log_message(f"File not found or unreadable: {fpath}", "WARNING")
                         continue
                     fname = os.path.splitext(os.path.basename(fpath))[0]
                     files.append(fpath)
@@ -790,15 +781,15 @@ class PartitionConcatTab(BaseTabWidget):
         gene_names, name_changes = _sanitize_gene_names(gene_names)
         if name_changes:
             for msg in name_changes:
-                self.log_message(
-                    "Gene name adjusted: {change}".format(change=msg), "WARNING"
-                )
+                self.log_message("Gene name adjusted: {change}".format(change=msg), "WARNING")
             QMessageBox.information(
                 self,
                 "Gene Names Adjusted",
                 "Some gene names contain characters that are invalid in NEXUS "
-                    "charset definitions (e.g. spaces), or are duplicated. They were "
-                    "adjusted for the partition file:\n\n{changes}".format(changes="\n".join(f"• {c}" for c in name_changes)),
+                "charset definitions (e.g. spaces), or are duplicated. They were "
+                "adjusted for the partition file:\n\n{changes}".format(
+                    changes="\n".join(f"• {c}" for c in name_changes)
+                ),
             )
 
         # Validate output directory
@@ -826,9 +817,7 @@ class PartitionConcatTab(BaseTabWidget):
         self.log_area.append("  Sequence Concatenation Summary")
         self.log_area.append(f"{sep}")
         self.log_area.append(f"  Sequence type    : {seq_type} (auto-detected)")
-        self.log_area.append(
-            f"  Partition format : {self._format_combo.currentText()}"
-        )
+        self.log_area.append(f"  Partition format : {self._format_combo.currentText()}")
         self.log_area.append(f"  Output directory : {out_dir}")
         self.log_area.append(f"  Output prefix    : {prefix}")
         self.log_area.append(f"  Files to merge   : {len(files)}")
@@ -879,9 +868,7 @@ class PartitionConcatTab(BaseTabWidget):
     # Help
     # ------------------------------------------------------------------
     def show_help(self) -> None:
-        self.show_help_dialog(
-            "Help - Sequence Concatenation", self._help_html(), 820, 580
-        )
+        self.show_help_dialog("Help - Sequence Concatenation", self._help_html(), 820, 580)
 
     def _help_html(self) -> str:
         return """

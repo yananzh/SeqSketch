@@ -122,8 +122,8 @@ class TranslateTab(BaseTabWidget):
         self.genetic_code_box.setMinimumWidth(320)
         self.genetic_code_box.setToolTip(
             "NCBI genetic code table used for translation. "
-                "Choose an alternative (e.g. mitochondrial) code if your "
-                "sequence doesn't use the standard code."
+            "Choose an alternative (e.g. mitochondrial) code if your "
+            "sequence doesn't use the standard code."
         )
         grid.addWidget(self.genetic_code_box, 1, 1)
 

@@ -392,9 +392,9 @@ def test_get_statistics_empty_returns_empty_dict():
 def test_filter_sequences_by_length_and_gc():
     processor = FASTAProcessor()
     processor.records = [
-        FASTARecord(header="short", sequence="AT"),      # 0% GC
+        FASTARecord(header="short", sequence="AT"),  # 0% GC
         FASTARecord(header="medium", sequence="GGCCAT"),  # 4% → 66.67% GC
-        FASTARecord(header="long", sequence="A" * 20),    # 0% GC
+        FASTARecord(header="long", sequence="A" * 20),  # 0% GC
     ]
     filtered = processor.filter_sequences(min_length=4)
     assert [r.header for r in filtered] == ["medium", "long"]

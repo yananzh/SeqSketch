@@ -24,9 +24,7 @@ def test_modules_init_has_no_eager_imports_or_version():
     source = MODULES_INIT.read_text(encoding="utf-8")
     tree = ast.parse(source)
     imports = [
-        node
-        for node in tree.body
-        if isinstance(node, (ast.Import, ast.ImportFrom, ast.Assign))
+        node for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom, ast.Assign))
     ]
     assert imports == [], "modules/__init__.py must not import tabs or define version"
 

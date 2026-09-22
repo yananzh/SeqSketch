@@ -74,9 +74,7 @@ class GCPlotTab(BaseTabWidget):
 
         self.input_path_edit = FileDropLineEdit()
         self.input_path_edit.setReadOnly(True)
-        self.input_path_edit.setPlaceholderText(
-            "Select a FASTA file or drag & drop it here..."
-        )
+        self.input_path_edit.setPlaceholderText("Select a FASTA file or drag & drop it here...")
         self.input_path_edit.setToolTip(
             "DNA sequence (FASTA format) for GC content / GC skew analysis"
         )
@@ -171,7 +169,7 @@ class GCPlotTab(BaseTabWidget):
         self.window_spin.setSuffix(" bp")
         self.window_spin.setToolTip(
             "Sliding window size. Automatically adjusted based on sequence length. "
-                "Larger windows produce smoother curves."
+            "Larger windows produce smoother curves."
         )
         row.addWidget(self.window_spin)
 
@@ -182,7 +180,7 @@ class GCPlotTab(BaseTabWidget):
         self.step_spin.setSuffix(" bp")
         self.step_spin.setToolTip(
             "Step size between windows. "
-                "Equal to window = non-overlapping; smaller = smoother curve."
+            "Equal to window = non-overlapping; smaller = smoother curve."
         )
         row.addWidget(self.step_spin)
 
@@ -194,9 +192,9 @@ class GCPlotTab(BaseTabWidget):
         )
         self._cumulative_cb.setToolTip(
             "When checked, GC skew values are accumulated (running sum) across the "
-                "sequence. The global minimum indicates the replication origin (oriC); "
-                "the global maximum indicates the terminus (terC). Uncheck to show "
-                "per-window (local) GC skew instead."
+            "sequence. The global minimum indicates the replication origin (oriC); "
+            "the global maximum indicates the terminus (terC). Uncheck to show "
+            "per-window (local) GC skew instead."
         )
         self._cumulative_cb.setVisible(False)
         pg_layout.addWidget(self._cumulative_cb)
@@ -297,9 +295,7 @@ class GCPlotTab(BaseTabWidget):
         self.status_label.setText("")
         path = self.input_path_edit.text().strip()
         if not path:
-            QMessageBox.warning(
-                self, "Input Error", "Please select a DNA sequence file."
-            )
+            QMessageBox.warning(self, "Input Error", "Please select a DNA sequence file.")
             return
         try:
             with open(path, "r", encoding="utf-8") as fh:
@@ -325,8 +321,8 @@ class GCPlotTab(BaseTabWidget):
                 self,
                 "Sequence Too Short",
                 f"Sequence length ({len(clean)} bp) is shorter than the window "
-                    f"size ({self.window_spin.value()} bp). "
-                    "Please use a longer sequence or a smaller window.",
+                f"size ({self.window_spin.value()} bp). "
+                "Please use a longer sequence or a smaller window.",
             )
             return
 
@@ -335,8 +331,8 @@ class GCPlotTab(BaseTabWidget):
                 self,
                 "Input Warning",
                 "The input does not appear to be a DNA sequence "
-                    "(fewer than 60% ACGT bases). "
-                    "GC content / GC skew analysis requires a DNA sequence.",
+                "(fewer than 60% ACGT bases). "
+                "GC content / GC skew analysis requires a DNA sequence.",
             )
             return
 
@@ -579,9 +575,7 @@ class GCPlotTab(BaseTabWidget):
                 fig.savefig(file_path, dpi=300, bbox_inches="tight")
                 self.status_label.setText("Figure saved")
             except Exception as e:
-                QMessageBox.warning(
-                    self, "Export Error", f"Failed to save figure:\n{str(e)}"
-                )
+                QMessageBox.warning(self, "Export Error", f"Failed to save figure:\n{str(e)}")
 
     def show_help(self):
         from PyQt6.QtWidgets import (
@@ -694,4 +688,3 @@ circular replicon where the leading/lagging strand bias is clearly visible</li>
         layout.addWidget(ok_button)
         dialog.setLayout(layout)
         dialog.exec()
-

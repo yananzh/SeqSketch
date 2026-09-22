@@ -593,4 +593,3 @@ a feel for the output before tackling larger datasets.</li>
         btn.clicked.connect(dlg.accept)
         layout.addWidget(btn)
         dlg.exec()
-

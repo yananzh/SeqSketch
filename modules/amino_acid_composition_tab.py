@@ -239,10 +239,9 @@ class AminoAcidCompositionTab(BaseTabWidget):
                 self.status_label.setText(f"Error loading file: {e}")
                 event.ignore()
 
-
-
     def show_help(self):
-        help_text = ("<h2>Amino Acid Composition &mdash; Protein AA Profiling</h2>"
+        help_text = (
+            "<h2>Amino Acid Composition &mdash; Protein AA Profiling</h2>"
             "<p><b>What does this tool do?</b><br>"
             "It computes the count and percentage of each of the 20 standard amino acids "
             "in one or more protein sequences. Results are shown per sequence and can be "

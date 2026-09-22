@@ -177,9 +177,7 @@ class CpGIslandTab(BaseTabWidget):
 
         self.input_path_edit = FileDropLineEdit()
         self.input_path_edit.setReadOnly(True)
-        self.input_path_edit.setPlaceholderText(
-            "Select a FASTA file or drag & drop it here..."
-        )
+        self.input_path_edit.setPlaceholderText("Select a FASTA file or drag & drop it here...")
         self.input_path_edit.setToolTip(
             "Genomic DNA sequence (FASTA format) to scan for CpG islands"
         )
@@ -209,8 +207,7 @@ class CpGIslandTab(BaseTabWidget):
             "Run first, then select a record to view (multi-record files)"
         )
         self._record_combo.setToolTip(
-            "Scan all FASTA records, or pick one record "
-                "(single-record files show just the record)"
+            "Scan all FASTA records, or pick one record (single-record files show just the record)"
         )
         form.addWidget(self._record_combo, 1, 1, 1, 3)
         form.setColumnStretch(1, 1)
@@ -251,7 +248,7 @@ class CpGIslandTab(BaseTabWidget):
         self._criteria_combo.setFixedWidth(280)
         self._criteria_combo.setToolTip(
             "Apply a ready-made set of window / length / GC / CpG o/e "
-                "criteria (classic definitions from the literature)"
+            "criteria (classic definitions from the literature)"
         )
         row1.addWidget(self._criteria_combo)
         row1.addSpacing(16)
@@ -307,7 +304,7 @@ class CpGIslandTab(BaseTabWidget):
         self.oe_spin.setFixedWidth(100)
         self.oe_spin.setToolTip(
             "Minimum observed/expected CpG ratio in a window "
-                "(classic: 0.6; expected = C x G / length)"
+            "(classic: 0.6; expected = C x G / length)"
         )
         row2.addWidget(self.oe_spin)
         row2.addStretch()
@@ -502,9 +499,7 @@ class CpGIslandTab(BaseTabWidget):
         else:
             rec = self._record_results[0]
             scope = f" ({rec['name']})"
-        self.show_status(
-            f"Found {len(self._results)} CpG island(s), total {total:,} bp" + scope
-        )
+        self.show_status(f"Found {len(self._results)} CpG island(s), total {total:,} bp" + scope)
 
     def _fill_row(self, row_idx: int, values: List[str]):
         """Populate one table row; numeric columns get value-aware sorting items."""

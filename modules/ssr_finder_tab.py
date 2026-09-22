@@ -155,12 +155,8 @@ class SsrFinderTab(BaseTabWidget):
 
         self.input_path_edit = FileDropLineEdit()
         self.input_path_edit.setReadOnly(True)
-        self.input_path_edit.setPlaceholderText(
-            "Select a FASTA file or drag & drop it here..."
-        )
-        self.input_path_edit.setToolTip(
-            "DNA sequence (FASTA format) to search for microsatellites"
-        )
+        self.input_path_edit.setPlaceholderText("Select a FASTA file or drag & drop it here...")
+        self.input_path_edit.setToolTip("DNA sequence (FASTA format) to search for microsatellites")
 
         self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
@@ -188,7 +184,7 @@ class SsrFinderTab(BaseTabWidget):
         )
         self._record_combo.setToolTip(
             "Analyze all FASTA records, or pick one record "
-                "(single-record files show just the record)"
+            "(single-record files show just the record)"
         )
         form.addWidget(self._record_combo, 1, 1, 1, 3)
         form.setColumnStretch(1, 1)
@@ -230,7 +226,7 @@ class SsrFinderTab(BaseTabWidget):
             sp = thresh_spin(
                 DEFAULT_THRESHOLDS[unit_len],
                 f"Min repeats for {unit_names[unit_len - 1].lower()}-nucleotide SSRs "
-                    f"(MISA default {DEFAULT_THRESHOLDS[unit_len]})",
+                f"(MISA default {DEFAULT_THRESHOLDS[unit_len]})",
             )
             row1.addWidget(sp)
             self._thresh_spins[unit_len] = sp
@@ -243,8 +239,7 @@ class SsrFinderTab(BaseTabWidget):
         self._preset_combo.addItems(list(THRESHOLD_PRESETS.keys()) + ["Custom"])
         self._preset_combo.setFixedWidth(160)
         self._preset_combo.setToolTip(
-            "Apply a ready-made set of minimum repeat counts "
-                "(MISA default / stringent / relaxed)"
+            "Apply a ready-made set of minimum repeat counts (MISA default / stringent / relaxed)"
         )
         row2.addWidget(self._preset_combo)
         row2.addStretch(1)  # spread the three groups evenly across the row

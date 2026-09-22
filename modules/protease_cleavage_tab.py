@@ -342,9 +342,7 @@ class ProteaseCleavageTab(BaseTabWidget):
         self.export_csv_btn.setEnabled(True)
         total = len(all_fragments)
         if len(records) > 1:
-            self.status_label.setText(
-                f"Digested {total} fragments ({protease_name})"
-            )
+            self.status_label.setText(f"Digested {total} fragments ({protease_name})")
         else:
             self.status_label.setText(f"Digested: {total} fragments ({protease_name})")
 
@@ -543,4 +541,3 @@ and its fragments are listed under its sequence name.</li>
 
         self.input_text.dragEnterEvent = drag_enter
         self.input_text.dropEvent = drop
-

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FASTARecord:
     """FASTA记录数据结构"""
+
     header: str
     sequence: str
     description: str = ""
@@ -32,13 +33,13 @@ class FASTARecord:
         """计算GC含量"""
         if self.length == 0:
             return 0.0
-        gc_count = self.sequence.count('G') + self.sequence.count('C')
+        gc_count = self.sequence.count("G") + self.sequence.count("C")
         return (gc_count / self.length) * 100
 
     def get_base_composition(self) -> Dict[str, int]:
         """获取碱基组成"""
         composition = {}
-        for base in 'ATGC':
+        for base in "ATGC":
             composition[base] = self.sequence.count(base)
         return composition
 
@@ -93,9 +94,7 @@ class FASTAProcessor:
             except UnicodeDecodeError:
                 text = data.decode("latin-1")
             self.parse_text(text)
-            logger.info(
-                f"Successfully read FASTA file: {file_path}, {len(self.records)} records"
-            )
+            logger.info(f"Successfully read FASTA file: {file_path}, {len(self.records)} records")
             return True
         except Exception as e:
             logger.error(f"Failed to read FASTA file: {e}")
@@ -133,18 +132,14 @@ class FASTAProcessor:
     def _add_record(self, header: str, sequence: str):
         """添加FASTA记录"""
         # 分离描述信息
-        parts = header.split(' ', 1)
+        parts = header.split(" ", 1)
         id_part = parts[0]
         description = parts[1] if len(parts) > 1 else ""
 
         # 清理序列（移除空白字符）
-        clean_sequence = re.sub(r'\s+', '', sequence)
+        clean_sequence = re.sub(r"\s+", "", sequence)
 
-        record = FASTARecord(
-            header=id_part,
-            sequence=clean_sequence,
-            description=description
-        )
+        record = FASTARecord(header=id_part, sequence=clean_sequence, description=description)
         self.records.append(record)
 
     NUCLEOTIDE_ALPHABET = set("ATGCUNRYMKSWBDHV")
@@ -228,25 +223,26 @@ class FASTAProcessor:
         avg_gc = sum(gc_contents) / len(gc_contents)
 
         # 碱基组成统计
-        total_composition = {'A': 0, 'T': 0, 'G': 0, 'C': 0}
+        total_composition = {"A": 0, "T": 0, "G": 0, "C": 0}
         for record in self.records:
             comp = record.get_base_composition()
             for base, count in comp.items():
                 total_composition[base] += count
 
         return {
-            'total_sequences': total_sequences,
-            'total_length': total_length,
-            'average_length': round(avg_length, 2),
-            'min_length': min_length,
-            'max_length': max_length,
-            'average_gc_content': round(avg_gc, 2),
-            'base_composition': total_composition,
-            'file_path': self.file_path
+            "total_sequences": total_sequences,
+            "total_length": total_length,
+            "average_length": round(avg_length, 2),
+            "min_length": min_length,
+            "max_length": max_length,
+            "average_gc_content": round(avg_gc, 2),
+            "base_composition": total_composition,
+            "file_path": self.file_path,
         }
 
-    def filter_sequences(self, min_length: int = 0, max_length: int = None,
-                        min_gc: float = 0, max_gc: float = 100) -> List[FASTARecord]:
+    def filter_sequences(
+        self, min_length: int = 0, max_length: int = None, min_gc: float = 0, max_gc: float = 100
+    ) -> List[FASTARecord]:
         """
         根据条件过滤序列
 
@@ -292,7 +288,7 @@ class FASTAProcessor:
             if records is None:
                 records = self.records
 
-            with open(output_path, 'w', encoding='utf-8') as f:
+            with open(output_path, "w", encoding="utf-8") as f:
                 for record in records:
                     # 写入头部
                     if record.description:
@@ -303,7 +299,7 @@ class FASTAProcessor:
                     # 写入序列（每行80个字符）
                     sequence = record.sequence
                     for i in range(0, len(sequence), 80):
-                        f.write(sequence[i:i+80] + "\n")
+                        f.write(sequence[i : i + 80] + "\n")
 
             logger.info(f"Successfully saved FASTA file: {output_path}")
             return True
@@ -358,8 +354,8 @@ class FASTAProcessor:
         Returns:
             str: 反向互补序列
         """
-        complement = {'A': 'T', 'T': 'A', 'G': 'C', 'C': 'G', 'N': 'N'}
-        return ''.join(complement.get(base, base) for base in reversed(sequence))
+        complement = {"A": "T", "T": "A", "G": "C", "C": "G", "N": "N"}
+        return "".join(complement.get(base, base) for base in reversed(sequence))
 
     def create_reverse_complement_records(self) -> List[FASTARecord]:
         """
@@ -375,15 +371,14 @@ class FASTAProcessor:
             rc_record = FASTARecord(
                 header=f"{record.header}_reverse_complement",
                 sequence=rc_sequence,
-                description=f"Reverse complement of {record.header}"
+                description=f"Reverse complement of {record.header}",
             )
             rc_records.append(rc_record)
 
         return rc_records
 
 
-def batch_process_fasta_files(file_paths: List[str],
-                             output_dir: str = "output") -> Dict[str, Dict]:
+def batch_process_fasta_files(file_paths: List[str], output_dir: str = "output") -> Dict[str, Dict]:
     """
     批量处理FASTA文件
 
@@ -415,28 +410,19 @@ def batch_process_fasta_files(file_paths: List[str],
 
                 if processor.save_file(str(output_file)):
                     results[file_path] = {
-                        'status': 'success',
-                        'statistics': stats,
-                        'is_valid': is_valid,
-                        'errors': errors,
-                        'output_file': str(output_file)
+                        "status": "success",
+                        "statistics": stats,
+                        "is_valid": is_valid,
+                        "errors": errors,
+                        "output_file": str(output_file),
                     }
                 else:
-                    results[file_path] = {
-                        'status': 'error',
-                        'message': 'Failed to save file'
-                    }
+                    results[file_path] = {"status": "error", "message": "Failed to save file"}
             else:
-                results[file_path] = {
-                    'status': 'error',
-                    'message': 'Failed to read file'
-                }
+                results[file_path] = {"status": "error", "message": "Failed to read file"}
 
         except Exception as e:
-            results[file_path] = {
-                'status': 'error',
-                'message': str(e)
-            }
+            results[file_path] = {"status": "error", "message": str(e)}
 
     return results
 

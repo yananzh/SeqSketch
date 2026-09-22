@@ -1577,7 +1577,8 @@ class CodonUsageTab(QWidget):
             QMessageBox.critical(self, "Export Error", str(e))
 
     def _show_help(self):
-        help_text = ("<h2>Codon Usage Analysis &mdash; Comprehensive Codon Bias Toolkit</h2>"
+        help_text = (
+            "<h2>Codon Usage Analysis &mdash; Comprehensive Codon Bias Toolkit</h2>"
             "<p><b>What does this tool do?</b><br>"
             "It performs a complete codon usage analysis of protein-coding sequences (CDS). "
             "The tool computes key metrics including <b>RSCU</b> (Relative Synonymous Codon Usage), "
