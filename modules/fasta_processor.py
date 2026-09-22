@@ -50,6 +50,30 @@ class FASTAProcessor:
         self.records: List[FASTARecord] = []
         self.file_path: Optional[str] = None
 
+    def parse_text(self, text: str) -> bool:
+        """Parse FASTA text into ``self.records``.
+
+        Splits each header on the first space (ID vs description), concatenates
+        multiline sequences, drops empty records, and uppercases via FASTARecord.
+        """
+        self.records = []
+        have_header = False
+        current_header = ""
+        current_sequence = ""
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith(">"):
+                if have_header and current_sequence:
+                    self._add_record(current_header, current_sequence)
+                current_header = line[1:]
+                current_sequence = ""
+                have_header = True
+            elif have_header:
+                current_sequence += line
+        if have_header and current_sequence:
+            self._add_record(current_header, current_sequence)
+        return True
+
     def read_file(self, file_path: str) -> bool:
         """
         读取FASTA文件
@@ -62,32 +86,49 @@ class FASTAProcessor:
         """
         try:
             self.file_path = file_path
-            self.records = []
-            with open(file_path, 'rb') as fobj:
+            with open(file_path, "rb") as fobj:
                 data = fobj.read()
             try:
-                text = data.decode('utf-8')
+                text = data.decode("utf-8")
             except UnicodeDecodeError:
-                text = data.decode('latin-1')
-            current_header = ""
-            current_sequence = ""
-            for line_num, line in enumerate(text.splitlines(), 1):
-                line = line.strip()
-                if line.startswith('>'):
-                    if current_header and current_sequence:
-                        self._add_record(current_header, current_sequence)
-                    current_header = line[1:]
-                    current_sequence = ""
-                else:
-                    if current_header:
-                        current_sequence += line
-            if current_header and current_sequence:
-                self._add_record(current_header, current_sequence)
-            logger.info(f"Successfully read FASTA file: {file_path}, {len(self.records)} records")
+                text = data.decode("latin-1")
+            self.parse_text(text)
+            logger.info(
+                f"Successfully read FASTA file: {file_path}, {len(self.records)} records"
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to read FASTA file: {e}")
+            self.records = []
             return False
+
+    def _display_header(self, record: FASTARecord, index: int, include_gt: bool = False) -> str:
+        header = record.header
+        if record.description:
+            header = f"{record.header} {record.description}"
+        if not header:
+            header = f"seq{index}"
+        if include_gt:
+            return f">{header}"
+        return header
+
+    def as_tuples(self, *, include_gt: bool = False) -> List[Tuple[str, str]]:
+        """Return ``(display_header, sequence)`` pairs for tab UIs."""
+        tuples: List[Tuple[str, str]] = []
+        for index, record in enumerate(self.records, start=1):
+            tuples.append((self._display_header(record, index, include_gt), record.sequence))
+        return tuples
+
+    def as_dict(self, *, id_only: bool = False) -> Dict[str, str]:
+        """Return a header→sequence mapping. Duplicate keys overwrite."""
+        mapping: Dict[str, str] = {}
+        for index, record in enumerate(self.records, start=1):
+            if id_only:
+                key = record.header or f"seq{index}"
+            else:
+                key = self._display_header(record, index)
+            mapping[key] = record.sequence
+        return mapping
 
     def _add_record(self, header: str, sequence: str):
         """添加FASTA记录"""
@@ -106,26 +147,60 @@ class FASTAProcessor:
         )
         self.records.append(record)
 
-    def validate_file(self) -> Tuple[bool, List[str]]:
-        """
-        验证FASTA文件格式
+    NUCLEOTIDE_ALPHABET = set("ATGCUNRYMKSWBDHV")
+    PROTEIN_ALPHABET = set("ACDEFGHIKLMNPQRSTVWYBZXUO*")
 
-        Returns:
-            Tuple[bool, List[str]]: (是否有效, 错误信息列表)
+    def validate_file(self, sequence_type: str = "nucleotide") -> Tuple[bool, List[str]]:
+        """Validate loaded records as nucleotide, protein, or auto-detected.
+
+        ``auto`` accepts a file that is entirely nucleotide or entirely protein.
+        Mixed types in one file are invalid. Neither alphabet includes gaps.
         """
-        errors = []
+        errors: List[str] = []
 
         if not self.records:
             errors.append("File is empty or has invalid format")
             return False, errors
 
-        for i, record in enumerate(self.records):
-            if record.length == 0:
-                errors.append(f"Record {i+1} ({record.header}): sequence is empty")
+        if sequence_type not in {"nucleotide", "protein", "auto"}:
+            errors.append(f"Unknown sequence type: {sequence_type}")
+            return False, errors
 
-            invalid_chars = set(record.sequence) - set('ATGCUNRYMKSWBDHVatgcunrymkswbdhv')
+        kinds: List[str] = []
+        for i, record in enumerate(self.records):
+            label = f"Record {i + 1} ({record.header})"
+            if record.length == 0:
+                errors.append(f"{label}: sequence is empty")
+                continue
+
+            letters = set(record.sequence)
+            is_nucleotide = letters <= self.NUCLEOTIDE_ALPHABET
+            is_protein = letters <= self.PROTEIN_ALPHABET
+            if is_nucleotide:
+                kinds.append("nucleotide")
+            elif is_protein:
+                kinds.append("protein")
+            else:
+                kinds.append("invalid")
+
+            if sequence_type == "nucleotide":
+                alphabet = self.NUCLEOTIDE_ALPHABET
+            elif sequence_type == "protein":
+                alphabet = self.PROTEIN_ALPHABET
+            else:
+                alphabet = self.NUCLEOTIDE_ALPHABET | self.PROTEIN_ALPHABET
+            invalid_chars = letters - alphabet
             if invalid_chars:
-                errors.append(f"Record {i+1} ({record.header}): contains invalid characters {invalid_chars}")
+                errors.append(f"{label}: contains invalid characters {invalid_chars}")
+
+        if sequence_type == "auto" and not errors:
+            distinct = {kind for kind in kinds if kind != "invalid"}
+            if "invalid" in kinds:
+                pass
+            elif len(distinct) > 1:
+                errors.append(
+                    "File mixes nucleotide and protein sequences; validate one type at a time"
+                )
 
         return len(errors) == 0, errors
 
@@ -332,7 +407,7 @@ def batch_process_fasta_files(file_paths: List[str],
                 stats = processor.get_statistics()
 
                 # 验证文件
-                is_valid, errors = processor.validate_file()
+                is_valid, errors = processor.validate_file(sequence_type="auto")
 
                 # 保存处理结果
                 filename = Path(file_path).stem
@@ -364,3 +439,31 @@ def batch_process_fasta_files(file_paths: List[str],
             }
 
     return results
+
+
+def parse_fasta_tuples(text: str, *, include_gt: bool = False) -> List[Tuple[str, str]]:
+    """Parse FASTA text into ``(display_header, sequence)`` pairs."""
+    processor = FASTAProcessor()
+    processor.parse_text(text)
+    return processor.as_tuples(include_gt=include_gt)
+
+
+def parse_fasta_dict(text: str, *, id_only: bool = False) -> Dict[str, str]:
+    """Parse FASTA text into a header→sequence mapping."""
+    processor = FASTAProcessor()
+    processor.parse_text(text)
+    return processor.as_dict(id_only=id_only)
+
+
+def read_fasta_ids_and_sequences(filepath: str) -> Tuple[List[str], List[str]]:
+    """Read a FASTA file into parallel ID and sequence lists.
+
+    Raises ``RuntimeError`` when the file cannot be read, matching the previous
+    partition-concat helper.
+    """
+    processor = FASTAProcessor()
+    if not processor.read_file(filepath):
+        raise RuntimeError(f"Error reading {filepath}: Failed to read file")
+    return [record.header for record in processor.records], [
+        record.sequence for record in processor.records
+    ]

@@ -31,6 +31,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from modules.fasta_processor import parse_fasta_dict
 from utils.app_paths import resource_path, user_data_file
 from utils.common_components import BaseTabWidget, apply_input_list_style, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
@@ -164,24 +165,8 @@ def _reject_duplicate_headers(text: str, source: str) -> None:
         )
 
 
-def _parse_fasta_to_dict(text: str) -> dict:
-    seqs = {}
-    header = None
-    buf = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith(">"):
-            if header is not None:
-                seqs[header] = "".join(buf).upper()
-            header = line[1:].strip() or f"seq{len(seqs) + 1}"
-            buf = []
-        else:
-            buf.append(line)
-    if header is not None:
-        seqs[header] = "".join(buf).upper()
-    return seqs
+def _fasta_to_dict(text: str) -> dict:
+    return parse_fasta_dict(text)
 
 
 def _to_clustal_text(seqs: dict) -> str:
@@ -353,7 +338,7 @@ class _MuscleBatchWorker(QThread):
                 with open(in_path, "r", encoding="utf-8", errors="replace") as f:
                     raw = f.read().strip()
                 _reject_duplicate_headers(raw, os.path.basename(in_path))
-                seqs = _parse_fasta_to_dict(raw)
+                seqs = _fasta_to_dict(raw)
                 if len(seqs) < 2:
                     raise ValueError("Need at least 2 sequences in FASTA")
                 input_order = list(seqs.keys())
@@ -395,7 +380,7 @@ class _MuscleBatchWorker(QThread):
                 with open(tmp_out, "r", encoding="utf-8") as fout:
                     aligned_fasta = fout.read()
 
-                out_seqs = _parse_fasta_to_dict(aligned_fasta)
+                out_seqs = _fasta_to_dict(aligned_fasta)
                 out_seqs = self._apply_output_order(out_seqs, input_order)
                 if self.output_mode == "CLUSTAL":
                     out_text = _to_clustal_text(out_seqs)
@@ -1090,7 +1075,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         # Validate: need ≥ 2 sequences (reject duplicate headers before the
         # dict-based parser silently keeps only the last copy of each)
         _reject_duplicate_headers(raw, "Input")
-        seqs = self._parse_fasta(raw)
+        seqs = self._fasta_records(raw)
         if len(seqs) < 2:
             self.status_label.setText("Need ≥ 2 sequences for MSA.")
             QMessageBox.warning(
@@ -1144,7 +1129,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
     def _on_alignment_done(self, aligned_fasta: str):
         self.run_btn.setEnabled(True)
-        seqs = self._parse_fasta(aligned_fasta)
+        seqs = self._fasta_records(aligned_fasta)
         if not seqs:
             self._on_alignment_error("MUSCLE produced empty output.")
             return
@@ -1184,40 +1169,9 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
     # ------------------------------------------------------------ helpers
 
-    def _parse_fasta(self, text: str) -> dict:
-        """Return OrderedDict {header: sequence}."""
-        seqs = {}
-        header = None
-        buf = []
-        for line in text.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                if header is not None:
-                    seqs[header] = "".join(buf).upper()
-                header = line[1:].strip() or f"seq{len(seqs) + 1}"
-                buf = []
-            else:
-                buf.append(line)
-        if header is not None:
-            seqs[header] = "".join(buf).upper()
-        return seqs
-
-    def _detect_type(self, seqs: dict) -> str | None:
-        choice = self.seq_type_combo.currentText()
-        if choice == "DNA":
-            return "DNA"
-        if choice == "Protein":
-            return "Protein"
-        dna_chars = set("ACGTUNRYKMSWBDHV-")
-        all_chars = set("".join(seqs.values()))
-        if all_chars.issubset(dna_chars):
-            return "DNA"
-        prot_chars = set("ACDEFGHIKLMNPQRSTVWY*X-")
-        if all_chars.issubset(prot_chars):
-            return "Protein"
-        return None
+    def _fasta_records(self, text: str) -> dict:
+        """Return {header: sequence}."""
+        return parse_fasta_dict(text)
 
     def _build_clean_fasta(self, seqs: dict) -> str:
         lines = []

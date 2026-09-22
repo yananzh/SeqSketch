@@ -15,6 +15,7 @@ try:
 except ImportError:  # pragma: no cover - dependency is expected in normal runs
     Entrez = None
 
+from modules.fasta_processor import FASTAProcessor, parse_fasta_dict
 from modules.one_step_multigenephy_io import (
     build_gene_datasets,
     concatenate_gene_alignments,
@@ -32,31 +33,15 @@ def _creation_flags() -> int:
     return 0
 
 
-def _parse_fasta_text(text: str) -> dict[str, str]:
-    sequences: dict[str, str] = {}
-    header: str | None = None
-    chunks: list[str] = []
-
-    for raw_line in text.splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        if line.startswith(">"):
-            if header is not None:
-                sequences[header] = "".join(chunks).upper()
-            header = line[1:].strip().split()[0] or f"seq{len(sequences) + 1}"
-            chunks = []
-            continue
-        chunks.append(line)
-
-    if header is not None:
-        sequences[header] = "".join(chunks).upper()
-
-    return sequences
+def _fasta_dict_from_text(text: str) -> dict[str, str]:
+    return parse_fasta_dict(text, id_only=True)
 
 
-def _read_fasta_file(path: Path) -> dict[str, str]:
-    return _parse_fasta_text(path.read_text(encoding="utf-8"))
+def _fasta_dict_from_file(path: Path) -> dict[str, str]:
+    processor = FASTAProcessor()
+    if not processor.read_file(str(path)):
+        raise RuntimeError(f"Failed to read FASTA file: {path}")
+    return processor.as_dict(id_only=True)
 
 
 def _mafft_executable() -> str:
@@ -223,7 +208,7 @@ def build_default_tool_adapters(
                     rettype="fasta",
                     retmode="text",
                 ) as handle:
-                    sequences = _parse_fasta_text(handle.read())
+                    sequences = _fasta_dict_from_text(handle.read())
 
                 if not sequences:
                     raise RuntimeError(f"No FASTA sequence returned for {accession}")
@@ -263,7 +248,7 @@ def build_default_tool_adapters(
         if not aligned_text:
             raise RuntimeError("MAFFT produced no alignment output")
 
-        aligned_sequences = _parse_fasta_text(aligned_text)
+        aligned_sequences = _fasta_dict_from_text(aligned_text)
         if not aligned_sequences:
             raise RuntimeError("MAFFT output could not be parsed as FASTA")
 
@@ -302,7 +287,7 @@ def build_default_tool_adapters(
         if not output_path.is_file():
             raise RuntimeError("trimAl did not produce an output FASTA")
 
-        trimmed_sequences = _read_fasta_file(output_path)
+        trimmed_sequences = _fasta_dict_from_file(output_path)
         return trimmed_sequences, str(output_path)
 
     def run_iqtree(
@@ -938,7 +923,7 @@ class OneStepMultiGenePhyRunner:
                 # Skip the network fetch when reusing a previous run's normalized output
                 normalized_path = stage_dirs["normalized"] / f"{gene_name}.fasta"
                 if project.resume_mode in ("align", "tree") and normalized_path.is_file():
-                    dataset.normalized_sequences = _read_fasta_file(normalized_path)
+                    dataset.normalized_sequences = _fasta_dict_from_file(normalized_path)
                     gene_stats[gene_name] = {
                         "accessions": 0,
                         "fetched": 0,
@@ -1063,7 +1048,7 @@ class OneStepMultiGenePhyRunner:
                 # Skip align/trim when reusing a previous run's trimmed output
                 trimmed_path = stage_dirs["trimmed"] / f"{dataset.gene_name}.fasta"
                 if project.resume_mode == "tree" and trimmed_path.is_file():
-                    dataset.trimmed_sequences = _read_fasta_file(trimmed_path)
+                    dataset.trimmed_sequences = _fasta_dict_from_file(trimmed_path)
                     gs["aligned"] = True
                     gs["trimmed"] = True
                     dataset.status = "succeeded"

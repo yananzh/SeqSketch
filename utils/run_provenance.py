@@ -15,7 +15,7 @@ import re
 import subprocess
 from datetime import datetime
 
-from modules import __version__ as SEQSKETCH_VERSION
+from utils.app_version import APP_VERSION as SEQSKETCH_VERSION
 
 RUN_LOG_FILENAME = "run_log.txt"
 

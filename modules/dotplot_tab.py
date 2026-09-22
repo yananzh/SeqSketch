@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
 
@@ -214,24 +215,7 @@ class DotPlotTab(BaseTabWidget):
         self.path_edit.setText(staged)
         self.show_status("Example loaded")
 
-    def _parse_fasta_records(self, text: str):
-        records = []
-        header = None
-        seq_lines = []
-        for raw in text.splitlines():
-            line = raw.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                if header is not None:
-                    records.append((header, "".join(seq_lines)))
-                header = line[1:].strip() or f"seq{len(records) + 1}"
-                seq_lines = []
-            else:
-                seq_lines.append(line)
-        if header is not None:
-            records.append((header, "".join(seq_lines)))
-        return records
+
 
     def _sanitize_seq(self, seq: str):
         seq = seq.upper().replace("U", "T")
@@ -310,7 +294,7 @@ class DotPlotTab(BaseTabWidget):
 
         # Parse FASTA. If not FASTA, treat as a single raw sequence.
         if ">" in text:
-            records = self._parse_fasta_records(text)
+            records = parse_fasta_tuples(text)
         else:
             records = [("sequence_1", text)]
 

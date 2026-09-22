@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 
 from menus import create_menus
 from utils.app_paths import resource_path
+from utils.app_version import APP_VERSION
 
 
 class MainWindow(QMainWindow):
@@ -427,7 +428,7 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "Check for Updates",
-            "Current version: v1.0.0\n\nNo updates available.\n\n"
+            f"Current version: v{APP_VERSION}\n\nNo updates available.\n\n"
             "Visit the project page for the latest info:\n"
             "https://github.com/yananzh/SeqSketch",
         )
@@ -439,7 +440,7 @@ class MainWindow(QMainWindow):
 <p style="color:#888; font-size:14px; margin:0 0 16px 0;">Sequence Analysis &amp; Visualization Toolkit</p>
 
 <p style="font-size:14px; color:#555; margin:0; line-height:1.8;">
-<b>Version 1.0.0</b><br>
+<b>Version {version}</b><br>
 yananzh &middot; GPL-3.0
 </p>
 
@@ -451,7 +452,7 @@ Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
 <a href="https://github.com/yananzh/SeqSketch" style="color:#2c7fb8; text-decoration:none;">github.com/yananzh/SeqSketch</a>
 </p>
 </div>
-        """
+        """.format(version=APP_VERSION)
         from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout
 
         dlg = QDialog(self)

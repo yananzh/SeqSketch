@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
 
@@ -289,7 +290,7 @@ class ProteaseCleavageTab(BaseTabWidget):
             return
 
         try:
-            records = self.parse_fasta(text)
+            records = parse_fasta_tuples(text)
         except Exception as e:
             QMessageBox.warning(self, "Format Error", str(e))
             return
@@ -543,26 +544,3 @@ and its fragments are listed under its sequence name.</li>
         self.input_text.dragEnterEvent = drag_enter
         self.input_text.dropEvent = drop
 
-    def parse_fasta(self, text):
-        records = []
-        lines = text.strip().split("\n")
-        current_header = None
-        current_seq = []
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                if current_header is not None:
-                    seq = "".join(current_seq)
-                    if seq:
-                        records.append((current_header, seq))
-                current_header = line[1:].strip()
-                current_seq = []
-            else:
-                current_seq.append(line)
-        if current_header is not None:
-            seq = "".join(current_seq)
-            if seq:
-                records.append((current_header, seq))
-        return records

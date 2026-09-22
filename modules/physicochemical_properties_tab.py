@@ -1,6 +1,5 @@
 import csv
 import os
-import re
 
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 from PyQt6.QtCore import QUrl
@@ -15,6 +14,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
 )
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
 
@@ -179,7 +179,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
             )
             return
         try:
-            records = self.parse_fasta(text)
+            records = parse_fasta_tuples(text)
         except Exception as e:
             QMessageBox.warning(self, "Format Error", str(e))
             return
@@ -305,26 +305,7 @@ class PhysicochemicalPropertiesTab(BaseTabWidget):
         except Exception as e:
             QMessageBox.critical(self, "Export Error", str(e))
 
-    def parse_fasta(self, text):
-        records = []
-        header = None
-        seq_lines = []
-        for line in text.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                if header and seq_lines:
-                    records.append((header, "".join(seq_lines)))
-                header = line[1:].strip()
-                seq_lines = []
-            else:
-                if not re.match(r"^[A-Za-z]+$", line):
-                    raise ValueError(f"Sequence line contains invalid characters: {line}")
-                seq_lines.append(line)
-        if header and seq_lines:
-            records.append((header, "".join(seq_lines)))
-        return records
+
 
     def show_help(self):
         help_text = ("<h2>Physicochemical Properties &mdash; Protein Property Calculator</h2>"

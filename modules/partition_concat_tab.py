@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from modules.fasta_processor import read_fasta_ids_and_sequences
 from utils.common_components import (
     BaseTabWidget,
     BaseWorker,
@@ -113,50 +114,8 @@ class _DropFileList(QListWidget):
 # ---------------------------------------------------------------------------
 # FASTA I/O helpers
 # ---------------------------------------------------------------------------
-def _read_fasta(filepath: str) -> tuple[list[str], list[str]]:
-    ids, seqs = [], []
-    current_id, current_seq = "", ""
-
-    def _parse_header(raw: str) -> str:
-        # Split on the first whitespace so only the primary ID (before any
-        # description) is used for taxon matching across files. This mirrors
-        # FASTAProcessor._add_record semantics and prevents the same taxon
-        # with different descriptions from being counted as two distinct taxa.
-        return raw.split(None, 1)[0]
-
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.rstrip()
-                if line.startswith(">"):
-                    if current_id:
-                        ids.append(current_id)
-                        seqs.append(current_seq)
-                    current_id = _parse_header(line[1:])
-                    current_seq = ""
-                else:
-                    current_seq += line
-            if current_id:
-                ids.append(current_id)
-                seqs.append(current_seq)
-    except UnicodeDecodeError:
-        with open(filepath, "r", encoding="latin-1") as f:
-            for line in f:
-                line = line.rstrip()
-                if line.startswith(">"):
-                    if current_id:
-                        ids.append(current_id)
-                        seqs.append(current_seq)
-                    current_id = _parse_header(line[1:])
-                    current_seq = ""
-                else:
-                    current_seq += line
-            if current_id:
-                ids.append(current_id)
-                seqs.append(current_seq)
-    except Exception as e:
-        raise RuntimeError(f"Error reading {filepath}: {e}")
-    return ids, seqs
+def _load_fasta_ids_and_sequences(filepath: str) -> tuple[list[str], list[str]]:
+    return read_fasta_ids_and_sequences(filepath)
 
 
 def _detect_seq_type(files: list[str]) -> str:
@@ -167,7 +126,7 @@ def _detect_seq_type(files: list[str]) -> str:
     """
     try:
         for fpath in files:
-            ids, seqs = _read_fasta(fpath)
+            ids, seqs = _load_fasta_ids_and_sequences(fpath)
             if seqs:
                 first_seq = seqs[0].replace("-", "").replace(".", "").upper()
                 if not first_seq:
@@ -239,7 +198,7 @@ def _concatenate_alignments(
         if not os.path.isfile(fpath):
             raise RuntimeError(f"File not found: {fpath}")
         gene_name = gene_names[i] if gene_names and i < len(gene_names) else f"gene{i + 1}"
-        ids, seqs = _read_fasta(fpath)
+        ids, seqs = _load_fasta_ids_and_sequences(fpath)
         if not ids:
             raise ValueError(f"No sequences in {fpath}")
         # Duplicate taxon IDs would either silently drop sequences (dict
@@ -699,7 +658,7 @@ class PartitionConcatTab(BaseTabWidget):
                     problems.append(f"{raw}: {err}")
                     continue
                 try:
-                    ids, seqs = _read_fasta(fpath)
+                    ids, seqs = _load_fasta_ids_and_sequences(fpath)
                 except Exception as exc:
                     problems.append(f"{raw}: could not read FASTA ({exc})")
                     continue
@@ -722,7 +681,7 @@ class PartitionConcatTab(BaseTabWidget):
                 master: set[str] | None = None
                 for fpath, raw in zip(files, raw_names):
                     try:
-                        ids, _ = _read_fasta(fpath)
+                        ids, _ = _load_fasta_ids_and_sequences(fpath)
                     except Exception:
                         continue
                     current = set(ids)
@@ -767,7 +726,7 @@ class PartitionConcatTab(BaseTabWidget):
             self.show_status("Validation passed with notes")
         else:
             try:
-                ids, _ = _read_fasta(files[0])
+                ids, _ = _load_fasta_ids_and_sequences(files[0])
             except Exception:
                 ids = []
             QMessageBox.information(

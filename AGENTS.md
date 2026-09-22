@@ -98,11 +98,14 @@ tests/               -> Pytest regression coverage
 ## FASTA / Bioinformatics Semantics
 
 - Always use `FASTAProcessor` from [modules/fasta_processor.py](modules/fasta_processor.py) for FASTA IO unless there is a strong reason not to.
+- In-memory FASTA (pasted text) goes through `FASTAProcessor.parse_text()` or the helpers `parse_fasta_tuples()` / `parse_fasta_dict()`. Do not add a local `_parse_fasta`.
 - `FASTAProcessor._add_record()` splits each FASTA header on the first space:
 - `record.header` is the primary ID only.
 - `record.description` is the remainder of the header line.
 - `FASTAProcessor.save_file()` recombines them when writing output. This matters for any feature that matches, simplifies, extracts, or renames IDs.
-- `FASTAProcessor.read_file()` tries UTF-8 first and falls back to Latin-1. Mirror this tolerance in related file readers when practical.
+- `FASTAProcessor.read_file()` tries UTF-8 first and falls back to Latin-1, then calls `parse_text()`. Mirror this tolerance in related file readers when practical.
+- `validate_file(sequence_type="nucleotide"|"protein"|"auto")` distinguishes alphabets. Default is nucleotide. `auto` accepts an all-nucleotide or all-protein file and rejects mixed types. Neither alphabet includes gaps.
+- App version is `APP_VERSION` in [utils/app_version.py](utils/app_version.py). Do not put `__version__` or eager tab imports in [modules/__init__.py](modules/__init__.py).
 
 ## Testing Guidance
 

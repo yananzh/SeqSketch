@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from modules.fasta_processor import parse_fasta_dict
 from utils.app_paths import resource_path
 from utils.common_components import (
     BaseTabWidget,
@@ -78,24 +79,8 @@ def _build_mafft_command(
     return cmd
 
 
-def _parse_fasta_to_dict(text: str) -> dict:
-    seqs = {}
-    header = None
-    buf = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith(">"):
-            if header is not None:
-                seqs[header] = "".join(buf).upper()
-            header = line[1:].strip() or f"seq{len(seqs) + 1}"
-            buf = []
-        else:
-            buf.append(line)
-    if header is not None:
-        seqs[header] = "".join(buf).upper()
-    return seqs
+def _fasta_to_dict(text: str) -> dict:
+    return parse_fasta_dict(text)
 
 
 def _dict_to_fasta_text(seqs: dict) -> str:
@@ -371,7 +356,7 @@ class _MafftBatchWorker(QThread):
                 self.progress.emit(f"[{idx}/{total}] Reading: {os.path.basename(in_path)}")
                 with open(in_path, "r", encoding="utf-8", errors="replace") as f:
                     raw = f.read().strip()
-                seqs = _parse_fasta_to_dict(raw)
+                seqs = _fasta_to_dict(raw)
                 if len(seqs) < 2:
                     raise ValueError("Need at least 2 sequences in FASTA")
                 input_order = list(seqs.keys())
@@ -419,7 +404,7 @@ class _MafftBatchWorker(QThread):
                     raise RuntimeError(f"MAFFT exited with code {self._proc.returncode}: {details}")
 
                 aligned_fasta = (stdout_data or "").strip()
-                out_seqs = _parse_fasta_to_dict(aligned_fasta)
+                out_seqs = _fasta_to_dict(aligned_fasta)
                 if not out_seqs:
                     raise RuntimeError("MAFFT produced empty output")
 
@@ -1044,7 +1029,7 @@ class MafftAlignmentTab(BaseTabWidget):
             return
         self.output_file_edit.setText(output_path)
 
-        seqs = _parse_fasta_to_dict(raw)
+        seqs = _fasta_to_dict(raw)
         if len(seqs) < 2:
             self.status_label.setText("Need ≥ 2 sequences for MSA.")
             QMessageBox.warning(
@@ -1085,7 +1070,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
     def handle_worker_finished(self, aligned_text: str):
         self.run_btn.setEnabled(True)
-        seqs = _parse_fasta_to_dict(aligned_text)
+        seqs = _fasta_to_dict(aligned_text)
         if not seqs:
             self.handle_worker_error("MAFFT produced empty output.")
             return

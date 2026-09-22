@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
 )
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 
@@ -170,7 +171,7 @@ class TranslateTab(BaseTabWidget):
         codon_table = _codon_table_dict(genetic_code_id)
 
         if ">" in raw:
-            records = self._parse_fasta(raw)
+            records = parse_fasta_tuples(raw, include_gt=True)
             if not records:
                 self.show_status("No valid FASTA records found")
                 return
@@ -195,23 +196,6 @@ class TranslateTab(BaseTabWidget):
             trans_seq = self._translate_frame(seq, frame, aa_mode, codon_table)
             self.output_text.setPlainText(trans_seq)
             self.show_status("Translation complete")
-
-    def _parse_fasta(self, text):
-        records = []
-        header = None
-        seq_lines = []
-        for line in text.splitlines():
-            line = line.strip()
-            if line.startswith(">"):
-                if header is not None:
-                    records.append((header, "".join(seq_lines)))
-                header = line
-                seq_lines = []
-            elif line:
-                seq_lines.append(line)
-        if header is not None:
-            records.append((header, "".join(seq_lines)))
-        return records
 
     def _translate_frame(self, seq, frame, aa_mode, codon_table):
         if frame < 3:

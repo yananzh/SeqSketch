@@ -138,6 +138,69 @@ def test_read_file_gbk_fallback(tmp_path):
     assert len(processor.records) == 2
 
 
+# ── parse_text / as_tuples / as_dict ────────────────────────────────────────
+
+
+def test_parse_text_splits_header_and_description_on_first_space():
+    processor = FASTAProcessor()
+    assert processor.parse_text(">seq1 some description here\nATGC\n") is True
+    assert len(processor.records) == 1
+    record = processor.records[0]
+    assert record.header == "seq1"
+    assert record.description == "some description here"
+    assert record.sequence == "ATGC"
+
+
+def test_parse_text_multiline_and_empty_record_drop():
+    processor = FASTAProcessor()
+    assert processor.parse_text(">seq1 first\nATGC\nGGTT\n>empty\n>seq2\nccgg\n") is True
+    assert [r.header for r in processor.records] == ["seq1", "seq2"]
+    assert processor.records[0].sequence == "ATGCGGTT"
+    assert processor.records[1].sequence == "CCGG"
+
+
+def test_parse_text_resets_records_between_calls():
+    processor = FASTAProcessor()
+    assert processor.parse_text(">seq1\nATGC\n") is True
+    assert processor.parse_text(">seq2\nGGTT\n") is True
+    assert [r.header for r in processor.records] == ["seq2"]
+
+
+def test_as_tuples_recombines_header_and_description():
+    processor = FASTAProcessor()
+    processor.parse_text(">seq1 some desc\nATGC\n>seq2\nGGTT\n")
+    assert processor.as_tuples() == [
+        ("seq1 some desc", "ATGC"),
+        ("seq2", "GGTT"),
+    ]
+
+
+def test_as_tuples_include_gt_prefixes_header():
+    processor = FASTAProcessor()
+    processor.parse_text(">seq1 desc\nATGC\n")
+    assert processor.as_tuples(include_gt=True) == [(">seq1 desc", "ATGC")]
+
+
+def test_as_tuples_empty_header_becomes_seqn():
+    processor = FASTAProcessor()
+    processor.parse_text(">seq1\nATGC\n>\nGGTT\n>foo\nCCAA\n>\nTTTT\n")
+    headers = [header for header, _ in processor.as_tuples()]
+    assert headers == ["seq1", "seq2", "foo", "seq4"]
+
+
+def test_as_dict_full_header_and_id_only():
+    processor = FASTAProcessor()
+    processor.parse_text(">seq1 some desc\nATGC\n>seq2\nGGTT\n")
+    assert processor.as_dict() == {"seq1 some desc": "ATGC", "seq2": "GGTT"}
+    assert processor.as_dict(id_only=True) == {"seq1": "ATGC", "seq2": "GGTT"}
+
+
+def test_as_dict_duplicate_keys_overwrite():
+    processor = FASTAProcessor()
+    processor.parse_text(">seq1\nATGC\n>seq1\nGGTT\n")
+    assert processor.as_dict(id_only=True) == {"seq1": "GGTT"}
+
+
 # ── save_file ───────────────────────────────────────────────────────────────
 
 
@@ -228,6 +291,83 @@ def test_validate_file_empty_records():
     valid, errors = processor.validate_file()
     assert valid is False
     assert errors == ["File is empty or has invalid format"]
+
+
+def test_validate_file_protein_accepts_standard_residues():
+    processor = FASTAProcessor()
+    processor.records = [FASTARecord(header="p1", sequence="ACDEFGHIKLMNPQRSTVWYBZXUO*")]
+    valid, errors = processor.validate_file(sequence_type="protein")
+    assert valid is True
+    assert errors == []
+
+
+def test_validate_file_protein_rejects_gaps_and_j():
+    processor = FASTAProcessor()
+    processor.records = [FASTARecord(header="p1", sequence="ACDEFJ-")]
+    valid, errors = processor.validate_file(sequence_type="protein")
+    assert valid is False
+    assert "invalid characters" in errors[0]
+
+
+def test_validate_file_auto_accepts_all_nucleotide_or_all_protein():
+    nuc = FASTAProcessor()
+    nuc.records = [FASTARecord(header="n1", sequence="ATGCN")]
+    valid, errors = nuc.validate_file(sequence_type="auto")
+    assert valid is True
+    assert errors == []
+
+    prot = FASTAProcessor()
+    prot.records = [FASTARecord(header="p1", sequence="ACDEFGHIKLMNPQRSTVWY")]
+    valid, errors = prot.validate_file(sequence_type="auto")
+    assert valid is True
+    assert errors == []
+
+
+def test_validate_file_auto_rejects_mixed_types():
+    processor = FASTAProcessor()
+    processor.records = [
+        FASTARecord(header="n1", sequence="ATGC"),
+        FASTARecord(header="p1", sequence="ACDEFGHIKL"),
+    ]
+    valid, errors = processor.validate_file(sequence_type="auto")
+    assert valid is False
+    assert any("mix" in err.lower() for err in errors)
+
+
+def test_validate_file_default_is_nucleotide():
+    processor = FASTAProcessor()
+    processor.records = [FASTARecord(header="p1", sequence="ACDEFGHIKL")]
+    valid, errors = processor.validate_file()
+    assert valid is False
+    assert "invalid characters" in errors[0]
+
+
+def test_validate_file_unknown_sequence_type():
+    processor = FASTAProcessor()
+    processor.records = [FASTARecord(header="n1", sequence="ATGC")]
+    valid, errors = processor.validate_file(sequence_type="rna")
+    assert valid is False
+    assert errors
+
+
+def test_named_record_parsers_are_gone_from_modules():
+    """Keep-list: BLAST query typing, NCBI header scan, MSA duplicate-header scan."""
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "modules"
+    banned = re.compile(
+        r"^\s*def\s+(_parse_fasta|_parse_fasta_to_dict|_parse_fasta_text|"
+        r"_parse_fasta_records|_read_fasta|_read_fasta_file|parse_fasta)\b"
+    )
+    leftover = []
+    for path in sorted(root.glob("*.py")):
+        if path.name == "fasta_processor.py":
+            continue
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if banned.search(line):
+                leftover.append(f"{path.name}:{line_no}:{line.strip()}")
+    assert leftover == []
 
 
 def test_get_statistics():

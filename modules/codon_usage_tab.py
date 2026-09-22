@@ -614,24 +614,10 @@ _AA_3_TO_1 = {
 _RARE_RSCU_THRESHOLD = 0.3
 
 
-def _parse_fasta(text: str) -> List[Tuple[str, str]]:
-    records: List[Tuple[str, str]] = []
-    header = ""
-    seq_lines: List[str] = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith(">"):
-            if header:
-                records.append((header, "".join(seq_lines)))
-            header = line[1:].strip()
-            seq_lines = []
-        else:
-            seq_lines.append(line)
-    if header:
-        records.append((header, "".join(seq_lines)))
-    return records
+def _load_fasta_records(text: str) -> List[Tuple[str, str]]:
+    from modules.fasta_processor import parse_fasta_tuples
+
+    return parse_fasta_tuples(text)
 
 
 class _Worker(QObject):
@@ -649,7 +635,7 @@ class _Worker(QObject):
 
     def run(self):
         try:
-            records = _parse_fasta(self._text)
+            records = _load_fasta_records(self._text)
             if not records:
                 records = [("Sequence", self._text.strip())]
             total = len(records)

@@ -139,7 +139,7 @@ def test_append_run_log_writes_block_with_all_fields(tmp_path):
     assert "Input: C:\\in\\seq.fasta" in log
     assert "Output: C:\\out\\aln.fasta" in log
     assert "Run: 20" in log  # timestamp starts with the year
-    assert "SeqSketch:" in log
+    assert "SeqSketch: 1.0.0" in log
 
 
 def test_append_run_log_is_append_only(tmp_path):

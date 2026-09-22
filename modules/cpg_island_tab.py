@@ -60,24 +60,10 @@ CRITERIA_PRESETS: Dict[str, Dict[str, object]] = {
 }
 
 
-def _parse_fasta(text: str) -> List[Tuple[str, str]]:
-    records: List[Tuple[str, str]] = []
-    header = ""
-    seq_lines: List[str] = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith(">"):
-            if header:
-                records.append((header, "".join(seq_lines)))
-            header = line[1:].strip()
-            seq_lines = []
-        else:
-            seq_lines.append(line)
-    if header:
-        records.append((header, "".join(seq_lines)))
-    return records
+def _load_fasta_records(text: str) -> List[Tuple[str, str]]:
+    from modules.fasta_processor import parse_fasta_tuples
+
+    return parse_fasta_tuples(text)
 
 
 def find_cpg_islands(
@@ -407,7 +393,7 @@ class CpGIslandTab(BaseTabWidget):
             self.show_status(f"Error: Cannot read file \u2014 {exc}")
             return
 
-        records = _parse_fasta(text)
+        records = _load_fasta_records(text)
         if not records:
             self.show_status("No valid FASTA sequence found")
             return

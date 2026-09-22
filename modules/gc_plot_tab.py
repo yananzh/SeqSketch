@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
 
@@ -135,7 +136,7 @@ class GCPlotTab(BaseTabWidget):
                 text = fh.read()
         except OSError:
             return
-        records = self._parse_fasta(text)
+        records = parse_fasta_tuples(text)
         if not records:
             return
         _, seq = records[0]
@@ -308,7 +309,7 @@ class GCPlotTab(BaseTabWidget):
             return
         text = text.strip()
 
-        records = self._parse_fasta(text)
+        records = parse_fasta_tuples(text)
         if not records:
             QMessageBox.warning(
                 self,
@@ -694,28 +695,3 @@ circular replicon where the leading/lagging strand bias is clearly visible</li>
         dialog.setLayout(layout)
         dialog.exec()
 
-    # ── FASTA parsing ───────────────────────────────────────────────────────
-
-    def _parse_fasta(self, text):
-        records = []
-        lines = text.strip().split("\n")
-        current_header = None
-        current_seq = []
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                if current_header is not None:
-                    seq = "".join(current_seq)
-                    if seq:
-                        records.append((current_header, seq))
-                current_header = line[1:].strip()
-                current_seq = []
-            else:
-                current_seq.append(line)
-        if current_header is not None:
-            seq = "".join(current_seq)
-            if seq:
-                records.append((current_header, seq))
-        return records

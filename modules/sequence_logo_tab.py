@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
 
@@ -267,7 +268,7 @@ class SequenceLogoTab(BaseTabWidget):
             return
 
         try:
-            records = self.parse_fasta(text)
+            records = parse_fasta_tuples(text)
         except Exception as e:
             QMessageBox.warning(self, "Format Error", str(e))
             return
@@ -593,36 +594,3 @@ a feel for the output before tackling larger datasets.</li>
         layout.addWidget(btn)
         dlg.exec()
 
-    def parse_fasta(self, text):
-        """Parse FASTA format text"""
-        records = []
-        lines = text.strip().split("\n")
-        current_header = None
-        current_seq = []
-
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-
-            if line.startswith(">"):
-                # Save previous record
-                if current_header is not None:
-                    seq = "".join(current_seq)
-                    if seq:
-                        records.append((current_header, seq))
-
-                # Start new record
-                current_header = line[1:].strip()
-                current_seq = []
-            else:
-                # Add to current sequence
-                current_seq.append(line)
-
-        # Save last record
-        if current_header is not None:
-            seq = "".join(current_seq)
-            if seq:
-                records.append((current_header, seq))
-
-        return records

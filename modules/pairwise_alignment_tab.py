@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import (
     BaseTabWidget,
     unify_status_button_sizes,
@@ -29,25 +30,9 @@ from utils.common_components import (
 from utils.example_data import load_example_text
 
 
-def _parse_fasta_text(text: str):
+def _load_fasta_records(text: str):
     """Parse FASTA text into a list of (header, sequence) tuples."""
-    records = []
-    current_header = None
-    current_seq = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith(">"):
-            if current_header is not None:
-                records.append((current_header, "".join(current_seq)))
-            current_header = line[1:]
-            current_seq = []
-        elif current_header is not None:
-            current_seq.append(line)
-    if current_header is not None:
-        records.append((current_header, "".join(current_seq)))
-    return records
+    return parse_fasta_tuples(text)
 
 
 class PairwiseAlignmentTab(BaseTabWidget):
@@ -398,7 +383,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
             QMessageBox.information(self, "Example", "Example data not found.")
             return
         # Parse two FASTA records from the example text
-        records = _parse_fasta_text(text)
+        records = _load_fasta_records(text)
         if len(records) >= 2:
             self.input_text.setPlainText(f">{records[0][0]}\n{records[0][1]}")
             self.seq2_text.setPlainText(f">{records[1][0]}\n{records[1][1]}")
