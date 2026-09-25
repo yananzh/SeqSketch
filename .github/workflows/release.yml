@@ -34,14 +34,19 @@ jobs:
           - os: windows-latest
             platform: windows
             artifact: dist/SeqSketch-windows.zip
+            artifact_name: SeqSketch-windows
           # Two macOS builds: the tools bundle is universal (BLAST, IQ-TREE,
           # MAFFT) or arch-split (trimAl, MUSCLE ship both), so both work.
+          # artifact_name must be unique: both Mac legs share platform=Mac, and
+          # upload-artifact@v4 rejects a second upload with the same name.
           - os: macos-15
             platform: Mac
             artifact: dist/SeqSketch-Mac-arm64.zip
+            artifact_name: SeqSketch-Mac-arm64
           - os: macos-15-intel
             platform: Mac
             artifact: dist/SeqSketch-Mac-x86_64.zip
+            artifact_name: SeqSketch-Mac-x86_64
     runs-on: ${{ matrix.os }}
     env:
       QT_QPA_PLATFORM: offscreen
@@ -77,19 +82,23 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SeqSketch-${{ matrix.platform }}
+          name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact }}
           if-no-files-found: error
 
   release:
     name: publish release
     needs: build
+    # A failed Mac leg must not swallow a Windows zip that already uploaded.
+    # Cancelled runs still skip publishing.
+    if: ${{ !cancelled() }}
     # Cheapest runner: this job only moves files around.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: SeqSketch-*
           merge-multiple: true
 
       - name: Upload archives to the release

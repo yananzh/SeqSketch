@@ -67,6 +67,8 @@ if (-not $Target) {
 # Patterns rather than exact names: tool folders are version-numbered
 # (iqtree-3.1.3-Windows), so pinning a version here would rot. These mirror
 # utils/tool_paths.py — each pattern must match at least one extracted file.
+# trimAl on macOS is checked separately: the shipped zip has trimal in the
+# folder root, while some builds nest it under bin/.
 $expected = @{
     'windows' = @(
         'ncbi-blast-*/bin/blastn.exe',
@@ -79,9 +81,34 @@ $expected = @{
         'ncbi-blast-*/bin/blastn',
         'iqtree-*/bin/iqtree3',
         'mafft*/mafft.bat',
-        'trimAl*/bin/trimal',
         'muscle*'
     )
+}
+
+function Test-TrimAlPresent {
+    param([string]$Root)
+    return (Test-Path (Join-Path $Root 'trimAl*/trimal')) -or
+        (Test-Path (Join-Path $Root 'trimAl*/bin/trimal'))
+}
+
+function Restore-UnixExecutableBit {
+    param([string]$Root)
+    # Compress-Archive does not store the Unix executable bit. PyInstaller only
+    # marks a bundled data file executable when os.access(path, X_OK) is true
+    # at build time, so a Mac bundle packed on Windows would otherwise ship
+    # blastn/iqtree3/trimal/muscle as mode 644.
+    if ($env:OS -eq 'Windows_NT') {
+        return
+    }
+    if (-not (Get-Command chmod -ErrorAction SilentlyContinue)) {
+        throw "chmod not found; cannot restore executable bits under $Root"
+    }
+    Get-ChildItem $Root -Recurse -File | ForEach-Object {
+        & chmod a+x -- $_.FullName
+        if ($LASTEXITCODE -ne 0) {
+            throw "chmod failed for $($_.FullName)"
+        }
+    }
 }
 
 if ((Test-Path $Target) -and -not $Force) {
@@ -136,6 +163,9 @@ foreach ($pattern in $expected[$Platform]) {
         $missing += $pattern
     }
 }
+if ($Platform -eq 'Mac' -and -not (Test-TrimAlPresent $Target)) {
+    $missing += 'trimAl*/trimal or trimAl*/bin/trimal'
+}
 
 if ($tempArchive -and (Test-Path (Split-Path -Parent $tempArchive))) {
     Remove-Item (Split-Path -Parent $tempArchive) -Recurse -Force -ErrorAction SilentlyContinue
@@ -144,6 +174,8 @@ if ($tempArchive -and (Test-Path (Split-Path -Parent $tempArchive))) {
 if ($missing) {
     throw "Extracted bundle is incomplete. Missing: $($missing -join ', ')"
 }
+
+Restore-UnixExecutableBit $Target
 
 $sizeMb = [math]::Round(
     (Get-ChildItem $Target -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB,

@@ -222,8 +222,8 @@ git tag v1.0.0
 git push origin v1.0.0          # 触发 .github/workflows/release.yml
 ```
 
-工作流会在 Windows 和 macOS runner 上分别跑测试 → 拉取工具 → 构建 → 打包，
-然后把两个 zip 上传到对应的 GitHub Release。
+工作流会在 Windows、macOS Apple Silicon 和 macOS Intel 上分别跑测试 → 拉取工具 → 构建 → 打包，
+然后把三个 zip 上传到对应的 GitHub Release。
 
 **前置条件：`softwares/` 是 gitignored 的**，CI 通过 `scripts/fetch_softwares.ps1`
 从 `tools-v1` Release 拉取。首次发布前必须先创建该 Release 并上传两个工具包：
