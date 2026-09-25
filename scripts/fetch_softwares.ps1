@@ -104,7 +104,8 @@ function Restore-UnixExecutableBit {
         throw "chmod not found; cannot restore executable bits under $Root"
     }
     Get-ChildItem $Root -Recurse -File | ForEach-Object {
-        & chmod a+x -- $_.FullName
+        # macOS chmod is BSD and rejects "--". Tool paths do not start with "-".
+        & chmod a+x $_.FullName
         if ($LASTEXITCODE -ne 0) {
             throw "chmod failed for $($_.FullName)"
         }

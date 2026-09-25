@@ -74,6 +74,10 @@ def test_fetch_accepts_flat_macos_trimal(tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert (target / "trimAl-1.51-MacOS-arm64" / "trimal").is_file()
+    # Windows reports every existing file as executable. On macOS this is the
+    # check that BSD chmod actually ran.
+    if os.name != "nt":
+        assert os.access(target / "muscle-5.3-MacOS-arm64", os.X_OK)
 
 
 def test_fetch_accepts_nested_macos_trimal(tmp_path):
