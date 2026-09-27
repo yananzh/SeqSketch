@@ -132,7 +132,10 @@ def _run_command(
                 aborted = True
                 kill_process_tree(proc)
                 break
-            proc.wait(timeout=0.2)
+            try:
+                proc.wait(timeout=0.2)
+            except subprocess.TimeoutExpired:
+                pass
         out_thread.join(timeout=5)
         err_thread.join(timeout=5)
 
