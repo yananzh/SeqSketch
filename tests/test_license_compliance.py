@@ -19,7 +19,8 @@ import pytest
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOFTWARES = os.path.join(REPO_ROOT, "softwares")
 NOTICES = os.path.join(REPO_ROOT, "THIRD-PARTY-NOTICES.md")
-README = os.path.join(REPO_ROOT, "README.MD")
+README = os.path.join(REPO_ROOT, "README.md")
+README_ZH = os.path.join(REPO_ROOT, "README.zh-CN.md")
 SPEC = os.path.join(REPO_ROOT, "SeqSketch.spec")
 COLLECTOR = os.path.join(REPO_ROOT, "scripts", "collect_licenses.py")
 PYTHON_LICENCES = os.path.join(REPO_ROOT, "third_party_licenses", "python")
@@ -156,34 +157,38 @@ def test_notices_note_the_mafft_no_fee_condition():
 
 
 def test_readme_documents_licensing_and_source():
-    readme = _flat(README)
-    assert "许可与来源" in readme
-    assert "THIRD-PARTY-NOTICES.md" in readme
-    assert "GPL-3.0-only" in readme
+    for readme in (README, README_ZH):
+        text = _flat(readme)
+        assert "THIRD-PARTY-NOTICES.md" in text
+        assert "GPL-3.0-only" in text
+    assert "许可与来源" in _flat(README_ZH)
 
 
 def test_readme_does_not_claim_a_permissive_project_licence():
     """MIT is incompatible with the bundled PyQt6, so it must not be declared."""
-    readme = _read(README)
-    assert "License: MIT" not in readme
-    assert "MIT License" not in readme
+    for readme in (README, README_ZH):
+        text = _read(readme)
+        assert "License: MIT" not in text
+        assert "MIT License" not in text
 
 
 # ── Project licence ──────────────────────────────────────────────────────
 
 
 def test_readme_declares_gpl3():
-    readme = _flat(README)
-    assert "GNU General Public License v3.0" in readme
-    assert "[LICENSE](LICENSE)" in readme
-    assert "Copyright (C) 2026" in readme
+    for readme in (README, README_ZH):
+        text = _flat(readme)
+        assert "GNU General Public License v3.0" in text
+        assert "[LICENSE](LICENSE)" in text
+        assert "Copyright (C) 2026" in text
 
 
 def test_readme_notice_matches_the_declared_licence():
     """The GNU notice block must not promise a later-version option."""
-    readme = _read(README)
-    assert "GPL-3.0-only" in readme
-    assert "任何更新版本" not in readme
+    for readme in (README, README_ZH):
+        assert "GPL-3.0-only" in _read(readme)
+    assert "任何更新版本" not in _read(README_ZH)
+    assert "or any later version" not in _read(README)
 
 
 def test_project_licence_file_is_the_full_gpl3():

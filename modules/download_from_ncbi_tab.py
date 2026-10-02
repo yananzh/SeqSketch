@@ -22,7 +22,10 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from modules.fasta_processor import FASTAProcessor
+from utils.atomic_file import write_text_atomic
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
+from utils.task_lifecycle import skip_when_closing
 
 
 def normalize_accession_list(acc_text: str) -> tuple[list[str], list[str]]:
@@ -46,11 +49,28 @@ def split_batches(items: list[str], batch_size: int) -> list[list[str]]:
 
 
 def parse_fasta_headers(fasta_text: str) -> list[str]:
+    processor = FASTAProcessor()
+    processor.parse_text(fasta_text)
     headers = []
-    for line in fasta_text.splitlines():
-        if line.startswith(">"):
-            headers.append(line[1:].split()[0])
+    for record in processor.records:
+        parts = record.header.split("|")
+        # Legacy gi|...|gb/ref/emb/dbj|ACCESSION.VERSION| headers.
+        accession = record.header
+        for index, part in enumerate(parts[:-1]):
+            if part in {"gb", "ref", "emb", "dbj", "sp", "tpg", "tpe", "tpd"}:
+                accession = parts[index + 1]
+                break
+        headers.append(accession)
     return headers
+
+
+def match_accession(requested: str, returned: list[str]) -> str | None:
+    for accession in returned:
+        if accession.casefold() == requested.casefold():
+            return accession
+        if "." not in requested and accession.split(".", 1)[0].casefold() == requested.casefold():
+            return accession
+    return None
 
 
 def report_path_for_output(output_path: str) -> str:
@@ -138,6 +158,9 @@ def write_download_report(output_path: str, report: dict):
         lines.append("")
         lines.append("# Errors")
         lines.extend(report["errors"])
+    if report.get("accession_mapping"):
+        lines.extend(["", "# Requested accession\tReturned accession"])
+        lines.extend(f"{requested}\t{returned}" for requested, returned in report["accession_mapping"].items())
 
     with open(output_path, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines))
@@ -179,6 +202,7 @@ class _NcbiDownloadWorker(QObject):
         self._cancel = True
 
     def run(self):
+        accession_mapping = {}
         try:
             from Bio import Entrez
         except ImportError:
@@ -254,9 +278,12 @@ class _NcbiDownloadWorker(QObject):
                 batches_succeeded += 1
 
                 returned_headers = parse_fasta_headers(fasta_data)
-                returned_keys = {header.casefold() for header in returned_headers}
+                for accession in batch:
+                    matched = match_accession(accession, returned_headers)
+                    if matched:
+                        accession_mapping[accession] = matched
                 batch_missing = [
-                    accession for accession in batch if accession.casefold() not in returned_keys
+                    accession for accession in batch if accession not in accession_mapping
                 ]
                 if batch_missing:
                     failed_accessions.extend(batch_missing)
@@ -290,6 +317,7 @@ class _NcbiDownloadWorker(QObject):
             "sequences_returned": fasta_data.count(">"),
             "failed_accessions": sorted(set(failed_accessions)),
             "succeeded_accessions": sorted(succeeded_accessions),
+            "accession_mapping": accession_mapping,
             "generated_at": datetime.now().isoformat(timespec="seconds"),
             "errors": error_messages,
         }
@@ -455,6 +483,8 @@ class DownloadFromNCBITab(BaseTabWidget):
             self.output_edit.setText(file_path)
 
     def clear_all(self):
+        if not self.run_btn.isEnabled():
+            return
         self.email_edit.clear()
         self.acc_edit.clear()
         self.output_edit.clear()
@@ -468,9 +498,12 @@ class DownloadFromNCBITab(BaseTabWidget):
     def set_running_state(self, running: bool):
         """重写以禁用相关按钮"""
         super().set_running_state(running)
+        self.run_btn.setEnabled(not running)
         self.run_btn.setVisible(not running)
         self.stop_btn.setVisible(running)
         self.output_btn.setEnabled(not running)
+        self.output_edit.setEnabled(not running)
+        self.clear_btn.setEnabled(not running)
         self.db_combo.setEnabled(not running)
         self.email_edit.setEnabled(not running)
         self.acc_edit.setEnabled(not running)
@@ -480,6 +513,8 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.example_btn.setEnabled(not running)
 
     def run_download(self):
+        if self._thread and self._thread.isRunning():
+            return
         db = self.db_combo.currentText()
         email = self.email_edit.text().strip()
         acc_text = self.acc_edit.toPlainText().strip()
@@ -529,6 +564,8 @@ class DownloadFromNCBITab(BaseTabWidget):
         )
 
         # Run download on a worker thread so the UI stays responsive.
+        self._run_output_path = os.path.abspath(output_path)
+        self._run_export_report = self.export_report_checkbox.isChecked()
         self.set_running_state(True)
         self.show_status("Starting download worker...")
 
@@ -573,15 +610,19 @@ class DownloadFromNCBITab(BaseTabWidget):
     def _on_download_progress(self, batch_index: int, total_batches: int):
         self.show_status(f"Downloading batch {batch_index}/{total_batches}...")
 
+    @skip_when_closing
     def _on_download_finished(self, fasta_data: str, report: dict):
-        output_path = self.output_edit.text().strip()
-        export_report = self.export_report_checkbox.isChecked()
+        output_path = getattr(self, "_run_output_path", self.output_edit.text().strip())
+        export_report = getattr(self, "_run_export_report", self.export_report_checkbox.isChecked())
 
         if not fasta_data.strip():
             if export_report and output_path:
                 report_path = report_path_for_output(output_path)
-                write_download_report(report_path, report)
-                self.log_message(f"Download report saved to: {report_path}", "INFO")
+                try:
+                    write_download_report(report_path, report)
+                    self.log_message(f"Download report saved to: {report_path}", "INFO")
+                except OSError as exc:
+                    self.log_message(f"Download report save failed: {exc}", "ERROR")
             failed = report.get("failed_accessions", [])
             if failed:
                 self.log_message(
@@ -600,8 +641,7 @@ class DownloadFromNCBITab(BaseTabWidget):
             out_dir = os.path.dirname(output_path)
             if out_dir:
                 os.makedirs(out_dir, exist_ok=True)
-            with open(output_path, "w", encoding="utf-8") as f:
-                f.write(fasta_data + "\n")
+            write_text_atomic(output_path, fasta_data + "\n")
         except Exception as e:
             self.log_message(f"File save failed: {e}", "ERROR")
             self.set_running_state(False)
@@ -609,8 +649,11 @@ class DownloadFromNCBITab(BaseTabWidget):
 
         if export_report:
             report_path = report_path_for_output(output_path)
-            write_download_report(report_path, report)
-            self.log_message(f"Download report saved to: {report_path}", "INFO")
+            try:
+                write_download_report(report_path, report)
+                self.log_message(f"Download report saved to: {report_path}", "INFO")
+            except OSError as exc:
+                self.log_message(f"Download report save failed: {exc}", "ERROR")
 
         failed = report.get("failed_accessions", [])
         succeeded = report.get("succeeded_accessions", [])
@@ -633,10 +676,12 @@ class DownloadFromNCBITab(BaseTabWidget):
         )
         self.set_running_state(False)
 
+    @skip_when_closing
     def _on_download_error(self, error_msg: str):
         self.log_message(f"Download error: {error_msg}", "ERROR")
         self.set_running_state(False)
 
+    @skip_when_closing
     def _on_download_cancelled(self):
         self.log_message("Download cancelled by user.", "WARNING")
         self.show_status("Cancelled")

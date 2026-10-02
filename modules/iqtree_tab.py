@@ -36,6 +36,7 @@ from utils.common_components import (
 from utils.example_data import stage_example
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
+from utils.task_lifecycle import request_task_stop, skip_when_closing
 from utils.tool_paths import iqtree_executable
 
 
@@ -88,6 +89,9 @@ class _IqTreeThread(QThread):
             kill_process_tree(self._proc)
 
     def run(self):
+        if self._killed:
+            self.finished.emit(False, "", "Stopped by user.")
+            return
         self.progress.emit("IQ-TREE running…")
         lines: list[str] = []
         try:
@@ -95,8 +99,11 @@ class _IqTreeThread(QThread):
                 self.cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                start_new_session=os.name != "nt",
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
+            if self._killed:
+                kill_process_tree(self._proc)
             for raw in self._proc.stdout:  # type: ignore[union-attr]
                 line = raw.decode("utf-8", errors="replace").rstrip("\n")
                 lines.append(line)
@@ -419,7 +426,7 @@ class IqTreeTab(BaseTabWidget):
 
     def _stop(self):
         if self._thread and self._thread.isRunning():
-            self._thread.stop()
+            request_task_stop(self._thread)
         self.stop_btn.setVisible(False)
         self.run_btn.setEnabled(True)
         self.show_status("Stopped")
@@ -618,6 +625,7 @@ to root the tree on (IQ-TREE <code>-o</code>).</li>
         self.log_area.moveCursor(self.log_area.textCursor().MoveOperation.End)
         self.log_area.insertPlainText(line + "\n")
 
+    @skip_when_closing
     def _on_finished(self, success: bool, treefile: str, output: str):
         self.run_btn.setEnabled(True)
         self.stop_btn.setVisible(False)

@@ -4,6 +4,8 @@ import math
 import os
 from types import SimpleNamespace
 
+import pytest
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from Bio.Align import MultipleSeqAlignment
@@ -34,6 +36,17 @@ def test_dna_models_include_jc69_k80_and_drop_blastn():
     assert "blastn" not in datas
     assert "jc69" in datas
     assert "k80" in datas
+
+
+@pytest.mark.parametrize("model", ["jc69", "k80"])
+def test_missing_comparable_sites_are_not_zero_distance(model):
+    with pytest.raises(ValueError, match="t1 and t0"):
+        _dna_distance_matrix(_aln("AAAA----", "----TTTT", "AAAATTTT"), model)
+
+
+@pytest.mark.parametrize("model", ["jc69", "k80"])
+def test_rna_uracil_matches_thymine(model):
+    assert _dna_distance_matrix(_aln("ACGU", "ACGT"), model)[0][1] == 0
 
 
 def test_jc69_distance_matches_formula():

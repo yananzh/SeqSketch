@@ -225,30 +225,33 @@ def test_protein_analysis_anchor_proinsulin():
 # ── D. Codon-usage indices (ENC / CAI / RSCU / GC1-3) ─────────────────────
 
 
-def test_enc_met_trp_only_is_two():
-    """Wright (1990): only Met+Trp (single-codon families) → ENC = 2."""
+@pytest.mark.parametrize("counts", [
+    {"ATG": 20, "TGG": 20}, {"ATG": 30}, {"CTT": 60},
+    {"TTT": 1, "ATT": 1, "GCT": 1, "CTT": 1}, {},
+])
+def test_enc_insufficient_degeneracy_classes_are_unavailable(counts):
     from modules.codon_usage_tab import _compute_enc
+    assert _compute_enc(counts, 1) is None
 
-    assert _compute_enc({"ATG": 20, "TGG": 20}, 1) == pytest.approx(2.0)
 
-
-def test_enc_biased_sequence_low():
-    """A single amino-acid family in use → ENC stays minimal."""
+def test_enc_weights_all_genetic_code_families():
     from modules.codon_usage_tab import _compute_enc
+    counts = {c: 10 for c in ("TTT", "ATT", "GCT", "CTT", "ATG", "TGG")}
+    # Independent Wright coefficients: 2 + 9/F2 + 1/F3 + 5/F4 + 3/F6.
+    assert _compute_enc(counts, 1) == pytest.approx(2 + 9 + 1 + 5 + 3)
 
-    assert _compute_enc({"ATG": 30}, 1) == pytest.approx(2.0)
 
+def test_enc_uniform_usage_is_capped_at_61():
+    from Bio.Data import CodonTable
 
-def test_enc_uniform_synonymous_usage_approaches_61():
-    """Wright (1990): only the Leu family is used, evenly across its 6
-    codons.  ENC = singletons(2: Met/Trp) + used_families(1)/mean_F.
-    With total=60, sum_pi_sq=1/6: F=(1/6*60-1)/59=9/59, so
-    ENC = 2 + 1/(9/59) = 2 + 59/9 = 8.555..."""
     from modules.codon_usage_tab import _compute_enc
+    counts = {c: 100 for c in CodonTable.unambiguous_dna_by_id[1].forward_table}
+    assert _compute_enc(counts, 1) == pytest.approx(61)
 
-    counts = {c: 10 for c in ("TTA", "TTG", "CTT", "CTC", "CTA", "CTG")}
-    enc = _compute_enc(counts, 1)
-    assert enc == pytest.approx(2 + 59 / 9)
+
+def test_enc_nonstandard_code_is_explicitly_unavailable():
+    from modules.codon_usage_tab import _compute_enc
+    assert _compute_enc({"TTT": 10, "ATT": 10, "GCT": 10, "CTT": 10}, 2) is None
 
 
 def test_rscu_single_codon_family_is_one():

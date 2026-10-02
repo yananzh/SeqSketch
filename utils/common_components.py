@@ -29,6 +29,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from utils.task_lifecycle import park_thread, request_task_stop, skip_when_closing
+
 # ── Shared placeholder combo box ────────────────────────────────────────────
 
 
@@ -270,16 +272,7 @@ def park_qthread(thread: Optional[QThread]):
     still running"). Safe to call with None, non-thread objects, or an
     already-finished thread.
     """
-    if thread is None or not hasattr(thread, "isRunning"):
-        return
-    try:
-        if not thread.isRunning():
-            thread.deleteLater()
-            return
-        thread.finished.connect(thread.deleteLater)
-    except RuntimeError:
-        # C++ object already deleted — nothing left to park
-        pass
+    park_thread(thread)
 
 
 def stop_worker_object(obj) -> bool:
@@ -293,11 +286,7 @@ def stop_worker_object(obj) -> bool:
     if obj is None:
         return False
     try:
-        if hasattr(obj, "stop"):
-            obj.stop()
-        if hasattr(obj, "isRunning") and obj.isRunning():
-            if hasattr(obj, "quit"):
-                obj.quit()
+        request_task_stop(obj)
         return True
     except RuntimeError:
         return False
@@ -705,6 +694,7 @@ class BaseTabWidget(QWidget):
         """设置运行状态 - 子类应重写以禁用特定按钮"""
         self.show_status("Processing..." if running else "Ready")
 
+    @skip_when_closing
     def handle_worker_finished(self, message: str):
         """处理工作线程完成"""
         if hasattr(self, "log_area"):
@@ -715,6 +705,7 @@ class BaseTabWidget(QWidget):
         # 线程引用由 _on_worker_thread_finished() 在线程完全停止后释放，
         # 避免在此处释放仍在运行的 QThread（会导致应用崩溃）
 
+    @skip_when_closing
     def handle_worker_error(self, error_msg: str):
         """处理工作线程错误"""
         if hasattr(self, "log_area"):

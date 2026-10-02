@@ -1,12 +1,13 @@
 import os
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QElapsedTimer, Qt, QThread, QTimer
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
     QMainWindow,
     QMessageBox,
+    QPushButton,
     QStatusBar,
     QTabWidget,
 )
@@ -14,6 +15,39 @@ from PyQt6.QtWidgets import (
 from menus import create_menus
 from utils.app_paths import resource_path
 from utils.app_version import APP_VERSION
+from utils.common_components import BaseWorker, park_qthread
+from utils.task_lifecycle import (
+    mark_closing,
+    request_task_stop,
+    skip_when_closing,
+    task_objects,
+    tasks_running,
+)
+from utils.update_check import (
+    RELEASES_PAGE_URL,
+    fetch_latest_version,
+    is_newer_version,
+)
+
+# A window close waits for running tasks to stop, but never forever: after
+# this deadline, still-running threads are parked and the close proceeds.
+_CLOSE_DEADLINE_MS = 10_000
+
+
+class UpdateCheckWorker(BaseWorker):
+    """Fetch the latest release version off the GUI thread."""
+
+    def __init__(self, timeout=5.0):
+        super().__init__()
+        self.timeout = timeout
+
+    def run(self):
+        try:
+            latest = fetch_latest_version(timeout=self.timeout)
+        except Exception as exc:
+            self.emit_error(f"{type(exc).__name__}: {exc}")
+            return
+        self.emit_finished(latest)
 
 
 class MainWindow(QMainWindow):
@@ -30,6 +64,16 @@ class MainWindow(QMainWindow):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         self.child_windows = []
+        self._update_worker = None
+        self._update_thread = None
+        self._update_button = None
+        self._update_dialog = None
+        self._closing_tabs = []
+        self._closing_requested = False
+        self._close_elapsed = QElapsedTimer()
+        self._close_timer = QTimer(self)
+        self._close_timer.setInterval(25)
+        self._close_timer.timeout.connect(self._finish_closing_tasks)
         self._init_ui()
         self._load_style()
 
@@ -92,31 +136,77 @@ class MainWindow(QMainWindow):
 
     def close_tab(self, index):
         widget = self.tabs.widget(index)
-        shutdown = getattr(widget, "shutdown", None)
-        if callable(shutdown):
-            # Preferred path: the tab stops its own threads/processes.
-            shutdown()
-        else:
-            # Legacy fallback for tabs that are not BaseTabWidget subclasses.
-            for attr_name in ("worker_thread", "_thread", "_batch_worker"):
-                obj = getattr(widget, attr_name, None)
-                if obj is None:
-                    continue
-                try:
-                    if hasattr(obj, "stop"):
-                        obj.stop()
-                except RuntimeError:
-                    pass
-                try:
-                    if hasattr(obj, "isRunning") and obj.isRunning():
-                        if hasattr(obj, "quit"):
-                            obj.quit()
-                        if hasattr(obj, "wait"):
-                            obj.wait(3000)
-                except RuntimeError:
-                    pass
+        if widget is None:
+            return
+        mark_closing(widget)
+        objects = task_objects(widget)
         self.tabs.removeTab(index)
-        widget.deleteLater()
+        self._closing_tabs.append((widget, objects))
+        for obj in objects:
+            request_task_stop(obj)
+        self._close_timer.start()
+        self._finish_closing_tasks()
+
+    def _finish_closing_tasks(self):
+        for widget, objects in list(self._closing_tabs):
+            if tasks_running(objects):
+                continue
+            shutdown = getattr(widget, "shutdown", None)
+            if callable(shutdown):
+                shutdown()
+            widget.deleteLater()
+            self._closing_tabs.remove((widget, objects))
+        if self._closing_tabs or tasks_running(task_objects(self)):
+            if self._closing_requested and self._close_deadline_exceeded():
+                self._abandon_closing_tasks()
+                QTimer.singleShot(0, self.close)
+            return
+        self._close_timer.stop()
+        if self._closing_requested:
+            QTimer.singleShot(0, self.close)
+
+    def _close_deadline_exceeded(self):
+        return (
+            self._close_elapsed.isValid()
+            and self._close_elapsed.elapsed() >= _CLOSE_DEADLINE_MS
+        )
+
+    def _abandon_closing_tasks(self):
+        """Give up waiting for tasks that ignore their stop request.
+
+        Running QThreads are parked (detached and destroyed on their native
+        finished signal) so closing never destroys a live thread; the owner
+        widgets are left for process exit.
+        """
+        for widget, objects in list(self._closing_tabs):
+            for obj in objects:
+                park_qthread(obj)
+            self._closing_tabs.remove((widget, objects))
+        for obj in task_objects(self):
+            park_qthread(obj)
+        self._close_timer.stop()
+
+    def closeEvent(self, event):
+        if not self._closing_requested:
+            self._closing_requested = True
+            self._close_elapsed.start()
+            mark_closing(self)
+            self.tabs.setEnabled(False)
+            self.menuBar().setEnabled(False)
+            while self.tabs.count():
+                self.close_tab(0)
+            for obj in task_objects(self):
+                request_task_stop(obj)
+        if self._closing_tabs or tasks_running(task_objects(self)):
+            if self._close_deadline_exceeded():
+                self._abandon_closing_tasks()
+                event.accept()
+                return
+            event.ignore()
+            self.status.showMessage("Stopping background tasks before closing...")
+            self._close_timer.start()
+        else:
+            event.accept()
 
     # ── FASTA Tools ──────────────────────────────────────────────────────
 
@@ -425,13 +515,80 @@ class MainWindow(QMainWindow):
             self.child_windows.remove(window)
 
     def check_for_updates(self):
-        QMessageBox.information(
-            self,
-            "Check for Updates",
-            f"Current version: v{APP_VERSION}\n\nNo updates available.\n\n"
-            "Visit the project page for the latest info:\n"
-            "https://github.com/yananzh/SeqSketch",
+        if self._update_worker is not None:
+            return
+        if self._update_button is not None:
+            self._update_button.setEnabled(False)
+            self._update_button.setText("Checking...")
+        self._update_thread = QThread(self)
+        self._update_worker = UpdateCheckWorker()
+        self._update_worker.moveToThread(self._update_thread)
+        self._update_thread.started.connect(self._update_worker.run)
+        self._update_worker.finished.connect(self._on_update_check_finished)
+        self._update_worker.error.connect(self._on_update_check_failed)
+        # The QThread event loop runs until quit() — end it when the worker
+        # reports back, then _finish_update_check cleans up via thread.finished.
+        self._update_worker.finished.connect(self._update_thread.quit)
+        self._update_worker.error.connect(self._update_thread.quit)
+        self._update_thread.finished.connect(self._finish_update_check)
+        self._update_thread.start()
+
+    def _update_result_parent(self):
+        dialog = self._update_dialog
+        if dialog is not None and dialog.isVisible():
+            return dialog
+        return self
+
+    @skip_when_closing
+    def _on_update_check_finished(self, latest_version):
+        parent = self._update_result_parent()
+        if not is_newer_version(APP_VERSION, latest_version):
+            QMessageBox.information(
+                parent,
+                "Check for Updates",
+                f"SeqSketch v{APP_VERSION} is up to date.",
+            )
+            return
+        box = QMessageBox(parent)
+        box.setWindowTitle("Update Available")
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setText(
+            f"A new version v{latest_version} is available "
+            f"(current: v{APP_VERSION})."
         )
+        open_button = box.addButton(
+            "Open Download Page", QMessageBox.ButtonRole.AcceptRole
+        )
+        box.addButton(QMessageBox.StandardButton.Close)
+        box.exec()
+        if box.clickedButton() is open_button:
+            self.open_url_in_browser(RELEASES_PAGE_URL)
+
+    @skip_when_closing
+    def _on_update_check_failed(self, message):
+        QMessageBox.warning(
+            self._update_result_parent(),
+            "Check for Updates",
+            "Could not check for updates:\n"
+            f"{message}\n\n"
+            f"You can check manually at:\n{RELEASES_PAGE_URL}",
+        )
+
+    def _finish_update_check(self):
+        park_qthread(self._update_thread)
+        self._update_thread = None
+        self._update_worker = None
+        button = self._update_button
+        dialog = self._update_dialog
+        if button is not None:
+            button.setEnabled(True)
+            button.setText("Check for Updates")
+        # Keep the refs only while the About dialog is still open and may be
+        # used for another check; the post-exec cleanup in show_about_dialog
+        # is the backstop when the check outlives the dialog.
+        if dialog is None or not dialog.isVisible():
+            self._update_button = None
+            self._update_dialog = None
 
     def show_about_dialog(self):
         about_text = """
@@ -453,11 +610,11 @@ Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
 </p>
 </div>
         """.format(version=APP_VERSION)
-        from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout
+        from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QVBoxLayout
 
         dlg = QDialog(self)
         dlg.setWindowTitle("About SeqSketch")
-        dlg.setFixedSize(340, 240)
+        dlg.setFixedSize(340, 280)
         dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
         layout = QVBoxLayout(dlg)
         layout.setContentsMargins(28, 24, 28, 24)
@@ -466,4 +623,20 @@ Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label.setWordWrap(True)
         layout.addWidget(label)
+
+        button_row = QHBoxLayout()
+        self._update_button = QPushButton("Check for Updates")
+        self._update_button.clicked.connect(self.check_for_updates)
+        self._update_dialog = dlg
+        button_row.addStretch()
+        button_row.addWidget(self._update_button)
+        button_row.addStretch()
+        layout.addLayout(button_row)
+
         dlg.exec()
+        # Drop the refs unless a check is still running (its slots may still
+        # need the dialog as a message-box parent); _finish_update_check
+        # clears them otherwise.
+        if self._update_worker is None:
+            self._update_button = None
+            self._update_dialog = None

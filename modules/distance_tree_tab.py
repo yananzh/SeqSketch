@@ -37,6 +37,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
+from utils.task_lifecycle import skip_when_closing
 
 # ── Distance model presets ────────────────────────────────────────────────
 _DNA_MODELS = [
@@ -133,6 +134,7 @@ class _DistanceTreeWorker(QThread):
                 tree = constructor.upgma(dm)
 
             n_bootstrap_done = 0
+            n_bootstrap_skipped = 0
             warning = ""
 
             # ── bootstrap ─────────────────────────────────────────
@@ -167,7 +169,15 @@ class _DistanceTreeWorker(QThread):
                             )
                         boot_aln = MultipleSeqAlignment(boot_records)
 
-                        dm_boot = _make_distance_matrix(boot_aln, self._model)
+                        try:
+                            dm_boot = _make_distance_matrix(boot_aln, self._model)
+                        except ValueError:
+                            # A rare resample can draw none of the few comparable
+                            # sites shared by some pair; skip it rather than
+                            # discard the whole analysis.
+                            n_bootstrap_skipped += 1
+                            self.progress.emit(i + 1, self._n_bootstrap)
+                            continue
                         if self._method == "nj":
                             tree_boot = constructor.nj(dm_boot)
                         else:
@@ -175,9 +185,23 @@ class _DistanceTreeWorker(QThread):
                         bootstrap_trees.append(tree_boot)
                         self.progress.emit(i + 1, self._n_bootstrap)
 
-                    # Annotate main tree with bootstrap support values
-                    tree = _get_support(tree, bootstrap_trees)
-                    n_bootstrap_done = self._n_bootstrap
+                    if bootstrap_trees:
+                        # Annotate main tree with bootstrap support values
+                        tree = _get_support(tree, bootstrap_trees)
+                        n_bootstrap_done = len(bootstrap_trees)
+                        if n_bootstrap_skipped:
+                            warning = (
+                                f"{n_bootstrap_skipped} of {self._n_bootstrap} "
+                                "bootstrap replicates were skipped: a resample "
+                                "contained no comparable sites for some sequence "
+                                "pair; support values are based on the rest."
+                            )
+                    else:
+                        warning = (
+                            "All bootstrap replicates were skipped: the resamples "
+                            "contained no comparable sites for some sequence pair; "
+                            "the tree was built without support values."
+                        )
 
             buf = StringIO()
             Phylo.write(tree, buf, "newick")
@@ -258,13 +282,13 @@ def _dna_distance_matrix(alignment, model: str):
     names = [rec.id for rec in alignment]
     rows = []
     for i in range(len(names)):
-        seq_i = str(alignment[i].seq).upper()
+        seq_i = str(alignment[i].seq).upper().replace("U", "T")
         row = []
         for j in range(i + 1):
             if i == j:
                 row.append(0.0)
                 continue
-            seq_j = str(alignment[j].seq).upper()
+            seq_j = str(alignment[j].seq).upper().replace("U", "T")
             comparable = differences = transitions = transversions = 0
             for a, b in zip(seq_i, seq_j):
                 if a not in _DNA_BASES or b not in _DNA_BASES:
@@ -280,8 +304,10 @@ def _dna_distance_matrix(alignment, model: str):
                 else:
                     transversions += 1
             if comparable == 0:
-                row.append(0.0)
-                continue
+                raise ValueError(
+                    f"No comparable nucleotide sites between {names[i]} and {names[j]}. "
+                    "Check gaps and ambiguous bases before building a tree."
+                )
             if model == "jc69":
                 p = differences / comparable
                 arg = 1.0 - 4.0 / 3.0 * p
@@ -600,6 +626,7 @@ class DistanceTreeTab(BaseTabWidget):
         if current % 10 == 0 or current == 1 or current == total:
             self.show_status(f"Bootstrap replicate {current}/{total}…")
 
+    @skip_when_closing
     def _on_result(self, data: dict):
         self._matrix_data = data["matrix"]
         self._names = data["names"]
@@ -635,6 +662,7 @@ class DistanceTreeTab(BaseTabWidget):
         self._set_running(False)
         self._thread = None
 
+    @skip_when_closing
     def _on_error(self, msg: str):
         self.log_message(msg, "ERROR")
         self.show_status(f"Error: {msg}")

@@ -63,6 +63,7 @@ class RunArtifacts:
     aligned_files: dict[str, str] = field(default_factory=dict)
     trimmed_files: dict[str, str] = field(default_factory=dict)
     extra_paths: dict[str, str] = field(default_factory=dict)
+    gene_ids: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

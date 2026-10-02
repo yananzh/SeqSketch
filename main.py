@@ -3,13 +3,13 @@ import os
 import sys
 import traceback
 
+from utils.app_paths import user_data_dir
+
 
 # ── 启动日志（在任何 import 之前写入，确保 Qt 初始化崩溃也能诊断） ────────────
 # ── Resolve writable root early (avoid __file__ in frozen mode) ───────────────
 def _startup_log_dir() -> str:
-    if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.abspath(__file__))
+    return user_data_dir()
 
 
 _STARTUP_LOG = os.path.join(_startup_log_dir(), "startup.log")
@@ -35,7 +35,7 @@ if getattr(sys, "frozen", False):
         pass
 
 try:
-    from PyQt6.QtCore import Qt
+    from PyQt6.QtCore import Qt, QTimer
     from PyQt6.QtGui import QIcon, QPixmap
     from PyQt6.QtWidgets import QApplication, QMessageBox, QSplashScreen
 except Exception as _e:
@@ -56,6 +56,11 @@ def _excepthook(exc_type, exc_value, exc_tb):
             _log_f.write(f"UNHANDLED: {exc_value}\n{tb_str}")
     except OSError:
         pass
+    if "--smoke-test" in sys.argv:
+        app = QApplication.instance()
+        if app:
+            app.exit(1)
+        return
     try:
         QMessageBox.critical(
             None,
@@ -68,6 +73,32 @@ def _excepthook(exc_type, exc_value, exc_tb):
 
 
 sys.excepthook = _excepthook
+
+
+def _smoke_check(app, window):
+    """Exercise lazy tab imports and normal shutdown in the packaged runtime."""
+    try:
+        for opener in (
+            window.open_download_from_ncbi_tab,
+            window.open_mafft_alignment_tab,
+            window.open_multiple_sequence_alignment_tab,
+            window.open_codon_usage_tab,
+            window.open_sanger_tab,
+            window.open_sanger_viewer_tab,
+            window.open_distance_tree_tab,
+            window.open_one_step_multigenephy_tab,
+            window.open_toytree_visualization_tab,
+            window.open_blast_local_tab,
+        ):
+            opener()
+        from utils.example_data import load_example_text
+        if not load_example_text("phylo", "cytb_cds_raw.fasta"):
+            raise RuntimeError("Bundled teaching dataset is missing")
+        print(f"SMOKE: {window.tabs.count()} tabs loaded; resources available", flush=True)
+        window.close()
+    except Exception:
+        traceback.print_exc()
+        app.exit(1)
 
 
 def main():
@@ -108,6 +139,8 @@ def main():
     if splash:
         splash.finish(window)
     window.show()
+    if "--smoke-test" in sys.argv:
+        QTimer.singleShot(0, lambda: _smoke_check(app, window))
     sys.exit(app.exec())
 
 

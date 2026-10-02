@@ -50,6 +50,7 @@ except ImportError:
 # Shared styling
 from utils.common_components import apply_sequence_editor_style, unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.task_lifecycle import skip_when_closing
 
 try:
     p3_bindings = importlib.import_module("primer3.bindings")
@@ -661,6 +662,7 @@ class PrimerDesignTab(QWidget):
             return str(pos_len[0]), str(pos_len[1])
         return "", ""
 
+    @skip_when_closing
     def update_results_table(self, results: Dict[str, Any]):
         self.current_results = results
         num_returned = int(results.get("PRIMER_PAIR_NUM_RETURNED", 0) or 0)
@@ -1049,6 +1051,7 @@ self-dimer, and cross-dimer properties of any primer pair from the results.</p>
         layout.addWidget(ok)
         dlg.exec()
 
+    @skip_when_closing
     def show_error_message(self, message: str):
         QMessageBox.critical(self, "Error", message)
         self.status_label.setText("Task failed or no results found.")

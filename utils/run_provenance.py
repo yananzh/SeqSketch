@@ -10,6 +10,7 @@ Version probing is best-effort and never raises: a failed probe records
 executable path so probing is cheap to call from every worker.
 """
 
+import logging
 import os
 import re
 import subprocess
@@ -67,6 +68,8 @@ def probe_tool_version(exe: str) -> str:
             [exe, flag],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=15,
             creationflags=(
                 subprocess.CREATE_NO_WINDOW
@@ -108,6 +111,8 @@ def append_run_log(
     round-trip exactly.  Best-effort: failures (unwritable dir, etc.) are
     swallowed so provenance never breaks an analysis.
     """
+    if not output_dir and output_path:
+        output_dir = os.path.dirname(os.path.abspath(output_path))
     if not output_dir:
         return
     try:
@@ -132,8 +137,8 @@ def append_run_log(
         lines.append("")
         with open(log_path, "a", encoding="utf-8") as f:
             f.write("\n".join(lines))
-    except OSError:
-        pass
+    except OSError as exc:
+        logging.getLogger(__name__).warning("Could not write run provenance: %s", exc)
 
 
 def record_tool_run(

@@ -47,6 +47,7 @@ from utils.common_components import (
     validate_input_path,
 )
 from utils.example_data import stage_example
+from utils.task_lifecycle import skip_when_closing
 
 
 # ---------------------------------------------------------------------------
@@ -950,6 +951,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             park_qthread(self._render_thread)
             self._render_thread = None
 
+    @skip_when_closing
     def _on_render_done(self, success: bool, svg_bytes: bytes, msg: str):
         if self._render_thread is not None:
             self._render_thread.wait()
@@ -1008,6 +1010,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         self._cancel_export()
         super().shutdown()
 
+    @skip_when_closing
     def _on_export_done(self, success: bool, path: str, msg: str):
         if self._export_thread is not None:
             self._export_thread.wait()

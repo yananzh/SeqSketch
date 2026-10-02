@@ -37,6 +37,7 @@ from utils.common_components import (
     validate_input_path,
     validate_output_path,
 )
+from utils.task_lifecycle import skip_when_closing
 
 
 def _wrap_layout(layout) -> QWidget:
@@ -148,16 +149,17 @@ def _sanitize_gene_names(raw_names: list[str]) -> tuple[list[str], list[str]]:
     ``[A-Za-z0-9_.]``, and duplicates (e.g. same file name from different
     folders) get a ``_2`` / ``_3`` suffix.
     """
-    seen: dict[str, int] = {}
+    seen: set[str] = set()
     out: list[str] = []
     changes: list[str] = []
     for i, raw in enumerate(raw_names, start=1):
         clean = re.sub(r"[^A-Za-z0-9_.]", "_", raw or "").strip("_") or f"gene{i}"
-        if clean in seen:
-            seen[clean] += 1
-            clean = f"{clean}_{seen[clean]}"
-        else:
-            seen[clean] = 1
+        base = clean
+        suffix = 2
+        while clean.casefold() in seen:
+            clean = f"{base}_{suffix}"
+            suffix += 1
+        seen.add(clean.casefold())
         if clean != raw:
             changes.append(f'"{raw}" → "{clean}"')
         out.append(clean)
@@ -852,11 +854,13 @@ class PartitionConcatTab(BaseTabWidget):
     # ------------------------------------------------------------------
     # Worker result handlers
     # ------------------------------------------------------------------
+    @skip_when_closing
     def handle_worker_finished(self, message: str) -> None:
         super().handle_worker_finished(message)
         self.run_btn.setEnabled(True)
         self.clear_btn.setEnabled(True)
 
+    @skip_when_closing
     def handle_worker_error(self, error_msg: str) -> None:
         super().handle_worker_error(error_msg)
         self.run_btn.setEnabled(True)

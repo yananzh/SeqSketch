@@ -1,5 +1,6 @@
 """Validate SeqSketch.spec structure for onedir builds."""
 
+import ast
 import io
 import os
 import struct
@@ -18,6 +19,19 @@ def _spec_source() -> str:
 def test_spec_file_exists():
     """The .spec file must exist in the project root."""
     assert os.path.isfile(SPEC_PATH), f"Missing: {SPEC_PATH}"
+
+
+def test_windows_build_uses_system_icu_before_unrelated_path_dlls(monkeypatch, tmp_path):
+    tree = ast.parse(_spec_source())
+    function = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                    and n.name == "_prefer_windows_system_dlls")
+    context = {"os": os, "sys": sys}
+    exec(compile(ast.Module(body=[function], type_ignores=[]), SPEC_PATH, "exec"), context)
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setenv("SystemRoot", str(tmp_path))
+    monkeypatch.setenv("PATH", "unrelated-poppler-path")
+    context["_prefer_windows_system_dlls"]()
+    assert os.environ["PATH"] == str(tmp_path / "System32") + os.pathsep + "unrelated-poppler-path"
 
 
 def test_spec_is_valid_python():

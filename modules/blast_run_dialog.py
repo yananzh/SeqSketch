@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import exe_name
+from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
 
 from .blast_config import get_blast_bin_dir, set_blast_bin_dir
@@ -69,10 +70,12 @@ class _RunBlastThread(QThread):
     def cancel(self):
         self._cancelled = True
         if self._proc and self._proc.poll() is None:
-            self._proc.kill()
+            kill_process_tree(self._proc)
 
     def run(self):
-        self._cancelled = False
+        if self._cancelled:
+            self.finished.emit(False, "", "Cancelled by user.")
+            return
         exe = os.path.join(self.bin_dir, exe_name(self.program))
         query_tmp = self.out_file + ".query.tmp.fasta"
         tmp_out = self.out_file + ".tmp"
@@ -104,8 +107,13 @@ class _RunBlastThread(QThread):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
+                start_new_session=os.name != "nt",
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
+            if self._cancelled:
+                kill_process_tree(self._proc)
             stdout, stderr = self._proc.communicate(timeout=3600)
 
             if self._cancelled:
@@ -131,7 +139,7 @@ class _RunBlastThread(QThread):
                 self.finished.emit(False, "", (stderr or stdout).strip())
 
         except subprocess.TimeoutExpired:
-            self._proc.kill()
+            kill_process_tree(self._proc)
             self._proc.communicate()
             self.finished.emit(False, "", "BLAST search timed out after 3600 seconds.")
         except Exception as exc:

@@ -17,7 +17,7 @@ MODULES_INIT = REPO_ROOT / "modules" / "__init__.py"
 def test_app_version_constant():
     from utils.app_version import APP_VERSION
 
-    assert APP_VERSION == "1.0.0"
+    assert APP_VERSION == "1.0.1"
 
 
 def test_modules_init_has_no_eager_imports_or_version():

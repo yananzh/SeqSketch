@@ -1,6 +1,6 @@
 # SeqSketch — Agent Instructions
 
-PyQt6-based bioinformatics desktop app for sequence analysis. Keep this file minimal and actionable; link to [README.MD](README.MD) for user-facing feature descriptions.
+PyQt6-based bioinformatics desktop app for sequence analysis. Keep this file minimal and actionable; link to [README.md](README.md) for user-facing feature descriptions.
 
 ## Verified Commands
 
@@ -146,8 +146,9 @@ tests/               -> Pytest regression coverage
   `python scripts/collect_licenses.py` (`--check` verifies them). The directory is generated — do not
   hand-edit it.
 - **The project is licensed `GPL-3.0`** ([LICENSE](LICENSE)), because PyQt6 is `GPL-3.0-only`. Do not
-  introduce a permissive project-licence claim in `README.MD`, `version_info.txt`, or the About
-  dialog; the section `## 许可与来源` records the status deliberately.
+  introduce a permissive project-licence claim in `README.md` / `README.zh-CN.md`, `version_info.txt`,
+  or the About dialog; the section `## 许可与来源` records the status deliberately (enforced by
+  `tests/test_license_compliance.py` for both README files).
 - Take licences from the **shipped text**, not from PyPI classifiers — they disagree in
   practice (e.g. `toytree` and `sangerseq-viewer` are listed as GPLv3 but ship BSD-3 and MIT).
 

@@ -33,6 +33,7 @@ from utils.common_components import (
     unify_status_button_sizes,
 )
 from utils.example_data import stage_example
+from utils.task_lifecycle import skip_when_closing
 
 # Pixels per raw scan when sizing the canvas (1 scan ≈ 1 px gives good peak clarity)
 _PX_PER_SCAN = 1
@@ -338,6 +339,7 @@ class SangerViewerTab(QWidget):
         park_qthread(self._thread)
         self._thread = None
 
+    @skip_when_closing
     def _on_loaded(self, abi_data: dict, sequence: str, quality: List[int]) -> None:
         self._abi_data = abi_data
         self._sequence = sequence
@@ -361,6 +363,7 @@ class SangerViewerTab(QWidget):
         self._plot_stack.setCurrentIndex(1)  # show the chromatogram
         self._set_status(f"Loaded \u2014 {n} bases")
 
+    @skip_when_closing
     def _on_error(self, msg: str) -> None:
         QMessageBox.critical(self, "Load Error", msg)
         self._set_status("Error: " + msg[:120])

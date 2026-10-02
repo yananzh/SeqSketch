@@ -610,6 +610,7 @@ def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_pa
                 encoding=None,
                 errors=None,
                 creationflags=None,
+                start_new_session=None,
                 cwd=None,
             ):
                 calls.append({"cmd": list(cmd), "creationflags": creationflags, "cwd": cwd})
@@ -858,7 +859,18 @@ def test_runner_skips_fetch_align_trim_when_outputs_exist(tmp_path):
     # Resume reuse requires a manifest fingerprint matching the current inputs
     fingerprint = workflow_module._project_fingerprint(project, cells, ["strain_a", "strain_b"])
     workflow_module.write_run_manifest(
-        reports / "run_manifest.json", {"input_fingerprint": fingerprint}
+        reports / "run_manifest.json", {
+            "input_fingerprint": fingerprint,
+            "gene_ids": {"ITS": "ITS"},
+            "artifacts": {
+                "normalized": {"ITS": str(normalized / "ITS.fasta")},
+                "trimmed": {"ITS": str(run_dir / "03_trimmed" / "ITS.fasta")},
+            },
+            "artifact_hashes": {
+                str(p): __import__("hashlib").sha256(p.read_bytes()).hexdigest()
+                for p in run_dir.rglob("*") if p.is_file()
+            },
+        }
     )
 
     def _boom(*args, **kwargs):
@@ -909,7 +921,18 @@ def test_runner_align_mode_skips_fetch_but_runs_align_trim(tmp_path):
 
     fingerprint = workflow_module._project_fingerprint(project, cells, ["strain_a", "strain_b"])
     workflow_module.write_run_manifest(
-        reports / "run_manifest.json", {"input_fingerprint": fingerprint}
+        reports / "run_manifest.json", {
+            "input_fingerprint": fingerprint,
+            "gene_ids": {"ITS": "ITS"},
+            "artifacts": {
+                "normalized": {"ITS": str(normalized / "ITS.fasta")},
+                "trimmed": {"ITS": str(run_dir / "03_trimmed" / "ITS.fasta")},
+            },
+            "artifact_hashes": {
+                str(p): __import__("hashlib").sha256(p.read_bytes()).hexdigest()
+                for p in run_dir.rglob("*") if p.is_file()
+            },
+        }
     )
 
     calls = []

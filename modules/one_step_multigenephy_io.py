@@ -14,6 +14,40 @@ _ACCESSION_RE = re.compile(r"^[A-Z]{1,4}_?\d+(?:\.\d+)?$", re.IGNORECASE)
 _DNA_RE = re.compile(r"^[ACGTRYSWKMBDHVN-]+$", re.IGNORECASE)
 
 
+def validate_strain_names(names: list[str]) -> None:
+    for row, name in enumerate(names, start=2):
+        if not re.fullmatch(r"[A-Za-z0-9_]+", name):
+            raise ValueError(
+                f"Invalid strain name at Excel row {row}: {name!r}. "
+                "Use only letters, digits and underscores."
+            )
+    if len(set(names)) != len(names):
+        raise ValueError("Duplicate strain names are not allowed")
+
+
+def build_gene_ids(names: list[str]) -> dict[str, str]:
+    """Stable safe IDs; display names remain available in the manifest mapping."""
+    used = set()
+    mapping = {}
+    reserved = {"CON", "PRN", "AUX", "NUL"} | {
+        f"{prefix}{n}" for prefix in ("COM", "LPT") for n in range(1, 10)
+    }
+    for name in names:
+        if not name or any(c in name for c in "/\\:") or ".." in name:
+            raise ValueError(f"Unsafe gene name: {name!r}")
+        base = re.sub(r"[^A-Za-z0-9_]", "_", name).strip("_") or "gene"
+        if base[0].isdigit() or base.upper() in reserved:
+            base = "gene_" + base
+        candidate = base
+        suffix = 2
+        while candidate.casefold() in used:
+            candidate = f"{base}_{suffix}"
+            suffix += 1
+        used.add(candidate.casefold())
+        mapping[name] = candidate
+    return mapping
+
+
 def classify_cell_value(raw_value: object) -> tuple[str, str, str]:
     if raw_value is None or pd.isna(raw_value):
         return "missing", "", ""
@@ -52,6 +86,8 @@ def parse_excel_sheet(
         raise ValueError("Blank strain names are not allowed")
     if len(set(strain_names)) != len(strain_names):
         raise ValueError("Duplicate strain names are not allowed")
+    validate_strain_names(strain_names)
+    build_gene_ids(gene_columns)
 
     cells: list[GeneCell] = []
     summary = {

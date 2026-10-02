@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
+from utils.task_lifecycle import skip_when_closing
 
 
 class _AnalysisWorker(QObject):
@@ -336,6 +337,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self._thread.finished.connect(self._thread.deleteLater)
         self._thread.start()
 
+    @skip_when_closing
     def _on_results(self, results: list):
         min_cuts = self._min_cuts_spin.value()
         max_cuts = self._max_cuts_spin.value()
@@ -384,6 +386,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
             )
         self._results_table.setSortingEnabled(True)
 
+    @skip_when_closing
     def _on_error(self, msg: str):
         self.show_status(f"Error: {msg[:100]}")
         QMessageBox.critical(

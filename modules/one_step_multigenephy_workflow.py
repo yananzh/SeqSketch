@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import subprocess
+import tempfile
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,10 +18,16 @@ try:
 except ImportError:  # pragma: no cover - dependency is expected in normal runs
     Entrez = None
 
-from modules.fasta_processor import FASTAProcessor, parse_fasta_dict
+from modules.fasta_processor import (
+    FASTAProcessor,
+    parse_unique_fasta_dict,
+    validate_alignment_records,
+)
 from modules.one_step_multigenephy_io import (
     build_gene_datasets,
+    build_gene_ids,
     concatenate_gene_alignments,
+    validate_strain_names,
     write_run_manifest,
 )
 from modules.one_step_multigenephy_models import RunArtifacts, WorkflowRunResult
@@ -34,13 +43,18 @@ def _creation_flags() -> int:
 
 
 def _fasta_dict_from_text(text: str) -> dict[str, str]:
-    return parse_fasta_dict(text, id_only=True)
+    return parse_unique_fasta_dict(text, id_only=True)
 
 
 def _fasta_dict_from_file(path: Path) -> dict[str, str]:
     processor = FASTAProcessor()
     if not processor.read_file(str(path)):
         raise RuntimeError(f"Failed to read FASTA file: {path}")
+    seen = set()
+    for record in processor.records:
+        if record.header in seen:
+            raise ValueError(f"Duplicate sequence ID in {path}: {record.header}")
+        seen.add(record.header)
     return processor.as_dict(id_only=True)
 
 
@@ -84,6 +98,7 @@ def _run_command(
     is_aborted: Callable[[], bool] | None = None,
     log_dir: str = "",
     output_path: str = "",
+    input_path: str = "",
 ) -> subprocess.CompletedProcess:
     """Run an external tool, interruptible via *is_aborted* polling.
 
@@ -108,6 +123,7 @@ def _run_command(
         text=True,
         encoding="utf-8",
         errors="replace",
+        start_new_session=os.name != "nt",
         creationflags=_creation_flags(),
         cwd=cwd,
     )
@@ -162,6 +178,7 @@ def _run_command(
             exe=cmd[0] if cmd else "",
             cmd=cmd,
             output_path=output_path,
+            input_path=input_path,
         )
     return result
 
@@ -182,7 +199,7 @@ def build_default_tool_adapters(
     import time
 
     def _track(cmd_parts: list[str]) -> None:
-        commands.append(" ".join(cmd_parts))
+        commands.append(subprocess.list2cmdline(cmd_parts))
 
     # The runner injects its abort callback via set_abort() so external-tool
     # subprocesses can be killed mid-run when the user cancels.
@@ -229,6 +246,8 @@ def build_default_tool_adapters(
         output_dir: str,
         mode: str,
     ) -> tuple[dict[str, str], str]:
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", gene_name):
+            raise ValueError(f"Unsafe gene ID: {gene_name!r}")
         mafft_exe = _mafft_executable()
         _ensure_executable(mafft_exe, "MAFFT")
 
@@ -238,20 +257,27 @@ def build_default_tool_adapters(
         output_path = stage_dir / f"{gene_name}.aligned.fasta"
         _write_sequences_file(input_path, sequences)
 
-        cmd = [mafft_exe]
-        mode_tokens = (mode or "--auto").split()
-        cmd.extend(mode_tokens or ["--auto"])
-        cmd.extend(["--thread", "1", str(input_path)])
-
-        _track(cmd)
-        result = _run_command(
-            cmd, is_aborted=_is_aborted, log_dir=log_dir, output_path=str(output_path)
-        )
+        # The Windows MAFFT shell cannot reliably read Unicode input paths.
+        # Keep the reproducible input artifact in the chosen output directory,
+        # and use the same temporary-input boundary as the MAFFT tab.
+        with tempfile.TemporaryDirectory(prefix="seqsketch_mafft_") as working_dir:
+            staged_input = Path(working_dir) / "input.fasta"
+            _write_sequences_file(staged_input, sequences)
+            cmd = [mafft_exe]
+            mode_tokens = (mode or "--auto").split()
+            cmd.extend(mode_tokens or ["--auto"])
+            cmd.extend(["--thread", "1", str(staged_input)])
+            _track(cmd)
+            result = _run_command(
+                cmd, is_aborted=_is_aborted, log_dir=log_dir,
+                output_path=str(output_path), input_path=str(input_path),
+            )
         aligned_text = (result.stdout or "").strip()
         if not aligned_text:
             raise RuntimeError("MAFFT produced no alignment output")
 
         aligned_sequences = _fasta_dict_from_text(aligned_text)
+        validate_alignment_records(sequences, aligned_sequences)
         if not aligned_sequences:
             raise RuntimeError("MAFFT output could not be parsed as FASTA")
 
@@ -267,6 +293,8 @@ def build_default_tool_adapters(
         output_dir: str,
         mode: str,
     ) -> tuple[dict[str, str], str]:
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", gene_name):
+            raise ValueError(f"Unsafe gene ID: {gene_name!r}")
         trimal_exe = _trimal_executable()
         _ensure_executable(trimal_exe, "trimAl")
 
@@ -291,6 +319,7 @@ def build_default_tool_adapters(
             raise RuntimeError("trimAl did not produce an output FASTA")
 
         trimmed_sequences = _fasta_dict_from_file(output_path)
+        validate_alignment_records(sequences, trimmed_sequences)
         return trimmed_sequences, str(output_path)
 
     def run_iqtree(
@@ -402,11 +431,17 @@ def _build_manifest_payload(
     commands: list[str] | None = None,
     tool_versions: dict[str, str] | None = None,
 ) -> dict:
+    paths = list(artifacts.normalized_files.values()) + list(artifacts.trimmed_files.values())
+    paths += [artifacts.extra_paths.get(k, "") for k in ("supermatrix", "partitions")]
+    hashes = {path: hashlib.sha256(Path(path).read_bytes()).hexdigest()
+              for path in paths if path and Path(path).is_file()}
     return {
+        "gene_ids": artifacts.gene_ids,
+        "artifact_hashes": hashes,
         "steps": step_status,
         "warnings": warnings,
         "input_fingerprint": input_fingerprint,
-        "commands": [subprocess.list2cmdline(c.split()) for c in (commands or [])],
+        "commands": list(commands or []),
         "tool_versions": tool_versions or {},
         "artifacts": {
             "normalized": artifacts.normalized_files,
@@ -736,7 +771,13 @@ class OneStepMultiGenePhyRunner:
             if is_aborted():
                 raise RuntimeError("Workflow cancelled by user")
 
-        root_dir = Path(project.output_dir)
+        validate_strain_names(strain_order)
+        gene_ids = build_gene_ids(project.gene_columns)
+        root_dir = Path(project.output_dir).resolve()
+        if root_dir.exists():
+            for existing in root_dir.rglob("*"):
+                if existing.is_symlink() and not existing.resolve().is_relative_to(root_dir):
+                    raise ValueError(f"Output link points outside the run directory: {existing}")
         stage_dirs = {
             "import": root_dir / "00_import",
             "normalized": root_dir / "01_normalized",
@@ -747,6 +788,8 @@ class OneStepMultiGenePhyRunner:
             "reports": root_dir / "06_reports",
         }
         for directory in stage_dirs.values():
+            if not directory.resolve().is_relative_to(root_dir):
+                raise ValueError(f"Output stage is outside the run directory: {directory}")
             directory.mkdir(parents=True, exist_ok=True)
 
         warnings: list[str] = []
@@ -761,6 +804,7 @@ class OneStepMultiGenePhyRunner:
             "Summarize": "pending",
         }
         artifacts = RunArtifacts(
+            gene_ids=gene_ids,
             root_dir=str(root_dir),
             manifest_path=str(stage_dirs["reports"] / "run_manifest.json"),
             report_path=str(stage_dirs["reports"] / "run.log"),
@@ -779,6 +823,7 @@ class OneStepMultiGenePhyRunner:
         # (workbook content, gene selection, tool parameters) are unchanged.
         # A fingerprint mismatch falls back to a full from-scratch run.
         input_fingerprint = _project_fingerprint(project, cells, strain_order)
+        resume_paths = {}
         if project.resume_mode != "scratch":
             previous = _read_previous_fingerprint(
                 Path(project.output_dir) / "06_reports" / "run_manifest.json"
@@ -789,6 +834,30 @@ class OneStepMultiGenePhyRunner:
                     "(or no fingerprint recorded) — resume disabled, running from scratch."
                 )
                 project.resume_mode = "scratch"
+            else:
+                previous_payload = json.loads(Path(artifacts.manifest_path).read_text(encoding="utf-8"))
+                hashes = previous_payload.get("artifact_hashes", {})
+                required = ["normalized"] + (["trimmed"] if project.resume_mode == "tree" else [])
+                valid = bool(hashes) and previous_payload.get("gene_ids") == gene_ids
+                for stage in required:
+                    saved = previous_payload.get("artifacts", {}).get(stage, {})
+                    for gene_id in gene_ids.values():
+                        path = Path(saved.get(gene_id, ""))
+                        try:
+                            if not path.is_file() or not path.resolve().is_relative_to(root_dir):
+                                raise ValueError("Invalid artifact path")
+                            valid = valid and hashes.get(str(path)) == hashlib.sha256(path.read_bytes()).hexdigest()
+                            sequences = _fasta_dict_from_file(path)
+                            valid = valid and bool(sequences) and set(sequences).issubset(strain_order)
+                            if stage == "trimmed":
+                                valid = valid and len({len(s) for s in sequences.values()}) == 1
+                            resume_paths[(stage, gene_id)] = path
+                        except (OSError, ValueError, RuntimeError):
+                            valid = False
+                if not valid:
+                    add_warning("Intermediate artifacts are missing, changed or unverified — resume disabled.")
+                    project.resume_mode = "scratch"
+                    resume_paths = {}
 
         def persist_run_outputs(suppress_errors: bool = False) -> None:
             set_step("Summarize", "running")
@@ -875,6 +944,9 @@ class OneStepMultiGenePhyRunner:
             set_step("Import", "running")
             log_line("Importing gene cells")
             datasets = build_gene_datasets(cells, strain_order)
+            datasets = {gene_ids[name]: ds for name, ds in datasets.items()}
+            for name, dataset in datasets.items():
+                dataset.gene_name = name
 
             # Write import summary to 00_import/
             lines = [
@@ -924,7 +996,7 @@ class OneStepMultiGenePhyRunner:
                 _check_abort()
                 gene_name = dataset.gene_name
                 # Skip the network fetch when reusing a previous run's normalized output
-                normalized_path = stage_dirs["normalized"] / f"{gene_name}.fasta"
+                normalized_path = resume_paths.get(("normalized", gene_name), stage_dirs["normalized"] / f"{gene_name}.fasta")
                 if project.resume_mode in ("align", "tree") and normalized_path.is_file():
                     dataset.normalized_sequences = _fasta_dict_from_file(normalized_path)
                     gene_stats[gene_name] = {
@@ -992,7 +1064,7 @@ class OneStepMultiGenePhyRunner:
                 }
 
                 if dataset.normalized_sequences:
-                    normalized_path = stage_dirs["normalized"] / f"{gene_name}.fasta"
+                    normalized_path = resume_paths.get(("normalized", gene_name), stage_dirs["normalized"] / f"{gene_name}.fasta")
                     _write_fasta(normalized_path, dataset.normalized_sequences, strain_order)
                     dataset.artifacts["normalized"] = str(normalized_path)
                     artifacts.normalized_files[dataset.gene_name] = str(normalized_path)
@@ -1019,7 +1091,7 @@ class OneStepMultiGenePhyRunner:
                 project.resume_mode == "tree"
                 and bool(datasets)
                 and all(
-                    (stage_dirs["trimmed"] / f"{ds.gene_name}.fasta").is_file()
+                    resume_paths.get(("trimmed", ds.gene_name), Path()).is_file()
                     for ds in datasets.values()
                 )
             )
@@ -1049,7 +1121,7 @@ class OneStepMultiGenePhyRunner:
                     continue
 
                 # Skip align/trim when reusing a previous run's trimmed output
-                trimmed_path = stage_dirs["trimmed"] / f"{dataset.gene_name}.fasta"
+                trimmed_path = resume_paths.get(("trimmed", dataset.gene_name), stage_dirs["trimmed"] / f"{dataset.gene_name}.trimmed.fasta")
                 if project.resume_mode == "tree" and trimmed_path.is_file():
                     dataset.trimmed_sequences = _fasta_dict_from_file(trimmed_path)
                     gs["aligned"] = True
@@ -1123,19 +1195,25 @@ class OneStepMultiGenePhyRunner:
             concat_path = stage_dirs["concat"] / "supermatrix.fasta"
             partition_path = stage_dirs["concat"] / "partitions.nex"
             concat_skipped = (
-                project.resume_mode == "tree" and concat_path.is_file() and partition_path.is_file()
+                project.resume_mode == "tree" and trim_skipped and concat_path.is_file() and partition_path.is_file()
+                and previous_payload.get("artifact_hashes", {}).get(str(concat_path)) == hashlib.sha256(concat_path.read_bytes()).hexdigest()
+                and previous_payload.get("artifact_hashes", {}).get(str(partition_path)) == hashlib.sha256(partition_path.read_bytes()).hexdigest()
             )
             if concat_skipped:
                 set_step("Concatenate", "skipped")
                 log_line("Concatenate skipped — reusing existing supermatrix")
-                self.concat_info = []
+                _, partitions = concatenate_gene_alignments(datasets, strain_order, gene_order=list(gene_ids.values()))
+                self.concat_info = list(partitions)
+                for name, gs in gene_stats.items():
+                    gs["included"] = bool(datasets[name].trimmed_sequences)
+                    gs["missing_strains"] = [s for s in strain_order if s not in datasets[name].trimmed_sequences]
             else:
                 set_step("Concatenate", "running")
                 log_line("Concatenating trimmed gene alignments")
                 concatenated, partitions = concatenate_gene_alignments(
                     datasets,
                     strain_order,
-                    gene_order=project.gene_columns,
+                    gene_order=list(gene_ids.values()),
                 )
                 self.concat_info = list(partitions)
                 # Track which genes are included and missing strains

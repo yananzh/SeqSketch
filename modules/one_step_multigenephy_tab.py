@@ -43,6 +43,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
+from utils.task_lifecycle import skip_when_closing
 
 
 def _wrap_layout(layout) -> QWidget:
@@ -452,12 +453,14 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     def _append_log(self, line: str) -> None:
         self.log_message(line)
 
+    @skip_when_closing
     def _handle_run_failed(self, message: str) -> None:
         self.show_status("Workflow failed")
         self.log_message(message, "ERROR")
         self._set_running_state(False)
         self._cleanup_worker()
 
+    @skip_when_closing
     def _handle_run_completed(self, result) -> None:
         step_status = dict(getattr(result, "step_status", {}))
         self.log_message("── Run Summary ──")
@@ -849,6 +852,9 @@ expected workbook layout.</li>
 <li><b>IQ-TREE Bootstrap</b> &mdash; UFBoot (ultrafast, 1000 recommended), UFBoot + SH-aLRT (branch test), or Standard bootstrap (100 recommended). The value is auto-filled when you switch modes; 0 turns bootstrap off.</li>
 <li>Per-gene alignments and trimmed files are always kept for inspection under the stage folders.</li>
 <li><b>Skip completed steps</b> &mdash; resume a previous run in the same output folder:
+<p>Reuse requires matching inputs and verified artifact hashes. Missing, changed, or older
+unverified artifacts trigger a fresh run. Gene display names are mapped to safe unique IDs;
+the original-name mapping is saved in <code>run_manifest.json</code>.</p>
 <b>From scratch</b> (default, full pipeline), <b>From align/trim</b> (reuse
 <code>01_normalized</code>, skips the network fetch), or <b>From tree</b>
 (reuse <code>04_concat</code>, skips fetch/align/trim/concatenation and only

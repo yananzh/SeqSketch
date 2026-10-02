@@ -10,6 +10,20 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 block_cipher = None
 root = os.path.abspath('.')
 
+
+def _prefer_windows_system_dlls():
+    # Qt 6.10 imports the Windows ICU API. An unrelated ICU on PATH (e.g.
+    # Poppler's versioned API) must not shadow System32 during dependency
+    # discovery; that produces an executable which cannot import QtCore.
+    if sys.platform.startswith('win'):
+        system32 = os.path.join(os.environ.get('SystemRoot', r'C:\Windows'), 'System32')
+        os.environ['PATH'] = system32 + os.pathsep + os.environ.get('PATH', '')
+
+
+_prefer_windows_system_dlls()
+
+from utils.app_version import APP_VERSION
+
 # ── Data files to bundle ──────────────────────────────────────────────────────
 datas = [
     # QSS stylesheet
@@ -242,6 +256,6 @@ if sys.platform == 'darwin':
         info_plist={
             'NSHighResolutionCapable': True,
             'LSMinimumSystemVersion': '11.0',
-            'CFBundleShortVersionString': '1.0.0',
+            'CFBundleShortVersionString': APP_VERSION,
         },
     )

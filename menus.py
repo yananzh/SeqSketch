@@ -316,11 +316,6 @@ def create_menus(window):
     # Settings menu
     settings_menu = menubar.addMenu("Settings")
 
-    # 检查更新
-    check_update_action = QAction("Check for Updates", window)
-    check_update_action.triggered.connect(window.check_for_updates)
-    settings_menu.addAction(check_update_action)
-
     # 关于
     about_action = QAction("About", window)
     about_action.triggered.connect(window.show_about_dialog)

@@ -48,7 +48,9 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import stage_example
+from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
+from utils.task_lifecycle import request_task_stop, skip_when_closing
 from utils.tool_paths import trimal_executable
 
 
@@ -266,7 +268,7 @@ class _BatchTrimThread(QThread):
         self._killed = True
         if self._proc and self._proc.poll() is None:
             try:
-                self._proc.kill()
+                kill_process_tree(self._proc)
             except OSError:
                 pass
 
@@ -283,8 +285,11 @@ class _BatchTrimThread(QThread):
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
+                    start_new_session=os.name != "nt",
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                 )
+                if self._killed:
+                    kill_process_tree(self._proc)
                 raw_out, _ = self._proc.communicate()
                 if self._killed:
                     break
@@ -787,7 +792,7 @@ or <b>MSA Visualization</b>.</li>
 
     def _cancel(self):
         if self._thread is not None and self._thread.isRunning():
-            self._thread.stop()
+            request_task_stop(self._thread)
             self.show_status("Cancelling…")
 
     def _selected_method_name(self) -> str:
@@ -808,6 +813,7 @@ or <b>MSA Visualization</b>.</li>
         if self.status_callback:
             self.status_callback(msg)
 
+    @skip_when_closing
     def _on_file_done(self, success: bool, out_path: str, log: str):
         fname = os.path.basename(out_path)
         if success:
@@ -825,6 +831,7 @@ or <b>MSA Visualization</b>.</li>
             for line in log[:300].splitlines():
                 self.log_area.append(f"   {line}")
 
+    @skip_when_closing
     def _on_all_done(self, succeeded: int, failed: int):
         total = succeeded + failed
         self.run_btn.setEnabled(True)

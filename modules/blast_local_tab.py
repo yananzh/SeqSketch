@@ -43,6 +43,7 @@ from PyQt6.QtWidgets import (
 
 from utils.app_paths import exe_name, resource_path
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
+from utils.task_lifecycle import request_task_stop, skip_when_closing
 
 from .blast_config import (
     database_is_valid,
@@ -476,10 +477,11 @@ class _BuildDbWidget(QWidget):
 
     def _cancel_build(self):
         if self._thread and self._thread.isRunning():
-            self._thread.cancel()
+            request_task_stop(self._thread)
             if self.status_lbl:
                 self.status_lbl.setText("Cancelling…")
 
+    @skip_when_closing
     def _on_finished(self, success, msg):
         self.build_btn.setEnabled(True)
         self.build_btn.setVisible(True)
@@ -1206,9 +1208,10 @@ class _RunQueryWidget(QWidget):
 
     def _cancel_run(self):
         if self._thread and self._thread.isRunning():
-            self._thread.cancel()
+            request_task_stop(self._thread)
             self._status("Cancelling…")
 
+    @skip_when_closing
     def _on_finished(self, success, out_file, msg):
         self.run_btn.setEnabled(True)
         self.run_btn.setVisible(True)

@@ -31,12 +31,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from modules.fasta_processor import parse_fasta_dict
+from modules.fasta_processor import parse_unique_fasta_dict, validate_alignment_records
 from utils.app_paths import resource_path, user_data_file
 from utils.common_components import BaseTabWidget, apply_input_list_style, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
+from utils.task_lifecycle import request_task_stop, skip_when_closing
 from utils.tool_paths import muscle_executable
 
 # Per-user config file where the user-selected MUSCLE path is persisted.
@@ -75,8 +76,17 @@ class _MuscleWorker(QThread):
         self.threads = threads
         self.muscle_exe = muscle_exe
         self.output_path = output_path
+        self._proc = None
+        self._cancelled = False
+
+    def stop(self):
+        self._cancelled = True
+        if self._proc and self._proc.poll() is None:
+            kill_process_tree(self._proc)
 
     def run(self):
+        if self._cancelled:
+            return
         tmp_in = tmp_out = None
         try:
             # Write input to a temp file
@@ -100,17 +110,22 @@ class _MuscleWorker(QThread):
             ]
 
             self.progress.emit("Running MUSCLE…")
-            result = subprocess.run(
+            self._proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=600,
+                start_new_session=os.name != "nt",
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
+            if self._cancelled:
+                kill_process_tree(self._proc)
+            _, stderr = self._proc.communicate(timeout=600)
+            if self._cancelled:
+                return
 
-            if result.returncode != 0:
-                err = result.stderr.decode("utf-8", errors="replace").strip()
-                self.error.emit(f"MUSCLE exited with code {result.returncode}:\n{err}")
+            if self._proc.returncode != 0:
+                err = stderr.decode("utf-8", errors="replace").strip()
+                self.error.emit(f"MUSCLE exited with code {self._proc.returncode}:\n{err}")
                 return
 
             with open(tmp_out, "r", encoding="utf-8") as fout:
@@ -131,10 +146,13 @@ class _MuscleWorker(QThread):
                 "Please select a valid MUSCLE executable path."
             )
         except subprocess.TimeoutExpired:
+            if self._proc:
+                kill_process_tree(self._proc)
             self.error.emit("MUSCLE timed out (>10 min). Try the Fast/Super5 method.")
         except Exception as exc:
             self.error.emit(str(exc))
         finally:
+            self._proc = None
             for p in (tmp_in, tmp_out):
                 if p and os.path.exists(p):
                     try:
@@ -163,10 +181,11 @@ def _reject_duplicate_headers(text: str, source: str) -> None:
             f"{source} contains duplicate sequence header(s): {preview}. "
             "Remove duplicates (see the Deduplicate tool) before alignment."
         )
+    parse_unique_fasta_dict(text)
 
 
 def _fasta_to_dict(text: str) -> dict:
-    return parse_fasta_dict(text)
+    return parse_unique_fasta_dict(text)
 
 
 def _to_clustal_text(seqs: dict) -> str:
@@ -368,8 +387,11 @@ class _MuscleBatchWorker(QThread):
                     text=True,
                     encoding="utf-8",
                     errors="replace",
+                    start_new_session=os.name != "nt",
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                 )
+                if self._killed:
+                    kill_process_tree(self._proc)
                 stdout_data, stderr_data = self._proc.communicate(timeout=1200)
                 if self._killed:
                     break
@@ -381,6 +403,7 @@ class _MuscleBatchWorker(QThread):
                     aligned_fasta = fout.read()
 
                 out_seqs = _fasta_to_dict(aligned_fasta)
+                validate_alignment_records(seqs, out_seqs)
                 out_seqs = self._apply_output_order(out_seqs, input_order)
                 if self.output_mode == "CLUSTAL":
                     out_text = _to_clustal_text(out_seqs)
@@ -491,7 +514,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
     def _cancel_batch(self):
         if self._batch_worker is not None and self._batch_worker.isRunning():
-            self._batch_worker.stop()
+            request_task_stop(self._batch_worker)
             self.status_label.setText("Cancelling…")
 
     # ---------------------------------------------------------------- layout
@@ -1027,6 +1050,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_log.append(msg)
         self.status_label.setText(msg)
 
+    @skip_when_closing
     def _on_batch_finished(self, summary: str):
         self.run_btn.setEnabled(True)
         self.stop_btn.setVisible(False)
@@ -1037,6 +1061,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             self._batch_worker.deleteLater()
             self._batch_worker = None
 
+    @skip_when_closing
     def _on_batch_error(self, msg: str):
         self.run_btn.setEnabled(True)
         self.stop_btn.setVisible(False)
@@ -1074,7 +1099,11 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         # Validate: need ≥ 2 sequences (reject duplicate headers before the
         # dict-based parser silently keeps only the last copy of each)
-        _reject_duplicate_headers(raw, "Input")
+        try:
+            _reject_duplicate_headers(raw, "Input")
+        except ValueError as exc:
+            QMessageBox.warning(self, "Input Error", str(exc))
+            return
         seqs = self._fasta_records(raw)
         if len(seqs) < 2:
             self.status_label.setText("Need ≥ 2 sequences for MSA.")
@@ -1127,6 +1156,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self._worker.progress.connect(lambda msg: self.status_label.setText(msg))
         self._worker.start()
 
+    @skip_when_closing
     def _on_alignment_done(self, aligned_fasta: str):
         self.run_btn.setEnabled(True)
         seqs = self._fasta_records(aligned_fasta)
@@ -1157,6 +1187,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             self._worker.deleteLater()
             self._worker = None
 
+    @skip_when_closing
     def _on_alignment_error(self, msg: str):
         self.run_btn.setEnabled(True)
         self._aligned_fasta = ""
@@ -1171,7 +1202,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
     def _fasta_records(self, text: str) -> dict:
         """Return {header: sequence}."""
-        return parse_fasta_dict(text)
+        return parse_unique_fasta_dict(text)
 
     def _build_clean_fasta(self, seqs: dict) -> str:
         lines = []

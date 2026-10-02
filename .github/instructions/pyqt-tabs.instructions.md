@@ -14,7 +14,7 @@ applyTo: modules/*_tab.py, tests/test_*_tabs.py, utils/common_components.py, mai
 - Reuse `validate_input_path(...)` and `validate_output_path(...)` from [utils/common_components.py](../utils/common_components.py) instead of open-coded validation.
 - When adding or renaming a tab, update the tab module under `modules/`, the matching `open_*_tab()` method in [main_window.py](../main_window.py), and the corresponding `QAction` in [menus.py](../menus.py) together.
 - Follow the nearby `MainWindow` behavior for tab reuse. Some features reuse a single tab instance, while others intentionally open a fresh tab each time.
-- Prefer wrapping new or edited user-visible strings in `self.tr(...)`, even if the surrounding file still has older untranslated literals.
+- The UI is English-only. Use plain English literals for user-visible strings; do not introduce `self.tr(...)` or mixed-language UI text.
 - For tests under `tests/test_*_tabs.py`, keep `QT_QPA_PLATFORM=offscreen`, prefer focused pytest selections first, and assert the user-visible behavior that matches the tab type:
 - File-mode tabs: output artifacts plus log/status text.
 - Sequence-mode tabs and window wiring: editor styling, menu labels, and single-instance tab behavior where applicable.

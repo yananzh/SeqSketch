@@ -1,5 +1,7 @@
 import os
+import re
 
+from Bio.Seq import Seq
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt6.QtCore import Qt
@@ -19,6 +21,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from modules.fasta_processor import FASTAProcessor
 from utils.app_paths import user_data_dir
 from utils.common_components import (
     FileDropLineEdit,
@@ -221,7 +224,7 @@ class SangerTab(QWidget):
         try:
             fwd = self._sequence_from_input(self._load_input_file(fwd_path))
             rev = self._sequence_from_input(self._load_input_file(rev_path))
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             self.status_label.setText("Error: Cannot read input file")
             QMessageBox.warning(self, "Input Error", str(exc))
             return
@@ -280,12 +283,18 @@ class SangerTab(QWidget):
     @staticmethod
     def _sequence_from_input(text: str) -> str:
         """Return the nucleotide sequence from raw text or a single FASTA record."""
-        sequence_lines = [
-            line.strip()
-            for line in text.splitlines()
-            if line.strip() and not line.lstrip().startswith(">")
-        ]
-        return "".join(sequence_lines).upper().replace("U", "T")
+        if text.lstrip().startswith(">"):
+            processor = FASTAProcessor()
+            processor.parse_text(text)
+            if len(processor.records) != 1:
+                raise ValueError("Each Sanger input must contain exactly one FASTA record.")
+            sequence = processor.records[0].sequence
+        else:
+            sequence = "".join(text.split())
+        sequence = sequence.upper().replace("U", "T")
+        if not sequence or not re.fullmatch(r"[ACGTRYSWKMBDHVN]+", sequence):
+            raise ValueError("Sanger reads must contain only IUPAC nucleotide bases.")
+        return sequence
 
     @staticmethod
     def _load_input_file(path: str) -> str:
@@ -423,7 +432,10 @@ class SangerTab(QWidget):
 
         for start in range(0, overlap, bin_size):
             end = min(overlap, start + bin_size)
-            chunk_matches = sum(1 for j in range(start, end) if fwd_seg[j] == rev_seg[j])
+            chunk_matches = sum(
+                1 for j in range(start, end)
+                if fwd_seg[j] == rev_seg[j] and fwd_seg[j] in "ACGT"
+            )
             chunk_total = end - start
             match_frac = chunk_matches / chunk_total if chunk_total > 0 else 0
             if match_frac >= 0.98:
@@ -534,8 +546,7 @@ class SangerTab(QWidget):
 
     @staticmethod
     def reverse_complement(seq):
-        comp_map = str.maketrans("ACGT", "TGCA")
-        return seq.translate(comp_map)[::-1]
+        return str(Seq(seq.upper().replace("U", "T")).reverse_complement())
 
     def auto_assemble(self, fwd, rev_rc, min_overlap=20, min_identity=0.9):
         max_overlap = min(len(fwd), len(rev_rc))
@@ -544,7 +555,7 @@ class SangerTab(QWidget):
         for i in range(max_overlap, min_overlap - 1, -1):
             fseg = fwd[-i:]
             rseg = rev_rc[:i]
-            matches = sum(1 for a, b in zip(fseg, rseg) if a == b)
+            matches = sum(1 for a, b in zip(fseg, rseg) if a == b and a in "ACGT")
             ident = matches / i if i > 0 else 0.0
             if ident >= min_identity:
                 best_overlap = i
@@ -618,7 +629,9 @@ class SangerTab(QWidget):
             "<h3>Understanding the Overlap Chart</h3>"
             "<ul>"
             "<li>The <b>top blue bar</b> is the forward read; the <b>bottom bar</b> is the reverse-complemented reverse read</li>"
-            "<li>The <b>green overlap strip</b> shows where the two reads align &mdash; green = matching bases, red = mismatches</li>"
+            "<li>The <b>green overlap strip</b> shows matching A/C/G/T bases. "
+            "Ambiguous IUPAC bases are complemented correctly but count as nonmatches "
+            "when computing overlap identity.</li>"
             "<li>If no overlap is detected, the reads are concatenated end-to-end as a fallback</li>"
             "</ul>"
             "<h3>Input Formats</h3>"

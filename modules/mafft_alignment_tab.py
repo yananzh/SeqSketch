@@ -30,8 +30,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from modules.fasta_processor import parse_fasta_dict
+from modules.fasta_processor import parse_unique_fasta_dict, validate_alignment_records
 from utils.app_paths import resource_path
+from utils.atomic_file import write_text_atomic
 from utils.common_components import (
     BaseTabWidget,
     BaseWorker,
@@ -41,6 +42,7 @@ from utils.common_components import (
 from utils.example_data import load_example_text, stage_example
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
+from utils.task_lifecycle import request_task_stop, skip_when_closing
 from utils.tool_paths import mafft_launcher
 
 
@@ -80,7 +82,7 @@ def _build_mafft_command(
 
 
 def _fasta_to_dict(text: str) -> dict:
-    return parse_fasta_dict(text)
+    return parse_unique_fasta_dict(text)
 
 
 def _dict_to_fasta_text(seqs: dict) -> str:
@@ -179,8 +181,10 @@ class _MafftWorker(BaseWorker):
         self.output_format = output_format
         self.output_path = output_path
         self._proc: subprocess.Popen | None = None
+        self._cancelled = False
 
     def stop(self):
+        self._cancelled = True
         if self._proc and self._proc.poll() is None:
             kill_process_tree(self._proc)
 
@@ -194,6 +198,9 @@ class _MafftWorker(BaseWorker):
         )
 
     def run(self):
+        if self._cancelled:
+            self.emit_error("Cancelled.")
+            return
         if not os.path.isfile(self.mafft_exe):
             self.emit_error(
                 f"MAFFT executable not found:\n{self.mafft_exe}\n\n"
@@ -221,6 +228,7 @@ class _MafftWorker(BaseWorker):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                start_new_session=os.name != "nt",
                 creationflags=(
                     subprocess.CREATE_NO_WINDOW
                     if os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW")
@@ -228,6 +236,8 @@ class _MafftWorker(BaseWorker):
                 ),
             )
             self._proc = proc
+            if self._cancelled:
+                kill_process_tree(proc)
             try:
                 stdout_data, stderr_data = proc.communicate(timeout=1200)
             except subprocess.TimeoutExpired:
@@ -237,6 +247,9 @@ class _MafftWorker(BaseWorker):
             finally:
                 self._proc = None
 
+            if self._cancelled:
+                self.emit_error("Cancelled.")
+                return
             if proc.returncode != 0:
                 details = (stderr_data or stdout_data or "").strip()
                 self.emit_error(f"MAFFT exited with code {proc.returncode}:\n{details}")
@@ -386,6 +399,7 @@ class _MafftBatchWorker(QThread):
                     text=True,
                     encoding="utf-8",
                     errors="replace",
+                    start_new_session=os.name != "nt",
                     creationflags=(
                         subprocess.CREATE_NO_WINDOW
                         if os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW")
@@ -393,6 +407,8 @@ class _MafftBatchWorker(QThread):
                     ),
                 )
                 try:
+                    if self._killed:
+                        kill_process_tree(self._proc)
                     stdout_data, stderr_data = self._proc.communicate(timeout=1200)
                 except subprocess.TimeoutExpired:
                     kill_process_tree(self._proc)
@@ -405,6 +421,7 @@ class _MafftBatchWorker(QThread):
 
                 aligned_fasta = (stdout_data or "").strip()
                 out_seqs = _fasta_to_dict(aligned_fasta)
+                validate_alignment_records(seqs, out_seqs)
                 if not out_seqs:
                     raise RuntimeError("MAFFT produced empty output")
 
@@ -510,7 +527,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
     def _cancel_batch(self):
         if self._batch_worker is not None and self._batch_worker.isRunning():
-            self._batch_worker.stop()
+            request_task_stop(self._batch_worker)
             self.status_label.setText("Cancelling…")
 
     def _rebuild_input_area(self):
@@ -875,6 +892,8 @@ class MafftAlignmentTab(BaseTabWidget):
                 QMessageBox.warning(self, "File Read Error", str(exc))
 
     def clear(self):
+        if not self.run_btn.isEnabled():
+            return
         self.input_text.clear()
         self.output_text.clear()
         self._aligned_fasta = ""
@@ -978,6 +997,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_log.append(msg)
         self.status_label.setText(msg)
 
+    @skip_when_closing
     def _on_batch_finished(self, summary: str):
         self.run_btn.setEnabled(True)
         self.stop_btn.setVisible(False)
@@ -988,6 +1008,7 @@ class MafftAlignmentTab(BaseTabWidget):
             self._batch_worker.deleteLater()
             self._batch_worker = None
 
+    @skip_when_closing
     def _on_batch_error(self, msg: str):
         self.run_btn.setEnabled(True)
         self.stop_btn.setVisible(False)
@@ -1005,10 +1026,15 @@ class MafftAlignmentTab(BaseTabWidget):
         self.upload_btn.setEnabled(not running)
         self.mafft_browse_btn.setEnabled(not running)
         self.output_file_btn.setEnabled(not running)
+        self.output_file_edit.setEnabled(not running)
+        self.input_text.setReadOnly(running)
+        self.order_combo.setEnabled(not running)
         self.show_status("Processing..." if running else "Ready")
 
     def run(self):
         # Delegate to batch runner when Batch Multi-file tab is active
+        if self.worker_thread and self.worker_thread.isRunning():
+            return
         if hasattr(self, "mode_tabs") and self.mode_tabs.currentIndex() == 1:
             self._run_batch()
             return
@@ -1029,7 +1055,11 @@ class MafftAlignmentTab(BaseTabWidget):
             return
         self.output_file_edit.setText(output_path)
 
-        seqs = _fasta_to_dict(raw)
+        try:
+            seqs = _fasta_to_dict(raw)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Input Error", str(exc))
+            return
         if len(seqs) < 2:
             self.status_label.setText("Need ≥ 2 sequences for MSA.")
             QMessageBox.warning(
@@ -1055,6 +1085,8 @@ class MafftAlignmentTab(BaseTabWidget):
             return
 
         self._aligned_fasta = ""
+        self._run_output_path = output_path
+        self._run_order = self.order_combo.currentText()
         self.run_btn.setEnabled(False)
         self.status_label.setText(f"Running MAFFT ({_strategy_key(strategy)}), {len(seqs)} seqs…")
 
@@ -1068,9 +1100,16 @@ class MafftAlignmentTab(BaseTabWidget):
         )
         self.start_worker(self._worker)
 
+    @skip_when_closing
     def handle_worker_finished(self, aligned_text: str):
-        self.run_btn.setEnabled(True)
-        seqs = _fasta_to_dict(aligned_text)
+        self.set_running_state(False)
+        try:
+            seqs = _fasta_to_dict(aligned_text)
+            expected = {h: "" for h in self._input_sequence_order} or seqs
+            validate_alignment_records(expected, seqs)
+        except ValueError as exc:
+            self.handle_worker_error(str(exc))
+            return
         if not seqs:
             self.handle_worker_error("MAFFT produced empty output.")
             return
@@ -1097,6 +1136,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.set_running_state(False)
         # 线程引用由 start_worker() 的 _on_worker_thread_finished() 在线程停止后释放
 
+    @skip_when_closing
     def handle_worker_error(self, error_msg: str):
         self.run_btn.setEnabled(True)
         self._aligned_fasta = ""
@@ -1113,10 +1153,10 @@ class MafftAlignmentTab(BaseTabWidget):
         root, ext = os.path.splitext(path)
         if not ext:
             path += ".fasta"
-        return os.path.normpath(path)
+        return os.path.abspath(path)
 
     def _apply_single_file_output_order(self, seqs: dict) -> dict:
-        if self.order_combo.currentText() != "Input sequence order":
+        if getattr(self, "_run_order", self.order_combo.currentText()) != "Input sequence order":
             return seqs
         if not self._input_sequence_order:
             return seqs
@@ -1131,7 +1171,7 @@ class MafftAlignmentTab(BaseTabWidget):
         return ordered
 
     def _write_single_file_output(self, aligned_fasta: str) -> str:
-        path = self._normalized_output_file_path()
+        path = getattr(self, "_run_output_path", None) or self._normalized_output_file_path()
         if not path:
             raise OSError("Output FASTA path is empty.")
 
@@ -1139,8 +1179,7 @@ class MafftAlignmentTab(BaseTabWidget):
         if parent:
             os.makedirs(parent, exist_ok=True)
 
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(aligned_fasta)
+        write_text_atomic(path, aligned_fasta)
         self.output_file_edit.setText(path)
         return path
 

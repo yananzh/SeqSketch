@@ -41,6 +41,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.task_lifecycle import skip_when_closing
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -499,8 +500,14 @@ def _gc_positions(seq: str) -> Tuple[float, float, float, float, float]:
     return gc_all, gc1, gc2, gc3, gc12
 
 
-def _compute_enc(codon_counts: Dict[str, int], table_id: int) -> float:
-    """Wright (1990) ENC, excluding stop codons from all calculations."""
+def _compute_enc(codon_counts: Dict[str, int], table_id: int) -> Optional[float]:
+    """Wright's standard-code estimator; N/A when a class cannot be estimated.
+
+    Nonstandard codes are deliberately not extrapolated: Wright's coefficients
+    and the Nc/GC3 reference curve assume the standard genetic code.
+    """
+    if table_id != 1:
+        return None
     bt = _build_codon_table(table_id)
     syn_groups: Dict[str, List[str]] = collections.defaultdict(list)
     for codon, aa in bt.forward_table.items():
@@ -508,6 +515,7 @@ def _compute_enc(codon_counts: Dict[str, int], table_id: int) -> float:
     # Stop codons are intentionally excluded — ENC is defined only for amino-acid families.
 
     fam_f: Dict[int, List[float]] = collections.defaultdict(list)
+    family_counts = collections.Counter(len(codons) for codons in syn_groups.values())
     singletons = 0
     for _, codons in syn_groups.items():
         n = len(codons)
@@ -516,18 +524,21 @@ def _compute_enc(codon_counts: Dict[str, int], table_id: int) -> float:
             continue
         counts = [codon_counts.get(c, 0) for c in codons]
         total = sum(counts)
-        if total == 0:
+        if total < 2:
             continue
         sum_pi_sq = sum((c / total) ** 2 for c in counts)
-        f = 1.0 if total == 1 else (sum_pi_sq * total - 1) / (total - 1)
+        f = (sum_pi_sq * total - 1) / (total - 1)
         fam_f[n].append(f)
 
     nc = float(singletons)  # dynamically counted (2.0 for standard code)
-    for _, f_vals in fam_f.items():
-        if not f_vals:
+    for degeneracy, coefficient in family_counts.items():
+        if degeneracy == 1:
             continue
+        f_vals = fam_f[degeneracy]
+        if not f_vals:
+            return None
         mean_f = sum(f_vals) / len(f_vals)
-        nc += len(f_vals) / mean_f if mean_f > 0 else 61.0
+        nc += coefficient / mean_f if mean_f > 0 else 61.0
 
     return min(nc, 61.0)
 
@@ -1136,6 +1147,7 @@ class CodonUsageTab(QWidget):
     def _on_progress(self, cur: int, total: int):
         self._set_status(f"Analyzing sequence {cur}/{total}...")
 
+    @skip_when_closing
     def _on_analysis_done(self, results: list):
         self._results = results
 
@@ -1167,6 +1179,7 @@ class CodonUsageTab(QWidget):
     def _on_skipped(self, count: int):
         self._skipped_count = count
 
+    @skip_when_closing
     def _on_analysis_error(self, msg: str):
         self._btn_run.setEnabled(True)
         QMessageBox.critical(self, "Analysis Error", msg)
@@ -1197,7 +1210,9 @@ class CodonUsageTab(QWidget):
     def _fill_summary(self, r: dict):
         cai_str = f"{r['cai']:.3f}" if r.get("cai") is not None else "N/A"
         enc = r["enc"]
-        if enc < 35:
+        if enc is None:
+            bias = "N/A (insufficient data or nonstandard genetic code)"
+        elif enc < 35:
             bias = "Strong bias"
         elif enc < 50:
             bias = "Moderate bias"
@@ -1213,7 +1228,7 @@ class CodonUsageTab(QWidget):
             ("GC2 (Position 2)", f"{r['gc2']:.2f}%"),
             ("GC3 (Position 3)", f"{r['gc3']:.2f}%"),
             ("GC12 (mean of GC1+GC2)", f"{r['gc12']:.2f}%"),
-            ("ENC", f"{enc:.2f}"),
+            ("ENC", f"{enc:.2f}" if enc is not None else "N/A"),
             ("Codon Bias Strength", bias),
             ("CAI", cai_str),
             (
@@ -1454,7 +1469,10 @@ class CodonUsageTab(QWidget):
             self._cmp_table.setItem(i, 0, QTableWidgetItem(r["header"][:60]))
             self._cmp_table.setItem(i, 1, _NumItem(r["seq_len"], "{:.0f}"))
             self._cmp_table.setItem(i, 2, _NumItem(r["total_codons"], "{:.0f}"))
-            self._cmp_table.setItem(i, 3, _NumItem(r["enc"], "{:.2f}"))
+            self._cmp_table.setItem(
+                i, 3, _NumItem(r["enc"], "{:.2f}")
+                if r["enc"] is not None else QTableWidgetItem("N/A")
+            )
             self._cmp_table.setItem(i, 4, QTableWidgetItem(cai))
             self._cmp_table.setItem(i, 5, _NumItem(r["gc_all"], "{:.2f}"))
             self._cmp_table.setItem(i, 6, _NumItem(r["gc3"], "{:.2f}"))
@@ -1476,15 +1494,16 @@ class CodonUsageTab(QWidget):
             "-",
             color="#aaa",
             linewidth=1.5,
-            label="Expected (no selection)",
+            label="Standard-code expectation (no selection)",
         )
 
-        encs = [r["enc"] for r in self._results]
-        gc3s = [r["gc3"] for r in self._results]
+        estimable = [r for r in self._results if r["enc"] is not None]
+        encs = [r["enc"] for r in estimable]
+        gc3s = [r["gc3"] for r in estimable]
         ax.scatter(gc3s, encs, s=60, c="#1976d2", alpha=0.8, label="Sequences")
 
         if len(self._results) <= 20:
-            for r, gx, ey in zip(self._results, gc3s, encs):
+            for r, gx, ey in zip(estimable, gc3s, encs):
                 ax.annotate(
                     r["header"][:20],
                     (gx, ey),
@@ -1542,7 +1561,7 @@ class CodonUsageTab(QWidget):
                         r["header"],
                         r["seq_len"],
                         r["total_codons"],
-                        f"{r['enc']:.2f}",
+                        f"{r['enc']:.2f}" if r['enc'] is not None else "N/A",
                         cai,
                         f"{r['gc_all']:.2f}",
                         f"{r['gc1']:.2f}",
@@ -1598,7 +1617,9 @@ class CodonUsageTab(QWidget):
             "<table border='0' cellpadding='4' cellspacing='2'>"
             "<tr><td><b>Metric</b></td><td><b>Meaning</b></td><td><b>Interpretation</b></td></tr>"
             "<tr><td>RSCU</td><td>Relative Synonymous Codon Usage</td><td>Values &gt; 1 = over-represented, &lt; 1 = under-represented; ideal = 1.0 (no bias)</td></tr>"
-            "<tr><td>ENC</td><td>Effective Number of Codons</td><td>Ranges 20 (extreme bias) to 61 (no bias); values below 35 indicate strong codon bias</td></tr>"
+            "<tr><td>ENC</td><td>Effective Number of Codons</td><td>Standard code: 20–61. "
+            "N/A for other codes or when any degeneracy class lacks a family with at least two codons. "
+            "Short sequences can give unstable estimates.</td></tr>"
             "<tr><td>CAI</td><td>Codon Adaptation Index</td><td>Ranges 0–1; higher values mean better translation-adaptation to the reference organism</td></tr>"
             "<tr><td>Rare codons</td><td>Codons with RSCU &lt; 0.3</td><td>Many rare codons can bottleneck protein expression in heterologous hosts</td></tr>"
             "<tr><td>GC / GC3</td><td>Overall GC% and GC% at 3rd codon position</td><td>GC3 is a sensitive indicator of mutational bias; low GC3 often correlates with translational selection</td></tr>"

@@ -441,6 +441,25 @@ def parse_fasta_dict(text: str, *, id_only: bool = False) -> Dict[str, str]:
     return processor.as_dict(id_only=id_only)
 
 
+def parse_unique_fasta_dict(text: str, *, id_only: bool = False) -> Dict[str, str]:
+    """Validate primary IDs before conversion to a mapping can discard records."""
+    processor = FASTAProcessor()
+    processor.parse_text(text)
+    seen = set()
+    for record in processor.records:
+        if record.header in seen:
+            raise ValueError(f"Duplicate sequence ID: {record.header}")
+        seen.add(record.header)
+    return processor.as_dict(id_only=id_only)
+
+
+def validate_alignment_records(expected: Dict[str, str], actual: Dict[str, str]) -> None:
+    if {h.split()[0] for h in expected} != {h.split()[0] for h in actual}:
+        raise ValueError("Alignment output sequence IDs do not match the input.")
+    if not actual or len({len(s) for s in actual.values()}) != 1 or not all(actual.values()):
+        raise ValueError("Alignment output must contain nonempty sequences of equal length.")
+
+
 def read_fasta_ids_and_sequences(filepath: str) -> Tuple[List[str], List[str]]:
     """Read a FASTA file into parallel ID and sequence lists.
 
