@@ -1,4 +1,8 @@
-PyQt6>=6.0.0
+# Pinned: Qt 6.11 changed the windows11 style's spinbox arrows and tab
+# close-button rendering, so floating this pin makes CI-built artifacts look
+# different from local builds. Bump deliberately and review the UI when doing so.
+PyQt6==6.10.0
+PyQt6-Qt6==6.10.0
 matplotlib>=3.5.0
 numpy>=1.21.0
 biopython>=1.79

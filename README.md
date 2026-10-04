@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.1-2563eb" alt="Version 1.0.1" />
+  <img src="https://img.shields.io/badge/version-1.0.2-2563eb" alt="Version 1.0.2" />
   <img src="https://img.shields.io/badge/license-GPL--3.0-8b5cf6" alt="GPL-3.0" />
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-10b981" alt="Windows | macOS" />
   <img src="https://img.shields.io/badge/python-3.10%2B-f59e0b" alt="Python 3.10+" />
