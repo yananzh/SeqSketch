@@ -379,6 +379,16 @@ Click <b>Browse</b> next to the output field to choose a different location.</p>
     (columns must match). This tool does not perform alignment.</li>
 <li>NEXUS input may contain a single DATA block with one alignment.</li>
 </ul>
+
+<h3>Tips</h3>
+<ul>
+<li>Align first with <b>MAFFT</b> or <b>MUSCLE</b>, then convert &mdash; this tool
+    never adds or removes gaps.</li>
+<li><b>trimAl</b>, <b>IQ-TREE</b>, and <b>MSA Visualization</b> all read aligned
+    FASTA; pick PHYLIP or NEXUS only when a downstream program requires it.</li>
+<li>If the input has a non-standard extension, override the auto-detected
+    input format manually before running.</li>
+</ul>
 """
         from PyQt6.QtWidgets import (
             QDialog,

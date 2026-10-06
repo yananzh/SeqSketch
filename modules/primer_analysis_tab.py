@@ -267,6 +267,18 @@ expected product size.</p>
 <p>When a template is provided, the tool searches for both forward and
 reverse primer binding sites (including reverse-complement matches)
 and calculates the expected PCR product size.</p>
+
+<h3>Tips</h3>
+<ul>
+<li>Design candidate pairs with the <b>Primer Design</b> tab first, then paste
+    them here for a full quality check.</li>
+<li>Match the salt conditions to your actual PCR buffer &mdash; Tm values are
+    only meaningful for the buffer they were calculated for.</li>
+<li>Check <b>Self-Dimer</b> and <b>Cross-Dimer</b> before ordering oligos:
+    strong dimers (&Delta;G &lt; -3 kcal/mol) are a common cause of PCR failure.</li>
+<li>For qPCR, keep the <b>Tm Difference</b> below 2&deg;C so both primers
+    anneal in sync.</li>
+</ul>
 """
         )
         label.setTextFormat(QtCore.TextFormat.RichText)

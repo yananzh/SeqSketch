@@ -58,7 +58,7 @@ utils/               -> Shared UI base classes, validation helpers, path utiliti
 config/settings.py   -> JSON-backed settings manager (planned, currently unused)
 config.ini           -> External tool path overrides
 softwares/           -> External tool binaries per platform (gitignored; scripts/fetch_softwares.ps1)
-examples/            -> Bundled read-only teaching datasets (phylo/, labs/) resolved via resource_path
+examples/            -> Bundled read-only teaching datasets (dna/, protein/, phylo/, blast/, sanger/) resolved via resource_path
 tests/               -> Pytest regression coverage
 ```
 
@@ -76,7 +76,17 @@ tests/               -> Pytest regression coverage
 
 ## Example Data (Teaching)
 
-- `examples/phylo/` holds a read-only 8-species cytb dataset (CDS, protein, aligned variants, Newick tree, README) used by the "Example" buttons on the 7 core teaching-chain tabs (FASTA Statistics, Translate, Physicochemical, MAFFT, trimAl, IQ-TREE, Tree Visualization).
+- The flagship teaching dataset is an 8-protein gyrB set (639–807 aa) threaded through a **ten-tool chain**:
+  Download from NCBI (`dna/gyrB_accession.txt`) → Batch Rename IDs (`protein/gyrB_pro.fasta` +
+  `protein/gyrB_pro_id_mapping.xlsx`) → Translate (`dna/ncbi_gyrB.fasta`) → Amino Acid Composition /
+  Physicochemical Properties / MAFFT (`protein/gyrB_pro_renamed.fasta`) → MSA Visualization
+  (`phylo/mafft_alignment_gyrB.fasta`) → trimAl → IQ-TREE (`phylo/mafft_alignment_gyrB.trimmed.fasta`)
+  → Tree Visualization (`phylo/mafft_alignment_gyrB.trimmed.treefile`). Each chain step's Example loads
+  the bundled output of its predecessor, so the chain can be entered at any point.
+- An 8-record cytb dataset (`phylo/cytb_cds_raw.fasta`, `phylo/cytb_protein.fasta`,
+  `phylo/cytb_protein_aligned.fasta`, `dna/cytb_id_mapping.xlsx`) backs the FASTA Tools Example buttons
+  (Sequence Statistics, Sort, Split, Filter by Length, Extract by ID, Deduplicate, Simplify IDs) and one
+  of trimAl's two example files. Other tabs load task-specific files under `examples/dna|protein|blast|sanger/`.
 - `utils/example_data.py` is the **only** module that knows where examples live: `example_path(*parts)` (read-only bundled source), `stage_example(*parts)` (copies to `user_data_dir()/example_work/` for file-mode tabs so outputs can write), `load_example_text(*parts)` (reads text for sequence-mode tabs). Use these instead of open-coded `resource_path("examples", ...)` calls in tabs.
 - When adding an "Example" button to a new tab, follow the existing pattern: load → empty-check with `QMessageBox.information` → fill the tab's specific input control → `self.show_status("Example loaded: ...")`. File-mode tabs stage a writable copy; sequence-mode tabs fill `input_text` directly.
 - `examples/` is bundled via `SeqSketch.spec` `datas` (`('examples', 'examples')`); any new example subfolder is picked up automatically.
