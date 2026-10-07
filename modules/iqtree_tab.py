@@ -212,12 +212,11 @@ class IqTreeTab(BaseTabWidget):
             "AUTO: IQ-TREE auto-detects | DNA: nucleotide | AA: amino acid"
         )
         self._threads_spin = QSpinBox()
-        self._threads_spin.setRange(0, max(os.cpu_count() or 1, 1))
-        self._threads_spin.setValue(0)
-        self._threads_spin.setSpecialValueText("AUTO")
+        self._threads_spin.setRange(1, max(os.cpu_count() or 1, 1))
+        self._threads_spin.setValue(2)
         self._threads_spin.setToolTip(
-            "Keep AUTO — IQ-TREE picks the thread count for you. "
-            "Only set a fixed number if you know your machine's core count."
+            "Number of CPU threads for IQ-TREE (default 2, up to your "
+            "core count). More threads help only on large alignments."
         )
         self._model_edit = QLineEdit("TEST")
         self._model_edit.setToolTip(
@@ -440,7 +439,7 @@ class IqTreeTab(BaseTabWidget):
         self._prefix_edit.clear()
         self._model_edit.setText("TEST")
         self._seqtype_combo.setCurrentIndex(0)
-        self._threads_spin.setValue(0)
+        self._threads_spin.setValue(2)
         self._bootstrap_spin.setValue(1000)
         self._ufboot_check.setChecked(True)
         self._alrt_check.setChecked(False)
@@ -474,8 +473,7 @@ class IqTreeTab(BaseTabWidget):
         outgroup = self._outgroup_combo.currentText().strip()
         if outgroup:
             cmd += ["-o", outgroup]
-        threads_val = self._threads_spin.value()
-        cmd += ["-T", "AUTO" if threads_val == 0 else str(threads_val)]
+        cmd += ["-T", str(self._threads_spin.value())]
         cmd += ["--redo"]
         outdir = self._outdir_edit.text().strip()
         prefix = self._prefix_edit.text().strip()
@@ -512,7 +510,7 @@ ultrafast bootstrapping, and automatic model selection.</p>
 <li><b>Seq type</b> &mdash; AUTO (recommended), DNA, AA, CODON, BIN, or MORPH.</li>
 <li><b>Model</b> &mdash; Keep <b>TEST</b> for automatic model selection.
 Or specify e.g. <code>GTR+G</code>, <code>LG+G+I</code>.</li>
-<li><b>Threads</b> &mdash; AUTO lets IQ-TREE choose; set a fixed number for reproducibility.</li>
+<li><b>Threads</b> &mdash; number of CPU threads (default 2, up to your CPU core count).</li>
 <li><b>Prefix</b> &mdash; Output files: prefix.treefile, etc. Blank = use input name.</li>
 <li><b>Outgroup</b> &mdash; optional comma-separated taxa (e.g. <code>taxonA,taxonB</code>)
 to root the tree on (IQ-TREE <code>-o</code>).</li>
@@ -605,8 +603,7 @@ to root the tree on (IQ-TREE <code>-o</code>).</li>
         outgroup = self._outgroup_combo.currentText().strip()
         if outgroup:
             self.log_area.append(f"  Outgroup     : {outgroup}")
-        threads = self._threads_spin.value()
-        self.log_area.append(f"  Threads      : {'AUTO' if threads == 0 else threads}")
+        self.log_area.append(f"  Threads      : {self._threads_spin.value()}")
         self.log_area.append(f"  Command      : {subprocess.list2cmdline(cmd)}")
         self.log_area.append(f"{sep}")
         self.log_area.append("")

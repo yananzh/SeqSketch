@@ -52,6 +52,17 @@ def _wrap_layout(layout) -> QWidget:
     return container
 
 
+def _combo_text_width(combo) -> int:
+    """Fixed width that shows a QComboBox's longest item without eliding."""
+    combo.ensurePolished()  # resolve the stylesheet font before measuring
+    fm = combo.fontMetrics()
+    widest = max(
+        (fm.horizontalAdvance(combo.itemText(i)) for i in range(combo.count())),
+        default=0,
+    )
+    return widest + 60  # dropdown arrow, padding and border allowance
+
+
 class OneStepMultiGenePhyTab(BaseTabWidget):
     def __init__(self):
         self.gene_columns: list[str] = []
@@ -195,15 +206,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 "strict/plus: conservative gap+similarity | nogaps: remove all-gap columns"
         )
 
-        self.threads_spin = QSpinBox()
-        self.threads_spin.setRange(0, max(os.cpu_count() or 1, 1))
-        self.threads_spin.setValue(0)
-        self.threads_spin.setSpecialValueText("AUTO")
-        self.threads_spin.setToolTip(
-            "Keep AUTO — the tools pick the thread count for you. "
-                "Only set a fixed number if you know your machine's core count."
-        )
-
         mt_row = QHBoxLayout()
         mt_row.setContentsMargins(0, 0, 0, 0)
         lbl_mafft = QLabel("MAFFT:")
@@ -215,11 +217,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         lbl_trimal.setFixedWidth(50)
         mt_row.addWidget(lbl_trimal)
         mt_row.addWidget(self.trimal_mode_combo, 1)
-        mt_row.addSpacing(8)
-        lbl_threads = QLabel("Threads:")
-        lbl_threads.setFixedWidth(55)
-        mt_row.addWidget(lbl_threads)
-        mt_row.addWidget(self.threads_spin, 1)
         param_form.addRow(_wrap_layout(mt_row))
 
         # IQ-TREE bootstrap
@@ -239,6 +236,14 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.bootstrap_spin.setToolTip(
             "Bootstrap replicates (0 = off). UFBoot ≥ 1000, Standard ≥ 100 recommended."
         )
+
+        self.threads_spin = QSpinBox()
+        self.threads_spin.setRange(1, max(os.cpu_count() or 1, 1))
+        self.threads_spin.setValue(2)
+        self.threads_spin.setToolTip(
+            "Number of CPU threads for IQ-TREE (default 2, up to your "
+            "core count). More threads help only on large alignments."
+        )
         # Auto-adjust bootstrap minimum based on mode
         self.bootstrap_mode_combo.currentIndexChanged.connect(self._on_bootstrap_mode_changed)
         boot_row = QHBoxLayout()
@@ -248,6 +253,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         boot_row.addWidget(QLabel("Bootstrap replicates:"))
         self.bootstrap_spin.setFixedWidth(90)
         boot_row.addWidget(self.bootstrap_spin)
+        boot_row.addSpacing(12)
+        boot_row.addWidget(QLabel("Threads:"))
+        self.threads_spin.setFixedWidth(90)
+        boot_row.addWidget(self.threads_spin)
         boot_row.addStretch(1)
         param_form.addRow("IQ-TREE Bootstrap:", _wrap_layout(boot_row))
 
@@ -273,13 +282,13 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         run_row.addStretch(1)
         param_form.addRow("Skip completed steps:", _wrap_layout(run_row))
 
-        # Give both dropdowns the same width so their right edges line up
-        _combo_width = max(
-            self.bootstrap_mode_combo.sizeHint().width(),
-            self.resume_mode_combo.sizeHint().width(),
+        # Size each dropdown to its longest option text. The bootstrap
+        # dropdown is capped so its row (mode + replicates + threads) still
+        # fits narrower windows instead of its widgets overlapping.
+        self.bootstrap_mode_combo.setFixedWidth(
+            min(_combo_text_width(self.bootstrap_mode_combo), 240)
         )
-        self.bootstrap_mode_combo.setFixedWidth(_combo_width)
-        self.resume_mode_combo.setFixedWidth(_combo_width)
+        self.resume_mode_combo.setFixedWidth(_combo_text_width(self.resume_mode_combo))
 
         self.add_content_widget(param_group)
         self.content_area.addStretch()
@@ -665,7 +674,7 @@ and one or more <b>gene columns</b>.</p>
         self.output_dir_edit.clear()
         self.mafft_mode_combo.setCurrentIndex(0)
         self.trimal_mode_combo.setCurrentIndex(0)
-        self.threads_spin.setValue(0)
+        self.threads_spin.setValue(2)
         self.bootstrap_mode_combo.setCurrentIndex(0)
         self.bootstrap_spin.setValue(1000)
         self.resume_mode_combo.setCurrentIndex(0)
@@ -758,7 +767,7 @@ and one or more <b>gene columns</b>.</p>
             f"  Bootstrap      : {self.bootstrap_spin.value()} ({self.bootstrap_mode_combo.currentText()})"
         )
         self.log_area.append(
-            f"  Threads        : {'AUTO' if self.threads_spin.value() == 0 else self.threads_spin.value()}"
+            f"  Threads        : {self.threads_spin.value()}"
         )
         self.log_area.append(
             f"  Skip completed : {self.resume_mode_combo.currentText()}"
@@ -777,7 +786,7 @@ and one or more <b>gene columns</b>.</p>
             trimal_mode=self.trimal_mode_combo.currentData(),
             iqtree_bootstrap=self.bootstrap_spin.value(),
             iqtree_bootstrap_mode=self.bootstrap_mode_combo.currentData(),
-            threads=str(self.threads_spin.value()) if self.threads_spin.value() > 0 else "AUTO",
+            threads=str(self.threads_spin.value()),
             keep_intermediates=True,
             resume_mode=self.resume_mode_combo.currentData(),
         )
@@ -848,7 +857,7 @@ expected workbook layout.</li>
 <ul>
 <li><b>MAFFT</b> &mdash; Auto (automatic selection), Local Pair, Global Pair, or Conserved Region.</li>
 <li><b>trimAl</b> &mdash; automated1 (heuristic), gappyout (adaptive), strict/plus (conservative), nogaps.</li>
-<li><b>Threads</b> &mdash; AUTO uses all available cores; set a fixed number for reproducibility.</li>
+<li><b>Threads</b> &mdash; number of CPU threads for IQ-TREE (default 2, up to your CPU core count).</li>
 <li><b>IQ-TREE Bootstrap</b> &mdash; UFBoot (ultrafast, 1000 recommended), UFBoot + SH-aLRT (branch test), or Standard bootstrap (100 recommended). The value is auto-filled when you switch modes; 0 turns bootstrap off.</li>
 <li>Per-gene alignments and trimmed files are always kept for inspection under the stage folders.</li>
 <li><b>Skip completed steps</b> &mdash; resume a previous run in the same output folder:

@@ -163,10 +163,12 @@ def test_outgroup_row_above_output_directory(qapp):
     assert indexes[tab._outgroup_combo] < indexes[tab._outdir_edit]
 
 
-def test_threads_max_equals_cpu_count(qapp):
+def test_threads_range_and_default(qapp):
     tab = IqTreeTab()
 
+    assert tab._threads_spin.minimum() == 1
     assert tab._threads_spin.maximum() == max(os.cpu_count() or 1, 1)
+    assert tab._threads_spin.value() == 2
 
 
 def test_row1_param_boxes_have_same_width(qapp):

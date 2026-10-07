@@ -1,0 +1,8 @@
+================================================================================
+Run: 2026-10-07T16:48:36
+SeqSketch: 1.0.2
+Tool: makeblastdb
+Version: 2.17.0+
+Command: E:\SeqSketch\_internal\softwares\windows\ncbi-blast-2.17.0+\bin\makeblastdb.exe -in F:\SeqSketch\examples\blast\E.coli_pro.fasta -dbtype prot -out F:\SeqSketch\examples\blast\E.coli_pro_db -title E.coli_pro_db -blastdb_version 4
+Output: F:\SeqSketch\examples\blast\E.coli_pro_db
+Executable: E:\SeqSketch\_internal\softwares\windows\ncbi-blast-2.17.0+\bin\makeblastdb.exe

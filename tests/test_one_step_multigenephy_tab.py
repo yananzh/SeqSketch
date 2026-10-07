@@ -218,7 +218,7 @@ def test_start_run_parses_sheet_builds_runner_and_starts_worker(qapp, monkeypatc
     assert worker.project.mafft_mode == "--auto"
     assert worker.project.trimal_mode == "automated1"
     assert worker.project.iqtree_bootstrap == 1000
-    assert worker.project.threads == "AUTO"
+    assert worker.project.threads == "2"
     assert worker.project.keep_intermediates is True
     assert worker.cells == parsed.cells
     assert worker.strain_order == parsed.strain_order
@@ -281,10 +281,12 @@ def test_show_help_displays_structured_workflow_guidance(qapp):
     assert "Concatenate" in source
 
 
-def test_threads_max_equals_cpu_count(qapp):
+def test_threads_range_and_default(qapp):
     tab = OneStepMultiGenePhyTab()
 
+    assert tab.threads_spin.minimum() == 1
     assert tab.threads_spin.maximum() == max(os.cpu_count() or 1, 1)
+    assert tab.threads_spin.value() == 2
 
 
 def test_example_button_on_excel_row_left_of_browse(qapp):

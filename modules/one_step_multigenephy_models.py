@@ -15,7 +15,7 @@ class ProjectInput:
     trimal_mode: str = "automated1"
     iqtree_bootstrap: int = 1000
     iqtree_bootstrap_mode: str = "ufboot"
-    threads: str = "AUTO"
+    threads: str = "2"
     resume_mode: str = "scratch"  # "scratch" | "align" (skip fetch) | "tree" (skip fetch/align/trim/concat)
 
 
