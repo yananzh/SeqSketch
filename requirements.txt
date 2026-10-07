@@ -3,7 +3,7 @@
 # different from local builds. Bump deliberately and review the UI when doing so.
 PyQt6==6.10.0
 PyQt6-Qt6==6.10.0
-matplotlib>=3.5.0
+matplotlib>=3.6.0
 numpy>=1.21.0
 biopython>=1.79
 primer3-py>=1.3.2

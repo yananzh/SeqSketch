@@ -141,7 +141,7 @@ class SangerTab(QWidget):
         gv.setSpacing(4)
 
         self._overlap_fig = Figure(figsize=(8, 1.2), dpi=100)
-        self._overlap_fig.set_tight_layout(True)
+        self._overlap_fig.set_layout_engine("tight")
         self._overlap_canvas = FigureCanvas(self._overlap_fig)
         self._overlap_canvas.setMinimumHeight(100)
         self._overlap_canvas.setMaximumHeight(140)
