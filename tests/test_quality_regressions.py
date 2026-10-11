@@ -87,6 +87,126 @@ def test_sanger_unknown_bases_do_not_form_confident_overlap(qapp):
     tab.deleteLater()
 
 
+@pytest.mark.parametrize(
+    "forward,reverse_rc,min_identity,expected_overlap,expected_length",
+    [
+        ("AAAGGGCCC", "GGGCCCTTT", 0.9, 6, 12),
+        ("AAAGGGCCC", "GGTCCCTTT", 0.8, 6, 12),
+        ("N" * 20, "N" * 20, 0.9, 0, 40),
+    ],
+)
+def test_sanger_chart_uses_contig_coordinates_for_reads_and_merged_output(
+    qapp, monkeypatch, tmp_path, forward, reverse_rc, min_identity,
+    expected_overlap, expected_length,
+):
+    from PyQt6.QtWidgets import QMessageBox
+
+    tab = SangerTab()
+    try:
+        forward_file = tmp_path / "forward.fasta"
+        reverse_file = tmp_path / "reverse.fasta"
+        forward_file.write_text(f">forward\n{forward}\n", encoding="utf-8")
+        reverse_file.write_text(
+            f">reverse\n{tab.reverse_complement(reverse_rc)}\n", encoding="utf-8"
+        )
+        tab.fwd_edit.setText(str(forward_file))
+        tab.rev_edit.setText(str(reverse_file))
+        output_file = tmp_path / "assembled.fasta"
+        tab.output_edit.setText(str(output_file))
+        tab.min_overlap_spin.setValue(5)
+        tab.min_identity_spin.setValue(min_identity * 100)
+        monkeypatch.setattr(QMessageBox, "information", lambda *a: None)
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a: None)
+        tab.run_assembly()
+        tab._overlap_canvas.draw()
+
+        assert tab._last_overlap == expected_overlap
+        output_lines = output_file.read_text(encoding="utf-8").splitlines()
+        assert output_lines[0] == ">assembled_contig"
+        assert len("".join(output_lines[1:])) == expected_length
+        assert "Saved" in tab.status_label.text()
+        ax = tab._overlap_fig.axes[0]
+        bars = {p.get_gid(): p for p in ax.patches}
+        assert bars["read-forward"].get_x() == 0
+        assert bars["read-forward"].get_width() == len(forward)
+        assert bars["read-reverse-rc"].get_x() == len(forward) - expected_overlap
+        assert bars["read-reverse-rc"].get_width() == len(reverse_rc)
+        assert bars["read-merged"].get_x() == 0
+        assert bars["read-merged"].get_width() == expected_length
+        assert expected_length in ax.get_xticks()
+        assert {"Forward read", "Reverse complement", "Merged sequence"} <= {
+            t.get_text() for t in ax.texts
+        }
+        if expected_overlap:
+            assert "identity" in tab._overlap_fig.texts[0].get_text()
+            for track in ("read-forward", "read-reverse-rc", "read-merged"):
+                region = bars[track + "-overlap"]
+                assert region.get_x() == len(forward) - expected_overlap
+                assert region.get_width() == expected_overlap
+            has_mismatch = forward[-expected_overlap:] != reverse_rc[:expected_overlap]
+            assert bool(ax.collections) == has_mismatch
+        else:
+            assert "No overlap" in tab._overlap_fig.texts[0].get_text()
+            assert not any(key.endswith("-overlap") for key in bars)
+        tab._clear_all()
+        assert not tab._overlap_fig.axes
+        assert not tab.output_edit.text()
+        assert not tab.result_folder_btn.isEnabled()
+        assert output_file.is_file()
+    finally:
+        tab.deleteLater()
+
+
+@pytest.mark.parametrize("output_mode", ["automatic", "input_file", "write_error"])
+def test_sanger_file_output_defaults_and_failures(qapp, monkeypatch, tmp_path, output_mode):
+    from PyQt6.QtWidgets import QMessageBox, QTextEdit
+
+    import modules.sanger_tab as sanger
+
+    tab = SangerTab()
+    try:
+        forward = tmp_path / "forward.fasta"
+        reverse = tmp_path / "reverse.fasta"
+        original = ">forward\nAAAGGGCCC\n"
+        forward.write_text(original, encoding="utf-8")
+        reverse.write_text(">reverse\nAAAGGGCCC\n", encoding="utf-8")
+        tab.fwd_edit.setText(str(forward))
+        tab.rev_edit.setText(str(reverse))
+        tab.min_overlap_spin.setValue(6)
+        monkeypatch.setattr(sanger, "user_data_dir", lambda: str(tmp_path / "user_data"))
+        warnings = []
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a: warnings.append(a[-1]))
+        assert not tab.findChildren(QTextEdit)
+        if output_mode == "input_file":
+            tab.output_edit.setText(str(forward))
+        elif output_mode == "write_error":
+            output = tmp_path / "existing.fasta"
+            output.write_text("previous output", encoding="utf-8")
+            tab.output_edit.setText(str(output))
+            monkeypatch.setattr(sanger.FASTAProcessor, "save_file", lambda *a: False)
+
+        tab.run_assembly()
+
+        assert forward.read_text(encoding="utf-8") == original
+        if output_mode == "automatic":
+            output = Path(tab.output_edit.text())
+            assert output.parent == tmp_path / "user_data" / "sanger_assembly"
+            assert output.read_text(encoding="utf-8") == ">assembled_contig\nAAAGGGCCCTTT\n"
+            assert tab.result_folder_btn.isEnabled()
+            assert "Saved:" in tab.status_label.text()
+            assert not warnings
+        else:
+            assert warnings
+            assert tab.status_label.text().startswith("Error:")
+            assert not tab.result_folder_btn.isEnabled()
+            assert not tab._last_output_path
+            if output_mode == "write_error":
+                assert output.read_text(encoding="utf-8") == "previous output"
+                assert not list(tmp_path.glob("tmp*.fasta"))
+    finally:
+        tab.deleteLater()
+
+
 def test_partition_names_are_unique_after_suffix_collisions():
     names, _ = _sanitize_gene_names(["gene", "gene", "gene_2", "Gene"])
     assert len({n.casefold() for n in names}) == 4

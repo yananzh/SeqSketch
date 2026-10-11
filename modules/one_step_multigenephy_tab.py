@@ -88,7 +88,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         )
         self.strain_column_combo = QComboBox()
         self.strain_column_combo.setEditable(True)
-        self.strain_column_combo.addItem("Species")
         self.strain_column_combo.setToolTip(
             "Strain identifier column — auto-populated after Preview Columns"
         )
@@ -668,7 +667,7 @@ and one or more <b>gene columns</b>.</p>
         self.sheet_name_combo.clear()
         self.sheet_name_combo.addItem("Sheet1")
         self.strain_column_combo.clear()
-        self.strain_column_combo.addItem("Species")
+        self.strain_column_combo.setEditText("")
         self.email_edit.clear()
         self.gene_list.clear()
         self.output_dir_edit.clear()

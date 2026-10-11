@@ -322,33 +322,65 @@ class BookmarkManager(QWidget):
         self._sample_data = {
             "Courses": [
                 {
-                    "name": "Bioinformatics Specialization (UCSD)",
+                    "name": "Bioinformatics Specialization",
                     "url": "https://www.coursera.org/specializations/bioinformatics",
                 },
-                {"name": "EMBL-EBI Training", "url": "https://www.ebi.ac.uk/training/"},
-                {"name": "Rosalind", "url": "https://rosalind.info"},
                 {
-                    "name": "NCBI Tutorials",
-                    "url": "https://www.ncbi.nlm.nih.gov/guide/training-tutorials/",
+                    "name": "Data Analysis for Life Sciences",
+                    "url": "https://www.edx.org/professional-certificate/harvardx-data-analysis-for-life-sciences",
                 },
             ],
             "Books": [
-                {"name": "Biopython Tutorial", "url": "https://biopython.org/wiki/Documentation"},
                 {
-                    "name": "Bioinformatics Algorithms (Pevzner)",
+                    "name": "Bioinformatics Algorithms",
                     "url": "https://www.bioinformaticsalgorithms.org",
                 },
-                {"name": "Biostar Handbook", "url": "https://www.biostarhandbook.com"},
-                {"name": "NCBI Handbook", "url": "https://www.ncbi.nlm.nih.gov/books/NBK21101/"},
+                {
+                    "name": "Data Analysis for the Life Sciences",
+                    "url": "https://leanpub.com/dataanalysisforthelifesciences",
+                },
+                {
+                    "name": "Modern Statistics for Modern Biology",
+                    "url": "http://web.stanford.edu/class/bios221/book/",
+                },
+                {
+                    "name": "Bioinformatics Data Skills",
+                    "url": "https://github.com/vsbuffalo/bds-files",
+                },
+                {
+                    "name": "Master Python for Bioinformatics",
+                    "url": "https://github.com/kyclark/biofx_python",
+                },
+                {
+                    "name": "Computing Skills for Biologists",
+                    "url": "https://computingskillsforbiologists.com/",
+                },
             ],
             "Online Resources": [
-                {"name": "Biostars", "url": "https://www.biostars.org"},
                 {
-                    "name": "Awesome Bioinformatics (GitHub)",
+                    "name": "Awesome Bioinformatics",
                     "url": "https://github.com/danielecook/Awesome-Bioinformatics",
                 },
-                {"name": "IQ-TREE Documentation", "url": "http://www.iqtree.org/doc/"},
-                {"name": "iTOL", "url": "https://itol.embl.de"},
+                {
+                    "name": "Software Carpentry Lessons",
+                    "url": "https://software-carpentry.org/lessons/",
+                },
+                {
+                    "name": "Nature - Statistics for Biologists",
+                    "url": "https://www.nature.com/collections/tmdlscdqmc",
+                },
+                {
+                    "name": "Nature - Points of Significance",
+                    "url": "https://www.nature.com/collections/qghhqm/pointsofsignificance",
+                },
+                {
+                    "name": "genomics-tools-and-resources",
+                    "url": "https://github.com/crazyhottommy/getting-started-with-genomics-tools-and-resources",
+                },
+                {
+                    "name": "Galaxy Training Network",
+                    "url": "https://training.galaxyproject.org/",
+                },
             ],
         }
         self._translate_sample_data()

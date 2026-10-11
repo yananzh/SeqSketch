@@ -269,10 +269,14 @@ def test_sanger_assembly_example_fills_both_inputs(qapp):
     assert fwd != rev
     assert os.path.isfile(fwd), f"staged forward file does not exist: {fwd}"
     assert os.path.isfile(rev), f"staged reverse file does not exist: {rev}"
+    assert os.path.basename(fwd) == "16S_F.fasta"
+    assert os.path.basename(rev) == "16S_R.fasta"
     with open(fwd, encoding="utf-8") as fh:
-        assert fh.read().startswith(">sanger_read_f"), "forward record missing"
+        assert fh.read() == load_example_text("sanger", "16S_F.fasta")
     with open(rev, encoding="utf-8") as fh:
-        assert fh.read().startswith(">sanger_read_r"), "reverse record missing"
+        assert fh.read() == load_example_text("sanger", "16S_R.fasta")
+    assert tab.status_label.text() == "Example loaded: 16S_F.fasta + 16S_R.fasta"
+    tab.deleteLater()
 
 
 def test_sanger_viewer_example_fills_file_edit(qapp):

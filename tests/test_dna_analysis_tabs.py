@@ -456,12 +456,16 @@ def test_sanger_assembly_outputs_merged_fasta_contig_without_input_headers(
     tab.fwd_edit.setText(str(fwd_file))
     tab.rev_edit.setText(str(rev_file))
     tab.min_overlap_spin.setValue(6)
+    output_file = tmp_path / "assembled.fasta"
+    tab.output_edit.setText(str(output_file))
     monkeypatch.setattr(QMessageBox, "information", lambda *args: None)
     monkeypatch.setattr(QMessageBox, "warning", lambda *args: None)
 
     tab.run_assembly()
 
-    assert tab.assembly_result.toPlainText() == ">assembled_contig\nAAAGGGCCCTTT"
+    assert output_file.read_text(encoding="utf-8") == ">assembled_contig\nAAAGGGCCCTTT\n"
+    assert "Saved:" in tab.status_label.text()
+    assert tab.result_folder_btn.isEnabled()
 
 
 def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
@@ -474,16 +478,6 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
         assert "border-radius: 6px;" in tab.output_text.styleSheet()
         assert "#f7f9fc" not in tab.output_text.styleSheet()
         assert tab.output_text.viewport().styleSheet() == "background: transparent; border: none;"
-
-    sanger_tab = SangerTab()
-    assert "background: transparent;" in sanger_tab.assembly_result.styleSheet()
-    assert "border: none;" in sanger_tab.assembly_result.styleSheet()
-    assert "border-radius: 6px;" in sanger_tab.assembly_result.styleSheet()
-    assert "#f7f9fc" not in sanger_tab.assembly_result.styleSheet()
-    assert (
-        sanger_tab.assembly_result.viewport().styleSheet()
-        == "background: transparent; border: none;"
-    )
 
     sanger_viewer_tab = SangerViewerTab()
     assert "background: transparent;" in sanger_viewer_tab._seq_edit.styleSheet()

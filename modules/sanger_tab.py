@@ -1,10 +1,15 @@
 import os
 import re
+import tempfile
+from datetime import datetime
 
 from Bio.Seq import Seq
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from PyQt6.QtCore import Qt
+from matplotlib.patches import Rectangle
+from matplotlib.ticker import MaxNLocator, StrMethodFormatter
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QDialog,
     QDoubleSpinBox,
@@ -16,7 +21,6 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSpinBox,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -25,11 +29,10 @@ from modules.fasta_processor import FASTAProcessor
 from utils.app_paths import user_data_dir
 from utils.common_components import (
     FileDropLineEdit,
-    apply_sequence_editor_style,
-    apply_transparent_text_edit_background,
     unify_status_button_sizes,
+    validate_output_path,
 )
-from utils.example_data import load_example_text
+from utils.example_data import stage_example
 
 _BASE_COLOR = {"A": "#007700", "T": "#BB0000", "G": "#111111", "C": "#0044AA", "N": "#888888"}
 
@@ -48,6 +51,7 @@ class SangerTab(QWidget):
         self._last_rev_rc: str = ""
         self._last_overlap: int = 0
         self._last_identity: float = 0.0
+        self._last_output_path = ""
         self._build_ui()
 
     # ── UI construction ─────────────────────────────────────────────────
@@ -137,14 +141,14 @@ class SangerTab(QWidget):
         grp_overlap = QGroupBox("Overlap Alignment")
         grp_overlap.setFlat(True)
         gv = QVBoxLayout(grp_overlap)
-        gv.setContentsMargins(0, 16, 0, 4)
+        gv.setContentsMargins(0, 8, 0, 4)
         gv.setSpacing(4)
 
-        self._overlap_fig = Figure(figsize=(8, 1.2), dpi=100)
-        self._overlap_fig.set_layout_engine("tight")
+        self._overlap_fig = Figure(figsize=(8, 2.0), dpi=100)
+        self._overlap_fig.subplots_adjust(left=0.08, right=0.96, bottom=0.24, top=0.86)
         self._overlap_canvas = FigureCanvas(self._overlap_fig)
-        self._overlap_canvas.setMinimumHeight(100)
-        self._overlap_canvas.setMaximumHeight(140)
+        self._overlap_canvas.setMinimumHeight(180)
+        self._overlap_canvas.setMaximumHeight(200)
         gv.addWidget(self._overlap_canvas)
         outer.addWidget(grp_overlap)
 
@@ -155,30 +159,18 @@ class SangerTab(QWidget):
         go.setContentsMargins(6, 16, 6, 4)
         go.setSpacing(6)
 
-        self.assembly_result = QTextEdit()
-        self.assembly_result.setReadOnly(True)
-        apply_sequence_editor_style(self.assembly_result)
-        apply_transparent_text_edit_background(self.assembly_result)
-        # Strip CSS border — the QGroupBox provides the visual container border
-        _style = self.assembly_result.styleSheet()
-        _style = _style.replace("border: 1px solid #94a3b8;", "border: none;")
-        self.assembly_result.setStyleSheet(_style)
-        self.assembly_result.setPlaceholderText("Assembled sequence will appear here...")
-        self.assembly_result.setMinimumHeight(100)
-        self.assembly_result.setToolTip("FASTA-formatted assembled contig")
-        go.addWidget(self.assembly_result)
-
-        export_hbox = QHBoxLayout()
-        self.copy_assembly_btn = QPushButton("Copy to Clipboard")
-        self.copy_assembly_btn.clicked.connect(self.copy_assembled_to_clipboard)
-        export_hbox.addWidget(self.copy_assembly_btn)
-
-        self.save_assembly_btn = QPushButton("Save to File")
-        self.save_assembly_btn.clicked.connect(self.save_assembly_result)
-        export_hbox.addWidget(self.save_assembly_btn)
-        export_hbox.addStretch()
-        go.addLayout(export_hbox)
+        output_row = QHBoxLayout()
+        output_row.addWidget(QLabel("Output File:"))
+        self.output_edit = FileDropLineEdit()
+        self.output_edit.setPlaceholderText("Leave blank to auto-generate an output FASTA file")
+        self.output_edit.setToolTip("Output FASTA path; an empty path uses the user data folder")
+        output_row.addWidget(self.output_edit, 1)
+        self._btn_browse_output = QPushButton("Browse")
+        self._btn_browse_output.clicked.connect(self._browse_output_file)
+        output_row.addWidget(self._btn_browse_output)
+        go.addLayout(output_row)
         outer.addWidget(grp_out)
+        outer.addStretch()
 
         # ── Status row: Run / Clear / Example / Help ──────────────────
         self.status_layout = QHBoxLayout()
@@ -189,6 +181,12 @@ class SangerTab(QWidget):
         self.run_btn = QPushButton("Run")
         self.run_btn.clicked.connect(self.run_assembly)
         self.status_layout.addWidget(self.run_btn)
+
+        self.result_folder_btn = QPushButton("Result Folder")
+        self.result_folder_btn.setProperty("accentButton", True)
+        self.result_folder_btn.setEnabled(False)
+        self.result_folder_btn.clicked.connect(self._open_result_folder)
+        self.status_layout.addWidget(self.result_folder_btn)
 
         self.clear_btn = QPushButton("Clear")
         self.clear_btn.clicked.connect(self._clear_all)
@@ -243,42 +241,63 @@ class SangerTab(QWidget):
             fwd, rev_rc, min_overlap=min_overlap, min_identity=min_identity
         )
 
-        # Cache for visualisation
+        output_path = self.output_edit.text().strip()
+        if not output_path:
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            output_path = os.path.join(
+                user_data_dir(), "sanger_assembly", f"assembled_{stamp}.fasta"
+            )
+        output_path = os.path.abspath(output_path)
+        normalized_output = os.path.normcase(os.path.realpath(output_path))
+        if normalized_output in {
+            os.path.normcase(os.path.realpath(path)) for path in (fwd_path, rev_path)
+        }:
+            self.status_label.setText("Error: Output path matches an input file")
+            QMessageBox.warning(self, "Output Error", "Choose an output file different from both inputs.")
+            return
+        valid, error = validate_output_path(output_path)
+        if not valid:
+            self.status_label.setText("Error: Invalid output path")
+            QMessageBox.warning(self, "Output Error", error)
+            return
+
+        processor = FASTAProcessor()
+        processor.parse_text(f">assembled_contig\n{merged}\n")
+        temporary_path = None
+        try:
+            # Replace the destination only after a complete FASTA has been written.
+            with tempfile.NamedTemporaryFile(
+                dir=os.path.dirname(output_path), suffix=".fasta", delete=False
+            ) as temporary:
+                temporary_path = temporary.name
+            if not processor.save_file(temporary_path):
+                raise OSError("Cannot write the assembled FASTA file.")
+            os.replace(temporary_path, output_path)
+        except OSError as exc:
+            self.status_label.setText("Error: Cannot save assembly result")
+            QMessageBox.warning(self, "Output Error", str(exc))
+            return
+        finally:
+            if temporary_path and os.path.isfile(temporary_path):
+                os.remove(temporary_path)
+
         self._last_fwd = fwd
         self._last_rev_rc = rev_rc
         self._last_overlap = overlap
         self._last_identity = identity
-
-        # Always output with FASTA header
-        fasta_out = f">assembled_contig\n{merged}"
-
-        if overlap < min_overlap or identity < min_identity:
-            self.status_label.setText(
-                f"No clear overlap ({overlap}bp, {identity:.0%})"
-            )
-            QMessageBox.warning(
-                self,
-                "Assembly Warning",
-                f"No clear overlap detected (overlap={overlap}, identity={identity:.2f}); "
-                    f"concatenating ends directly",
-            )
-        else:
-            self.status_label.setText(
-                f"Assembled: {overlap}bp, {identity:.1%} identity"
-            )
-            QMessageBox.information(
-                self,
-                "Assembly Complete",
-                f"<h3>Assembly Successful!</h3>"
-                f"<p><b>Overlap:</b> {overlap} bp  |  "
-                f"<b>Identity:</b> {identity:.1%} ({int(identity * overlap)}/{overlap} matches)</p>"
-                f"<p><b>Forward:</b> {len(fwd)} bp  |  "
-                f"<b>Reverse:</b> {len(rev)} bp  |  "
-                f"<b>Assembled:</b> {len(merged)} bp</p>",
-            )
-
-        self.assembly_result.setPlainText(fasta_out)
+        self._last_output_path = output_path
+        self.output_edit.setText(output_path)
+        self.output_edit.setToolTip(output_path)
+        self.result_folder_btn.setEnabled(True)
         self._draw_overlap_alignment()
+        self.status_label.setText(f"Saved: {os.path.basename(output_path)} ({len(merged):,} bp)")
+        self.status_label.setToolTip(output_path)
+        if overlap < min_overlap or identity < min_identity:
+            self.status_label.setText(f"Saved concatenated reads: {os.path.basename(output_path)}")
+            QMessageBox.warning(
+                self, "Assembly Warning",
+                "No clear overlap detected; concatenated reads were saved to the output FASTA file.",
+            )
 
     @staticmethod
     def _sequence_from_input(text: str) -> str:
@@ -319,209 +338,94 @@ class SangerTab(QWidget):
     # ── Overlap visualisation ──────────────────────────────────────────
 
     def _draw_overlap_alignment(self):
-        overlap = self._last_overlap
-        fwd = self._last_fwd
-        rev_rc = self._last_rev_rc
-
+        """Show both oriented reads and their merged contig on one bp scale."""
         self._overlap_fig.clear()
-
-        if overlap <= 0 or not fwd or not rev_rc:
+        fwd, rev_rc = self._last_fwd, self._last_rev_rc
+        if not fwd or not rev_rc:
             self._overlap_canvas.draw_idle()
             return
 
-        fwd_len = len(fwd)
-        rev_len = len(rev_rc)
-        fwd_non_ov = fwd_len - overlap  # forward unique 5' portion
-        rev_non_ov = rev_len - overlap  # reverse RC unique 3' portion
-        total_w = fwd_len + rev_non_ov  # forward full width + reverse tail
-        margin = total_w * 0.03
-
-        # ── Colours ───────────────────────────────────────────────────
-        C_FWD_UNIQUE = "#5c9ce6"  # forward unique region
-        C_REV_UNIQUE = "#7eb8f4"  # reverse unique region
-        C_OVERLAP_BG = "#c8e6c9"  # overlap background tint
-        C_MATCH = "#43a047"  # match segment
-        C_MISMATCH = "#e53935"  # mismatch segment
-
+        overlap = self._last_overlap
+        reverse_start = len(fwd) - overlap
+        merged_length = len(fwd) + len(rev_rc) - overlap
+        unique_color, overlap_color = "#7eb8f4", "#286b9c"
+        mismatch_color = "#c45100"
         ax = self._overlap_fig.add_subplot(111)
-        ax.set_facecolor("#fcfcfc")
+        ax.set_facecolor("white")
+        self._overlap_fig.set_facecolor("white")
+        margin = max(1, merged_length * 0.035)
+        ax.set_xlim(-margin, merged_length + margin)
+        ax.set_ylim(-0.15, 3.6)
 
-        # Forward (upstream, top):  [unique 5'] [overlap 3']
-        # Rev RC  (downstream, bottom):         [overlap 5'] [unique 3']
-        # Overlap region is at x ∈ [fwd_non_ov, fwd_len] for BOTH.
-
-        bar_h = 0.35
-        y_fwd = 2.25
-        y_rev = 0.75
-
-        # ── Forward bar (upstream, top) ─────────────────────────────
-        if fwd_non_ov > 0:
-            ax.broken_barh(
-                [(0, fwd_non_ov)],
-                (y_fwd - bar_h / 2, bar_h),
-                facecolors=C_FWD_UNIQUE,
-                edgecolors="none",
-                alpha=0.85,
-            )
-        ax.broken_barh(
-            [(fwd_non_ov, overlap)],
-            (y_fwd - bar_h / 2, bar_h),
-            facecolors=C_OVERLAP_BG,
-            edgecolors="none",
-            alpha=0.7,
+        rows = (
+            ("Forward read", "read-forward", 0, len(fwd), 2.8),
+            ("Reverse complement", "read-reverse-rc", reverse_start, len(rev_rc), 1.6),
+            ("Merged sequence", "read-merged", 0, merged_length, 0.4),
         )
-        ax.text(
-            0, y_fwd, "5'", ha="right", va="center", fontsize=7, color="#555", fontweight="bold"
-        )
-        ax.text(
-            fwd_len,
-            y_fwd,
-            "3'",
-            ha="left",
-            va="center",
-            fontsize=7,
-            color="#555",
-            fontweight="bold",
-        )
+        for label, gid, start, length, y in rows:
+            reverse_row = gid == "read-reverse-rc"
+            ax.text(start + length if reverse_row else 0, y + 0.34, label,
+                    ha="right" if reverse_row else "left", fontsize=10,
+                    va="bottom", color="#25313b")
+            bar = Rectangle((start, y - 0.12), length, 0.24,
+                            facecolor=unique_color, edgecolor="none", gid=gid)
+            ax.add_patch(bar)
+            if overlap:
+                ax.add_patch(Rectangle(
+                    (reverse_start, y - 0.12), overlap, 0.24,
+                    facecolor=overlap_color, edgecolor="none", gid=gid + "-overlap",
+                ))
+            ax.text(start - margin * 0.18, y, "5′", ha="right", va="center",
+                    fontsize=8, color="#536273")
+            ax.text(start + length + margin * 0.18, y, "3′", ha="left", va="center",
+                    fontsize=8, color="#536273")
 
-        # ── Reverse RC bar (downstream, bottom) ────────────────────
-        # Shifted right so the overlap aligns with Forward's overlap.
-        rev_start = fwd_non_ov
-        ax.broken_barh(
-            [(rev_start, overlap)],
-            (y_rev - bar_h / 2, bar_h),
-            facecolors=C_OVERLAP_BG,
-            edgecolors="none",
-            alpha=0.7,
-        )
-        if rev_non_ov > 0:
-            ax.broken_barh(
-                [(rev_start + overlap, rev_non_ov)],
-                (y_rev - bar_h / 2, bar_h),
-                facecolors=C_REV_UNIQUE,
-                edgecolors="none",
-                alpha=0.85,
-            )
-        ax.text(
-            rev_start,
-            y_rev,
-            "5'",
-            ha="right",
-            va="center",
-            fontsize=7,
-            color="#555",
-            fontweight="bold",
-        )
-        ax.text(
-            total_w,
-            y_rev,
-            "3'",
-            ha="left",
-            va="center",
-            fontsize=7,
-            color="#555",
-            fontweight="bold",
-        )
+        if overlap:
+            for pos in (reverse_start, len(fwd)):
+                ax.plot([pos, pos], [0.62, 2.58], color="#8ca8bd",
+                        linestyle=(0, (3, 3)), linewidth=0.8, zorder=0)
+            mismatches = [
+                reverse_start + i + 0.5
+                for i, (a, b) in enumerate(zip(fwd[-overlap:], rev_rc[:overlap]))
+                if a != b or a not in "ACGT"
+            ]
+            if mismatches:
+                # Mark nonmatching positions on the read tracks only: the merged
+                # sequence retains the forward base, as in auto_assemble().
+                ax.vlines(mismatches, 2.68, 2.92, color=mismatch_color,
+                          linewidth=1, label="Mismatch", zorder=3)
+                ax.vlines(mismatches, 1.48, 1.72, color=mismatch_color,
+                          linewidth=1, zorder=3)
+                ax.legend(loc="upper right", fontsize=8, frameon=False)
+            summary = f"{overlap:,} bp overlap · {self._last_identity:.1%} identity"
+        else:
+            summary = "No overlap · concatenated reads"
+        self._overlap_fig.text(0.5, 0.94, summary, fontsize=10,
+                               color=overlap_color, ha="center", va="center")
 
-        # ── Match / mismatch quality strip ──────────────────────────
-        y_strip = 1.5
-        strip_h = 0.4
-        bin_size = max(1, overlap // 250)
-        fwd_seg = fwd[-overlap:]
-        rev_seg = rev_rc[:overlap]
-
-        for start in range(0, overlap, bin_size):
-            end = min(overlap, start + bin_size)
-            chunk_matches = sum(
-                1 for j in range(start, end)
-                if fwd_seg[j] == rev_seg[j] and fwd_seg[j] in "ACGT"
-            )
-            chunk_total = end - start
-            match_frac = chunk_matches / chunk_total if chunk_total > 0 else 0
-            if match_frac >= 0.98:
-                colour = C_MATCH
-            elif match_frac <= 0.5:
-                colour = C_MISMATCH
-            else:
-                t = (match_frac - 0.5) / 0.48
-                r = int(229 * (1 - t) + 67 * t)
-                g = int(57 * (1 - t) + 160 * t)
-                b = int(53 * (1 - t) + 71 * t)
-                colour = f"#{r:02x}{g:02x}{b:02x}"
-
-            ax.broken_barh(
-                [(fwd_non_ov + start, chunk_total)],
-                (y_strip - strip_h / 2, strip_h),
-                facecolors=colour,
-                edgecolors="none",
-                alpha=0.9,
-            )
-
-        # ── Legend ────────────────────────────────────────────────────
-        from matplotlib.patches import Patch
-
-        legend_elements = [
-            Patch(facecolor=C_FWD_UNIQUE, alpha=0.85, label="Unique region"),
-            Patch(facecolor=C_OVERLAP_BG, alpha=0.7, label="Overlap region"),
-            Patch(facecolor=C_MATCH, label="Match"),
-            Patch(facecolor=C_MISMATCH, label="Mismatch"),
-        ]
-        ax.legend(
-            handles=legend_elements,
-            loc="upper right",
-            fontsize=7,
-            ncol=4,
-            framealpha=0.6,
-            handlelength=1.2,
-            handleheight=1.2,
-            borderpad=0.4,
-            labelspacing=0.3,
-            columnspacing=0.8,
-        )
-
-        # ── Layout ────────────────────────────────────────────────────
-        ax.set_xlim(-margin, total_w + margin)
-        ax.set_ylim(0.05, 2.9)
-        ax.axis("off")
-
-        self._overlap_fig.tight_layout(pad=0.3)
+        ticks = MaxNLocator(nbins=5, integer=True).tick_values(0, merged_length)
+        ticks = [int(t) for t in ticks if 0 <= t <= merged_length]
+        if ticks and merged_length - ticks[-1] < merged_length * 0.08:
+            ticks[-1] = merged_length
+        elif not ticks or ticks[-1] != merged_length:
+            ticks.append(merged_length)
+        ax.set_xticks(ticks)
+        ax.xaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+        ax.set_xlabel("Contig position (bp)", fontsize=9, labelpad=5)
+        ax.tick_params(axis="x", labelsize=8, length=3, width=0.6)
+        ax.set_yticks([])
+        for side in ("left", "right", "top"):
+            ax.spines[side].set_visible(False)
+        ax.spines["bottom"].set_linewidth(0.6)
         self._overlap_canvas.draw_idle()
 
     # ── Helpers ────────────────────────────────────────────────────────
 
     def _load_example(self):
-        """Stage the bundled example as two files and fill both input fields."""
-        text = load_example_text("dna", "sanger_assembly_example.fasta")
-        if not text:
-            QMessageBox.information(
-                self,
-                "Example",
-                "Failed to load example data. Please check your installation.",
-            )
-            return
-        records = text.strip().split("\n>")
-        if len(records) < 2:
-            QMessageBox.information(
-                self,
-                "Example",
-                "Failed to load example data. Please check your installation.",
-            )
-            return
-        fwd = records[0].strip()
-        rev = records[1].strip()
-        if not fwd.startswith(">"):
-            fwd = ">" + fwd
-        rev = ">" + rev
-        work_dir = os.path.join(user_data_dir(), "example_work")
-        try:
-            os.makedirs(work_dir, exist_ok=True)
-            fwd_path = os.path.join(work_dir, "sanger_example_forward.fasta")
-            rev_path = os.path.join(work_dir, "sanger_example_reverse.fasta")
-            with open(fwd_path, "w", encoding="utf-8") as fh:
-                fh.write(fwd + "\n")
-            with open(rev_path, "w", encoding="utf-8") as fh:
-                fh.write(rev + "\n")
-        except OSError:
+        """Stage the bundled forward and reverse 16S examples."""
+        fwd_path = stage_example("sanger", "16S_F.fasta")
+        rev_path = stage_example("sanger", "16S_R.fasta")
+        if not fwd_path or not rev_path:
             QMessageBox.information(
                 self,
                 "Example",
@@ -530,12 +434,16 @@ class SangerTab(QWidget):
             return
         self.fwd_edit.setText(fwd_path)
         self.rev_edit.setText(rev_path)
-        self.status_label.setText("Loaded example data: sanger_assembly_example.fasta")
+        self.status_label.setText("Example loaded: 16S_F.fasta + 16S_R.fasta")
 
     def _clear_all(self):
         self.fwd_edit.clear()
         self.rev_edit.clear()
-        self.assembly_result.clear()
+        self.output_edit.clear()
+        self.output_edit.setToolTip("Output FASTA path; an empty path uses the user data folder")
+        self._last_output_path = ""
+        self.result_folder_btn.setEnabled(False)
+        self.status_label.setToolTip("")
         self._last_fwd = ""
         self._last_rev_rc = ""
         self._last_overlap = 0
@@ -569,38 +477,19 @@ class SangerTab(QWidget):
             return best_overlap, best_identity, merged
         return 0, 0.0, fwd + rev_rc
 
-    # ── Export ─────────────────────────────────────────────────────────
+    # ── Output file ────────────────────────────────────────────────────
 
-    def save_assembly_result(self):
-        seq = self.assembly_result.toPlainText().strip()
-        if not seq:
-            self.status_label.setText("Error: No assembly result to save")
-            QMessageBox.warning(self, "No Assembly Result", "Run assembly first")
-            return
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save assembled sequence",
-            "assembled_seq.fasta",
-            "FASTA Files (*.fasta);;Text Files (*.txt)",
+    def _browse_output_file(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save assembled sequence", self.output_edit.text() or "assembled_contig.fasta",
+            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
         )
-        if file_path:
-            with open(file_path, "w") as f:
-                f.write(seq)
-            self.status_label.setText(f"Saved: {os.path.basename(file_path)}")
-            QMessageBox.information(
-                self, "Save Successful", f"Saved to: {file_path}"
-            )
+        if path:
+            self.output_edit.setText(os.path.normpath(path))
 
-    def copy_assembled_to_clipboard(self):
-        seq = self.assembly_result.toPlainText().strip()
-        if not seq:
-            self.status_label.setText("Error: No assembly result to copy")
-            QMessageBox.warning(self, "No Assembly Result", "Run assembly first")
-            return
-        from PyQt6.QtWidgets import QApplication
-
-        QApplication.clipboard().setText(seq)
-        self.status_label.setText("Copied to clipboard")
+    def _open_result_folder(self):
+        if self._last_output_path and os.path.isfile(self._last_output_path):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(self._last_output_path)))
 
     # ── Help ───────────────────────────────────────────────────────────
 
@@ -615,8 +504,9 @@ class SangerTab(QWidget):
             "<ol>"
             "<li>Select the forward and reverse FASTA files (via <b>Browse</b> or drag-and-drop)</li>"
             "<li>Set <b>Min overlap</b> (bp) and <b>Min identity</b> (%)</li>"
-            "<li>Click <b>Run</b></li>"
-            "<li>Inspect the overlap alignment chart and copy or save the result</li>"
+            "<li>Choose an <b>Output File</b>, or leave it blank to generate a FASTA file in the user data folder.</li>"
+            "<li>Click <b>Run</b> to assemble and save the FASTA file automatically.</li>"
+            "<li>Inspect the overlap chart; <b>Result Folder</b> opens the saved file location.</li>"
             "</ol>"
             "<h3>Parameter Guide</h3>"
             "<table border='0' cellpadding='4' cellspacing='2'>"
@@ -628,8 +518,8 @@ class SangerTab(QWidget):
             "</table>"
             "<h3>Understanding the Overlap Chart</h3>"
             "<ul>"
-            "<li>The <b>top blue bar</b> is the forward read; the <b>bottom bar</b> is the reverse-complemented reverse read</li>"
-            "<li>The <b>green overlap strip</b> shows matching A/C/G/T bases. "
+            "<li>The three tracks are <b>Forward read</b>, <b>Reverse complement</b> and <b>Merged sequence</b>, on a shared contig-position scale.</li>"
+            "<li><b>Dark blue</b> marks the overlap; orange marks nonmatching positions on the read tracks. "
             "Ambiguous IUPAC bases are complemented correctly but count as nonmatches "
             "when computing overlap identity.</li>"
             "<li>If no overlap is detected, the reads are concatenated end-to-end as a fallback</li>"
@@ -642,7 +532,7 @@ class SangerTab(QWidget):
             "</ul>"
             "<h3>Tips</h3>"
             "<ul>"
-            "<li>Always visually check the overlap alignment chart &mdash; a long green bar with few red spots means a reliable assembly</li>"
+            "<li>Inspect overlap length, identity and mismatch marks before using the saved contig. Overlap bases in the merged sequence are retained from the forward read.</li>"
             "<li>The assembled contig is saved in FASTA format with the header <code>&gt;assembled_contig</code></li>"
             "<li>If assembly fails (no overlap found), try lowering the min identity threshold or checking that the reverse read is not already reverse-complemented</li>"
             "<li>For primer-walking projects, assemble each pair separately and then use a multiple-sequence alignment tool for the final contig</li>"
