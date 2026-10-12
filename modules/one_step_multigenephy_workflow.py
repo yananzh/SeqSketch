@@ -430,6 +430,101 @@ def _project_fingerprint(project, cells, strain_order: list[str], stage: str = "
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def _verified_resume_path(value, root_dir, hashes):
+    path = Path(value)
+    if not path.is_file() or not path.resolve().is_relative_to(root_dir):
+        raise ValueError(f"Missing or invalid artifact: {path}")
+    if hashes.get(str(path)) != hashlib.sha256(path.read_bytes()).hexdigest():
+        raise ValueError(f"Changed or unverified artifact: {path}")
+    return path
+
+
+def check_resume_inputs(project, cells, strain_order):
+    """Read-only resume validation shared by the preview and actual workflow."""
+    if project.resume_mode == "scratch":
+        return {}, {}, []
+    if project.resume_mode not in ("align", "tree"):
+        raise ValueError("Unsupported resume mode")
+    validate_strain_names(strain_order)
+    gene_ids = build_gene_ids(project.gene_columns)
+    root_dir = Path(project.output_dir).resolve()
+    input_fingerprint = _project_fingerprint(project, cells, strain_order)
+    resume_fingerprints = {
+        stage: _project_fingerprint(project, cells, strain_order, stage)
+        for stage in ("align", "tree")
+    }
+    resume_paths = {}
+    concat_info = []
+    concat_path = root_dir / "04_concat" / "supermatrix.fasta"
+    partition_path = root_dir / "04_concat" / "partitions.nex"
+
+    def resume_error(reason: str) -> None:
+        message = (f"Cannot resume from {project.resume_mode}: {reason}. "
+                   "No earlier steps were run. Select the matching previous output "
+                   "folder or choose From scratch explicitly.")
+        raise ValueError(message)
+
+    try:
+        previous_payload = json.loads((root_dir / "06_reports" / "run_manifest.json").read_text(encoding="utf-8"))
+        if not isinstance(previous_payload, dict):
+            raise ValueError("Invalid manifest")
+    except (OSError, ValueError):
+        resume_error("a readable previous run manifest is required")
+    fingerprints = previous_payload.get("resume_fingerprints", {})
+    if not isinstance(fingerprints, dict):
+        resume_error("invalid resume fingerprints in manifest")
+    previous = fingerprints.get(project.resume_mode)
+    if previous is None:
+        # Older manifests can migrate only when their full fingerprint matches.
+        previous = previous_payload.get("input_fingerprint")
+        compatible = previous in (
+            input_fingerprint, _legacy_project_fingerprint(project, cells, strain_order)
+        )
+    else:
+        compatible = previous == resume_fingerprints[project.resume_mode]
+    if not compatible:
+        resume_error("inputs or upstream parameters changed, or the manifest is unverified")
+    hashes = previous_payload.get("artifact_hashes", {})
+    if not isinstance(hashes, dict) or not hashes or previous_payload.get("gene_ids") != gene_ids:
+        resume_error("artifact checksums or gene mapping are missing or incompatible")
+    saved_artifacts = previous_payload.get("artifacts", {})
+    if not isinstance(saved_artifacts, dict):
+        resume_error("invalid artifacts in manifest")
+
+    try:
+        if project.resume_mode == "tree":
+            for path in (concat_path, partition_path):
+                _verified_resume_path(str(path), root_dir, hashes)
+            sequences = _fasta_dict_from_file(concat_path)
+            if set(sequences) != set(strain_order) or len({len(v) for v in sequences.values()}) != 1:
+                raise ValueError("Supermatrix taxa or sequence lengths do not match")
+            total = len(next(iter(sequences.values())))
+            saved_partitions = [(name, int(start), int(end)) for name, start, end in
+                re.findall(r"charset\s+(\w+)\s*=\s*(\d+)-(\d+)\s*;",
+                           partition_path.read_text(encoding="utf-8"), re.IGNORECASE)]
+            end = 0
+            for name, start, stop in saved_partitions:
+                if name not in gene_ids.values() or start != end + 1 or stop < start:
+                    raise ValueError("Invalid saved partitions")
+                end = stop
+            if not saved_partitions or end != total:
+                raise ValueError("Partitions do not span the saved supermatrix")
+            concat_info = saved_partitions
+        else:
+            saved = saved_artifacts.get("normalized", {})
+            if not isinstance(saved, dict):
+                raise ValueError("Invalid normalized file mapping in manifest")
+            for gene_id in gene_ids.values():
+                path = _verified_resume_path(saved.get(gene_id, ""), root_dir, hashes)
+                sequences = _fasta_dict_from_file(path)
+                if not sequences or not set(sequences).issubset(strain_order):
+                    raise ValueError(f"Invalid normalized sequences: {path}")
+                resume_paths[("normalized", gene_id)] = path
+    except (OSError, ValueError, RuntimeError) as exc:
+        resume_error(str(exc))
+    return previous_payload, resume_paths, concat_info
+
+
 def _build_manifest_payload(
     step_status: dict[str, str],
     warnings: list[str],
@@ -839,71 +934,13 @@ class OneStepMultiGenePhyRunner:
         concat_path = stage_dirs["concat"] / "supermatrix.fasta"
         partition_path = stage_dirs["concat"] / "partitions.nex"
         if project.resume_mode != "scratch":
-            def resume_error(reason: str) -> None:
-                message = (f"Cannot resume from {project.resume_mode}: {reason}. "
-                           "No earlier steps were run. Select the matching previous output "
-                           "folder or choose From scratch explicitly.")
-                log_line(message)
-                raise ValueError(message)
-
             try:
-                previous_payload = json.loads(Path(artifacts.manifest_path).read_text(encoding="utf-8"))
-                if not isinstance(previous_payload, dict):
-                    raise ValueError("Invalid manifest")
-            except (OSError, ValueError):
-                resume_error("a readable previous run manifest is required")
-            previous = previous_payload.get("resume_fingerprints", {}).get(project.resume_mode)
-            if previous is None:
-                # Older manifests can migrate only when their full fingerprint matches.
-                previous = previous_payload.get("input_fingerprint")
-                compatible = previous in (
-                    input_fingerprint, _legacy_project_fingerprint(project, cells, strain_order)
+                previous_payload, resume_paths, self.concat_info = check_resume_inputs(
+                    project, cells, strain_order
                 )
-            else:
-                compatible = previous == resume_fingerprints[project.resume_mode]
-            if not compatible:
-                resume_error("inputs or upstream parameters changed, or the manifest is unverified")
-            hashes = previous_payload.get("artifact_hashes", {})
-            if not hashes or previous_payload.get("gene_ids") != gene_ids:
-                resume_error("artifact checksums or gene mapping are missing or incompatible")
-
-            def verified_path(value: str) -> Path:
-                path = Path(value)
-                if not path.is_file() or not path.resolve().is_relative_to(root_dir):
-                    raise ValueError(f"Missing or invalid artifact: {path}")
-                if hashes.get(str(path)) != hashlib.sha256(path.read_bytes()).hexdigest():
-                    raise ValueError(f"Changed or unverified artifact: {path}")
-                return path
-
-            try:
-                if project.resume_mode == "tree":
-                    for path in (concat_path, partition_path):
-                        verified_path(str(path))
-                    sequences = _fasta_dict_from_file(concat_path)
-                    if set(sequences) != set(strain_order) or len({len(v) for v in sequences.values()}) != 1:
-                        raise ValueError("Supermatrix taxa or sequence lengths do not match")
-                    total = len(next(iter(sequences.values())))
-                    saved_partitions = [(name, int(start), int(end)) for name, start, end in
-                        re.findall(r"charset\s+(\w+)\s*=\s*(\d+)-(\d+)\s*;",
-                                   partition_path.read_text(encoding="utf-8"), re.IGNORECASE)]
-                    end = 0
-                    for name, start, stop in saved_partitions:
-                        if name not in gene_ids.values() or start != end + 1 or stop < start:
-                            raise ValueError("Invalid saved partitions")
-                        end = stop
-                    if not saved_partitions or end != total:
-                        raise ValueError("Partitions do not span the saved supermatrix")
-                    self.concat_info = saved_partitions
-                else:
-                    saved = previous_payload.get("artifacts", {}).get("normalized", {})
-                    for gene_id in gene_ids.values():
-                        path = verified_path(saved.get(gene_id, ""))
-                        sequences = _fasta_dict_from_file(path)
-                        if not sequences or not set(sequences).issubset(strain_order):
-                            raise ValueError(f"Invalid normalized sequences: {path}")
-                        resume_paths[("normalized", gene_id)] = path
-            except (OSError, ValueError, RuntimeError) as exc:
-                resume_error(str(exc))
+            except ValueError as exc:
+                log_line(str(exc))
+                raise
 
         def persist_run_outputs(suppress_errors: bool = False) -> None:
             set_step("Summarize", "running")
@@ -1015,7 +1052,9 @@ class OneStepMultiGenePhyRunner:
                                   ("trimmed", artifacts.trimmed_files)):
                 for gene, value in previous_payload.get("artifacts", {}).get(stage, {}).items():
                     try:
-                        target[gene] = str(verified_path(value))
+                        target[gene] = str(_verified_resume_path(
+                            value, root_dir, previous_payload.get("artifact_hashes", {})
+                        ))
                     except (OSError, ValueError):
                         pass
             try:

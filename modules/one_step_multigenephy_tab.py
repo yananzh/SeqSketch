@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from PyQt6.QtCore import QElapsedTimer, QSize, Qt, QTimer, QUrl
+from PyQt6.QtCore import QElapsedTimer, QSize, Qt, QThread, QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -40,10 +40,12 @@ from modules.one_step_multigenephy_workflow import (
     _mafft_executable,
     _trimal_executable,
     build_default_tool_adapters,
+    check_resume_inputs,
 )
 from utils.common_components import (
     BaseTabWidget,
     apply_input_list_style,
+    park_qthread,
     unify_status_button_sizes,
     validate_input_path,
 )
@@ -67,6 +69,41 @@ def _combo_text_width(combo) -> int:
     return widest + 60  # dropdown arrow, padding and border allowance
 
 
+class _ResumeCheckThread(QThread):
+    """Parse and verify existing outputs without writing or launching tools."""
+
+    def __init__(self, project, revision, parent):
+        super().__init__(parent)
+        self.project = project
+        self.revision = revision
+        self.result = ""
+
+    def run(self):
+        try:
+            project = self.project
+            if not project.output_dir:
+                raise ValueError("Select the previous output directory.")
+            if not project.gene_columns:
+                raise ValueError("Select at least one gene column.")
+            parsed = parse_excel_sheet(
+                project.excel_path, project.sheet_name, project.strain_column, project.gene_columns
+            )
+            _, paths, partitions = check_resume_inputs(project, parsed.cells, parsed.strain_order)
+            if project.resume_mode == "tree":
+                self.result = (
+                    f"Reuse ready: verified supermatrix and {len(partitions)} partitions. "
+                    "Skip fetch, alignment, trimming and concatenation; run IQ-TREE. "
+                    "Bootstrap and threads may change."
+                )
+            else:
+                self.result = (
+                    f"Reuse ready: verified {len(paths)} normalized gene files. "
+                    "Skip fetch; rerun alignment, trimming, concatenation and IQ-TREE."
+                )
+        except Exception as exc:
+            self.result = f"Reuse unavailable: {exc}"
+
+
 class OneStepMultiGenePhyTab(BaseTabWidget):
     def __init__(self):
         self.gene_columns: list[str] = []
@@ -74,6 +111,16 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self._loading = False
         self._last_treefile = ""
         super().__init__("One Step MultiGenePhy", "file")
+        self._resume_revision = 0
+        self._resume_check_thread = None
+        self._workflow_running = False
+        self._resume_check_result = ""
+        self._last_resume_notice = None
+        self._resume_dialog = None
+        self._resume_timer = QTimer(self)
+        self._resume_timer.setSingleShot(True)
+        self._resume_timer.setInterval(400)
+        self._resume_timer.timeout.connect(self._start_resume_check)
         self._build_ui()
         self.show_status("Ready — load an Excel workbook to start")
 
@@ -280,11 +327,14 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 "Reuse requires matching inputs and verified outputs. If checks fail, "
                 "the run stops. Choose From scratch explicitly to rebuild."
         )
-        run_row = QHBoxLayout()
-        run_row.setContentsMargins(0, 0, 0, 0)
-        run_row.addWidget(self.resume_mode_combo, 1)
-        run_row.addStretch(1)
-        param_form.addRow("Skip completed steps:", _wrap_layout(run_row))
+        mt_row.addSpacing(8)
+        mt_row.addWidget(QLabel("Skip completed steps:"))
+        mt_row.addWidget(self.resume_mode_combo, 1)
+        for combo in (self.mafft_mode_combo, self.trimal_mode_combo, self.resume_mode_combo):
+            combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            combo.setMinimumContentsLength(12)
+            combo.setMinimumWidth(150)
+            combo.view().setMinimumWidth(_combo_text_width(combo))
 
         # Size each dropdown to its longest option text. The bootstrap
         # dropdown is capped so its row (mode + replicates + threads) still
@@ -292,7 +342,6 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.bootstrap_mode_combo.setFixedWidth(
             min(_combo_text_width(self.bootstrap_mode_combo), 240)
         )
-        self.resume_mode_combo.setFixedWidth(_combo_text_width(self.resume_mode_combo))
 
         self.add_content_widget(param_group)
         self.content_area.addStretch()
@@ -345,6 +394,102 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self._iqtree_timer.timeout.connect(self._update_iqtree_progress)
         # Consistent status-bar button widths across the app's tabs
         unify_status_button_sizes(self)
+        for edit in (self.excel_path_edit, self.output_dir_edit, self.email_edit):
+            edit.textChanged.connect(self._schedule_resume_check)
+        for combo in (
+            self.sheet_name_combo, self.strain_column_combo, self.mafft_mode_combo,
+            self.trimal_mode_combo, self.bootstrap_mode_combo, self.resume_mode_combo,
+        ):
+            combo.currentTextChanged.connect(self._schedule_resume_check)
+        self.bootstrap_spin.valueChanged.connect(self._schedule_resume_check)
+        self.threads_spin.valueChanged.connect(self._schedule_resume_check)
+        self.gene_list.itemChanged.connect(self._schedule_resume_check)
+
+    def _current_project(self):
+        return ProjectInput(
+            excel_path=self.excel_path_edit.text().strip(),
+            sheet_name=self.sheet_name_combo.currentText().strip() or "Sheet1",
+            strain_column=self.strain_column_combo.currentText().strip(),
+            gene_columns=self._checked_gene_columns(),
+            output_dir=self.output_dir_edit.text().strip(),
+            ncbi_email=self.email_edit.text().strip(),
+            mafft_mode=self.mafft_mode_combo.currentData(),
+            trimal_mode=self.trimal_mode_combo.currentData(),
+            iqtree_bootstrap=self.bootstrap_spin.value(),
+            iqtree_bootstrap_mode=self.bootstrap_mode_combo.currentData(),
+            threads=str(self.threads_spin.value()),
+            keep_intermediates=True,
+            resume_mode=self.resume_mode_combo.currentData(),
+        )
+
+    def _schedule_resume_check(self):
+        if self._loading or self.property("taskClosing"):
+            return
+        self._resume_revision += 1
+        self._resume_timer.stop()
+        enabled = self.resume_mode_combo.currentData() != "scratch"
+        if self._resume_dialog is not None:
+            self._resume_dialog.close()
+        if not enabled:
+            self._resume_check_result = ""
+            self._last_resume_notice = None
+        elif not self._workflow_running:
+            self._resume_check_result = "Checking reuse…"
+            self._resume_timer.start(400)
+
+    def _start_resume_check(self):
+        if (self._workflow_running or self._resume_check_thread is not None
+                or self.resume_mode_combo.currentData() == "scratch"):
+            return
+        thread = _ResumeCheckThread(self._current_project(), self._resume_revision, self)
+        self._resume_check_thread = thread
+        thread.finished.connect(self._on_resume_check_finished)
+        thread.start()
+
+    @skip_when_closing
+    def _on_resume_check_finished(self):
+        thread = self._resume_check_thread
+        if thread is None or self.sender() is not thread:
+            return
+        self._resume_check_thread = None
+        if thread.revision == self._resume_revision and not self._workflow_running:
+            self._resume_check_result = thread.result
+            self._show_resume_result(thread.result)
+        elif not self._workflow_running and self.resume_mode_combo.currentData() != "scratch":
+            if not self._resume_timer.isActive():
+                self._resume_timer.start(0)
+        thread.deleteLater()
+
+    def _show_resume_result(self, message):
+        notice = (self.resume_mode_combo.currentData(), message)
+        if notice == self._last_resume_notice:
+            return
+        self._last_resume_notice = notice
+        if self._resume_dialog is None:
+            self._resume_dialog = QMessageBox(self)
+            self._resume_dialog.setWindowTitle("Reuse precheck")
+            self._resume_dialog.setTextFormat(Qt.TextFormat.PlainText)
+            self._resume_dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
+        self._resume_dialog.setIcon(
+            QMessageBox.Icon.Information if message.startswith("Reuse ready:")
+            else QMessageBox.Icon.Warning
+        )
+        self._resume_dialog.setText(message)
+        self._resume_dialog.setInformativeText(
+            "Read-only precheck. Files are verified again when the workflow starts."
+        )
+        self._resume_dialog.show()
+
+    def shutdown(self):
+        if self._resume_dialog is not None:
+            self._resume_dialog.close()
+        self._resume_timer.stop()
+        self._resume_revision += 1
+        if self._resume_check_thread is not None:
+            self._resume_check_thread.finished.disconnect(self._on_resume_check_finished)
+            park_qthread(self._resume_check_thread)
+            self._resume_check_thread = None
+        super().shutdown()
 
     def showEvent(self, event) -> None:
         """Keep the gene list the same height as the sibling input fields.
@@ -451,6 +596,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             self.log_message(str(exc), "ERROR")
         finally:
             self._loading = False
+            self._schedule_resume_check()
 
     def _populate_gene_columns(self, gene_names: list[str]) -> None:
         self.gene_columns = list(gene_names)
@@ -554,6 +700,8 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     # Button state management
     # ------------------------------------------------------------------
     def _set_running_state(self, running: bool) -> None:
+        self._workflow_running = running
+        self._schedule_resume_check()
         if not running:
             self._stop_iqtree_progress()
         self._run_btn.setVisible(not running)
@@ -846,21 +994,7 @@ and one or more <b>gene columns</b>.</p>
         self.log_area.append(f"{sep}")
         self.log_area.append("")
 
-        project = ProjectInput(
-            excel_path=excel_path,
-            sheet_name=sheet_name,
-            strain_column=strain_column,
-            gene_columns=checked_genes,
-            output_dir=output_dir,
-            ncbi_email=ncbi_email,
-            mafft_mode=self.mafft_mode_combo.currentData(),
-            trimal_mode=self.trimal_mode_combo.currentData(),
-            iqtree_bootstrap=self.bootstrap_spin.value(),
-            iqtree_bootstrap_mode=self.bootstrap_mode_combo.currentData(),
-            threads=str(self.threads_spin.value()),
-            keep_intermediates=True,
-            resume_mode=self.resume_mode_combo.currentData(),
-        )
+        project = self._current_project()
         commands: list[str] = []
         runner = OneStepMultiGenePhyRunner(
             adapters=build_default_tool_adapters(commands=commands, log_dir=output_dir),
@@ -934,7 +1068,11 @@ expected workbook layout.</li>
 <li><b>Skip completed steps</b> &mdash; resume a previous run in the same output folder:
 <p>Reuse requires matching inputs and verified artifact hashes. Missing, changed, or older
 unverified artifacts stop the run with an explanation. Choose From scratch explicitly
-to rebuild them. Tree-only runs allow changing bootstrap settings and threads without
+to rebuild them. Selecting a reuse mode runs a read-only background precheck;
+The result appears in a dialog explaining which steps will be skipped or why reuse
+is unavailable. Input and parameter changes automatically recheck reuse. Identical
+results are not shown repeatedly. Files are checked again at run start.
+Tree-only runs allow changing bootstrap settings and threads without
 repeating earlier steps. Gene display names are mapped to safe unique IDs;
 the original-name mapping is saved in <code>run_manifest.json</code>.</p>
 <b>From scratch</b> (default, full pipeline), <b>From align/trim</b> (reuse
