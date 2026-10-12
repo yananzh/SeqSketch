@@ -279,10 +279,12 @@ def test_sanger_assembly_example_fills_both_inputs(qapp):
     tab.deleteLater()
 
 
-def test_sanger_viewer_example_fills_file_edit(qapp):
+def test_sanger_viewer_example_fills_file_edit(qapp, monkeypatch):
     from modules.sanger_viewer_tab import SangerViewerTab
 
     tab = SangerViewerTab()
+    loads = []
+    monkeypatch.setattr(tab, "_load", lambda: loads.append(tab._file_edit.text()))
     btn = _find_button(tab, "Example")
     assert btn is not None, "Sanger Viewer tab has no Example button"
     btn.click()
@@ -290,6 +292,8 @@ def test_sanger_viewer_example_fills_file_edit(qapp):
     assert path != "", "file path not filled"
     assert os.path.isfile(path), f"staged file does not exist: {path}"
     assert path.lower().endswith(".ab1")
+    assert loads == [path]
+    tab.deleteLater()
 
 
 # ── FASTA Tools tabs Example buttons ─────────────────────────────────────────

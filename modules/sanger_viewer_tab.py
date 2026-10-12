@@ -1,15 +1,17 @@
-"""Sanger Chromatogram Viewer Tab — AB1 chromatogram display with sequence range copy."""
+"""Sanger Chromatogram Viewer Tab — AB1 chromatogram display with selected-range FASTA export."""
 
 from __future__ import annotations
 
+import os
+import tempfile
+from datetime import datetime
 from typing import List, Optional
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import QObject, Qt, QThread, QUrl, pyqtSignal
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
-    QApplication,
     QCheckBox,
     QFileDialog,
     QGroupBox,
@@ -21,16 +23,16 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QSpinBox,
     QStackedWidget,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from modules.fasta_processor import FASTAProcessor
 from utils.common_components import (
-    apply_transparent_text_edit_background,
     park_qthread,
     stop_worker_object,
     unify_status_button_sizes,
+    validate_output_path,
 )
 from utils.example_data import stage_example
 from utils.task_lifecycle import skip_when_closing
@@ -95,13 +97,14 @@ class _LoadWorker(QObject):
 
 
 class SangerViewerTab(QWidget):
-    """Displays an AB1 Sanger chromatogram and lets the user copy sequence ranges."""
+    """Displays an AB1 Sanger chromatogram and exports selected sequence ranges as FASTA."""
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._abi_data: Optional[dict] = None
         self._sequence: str = ""
         self._quality: List[int] = []
+        self._last_output_path = ""
         self._thread: Optional[QThread] = None
         self._worker: Optional[_LoadWorker] = None
         self.setAcceptDrops(True)
@@ -131,14 +134,9 @@ class SangerViewerTab(QWidget):
         file_row.addWidget(self._btn_browse)
         outer.addLayout(file_row)
 
-        # --- Options row ---
-        opt_row = QHBoxLayout()
         self._chk_quality = QCheckBox("Show Phred quality track")
         self._chk_quality.setChecked(True)
         self._chk_quality.setToolTip("Toggle the Phred quality bar chart below the chromatogram")
-        opt_row.addWidget(self._chk_quality)
-        opt_row.addStretch()
-        outer.addLayout(opt_row)
 
         # --- Matplotlib canvas inside a horizontal scroll area ---
         self._fig = Figure()
@@ -178,50 +176,55 @@ class SangerViewerTab(QWidget):
         plot_vbox.addWidget(self._plot_stack)
         outer.addWidget(plot_group, 1)
 
-        # --- Called sequence display + range copy ---
+        # --- Selected called-sequence range and FASTA output ---
         seq_group = QGroupBox("Called Sequence (5\u2019 to 3\u2019)")
         seq_vbox = QVBoxLayout(seq_group)
-        self._seq_edit = QTextEdit()
-        self._seq_edit.setReadOnly(True)
-        self._seq_edit.setFont(QFont("Courier New", 10))
-        apply_transparent_text_edit_background(self._seq_edit)
-        self._seq_edit.setMaximumHeight(90)
-        seq_vbox.addWidget(self._seq_edit)
+        output_row = QHBoxLayout()
+        output_row.addWidget(QLabel("Output File:"))
+        self._output_edit = QLineEdit()
+        self._output_edit.setPlaceholderText("Leave blank to auto-generate an output FASTA file")
+        self._output_edit.setToolTip("Save the selected range as FASTA; an empty path uses the AB1 input folder")
+        output_row.addWidget(self._output_edit, 1)
+        self._btn_browse_output = QPushButton("Browse")
+        self._btn_browse_output.clicked.connect(self._browse_output_file)
+        output_row.addWidget(self._btn_browse_output)
+        seq_vbox.addLayout(output_row)
 
         range_row = QHBoxLayout()
-        range_row.addWidget(QLabel("Copy range \u2014 Start:"))
+        range_row.addWidget(QLabel("Range \u2014 Start:"))
         self._spin_start = QSpinBox()
         self._spin_start.setMinimum(1)
         self._spin_start.setMaximum(9999)
         self._spin_start.setValue(1)
-        self._spin_start.setToolTip("First base position to copy (1-based)")
+        self._spin_start.setToolTip("First base position to save (1-based, inclusive)")
         range_row.addWidget(self._spin_start)
         range_row.addWidget(QLabel("End:"))
         self._spin_end = QSpinBox()
         self._spin_end.setMinimum(1)
         self._spin_end.setMaximum(9999)
         self._spin_end.setValue(1)
-        self._spin_end.setToolTip("Last base position to copy (1-based)")
+        self._spin_end.setToolTip("Last base position to save (1-based, inclusive)")
         range_row.addWidget(self._spin_end)
-        self._btn_copy = QPushButton("Copy to Clipboard")
-        self._btn_copy.setToolTip("Copy the selected base range to the clipboard")
-        self._btn_copy.setEnabled(False)
-        range_row.addWidget(self._btn_copy)
+        range_row.addSpacing(16)
+        range_row.addWidget(self._chk_quality)
         self._btn_export_fasta = QPushButton("Save to File")
         self._btn_export_fasta.setToolTip(
-            "Save the selected Copy Range (Start–End) as a FASTA file"
+            "Save the selected range (Start–End, inclusive) as a FASTA file"
         )
+        self._btn_export_fasta.setProperty("accentButton", True)
         self._btn_export_fasta.setEnabled(False)
-        range_row.addWidget(self._btn_export_fasta)
+        self._spin_start.setEnabled(False)
+        self._spin_end.setEnabled(False)
         range_row.addStretch()
         seq_vbox.addLayout(range_row)
         outer.addWidget(seq_group)
 
-        # --- Status bar + Export Plot / Clear / Help ---
+        # --- Status bar + sequence/plot exports, result folder, clear and help ---
         self.status_layout = QHBoxLayout()
         self._status_label = QLabel("Load an AB1 file to begin")
         self.status_layout.addWidget(self._status_label)
         self.status_layout.addStretch()
+        self.status_layout.addWidget(self._btn_export_fasta)
         self._btn_export_plot = QPushButton("Export Plot")
         self._btn_export_plot.setProperty("accentButton", True)
         self._btn_export_plot.setToolTip("Save the current chromatogram as an image file")
@@ -229,6 +232,11 @@ class SangerViewerTab(QWidget):
         self._btn_export_plot.style().unpolish(self._btn_export_plot)
         self._btn_export_plot.style().polish(self._btn_export_plot)
         self.status_layout.addWidget(self._btn_export_plot)
+        self._btn_result_folder = QPushButton("Result Folder")
+        self._btn_result_folder.setProperty("accentButton", True)
+        self._btn_result_folder.setEnabled(False)
+        self._btn_result_folder.clicked.connect(self._open_result_folder)
+        self.status_layout.addWidget(self._btn_result_folder)
         self._btn_clear = QPushButton("Clear")
         self._btn_clear.setToolTip("Clear the loaded chromatogram and reset the view")
         self.status_layout.addWidget(self._btn_clear)
@@ -245,7 +253,6 @@ class SangerViewerTab(QWidget):
         self._btn_export_plot.clicked.connect(self._export_plot)
         self._btn_clear.clicked.connect(self._clear_all)
         self._btn_export_fasta.clicked.connect(self._export_fasta)
-        self._btn_copy.clicked.connect(self._copy_range)
         self._btn_help.clicked.connect(self._show_help)
         self._chk_quality.stateChanged.connect(lambda _: self._draw_chromatogram())
 
@@ -303,7 +310,11 @@ class SangerViewerTab(QWidget):
             QMessageBox.warning(self, "No File", "Please select an AB1 file first.")
             return
         self._btn_browse.setEnabled(False)
-        self._btn_copy.setEnabled(False)
+        self._btn_export_fasta.setEnabled(False)
+        self._spin_start.setEnabled(False)
+        self._spin_end.setEnabled(False)
+        self._last_output_path = ""
+        self._btn_result_folder.setEnabled(False)
         self._btn_export_plot.setEnabled(False)
         self._set_status("Loading\u2026")
 
@@ -349,15 +360,12 @@ class SangerViewerTab(QWidget):
         self._spin_end.setMaximum(n)
         self._spin_start.setValue(1)
         self._spin_end.setValue(n)
-        self._btn_copy.setEnabled(True)
+        self._spin_start.setEnabled(True)
+        self._spin_end.setEnabled(True)
+        self._last_output_path = ""
+        self._btn_result_folder.setEnabled(False)
         self._btn_export_fasta.setEnabled(True)
         self._btn_export_plot.setEnabled(True)
-
-        lines: List[str] = []
-        for s in range(0, n, 60):
-            chunk = sequence[s : s + 60]
-            lines.append(f"{s + 1:>5}  {chunk}")
-        self._seq_edit.setPlainText("\n".join(lines))
 
         self._draw_chromatogram()
         self._plot_stack.setCurrentIndex(1)  # show the chromatogram
@@ -506,34 +514,74 @@ class SangerViewerTab(QWidget):
     # Export / clear helpers
     # ------------------------------------------------------------------
 
+    def _browse_output_file(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save selected sequence", self._output_edit.text() or "sanger_sequence.fasta",
+            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
+        )
+        if path:
+            self._output_edit.setText(os.path.normpath(path))
+
+    def _open_result_folder(self) -> None:
+        if self._last_output_path and os.path.isfile(self._last_output_path):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(self._last_output_path)))
+
     def _export_fasta(self) -> None:
-        """Export the sequence within the selected Copy Range as a FASTA file."""
+        """Save the selected 1-based inclusive range without displaying sequence text."""
         if not self._sequence:
             QMessageBox.warning(self, "Export Error", "Load an AB1 file first.")
             return
         start = self._spin_start.value()
         end = self._spin_end.value()
         if start > end:
+            self._set_status("Error: Invalid range")
             QMessageBox.warning(self, "Invalid Range", "Start must be \u2264 End.")
             return
         selected = self._sequence[start - 1 : end]
-        if not selected:
+        path = self._output_edit.text().strip()
+        if not path:
+            input_path = self._file_edit.text().strip()
+            if not input_path:
+                QMessageBox.warning(self, "Export Error", "Load an AB1 file first.")
+                return
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            path = os.path.join(os.path.dirname(os.path.abspath(input_path)), f"sanger_{stamp}.fasta")
+        path = os.path.abspath(path)
+        if os.path.normcase(os.path.realpath(path)) == os.path.normcase(
+            os.path.realpath(self._file_edit.text().strip())
+        ):
+            self._set_status("Error: Output path matches the input file")
+            QMessageBox.warning(self, "Export Error", "Choose an output file different from the AB1 input.")
             return
-        path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save to File",
-            "sanger_sequence.fasta",
-            "FASTA Files (*.fasta *.fa);;All Files (*)",
-        )
-        if path:
-            try:
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(f">sanger_read range={start}-{end} len={len(selected)}\n")
-                    for i in range(0, len(selected), 60):
-                        f.write(selected[i : i + 60] + "\n")
-                self._set_status(f"FASTA saved: {path}")
-            except Exception as e:
-                QMessageBox.warning(self, "Export Error", str(e))
+        valid, error = validate_output_path(path)
+        if not valid:
+            self._set_status("Error: Invalid output path")
+            QMessageBox.warning(self, "Export Error", error)
+            return
+        processor = FASTAProcessor()
+        processor.parse_text(f">sanger_read range={start}-{end} len={len(selected)}\n{selected}\n")
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                dir=os.path.dirname(path), suffix=".fasta", delete=False
+            ) as temporary:
+                temporary_path = temporary.name
+            if not processor.save_file(temporary_path):
+                raise OSError("Cannot write the selected sequence to FASTA.")
+            os.replace(temporary_path, path)
+        except OSError as exc:
+            self._set_status("Error: Cannot save FASTA")
+            QMessageBox.warning(self, "Export Error", str(exc))
+            return
+        finally:
+            if temporary_path and os.path.isfile(temporary_path):
+                os.remove(temporary_path)
+        self._output_edit.setText(path)
+        self._output_edit.setToolTip(path)
+        self._last_output_path = path
+        self._btn_result_folder.setEnabled(True)
+        self._status_label.setToolTip(path)
+        self._set_status(f"FASTA saved: {os.path.basename(path)}")
 
     def _export_plot(self) -> None:
         """Save the current chromatogram figure as an image file."""
@@ -559,10 +607,16 @@ class SangerViewerTab(QWidget):
         self._sequence = ""
         self._quality = []
         self._file_edit.clear()
-        self._seq_edit.clear()
-        self._btn_copy.setEnabled(False)
+        self._output_edit.clear()
+        self._last_output_path = ""
+        self._btn_result_folder.setEnabled(False)
+        self._spin_start.setEnabled(False)
+        self._spin_end.setEnabled(False)
+        self._status_label.setToolTip("")
         self._btn_export_fasta.setEnabled(False)
         self._btn_export_plot.setEnabled(False)
+        self._spin_start.setMaximum(1)
+        self._spin_end.setMaximum(1)
         self._spin_start.setValue(1)
         self._spin_end.setValue(1)
         self._fig.clear()
@@ -589,7 +643,7 @@ class SangerViewerTab(QWidget):
             "<p><b>What does this tool do?</b><br>"
             "It displays Sanger sequencing AB1 trace files as a scrollable"
             " chromatogram. You can inspect the raw fluorescence traces, review"
-            " Phred quality scores, and copy sequence ranges to the clipboard"
+            " Phred quality scores, and save selected sequence ranges as FASTA files"
             " for downstream use.</p>"
             "<h3>Quick Start</h3>"
             "<ol>"
@@ -597,7 +651,7 @@ class SangerViewerTab(QWidget):
             "<li>The chromatogram loads automatically with base calls and quality data</li>"
             "<li>Click <b>Export Plot</b> to save the chromatogram as an image file</li>"
             "<li>Toggle the <b>Phred quality track</b> to show or hide quality bars</li>"
-            "<li>Set Start / End positions and click <b>Copy to Clipboard</b> to extract a subsequence</li>"
+            "<li>Set Start / End positions, choose an <b>Output File</b>, and click <b>Save to File</b> to export the selected range</li>"
             "</ol>"
             "<h3>Chromatogram Colours</h3>"
             "<table border='0' cellpadding='4' cellspacing='2'>"
@@ -616,11 +670,12 @@ class SangerViewerTab(QWidget):
             "<tr><td style='color:#d62728'><b>Red &lt; 20</b></td>"
             "<td>Low quality &mdash; base call may be unreliable; consider trimming</td></tr>"
             "</table>"
-            "<h3>Copying Sequence Ranges</h3>"
+            "<h3>Saving Sequence Ranges</h3>"
             "<ul>"
             "<li>Positions are <b>1-based</b> (the first base is position 1)</li>"
             "<li>Start must be &le; End</li>"
-            "<li>The copied sequence is plain text &mdash; paste it into any other tool or file</li>"
+            "<li>Leave Output File blank to generate a FASTA file beside the AB1 input; <b>Result Folder</b> opens its location.</li>"
+            "<li>Both endpoints are included; the saved FASTA header records the selected range and length</li>"
             "</ul>"
             "<h3>Tips</h3>"
             "<ul>"
@@ -655,22 +710,6 @@ class SangerViewerTab(QWidget):
         layout.addWidget(ok_button)
         dialog.setLayout(layout)
         dialog.exec()
-
-    # ------------------------------------------------------------------
-    # Clipboard
-    # ------------------------------------------------------------------
-
-    def _copy_range(self) -> None:
-        start = self._spin_start.value()
-        end = self._spin_end.value()
-        if start > end:
-            QMessageBox.warning(self, "Invalid Range", "Start must be \u2264 End.")
-            return
-        selected = self._sequence[start - 1 : end]
-        if not selected:
-            return
-        QApplication.clipboard().setText(selected)
-        self._set_status(f"Copied {len(selected)} bases (positions {start}\u2013{end})")
 
     def _set_status(self, msg: str) -> None:
         self._status_label.setText(msg)
