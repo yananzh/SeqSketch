@@ -19,13 +19,25 @@ import os
 import re
 import tempfile
 
-from PyQt6.QtCore import QRectF, Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QColor, QDragEnterEvent, QDropEvent, QPainter, QPixmap
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QEvent,
+    QObject,
+    QPointF,
+    QRectF,
+    Qt,
+    QThread,
+    QTimer,
+    pyqtSignal,
+)
+from PyQt6.QtGui import QColor, QDragEnterEvent, QDropEvent, QPainter, QPixmap, QWheelEvent
 from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtSvgWidgets import QGraphicsSvgItem
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
+    QGraphicsItem,
     QGraphicsScene,
     QGraphicsView,
     QGroupBox,
@@ -34,9 +46,11 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QSplitter,
     QStackedWidget,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -149,15 +163,18 @@ def _parse_tip_mapping_file(file_path: str) -> dict:
             df = pd.read_excel(file_path, header=None)
             rows = df.values.tolist()
         elif ext in (".csv", ".tsv", ".txt"):
+            import csv
+
             delim = "\t" if ext in (".tsv", ".txt") else ","
-            with open(file_path, "r", encoding="utf-8-sig") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
+            with open(file_path, "r", encoding="utf-8-sig", newline="") as f:
+                for line_number, parts in enumerate(csv.reader(f, delimiter=delim), 1):
+                    if (not parts or (len(parts) == 1 and not parts[0].strip())
+                            or parts[0].strip().startswith("#")):
                         continue
-                    parts = line.split(delim)
                     if len(parts) >= 2:
                         rows.append([parts[0].strip(), parts[1].strip()])
+                    else:
+                        raise ValueError(f"Line {line_number}: expected two columns.")
         else:
             raise ValueError(f"Unsupported format: {ext}. Use CSV, TSV, or Excel.")
     except Exception as e:
@@ -171,12 +188,35 @@ def _parse_tip_mapping_file(file_path: str) -> dict:
         old_id = str(row[0]).strip() if row[0] is not None else ""
         new_id = str(row[1]).strip() if row[1] is not None else ""
         if old_id and new_id:
+            if old_id in mapping:
+                raise ValueError(f"Duplicate source name in mapping: {old_id}")
             mapping[old_id] = new_id
+        else:
+            raise ValueError("Mapping rows must contain two non-empty names.")
 
     if not mapping:
         raise ValueError("No valid mappings found (need two non-empty columns per row).")
 
     return mapping
+
+
+def _mapping_summary(names, mapping):
+    """Validate renamed tip identities and report unused mapping entries."""
+    from collections import Counter
+
+    renamed = [mapping.get(name, name) for name in names]
+    duplicates = sorted(name for name, count in Counter(renamed).items() if count > 1)
+    if duplicates:
+        raise ValueError("Duplicate tip names after mapping: " + ", ".join(duplicates))
+    matched = set(names) & mapping.keys()
+    unused = sorted(mapping.keys() - set(names))
+    unmapped = sorted(set(names) - mapping.keys())
+    summary = f"Mapping: {len(matched)}/{len(names)} tips matched; {len(unused)} unused entries"
+    if unused:
+        summary += ": " + ", ".join(unused)
+    if unmapped:
+        summary += "; unchanged tips: " + ", ".join(unmapped)
+    return summary
 
 
 # ---------------------------------------------------------------------------
@@ -277,14 +317,26 @@ def _build_draw_kwargs(params: dict, tre) -> dict:
     if kwargs["layout"] == "c":
         kwargs["edge_type"] = "c"
 
-    # Size (fixed at 600 — enough for most trees)
-    kwargs["width"] = 600
-    kwargs["height"] = 600
+    # Reserve space for the longest tip label and one row per rectangular tip.
+    font_size = p.get("tip_label_size", 12)
+    spacing = max(p.get("leaf_spacing", 24), font_size + 6)
+    label_gap = p.get("label_gap", 10)
+    label_width = max((len(name) for name in tre.get_tip_labels()), default=0) * font_size * 0.65
+    auto_width = max(600, math.ceil(400 + label_width + label_gap))
+    auto_height = max(400, math.ceil(tre.ntips * spacing + 100))
+    if kwargs["layout"] != "r":
+        auto_width = auto_height = max(600, math.ceil(
+            tre.ntips * spacing / math.pi + 2 * (label_width + label_gap) + 100
+        ))
+    kwargs["width"] = p.get("canvas_width", 0) or auto_width
+    kwargs["height"] = p.get("canvas_height", 0) or auto_height
 
     # Tip labels
     kwargs["tip_labels"] = True
     tip_font_size = p.get("tip_label_size", 12)
-    kwargs["tip_labels_style"] = {"font-size": f"{tip_font_size}px"}
+    kwargs["tip_labels_style"] = {
+        "font-size": f"{tip_font_size}px", "anchor-shift": label_gap,
+    }
 
     # Tip label alignment (only meaningful for rectangular layouts)
     if p.get("tip_labels_align", False):
@@ -330,6 +382,7 @@ def _get_support_labels(tre) -> list:
                 label = str(node.support).removesuffix(".0")
             labels.append(label or "")
     return labels
+
 
 
 # ---------------------------------------------------------------------------
@@ -420,6 +473,8 @@ class _ExportThread(QThread):
 class _ZoomableGraphicsView(QGraphicsView):
     """QGraphicsView with scroll-wheel zoom and click-drag pan."""
 
+    zoomChanged = pyqtSignal(float)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -430,23 +485,76 @@ class _ZoomableGraphicsView(QGraphicsView):
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
 
     def wheelEvent(self, event):
-        factor = 1.15
-        if event.angleDelta().y() < 0:
-            factor = 1.0 / factor
-        self.scale(factor, factor)
+        delta = event.angleDelta().y()
+        if delta:
+            self._zoom_by(1.15 ** (delta / 120), under_mouse=True)
+        event.accept()
+
+    def _zoom_by(self, factor, under_mouse=False):
+        current = self.transform().m11()
+        target = min(100.0, max(0.01, current * factor))
+        anchor = self.transformationAnchor()
+        if not under_mouse:
+            self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
+        self.scale(target / current, target / current)
+        self.setTransformationAnchor(anchor)
+        self.zoomChanged.emit(self.transform().m11())
+
+    def zoom_in(self):
+        self._zoom_by(1.25)
+
+    def zoom_out(self):
+        self._zoom_by(1 / 1.25)
+
+    def actual_size(self):
+        """Use one scene unit per viewport pixel and retain the view center."""
+        center = self.mapToScene(self.viewport().rect().center())
+        self.resetTransform()
+        self.centerOn(center)
+        self.zoomChanged.emit(self.transform().m11())
 
     def fit_to_window(self):
         self.fitInView(self.scene().sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.zoomChanged.emit(self.transform().m11())
 
 
 # ---------------------------------------------------------------------------
 # Main Tab
 # ---------------------------------------------------------------------------
+class _ParameterWheelFilter(QObject):
+    """Let wheel events reach the scroll area without changing parameters."""
+
+    def __init__(self, scroll_area):
+        super().__init__(scroll_area)
+        self._scroll_area = scroll_area
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.Wheel:
+            viewport = self._scroll_area.viewport()
+            forwarded = QWheelEvent(
+                QPointF(viewport.mapFromGlobal(event.globalPosition().toPoint())),
+                event.globalPosition(), event.pixelDelta(), event.angleDelta(),
+                event.buttons(), event.modifiers(), event.phase(), event.inverted(),
+            )
+            QCoreApplication.sendEvent(viewport, forwarded)
+            event.accept()
+            return True
+        return super().eventFilter(watched, event)
+
+
 class ToytreeVisualizationTab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("Tree Visualization (Toytree)", "file")
         self._render_thread: _RenderThread | None = None
         self._export_thread: _ExportThread | None = None
+        self._render_pending = False
+        self._resetting = False
+        self._displayed_file = None
+        self._mapping_status = ""
+        self._redraw_timer = QTimer(self)
+        self._redraw_timer.setSingleShot(True)
+        self._redraw_timer.setInterval(300)
+        self._redraw_timer.timeout.connect(self._draw)
         self._build_ui()
         self._show_placeholder()
         self.log_group.hide()
@@ -461,7 +569,12 @@ class ToytreeVisualizationTab(BaseTabWidget):
         ctrl_vbox = QVBoxLayout(ctrl_outer)
         ctrl_vbox.setContentsMargins(8, 8, 8, 8)
         ctrl_vbox.setSpacing(6)
-        splitter.addWidget(ctrl_outer)
+        ctrl_scroll = QScrollArea()
+        ctrl_scroll.setWidgetResizable(True)
+        ctrl_scroll.setMinimumWidth(290)
+        ctrl_scroll.setMaximumWidth(370)
+        ctrl_scroll.setWidget(ctrl_outer)
+        splitter.addWidget(ctrl_scroll)
 
         # ── Input ──────────────────────────────────────────────────
         grp_file = QGroupBox("Input")
@@ -473,16 +586,6 @@ class ToytreeVisualizationTab(BaseTabWidget):
         self._file_edit.fileDropped.connect(self._on_file_selected)
         gl.addWidget(self._file_edit)
 
-        # Tip name mapping file (optional, drag & drop)
-        self._mapping_edit = _DropLineEdit()
-        self._mapping_edit.setPlaceholderText("Drop a mapping file (optional)")
-        self._mapping_edit.setToolTip(
-            "Two-column file: old_name,new_name — replaces tip labels in the tree (CSV/TSV, optional)"
-        )
-        self._mapping_edit.fileDropped.connect(self._on_mapping_selected)
-        self._mapping_edit.textChanged.connect(self._on_param_changed)
-        gl.addWidget(self._mapping_edit)
-
         btn_row = QHBoxLayout()
         browse_btn = QPushButton("Browse")
         browse_btn.clicked.connect(self._browse_file)
@@ -491,6 +594,36 @@ class ToytreeVisualizationTab(BaseTabWidget):
         btn_row.addWidget(browse_btn, 1)
         btn_row.addWidget(file_example_btn, 1)
         gl.addLayout(btn_row)
+        self._mapping_toggle = QToolButton()
+        self._mapping_toggle.setText("Tip name mapping (optional)")
+        self._mapping_toggle.setCheckable(True)
+        self._mapping_toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self._mapping_toggle.setArrowType(Qt.ArrowType.RightArrow)
+        self._mapping_toggle.setToolTip("Expand or collapse mapping settings; keeps the selected mapping")
+        gl.addWidget(self._mapping_toggle)
+        self._mapping_area = QWidget()
+        mapping_layout = QVBoxLayout(self._mapping_area)
+        mapping_layout.setContentsMargins(0, 0, 0, 0)
+        self._mapping_edit = _DropLineEdit()
+        self._mapping_edit.setPlaceholderText("Mapping file (drop or Browse)")
+        self._mapping_edit.setToolTip("Two columns without a header: old_name,new_name")
+        self._mapping_edit.fileDropped.connect(self._on_mapping_selected)
+        self._mapping_edit.textChanged.connect(self._on_mapping_path_changed)
+        mapping_layout.addWidget(self._mapping_edit)
+        self._mapping_browse_btn = QPushButton("Browse")
+        self._mapping_browse_btn.setToolTip("Choose a tip name mapping file")
+        self._mapping_browse_btn.clicked.connect(self._browse_mapping)
+        mapping_layout.addWidget(self._mapping_browse_btn)
+        mapping_hint = QLabel("Two columns, no header: old_name,new_name\nCSV / TSV / TXT / Excel")
+        mapping_hint.setWordWrap(True)
+        mapping_layout.addWidget(mapping_hint)
+        self._mapping_feedback = QLabel("")
+        self._mapping_feedback.setWordWrap(True)
+        self._mapping_feedback.setTextFormat(Qt.TextFormat.PlainText)
+        mapping_layout.addWidget(self._mapping_feedback)
+        gl.addWidget(self._mapping_area)
+        self._mapping_area.hide()
+        self._mapping_toggle.toggled.connect(self._toggle_mapping_area)
         ctrl_vbox.addWidget(grp_file)
 
         # ── Tree Options ───────────────────────────────────────────
@@ -501,8 +634,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
         # layout row
         lo_row = QHBoxLayout()
         lbl_layout = QLabel("Layout:")
-        lbl_layout.setFixedWidth(80)
-        lo_row.addWidget(lbl_layout)
+        lo_row.addWidget(lbl_layout, 1)
         self._layout_combo = QComboBox()
         self._layout_combo.addItems([
             "Rectangular",
@@ -515,8 +647,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
         # rooting row
         rm_row = QHBoxLayout()
         lbl_rooting = QLabel("Rooting:")
-        lbl_rooting.setFixedWidth(80)
-        rm_row.addWidget(lbl_rooting)
+        rm_row.addWidget(lbl_rooting, 1)
         self._root_method_combo = QComboBox()
         self._root_method_combo.addItems(["None", "Midpoint", "Outgroup"])
         self._root_method_combo.setToolTip(
@@ -528,18 +659,13 @@ class ToytreeVisualizationTab(BaseTabWidget):
         # outgroup row
         og_row = QHBoxLayout()
         lbl_outgroup = QLabel("Outgroup:")
-        lbl_outgroup.setFixedWidth(80)
-        og_row.addWidget(lbl_outgroup)
+        og_row.addWidget(lbl_outgroup, 1)
         self._outgroup_combo = QComboBox()
         self._outgroup_combo.setEditable(True)
         self._outgroup_combo.setEnabled(False)
         self._outgroup_combo.lineEdit().setPlaceholderText("Select a leaf name")
         og_row.addWidget(self._outgroup_combo, 1)
         ol.addLayout(og_row)
-
-        # Uniform height for the Layout/Rooting/Outgroup dropdowns
-        for combo in (self._layout_combo, self._root_method_combo, self._outgroup_combo):
-            combo.setFixedHeight(25)
 
         def _on_root_method_changed(text: str):
             is_og = text == "Outgroup"
@@ -614,7 +740,48 @@ class ToytreeVisualizationTab(BaseTabWidget):
         sl.addLayout(sv_row)
 
         ctrl_vbox.addWidget(grp_style)
+
+        grp_canvas = QGroupBox("Canvas")
+        canvas_controls = QVBoxLayout(grp_canvas)
+        self._canvas_width_spin = QSpinBox()
+        self._canvas_height_spin = QSpinBox()
+        self._leaf_spacing_spin = QSpinBox()
+        self._label_gap_spin = QSpinBox()
+        for label, spin, minimum, maximum, value in (
+            ("Width:", self._canvas_width_spin, 0, 20000, 0),
+            ("Height:", self._canvas_height_spin, 0, 50000, 0),
+            ("Leaf spacing:", self._leaf_spacing_spin, 12, 100, 24),
+            ("Label gap:", self._label_gap_spin, 0, 100, 10),
+        ):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label))
+            spin.setRange(minimum, maximum)
+            spin.setValue(value)
+            spin.setSuffix(" px")
+            row.addWidget(spin)
+            canvas_controls.addLayout(row)
+            spin.valueChanged.connect(self._on_param_changed)
+        for spin in (self._canvas_width_spin, self._canvas_height_spin):
+            spin.setSpecialValueText("Auto")
+            spin.setToolTip("Auto adapts to tip count and label length; otherwise use pixels.")
+        self._leaf_spacing_spin.setToolTip("Minimum tip spacing used by automatic canvas sizing.")
+        numeric_inputs = (
+            self._tip_size_spin, self._node_size_spin, self._edge_width_spin,
+            self._support_size_spin, self._canvas_width_spin, self._canvas_height_spin,
+            self._leaf_spacing_spin, self._label_gap_spin,
+        )
+        input_width = max(140, *(spin.sizeHint().width() for spin in numeric_inputs))
+        aligned_inputs = numeric_inputs + (
+            self._layout_combo, self._root_method_combo, self._outgroup_combo,
+        )
+        input_height = max(widget.sizeHint().height() for widget in aligned_inputs)
+        for widget in aligned_inputs:
+            widget.setFixedSize(input_width, input_height)
+        ctrl_vbox.addWidget(grp_canvas)
         ctrl_vbox.addStretch()
+        self._parameter_wheel_filter = _ParameterWheelFilter(ctrl_scroll)
+        for widget in [ctrl_outer, *ctrl_outer.findChildren(QWidget)]:
+            widget.installEventFilter(self._parameter_wheel_filter)
 
         # ── RIGHT: canvas ──────────────────────────────────────────
         canvas_outer = QWidget()
@@ -627,6 +794,42 @@ class ToytreeVisualizationTab(BaseTabWidget):
         self._scene.setBackgroundBrush(QColor("#ffffff"))
         self._graphics_view = _ZoomableGraphicsView()
         self._graphics_view.setScene(self._scene)
+        self._preview_toolbar = QWidget()
+        self._preview_toolbar.setObjectName("treePreviewToolbar")
+        view_toolbar = QHBoxLayout(self._preview_toolbar)
+        view_toolbar.setContentsMargins(8, 6, 8, 6)
+        view_toolbar.setSpacing(6)
+        self._view_buttons = []
+        for text, tooltip, slot in (
+            ("Fit", "Fit the entire tree in the preview", self._graphics_view.fit_to_window),
+            ("100%", "Show the SVG at its original size", self._graphics_view.actual_size),
+            ("+", "Zoom in", self._graphics_view.zoom_in),
+            ("−", "Zoom out", self._graphics_view.zoom_out),
+        ):
+            button = QToolButton()
+            button.setText(text)
+            button.setFixedHeight(30)
+            button.setFixedWidth(max(
+                30 if text in ("+", "−") else 44,
+                button.fontMetrics().horizontalAdvance(text) + 18,
+            ))
+            button.setToolTip(tooltip)
+            button.setAccessibleName(tooltip)
+            button.clicked.connect(slot)
+            view_toolbar.addWidget(button)
+            self._view_buttons.append(button)
+        self._zoom_label = QLabel()
+        self._zoom_label.setObjectName("treePreviewZoom")
+        self._zoom_label.setMinimumWidth(65)
+        self._zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._zoom_label.setToolTip("Preview zoom; exported image dimensions are unchanged")
+        view_toolbar.addSpacing(6)
+        view_toolbar.addWidget(self._zoom_label)
+        view_toolbar.addStretch()
+        self._graphics_view.zoomChanged.connect(
+            lambda scale: self._zoom_label.setText(f"{scale * 100:.0f}%")
+        )
+        canvas_vbox.addWidget(self._preview_toolbar)
         canvas_vbox.addWidget(self._graphics_view, 1)
 
         splitter.setSizes([340, 760])
@@ -718,10 +921,18 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 </table>
 
 <h3>Canvas Controls</h3>
+<p><b>Width / Height:</b> Auto adapts to tip count and label length, or enter pixels.
+<b>Leaf spacing:</b> minimum spacing for automatic sizing.
+<b>Label gap:</b> distance between tip labels and branches.</p>
+<p>Parameter changes refresh after a short pause. The previous preview stays visible
+while rendering, and updates to the same file preserve zoom and pan.</p>
 <table>
+  <tr><td><b>Fit / 100%</b></td><td>&mdash; fit the tree / show original SVG size</td></tr>
+  <tr><td><b>+ / &minus;</b></td><td>&mdash; zoom in / out around the view center</td></tr>
   <tr><td><b>Scroll wheel</b></td><td>&mdash; zoom in / out</td></tr>
   <tr><td><b>Click &amp; drag</b></td><td>&mdash; pan the view</td></tr>
 </table>
+<p>The preview uses vector SVG graphics, keeping text and branches sharp when zooming.</p>
 
 <h3>Export Formats</h3>
 <table>
@@ -735,9 +946,12 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 <b>mapping file</b> (CSV / TSV / TXT / Excel):</p>
 <table>
   <tr><td><b>Format</b></td><td><code>old_name,new_name</code> — one pair per line</td></tr>
-  <tr><td><b>Drop zone</b></td><td>drag &amp; drop a mapping file, or use the Example button</td></tr>
+  <tr><td><b>Optional area</b></td><td>expand Tip name mapping, then use its Browse button
+    or drag &amp; drop a mapping file. Collapsing the area keeps the mapping active.</td></tr>
 </table>
 <p>Only names listed in the mapping file are changed; others stay as-is.</p>
+<p>The input panel reports matched tips, unused mapping entries and unchanged names.
+Invalid mappings and duplicate resulting names must be corrected before rendering or export.</p>
 
 <h3>Tips</h3>
 <ul>
@@ -759,30 +973,43 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         br = text_item.boundingRect()
         text_item.setPos(-br.width() / 2, -br.height() / 2)
         self._graphics_view.fit_to_window()
+        for button in self._view_buttons:
+            button.setEnabled(False)
+        self._zoom_label.setText("—")
 
-    def _show_svg_bytes(self, svg_bytes: bytes):
-        """Render SVG bytes to QPixmap via QSvgRenderer and display."""
+    def _show_svg_bytes(self, svg_bytes: bytes, preserve_view=False):
+        """Display a vector SVG item without a raster cache at any zoom level."""
         renderer = QSvgRenderer(svg_bytes)
         if not renderer.isValid():
             return
-        # Scale up for crisp rendering
-        default_size = renderer.defaultSize()
-        scale = 2.0
-        w = int(default_size.width() * scale)
-        h = int(default_size.height() * scale)
-        pixmap = QPixmap(w, h)
-        pixmap.fill(QColor("#ffffff"))
-        painter = QPainter(pixmap)
-        renderer.render(painter)
-        painter.end()
+        item = QGraphicsSvgItem()
+        # Shared renderers are not owned by QGraphicsSvgItem; parent it explicitly.
+        renderer.setParent(item)
+        item.setSharedRenderer(renderer)
+        item.setCacheMode(QGraphicsItem.CacheMode.NoCache)
 
+        transform = self._graphics_view.transform()
+        center = self._graphics_view.mapToScene(self._graphics_view.viewport().rect().center())
         self._scene.clear()
-        self._scene.addPixmap(pixmap)
-        self._scene.setSceneRect(QRectF(pixmap.rect()))
-        self._graphics_view.fit_to_window()
+        self._scene.addItem(item)
+        self._scene.setSceneRect(item.boundingRect())
+        if preserve_view:
+            self._graphics_view.setTransform(transform)
+            self._graphics_view.centerOn(center)
+        else:
+            self._graphics_view.fit_to_window()
+        for button in self._view_buttons:
+            button.setEnabled(True)
+        self._graphics_view.zoomChanged.emit(self._graphics_view.transform().m11())
 
     def _clear(self):
         """Clear the canvas and reset all parameters to defaults."""
+        self._resetting = True
+        self._redraw_timer.stop()
+        self._render_pending = False
+        self._cancel_render()
+        self._draw_btn.setEnabled(True)
+        self._displayed_file = None
         self._show_placeholder()
         self._file_edit.clear()
         self._layout_combo.setCurrentIndex(0)
@@ -798,6 +1025,14 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         self._edge_width_spin.setValue(1)
         self._support_size_spin.setValue(9)
         self._mapping_edit.clear()
+        self._mapping_feedback.clear()
+        self._mapping_toggle.setChecked(False)
+        self._mapping_status = ""
+        self._canvas_width_spin.setValue(0)
+        self._canvas_height_spin.setValue(0)
+        self._leaf_spacing_spin.setValue(24)
+        self._label_gap_spin.setValue(10)
+        self._resetting = False
         self.show_status("")
 
     # ------------------------------------------------------------------
@@ -831,8 +1066,33 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 
     def _on_mapping_selected(self, path: str):
         """Handle mapping file dropped onto the mapping edit."""
+        self._mapping_toggle.setChecked(True)
         if self._root_method_combo.currentText() == "Outgroup":
             self._load_leaf_names()
+
+    def _toggle_mapping_area(self, expanded: bool):
+        self._mapping_area.setVisible(expanded)
+        self._mapping_toggle.setArrowType(
+            Qt.ArrowType.DownArrow if expanded else Qt.ArrowType.RightArrow
+        )
+
+    def _on_mapping_path_changed(self):
+        selected = bool(self._mapping_edit.text().strip())
+        self._mapping_toggle.setText(
+            "Tip name mapping (file selected)" if selected else "Tip name mapping (optional)"
+        )
+        self._on_param_changed()
+
+    def _browse_mapping(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open tip name mapping file",
+            "",
+            "Mapping files (*.csv *.tsv *.txt *.xlsx *.xls);;All Files (*)",
+        )
+        if path:
+            self._mapping_edit.setText(path)
+            self._on_mapping_selected(path)
 
     def _on_file_selected(self, path: str):
         """Handle leaf-name loading and tree statistics after file selection."""
@@ -853,6 +1113,8 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 
     def _on_param_changed(self):
         """Auto-redraw when any tree parameter changes, if a tree file is loaded."""
+        if self._resetting:
+            return
         # When in Outgroup mode but no outgroup selected yet, skip the draw
         if (
             self._root_method_combo.currentText() == "Outgroup"
@@ -861,16 +1123,27 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             return
         tree_file = self._file_edit.text().strip()
         if tree_file and os.path.isfile(tree_file):
-            self._draw()
+            self._redraw_timer.start(300)
 
     def _collect_params(self) -> dict:
         mapping = {}
         mapping_path = self._mapping_edit.text().strip()
-        if mapping_path and os.path.isfile(mapping_path):
+        self._mapping_status = ""
+        self._mapping_feedback.clear()
+        if mapping_path:
             try:
+                if not os.path.isfile(mapping_path):
+                    raise ValueError("Mapping file not found: " + mapping_path)
                 mapping = _parse_tip_mapping_file(mapping_path)
-            except (OSError, ValueError):
-                pass  # show_status will be called on draw failure
+                import toytree
+
+                names = toytree.tree(self._file_edit.text().strip()).get_tip_labels()
+                self._mapping_status = _mapping_summary(names, mapping)
+                self._mapping_feedback.setText(self._mapping_status)
+            except (OSError, ValueError, RuntimeError) as exc:
+                self._mapping_toggle.setChecked(True)
+                self._mapping_feedback.setText(f"Mapping error: {exc}")
+                raise ValueError(f"Mapping error: {exc}") from exc
 
         return {
             "layout": self._layout_combo.currentText(),
@@ -886,6 +1159,10 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             "edge_width": float(self._edge_width_spin.value()),
             "support_label_size": self._support_size_spin.value(),
             "dpi": 300,
+            "canvas_width": self._canvas_width_spin.value(),
+            "canvas_height": self._canvas_height_spin.value(),
+            "leaf_spacing": self._leaf_spacing_spin.value(),
+            "label_gap": self._label_gap_spin.value(),
         }
 
     def _load_leaf_names(self):
@@ -902,13 +1179,19 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 
             # Apply tip name mapping so the outgroup combo shows mapped names
             mapping_path = self._mapping_edit.text().strip()
-            if mapping_path and os.path.isfile(mapping_path):
+            if mapping_path:
                 try:
                     mapping = _parse_tip_mapping_file(mapping_path)
+                    summary = _mapping_summary(names, mapping)
+                    self._mapping_feedback.setText(summary)
                     names = [mapping.get(name, name) for name in names]
                     names.sort()
-                except Exception:
-                    pass  # keep original names if mapping parse fails
+                except (OSError, ValueError) as exc:
+                    self._mapping_toggle.setChecked(True)
+                    self._outgroup_combo.clear()
+                    self._mapping_feedback.setText(f"Mapping error: {exc}")
+                    self.show_status(f"Mapping error: {exc}")
+                    return
 
             # Block signals so populating the combo doesn't trigger auto-redraw
             self._outgroup_combo.blockSignals(True)
@@ -924,6 +1207,12 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
     # Draw / Render
     # ------------------------------------------------------------------
     def _draw(self):
+        self._redraw_timer.stop()
+        # Serialize rendering: keep at most one active render and the latest request.
+        if self._render_thread is not None:
+            self._render_pending = True
+            return
+        self._render_pending = False
         tree_file = self._file_edit.text().strip()
         if not tree_file:
             self.show_status("Please select a tree file")
@@ -933,21 +1222,17 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self.show_status("File not found")
             return
 
-        self._cancel_render()
+        try:
+            params = self._collect_params()
+        except (OSError, ValueError, RuntimeError) as exc:
+            self.show_status(str(exc))
+            return
 
         self._draw_btn.setEnabled(False)
         self.show_status("Rendering tree...")
-        self._scene.clear()
-        self._scene.setSceneRect(QRectF(-400, -300, 800, 600))
-        text_item = self._scene.addSimpleText("Rendering...")
-        text_item.setBrush(QColor("#aaa"))
-        br = text_item.boundingRect()
-        text_item.setPos(-br.width() / 2, -br.height() / 2)
-        self._graphics_view.fit_to_window()
-
         self._render_thread = _RenderThread(
             tree_file=tree_file,
-            params=self._collect_params(),
+            params=params,
         )
         self._render_thread.finished.connect(self._on_render_done)
         self._render_thread.start()
@@ -965,18 +1250,27 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
 
     @skip_when_closing
     def _on_render_done(self, success: bool, svg_bytes: bytes, msg: str):
+        if self.sender() is not self._render_thread:
+            return  # Ignore a queued completion from a cleared or closed render.
+        rendered_file = None
         if self._render_thread is not None:
+            rendered_file = self._render_thread.tree_file
             self._render_thread.wait()
             self._render_thread.deleteLater()
             self._render_thread = None
         self._draw_btn.setEnabled(True)
+        if self._render_pending or self._redraw_timer.isActive():
+            self._render_pending = False
+            if not self._redraw_timer.isActive():
+                self._redraw_timer.start(0)
+            return
         if success:
-            self._show_svg_bytes(svg_bytes)
-            self.show_status("Tree rendered")
+            self._show_svg_bytes(svg_bytes, preserve_view=rendered_file == self._displayed_file)
+            self._displayed_file = rendered_file
+            self.show_status("Tree rendered" + (
+                " — " + self._mapping_status if self._mapping_status else ""
+            ))
         else:
-            self._scene.clear()
-            text_item = self._scene.addSimpleText(f"Render error:\n{msg}")
-            text_item.setBrush(QColor("#c62828"))
             self.show_status(f"Error: {msg}")
 
     # ------------------------------------------------------------------
@@ -986,6 +1280,12 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         tree_file = self._file_edit.text().strip()
         if not tree_file or not os.path.isfile(tree_file):
             self.show_status("Please load a tree file first")
+            return
+
+        try:
+            params = self._collect_params()
+        except (OSError, ValueError, RuntimeError) as exc:
+            self.show_status(str(exc))
             return
 
         out_path, _ = QFileDialog.getSaveFileName(
@@ -1002,7 +1302,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         self.show_status("Exporting...")
         self._export_thread = _ExportThread(
             tree_file=tree_file,
-            params=self._collect_params(),
+            params=params,
             out_path=out_path,
         )
         self._export_thread.finished.connect(self._on_export_done)
@@ -1018,6 +1318,8 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self._export_thread = None
 
     def shutdown(self):
+        self._redraw_timer.stop()
+        self._render_pending = False
         self._cancel_render()
         self._cancel_export()
         super().shutdown()
