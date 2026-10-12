@@ -122,6 +122,18 @@ QPushButton#successButton {
                                 stop:0 #28a745, stop:1 #1e7e34);
 }
 
+QPushButton#localBlastBuildDatabase {
+    background: #21875b;
+    color: #ffffff;
+}
+QPushButton#localBlastBuildDatabase:hover {
+    background: #176b45;
+}
+QPushButton#localBlastBuildDatabase:disabled {
+    background: #8cb8a1;
+    color: #ffffff;
+}
+
 QPushButton#successButton:hover {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                                 stop:0 #1e7e34, stop:1 #155724);

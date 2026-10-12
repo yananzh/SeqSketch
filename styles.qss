@@ -84,6 +84,17 @@ QPushButton {
 QPushButton:hover {
     background: #357ab8;
 }
+QPushButton#localBlastBuildDatabase {
+    background: #21875b;
+    color: #ffffff;
+}
+QPushButton#localBlastBuildDatabase:hover {
+    background: #176b45;
+}
+QPushButton#localBlastBuildDatabase:disabled {
+    background: #8cb8a1;
+    color: #ffffff;
+}
 /* Secondary action button — same blue fill, consistent across all buttons */
 QPushButton[actionRole="secondary"] {
     color: #ffffff;
@@ -247,4 +258,4 @@ QPushButton {
 QPushButton:hover {
     background: #357ab8;
 }
-*/ 
+*/

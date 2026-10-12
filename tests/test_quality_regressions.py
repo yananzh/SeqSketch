@@ -173,7 +173,6 @@ def test_sanger_file_output_defaults_and_failures(qapp, monkeypatch, tmp_path, o
         tab.fwd_edit.setText(str(forward))
         tab.rev_edit.setText(str(reverse))
         tab.min_overlap_spin.setValue(6)
-        monkeypatch.setattr(sanger, "user_data_dir", lambda: str(tmp_path / "user_data"))
         warnings = []
         monkeypatch.setattr(QMessageBox, "warning", lambda *a: warnings.append(a[-1]))
         assert not tab.findChildren(QTextEdit)
@@ -190,7 +189,7 @@ def test_sanger_file_output_defaults_and_failures(qapp, monkeypatch, tmp_path, o
         assert forward.read_text(encoding="utf-8") == original
         if output_mode == "automatic":
             output = Path(tab.output_edit.text())
-            assert output.parent == tmp_path / "user_data" / "sanger_assembly"
+            assert output == forward.parent / "assembled_contig.fasta"
             assert output.read_text(encoding="utf-8") == ">assembled_contig\nAAAGGGCCCTTT\n"
             assert tab.result_folder_btn.isEnabled()
             assert "Saved:" in tab.status_label.text()

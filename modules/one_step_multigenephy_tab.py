@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import os
 
-from PyQt6.QtCore import QSize, Qt, QUrl
+from PyQt6.QtCore import QElapsedTimer, QSize, Qt, QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QFormLayout,
     QGroupBox,
@@ -17,8 +19,10 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QSpinBox,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -272,8 +276,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 "From align/trim: reuse 01_normalized files from a previous run "
                 "(skips the network fetch).\n"
                 "From tree: reuse 04_concat files (skips fetch, align/trim and "
-                "concatenation). Uncheck by choosing From scratch if you changed "
-                "the workbook."
+                "concatenation); bootstrap settings and threads may change.\n"
+                "Reuse requires matching inputs and verified outputs. If checks fail, "
+                "the run stops. Choose From scratch explicitly to rebuild."
         )
         run_row = QHBoxLayout()
         run_row.setContentsMargins(0, 0, 0, 0)
@@ -316,6 +321,28 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.add_open_output_dir_button()
 
         self.log_area.setMaximumHeight(400)
+        self._iqtree_progress_widget = QWidget()
+        progress_layout = QVBoxLayout(self._iqtree_progress_widget)
+        progress_layout.setContentsMargins(0, 0, 0, 8)
+        progress_layout.setSpacing(4)
+        self._iqtree_progress_label = QLabel()
+        self._iqtree_progress_bar = QProgressBar()
+        self._iqtree_progress_bar.setRange(0, 0)
+        self._iqtree_progress_bar.setTextVisible(False)
+        self._iqtree_progress_bar.setFixedHeight(12)
+        self._iqtree_progress_bar.setAccessibleName("IQ-TREE activity")
+        self._iqtree_progress_bar.setToolTip(
+            "IQ-TREE is running. A reliable completion percentage is not available."
+        )
+        progress_layout.addWidget(self._iqtree_progress_label)
+        progress_layout.addWidget(self._iqtree_progress_bar)
+        self.log_group.layout().insertWidget(0, self._iqtree_progress_widget)
+        self._iqtree_progress_widget.hide()
+        self._iqtree_elapsed = QElapsedTimer()
+        self._iqtree_cancelling = False
+        self._iqtree_timer = QTimer(self)
+        self._iqtree_timer.setInterval(1000)
+        self._iqtree_timer.timeout.connect(self._update_iqtree_progress)
         # Consistent status-bar button widths across the app's tabs
         unify_status_button_sizes(self)
 
@@ -457,6 +484,29 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     def _handle_step_update(self, step_name: str, status: str) -> None:
         self.show_status(f"{step_name}: {status}")
         self.log_message(f"{step_name}: {status}")
+        if step_name == "Build Tree":
+            if status == "running":
+                self._iqtree_cancelling = False
+                self._iqtree_elapsed.start()
+                self._update_iqtree_progress()
+                self._iqtree_progress_widget.show()
+                self._iqtree_timer.start()
+            else:
+                self._stop_iqtree_progress()
+
+    def _update_iqtree_progress(self) -> None:
+        seconds = max(0, self._iqtree_elapsed.elapsed() // 1000)
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        elapsed = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        action = "Cancelling IQ-TREE" if self._iqtree_cancelling else "Running IQ-TREE"
+        self._iqtree_progress_label.setText(f"{action} · Elapsed {elapsed}")
+
+    def _stop_iqtree_progress(self) -> None:
+        self._iqtree_timer.stop()
+        self._iqtree_progress_widget.hide()
+        self._iqtree_progress_label.clear()
+        self._iqtree_cancelling = False
 
     def _append_log(self, line: str) -> None:
         self.log_message(line)
@@ -504,6 +554,8 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     # Button state management
     # ------------------------------------------------------------------
     def _set_running_state(self, running: bool) -> None:
+        if not running:
+            self._stop_iqtree_progress()
         self._run_btn.setVisible(not running)
         self._clear_btn.setVisible(not running)
         self._stop_btn.setVisible(running)
@@ -534,7 +586,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             self.log_message("Select at least one gene column before running.", "WARNING")
             return False
 
-        if not ncbi_email:
+        if not ncbi_email and self.resume_mode_combo.currentData() == "scratch":
             reply = QMessageBox.question(
                 self,
                 "Missing NCBI Email",
@@ -553,65 +605,80 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     # Input validation & tool checks
     # ------------------------------------------------------------------
     def _check_inputs(self) -> None:
-        """Validate file format and external tool availability — output to log."""
+        """Show local workbook and tool checks in a scrollable result dialog."""
         excel_path = self.excel_path_edit.text().strip()
         sheet_name = self.sheet_name_combo.currentText().strip() or "Sheet1"
         strain_column = self.strain_column_combo.currentText().strip()
-
-        self.log_area.clear()
-        self.log_area.append("── Input Validation ──")
-
+        lines = ["Input Validation", ""]
+        failed = False
+        warned = False
         valid, _ = validate_input_path(excel_path)
         if not valid:
-            self.log_area.append("[FAIL] Excel file not found.")
-            self.show_status("Validation failed")
-            return
-        self.log_area.append("[OK] Excel file: {path}".format(path=excel_path))
-
-        try:
-            import pandas as pd
-
-            df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
-            if strain_column not in df.columns:
-                self.log_area.append(
-                    '[FAIL] Strain column "{col}" not found'.format(col=strain_column)
+            lines.append("[FAIL] Excel file not found.")
+            failed = True
+        else:
+            lines.extend([f"[OK] Excel file: {excel_path}", f"Sheet: {sheet_name}"])
+            try:
+                parsed = parse_excel_sheet(
+                    excel_path, sheet_name, strain_column, self._checked_gene_columns()
                 )
-            else:
-                strain_names = df[strain_column].fillna("").astype(str).str.strip()
-                bad_names = [
-                    n
-                    for n in strain_names
-                    if not n or n != n.replace(" ", "_").replace("/", "_").replace("\\", "_")
-                ]
-                if bad_names:
-                    self.log_area.append(
-                        "[WARN] {count} strain name(s) contain spaces/special chars:".format(count=len(bad_names))
-                    )
-                    for name in bad_names[:10]:
-                        self.log_area.append(f"    • {name}")
-                else:
-                    self.log_area.append("[OK] Strain names: all valid")
-        except Exception as exc:
-            self.log_area.append(
-                "[WARN] Could not check strain names: {error}".format(error=exc)
-            )
+                summary = parsed.summary
+                lines.extend([
+                    f"[OK] Strain column: {strain_column}",
+                    f"[OK] Strain names: {summary['strain_count']} valid, unique names",
+                    f"[OK] Selected genes: {summary['gene_count']}",
+                    f"Accessions: {summary['accession_count']}",
+                    f"Raw sequences: {summary['sequence_count']}",
+                    f"Missing entries: {summary['missing_count']} (filled with gaps)",
+                ])
+                if summary["invalid_count"]:
+                    warned = True
+                    lines.append(f"[WARN] Invalid entries: {summary['invalid_count']}")
+                    for cell in parsed.cells:
+                        if cell.value_type == "invalid":
+                            lines.append(f"    {cell.strain_name} / {cell.gene_name}: "
+                                         f"{cell.raw_value}")
+                if summary["accession_count"] and not self.email_edit.text().strip():
+                    warned = True
+                    lines.append("[WARN] An NCBI email is required to retrieve accessions.")
+            except Exception as exc:
+                failed = True
+                lines.append(f"[FAIL] Workbook: {exc}")
 
-        tools = [
+        lines.extend(["", "External Tools"])
+        for tool_name, tool_path in [
             ("MAFFT", _mafft_executable()),
             ("trimAl", _trimal_executable()),
             ("IQ-TREE", _iqtree_executable()),
-        ]
-        all_ok = True
-        for tool_name, tool_path in tools:
+        ]:
             if os.path.isfile(tool_path):
-                self.log_area.append(
-                    "[OK] {tool}: {path}".format(tool=tool_name, path=tool_path)
-                )
+                lines.append(f"[OK] {tool_name}: {tool_path}")
             else:
-                self.log_area.append("[FAIL] {tool}: NOT FOUND".format(tool=tool_name))
-                all_ok = False
+                lines.append(f"[FAIL] {tool_name}: NOT FOUND")
+                failed = True
+        status = ("Validation failed" if failed else
+                  "Validation passed with warnings" if warned else "Validation passed")
+        report = "\n".join(lines)
+        self.log_area.setPlainText(report)
+        self.show_status(status)
+        self._show_validation_results(status, report)
 
-        self.show_status("Validation passed" if all_ok else "Issues found")
+    def _show_validation_results(self, status: str, report: str) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Input Validation")
+        dialog.resize(720, 520)
+        dialog.setMinimumSize(440, 320)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel(status))
+        details = QTextEdit()
+        details.setReadOnly(True)
+        details.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        details.setPlainText(report)
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
 
     def _show_example(self) -> None:
         """Show an example Excel format reference in a dialog."""
@@ -663,6 +730,7 @@ and one or more <b>gene columns</b>.</p>
 
     def _clear(self) -> None:
         """Clear the log area and reset all parameters to defaults."""
+        self._stop_iqtree_progress()
         self.excel_path_edit.clear()
         self.sheet_name_combo.clear()
         self.sheet_name_combo.addItem("Sheet1")
@@ -695,8 +763,12 @@ and one or more <b>gene columns</b>.</p>
                 "WARNING",
             )
             self.show_status("Cancelling…")
+            if self._iqtree_timer.isActive():
+                self._iqtree_cancelling = True
+                self._update_iqtree_progress()
 
     def _cleanup_worker(self) -> None:
+        self._stop_iqtree_progress()
         if self._worker is not None:
             if self._worker.isRunning():
                 self._worker.requestInterruption()
@@ -861,7 +933,9 @@ expected workbook layout.</li>
 <li>Per-gene alignments and trimmed files are always kept for inspection under the stage folders.</li>
 <li><b>Skip completed steps</b> &mdash; resume a previous run in the same output folder:
 <p>Reuse requires matching inputs and verified artifact hashes. Missing, changed, or older
-unverified artifacts trigger a fresh run. Gene display names are mapped to safe unique IDs;
+unverified artifacts stop the run with an explanation. Choose From scratch explicitly
+to rebuild them. Tree-only runs allow changing bootstrap settings and threads without
+repeating earlier steps. Gene display names are mapped to safe unique IDs;
 the original-name mapping is saved in <code>run_manifest.json</code>.</p>
 <b>From scratch</b> (default, full pipeline), <b>From align/trim</b> (reuse
 <code>01_normalized</code>, skips the network fetch), or <b>From tree</b>

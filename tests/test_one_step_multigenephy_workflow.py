@@ -840,7 +840,7 @@ def test_runner_skips_fetch_align_trim_when_outputs_exist(tmp_path):
     (concat / "supermatrix.fasta").write_text(
         ">strain_a\nATGC\n>strain_b\nATGA\n", encoding="utf-8"
     )
-    (concat / "partitions.nex").write_text("charset gene1 = 1-4;\n", encoding="utf-8")
+    (concat / "partitions.nex").write_text("charset ITS = 1-4;\n", encoding="utf-8")
 
     project = ProjectInput(
         excel_path="input.xlsx",
@@ -895,6 +895,100 @@ def test_runner_skips_fetch_align_trim_when_outputs_exist(tmp_path):
     assert result.step_status["Build Tree"] == "succeeded"
     assert not result.warnings
     assert result.artifacts.treefile_path.endswith("final.treefile")
+
+
+@pytest.mark.parametrize("change", ["tree_settings", "workbook_metadata", "missing_intermediates"])
+def test_tree_resume_reuses_real_stage_outputs_only(tmp_path, change):
+    from dataclasses import replace
+
+    workbook = tmp_path / "input.xlsx"
+    workbook.touch()
+    project = ProjectInput(str(workbook), "Sheet1", "ID", ["ITS"], str(tmp_path / "run"))
+    cells = [GeneCell("strain_a", "ITS", "AB123", "accession", accession="AB123"),
+             GeneCell("strain_b", "ITS", "AB124", "accession", accession="AB124")]
+    strains = ["strain_a", "strain_b"]
+    calls = []
+
+    def align(gene, sequences, output_dir, mode):
+        calls.append("align")
+        path = Path(output_dir) / f"{gene}.aligned.fasta"
+        workflow_module._write_fasta(path, sequences, strains)
+        return sequences, str(path)
+
+    def trim(gene, sequences, output_dir, mode):
+        calls.append("trim")
+        path = Path(output_dir) / f"{gene}.trimmed.fasta"
+        workflow_module._write_fasta(path, sequences, strains)
+        return sequences, str(path)
+
+    def iqtree(concat, partitions, output_dir, bootstrap, threads, bootstrap_mode):
+        calls.append(("tree", bootstrap, threads, bootstrap_mode))
+        path = Path(output_dir) / "final.treefile"
+        path.write_text("(strain_a:0.1,strain_b:0.1);", encoding="utf-8")
+        return str(path)
+
+    def fetch(accession, email):
+        calls.append("fetch")
+        return "ATGC" if accession == "AB123" else "ATGA"
+
+    adapters = ToolAdapters(fetch, align, trim, iqtree)
+    OneStepMultiGenePhyRunner(adapters).run(project, cells, strains)
+    run = Path(project.output_dir)
+    before = {p: p.read_bytes() for p in (run / "04_concat").iterdir()}
+    resumed = replace(project, resume_mode="tree")
+    if change == "tree_settings":
+        resumed.iqtree_bootstrap = 100
+        resumed.iqtree_bootstrap_mode = "standard"
+        resumed.threads = "4"
+    elif change == "workbook_metadata":
+        resumed.excel_path = str(tmp_path / "copied_input.xlsx")
+        Path(resumed.excel_path).touch()
+    else:
+        for folder in ("01_normalized", "03_trimmed"):
+            for path in (run / folder).iterdir():
+                path.unlink()
+    calls.clear()
+    steps = []
+    result = OneStepMultiGenePhyRunner(adapters).run(
+        resumed, cells, strains, step_changed=lambda *args: steps.append(args)
+    )
+    assert calls == [("tree", resumed.iqtree_bootstrap, resumed.threads,
+                      resumed.iqtree_bootstrap_mode)]
+    assert all(result.step_status[stage] == "skipped" for stage in
+               ["Import", "Fetch/Normalize", "Align per Gene", "Trim per Gene", "Concatenate"])
+    assert ("Build Tree", "running") in steps
+    assert all(path.read_bytes() == content for path, content in before.items())
+    # A second tree-only run must remain reusable after the report is rewritten.
+    calls.clear()
+    OneStepMultiGenePhyRunner(adapters).run(resumed, cells, strains)
+    assert len(calls) == 1 and calls[0][0] == "tree"
+
+    # Corrupted prerequisites must stop before any tool call or manifest overwrite.
+    matrix = run / "04_concat/supermatrix.fasta"
+    matrix.write_text(">strain_a\nAAAA\n>strain_b\nAAAA\n", encoding="utf-8")
+    manifest = run / "06_reports/run_manifest.json"
+    saved_manifest = manifest.read_bytes()
+    calls.clear()
+    with pytest.raises(ValueError, match="Changed or unverified artifact"):
+        OneStepMultiGenePhyRunner(adapters).run(resumed, cells, strains)
+    assert calls == []
+    assert manifest.read_bytes() == saved_manifest
+
+
+def test_resume_fingerprints_depend_only_on_reused_stage_inputs(tmp_path):
+    from dataclasses import replace
+
+    p = ProjectInput("input.xlsx", "Sheet1", "ID", ["ITS"], str(tmp_path))
+    cells = [GeneCell("a", "ITS", "ACGT", "sequence", normalized_sequence="ACGT")]
+    strains = ["a"]
+    fingerprint = workflow_module._project_fingerprint
+    tree_settings = replace(p, iqtree_bootstrap=100, iqtree_bootstrap_mode="standard", threads="8")
+    assert fingerprint(p, cells, strains) == fingerprint(tree_settings, cells, strains)
+    upstream_settings = replace(p, mafft_mode="--localpair", trimal_mode="nogaps")
+    assert fingerprint(p, cells, strains) != fingerprint(upstream_settings, cells, strains)
+    assert fingerprint(p, cells, strains, "align") == fingerprint(upstream_settings, cells, strains, "align")
+    changed = [GeneCell("a", "ITS", "AAAA", "sequence", normalized_sequence="AAAA")]
+    assert fingerprint(p, cells, strains) != fingerprint(p, changed, strains)
 
 
 def test_runner_align_mode_skips_fetch_but_runs_align_trim(tmp_path):
@@ -967,7 +1061,7 @@ def test_runner_align_mode_skips_fetch_but_runs_align_trim(tmp_path):
     assert result.step_status["Trim per Gene"] == "succeeded"
 
 
-def test_runner_resume_falls_back_to_scratch_on_fingerprint_mismatch(tmp_path):
+def test_runner_resume_rejects_fingerprint_mismatch(tmp_path):
     run_dir = tmp_path / "run"
     normalized = run_dir / "01_normalized"
     reports = run_dir / "06_reports"
@@ -1017,15 +1111,15 @@ def test_runner_resume_falls_back_to_scratch_on_fingerprint_mismatch(tmp_path):
     )
     runner = OneStepMultiGenePhyRunner(adapters=adapters)
 
-    result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+    before = (reports / "run_manifest.json").read_bytes()
+    with pytest.raises(ValueError, match="No earlier steps were run"):
+        runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+    assert calls == []
+    assert (reports / "run_manifest.json").read_bytes() == before
+    assert project.resume_mode == "align"
 
-    # Stale fingerprint → full re-run, no silent reuse of old files
-    assert calls == ["align", "trim"]  # fetch still skipped: cells are pasted sequences
-    assert "Fetch/Normalize" in result.step_status
-    assert any("resume disabled" in warning for warning in result.warnings)
 
-
-def test_runner_resume_without_manifest_falls_back_to_scratch(tmp_path):
+def test_runner_resume_rejects_missing_manifest(tmp_path):
     run_dir = tmp_path / "run"
     normalized = run_dir / "01_normalized"
     normalized.mkdir(parents=True)
@@ -1062,10 +1156,10 @@ def test_runner_resume_without_manifest_falls_back_to_scratch(tmp_path):
     )
     runner = OneStepMultiGenePhyRunner(adapters=adapters)
 
-    result = runner.run(project, cells, strain_order=["strain_a", "strain_b"])
-
-    assert any("resume disabled" in warning for warning in result.warnings)
-    assert result.step_status["Align per Gene"] == "succeeded"  # re-ran, not skipped
+    with pytest.raises(ValueError, match="previous run manifest is required"):
+        runner.run(project, cells, strain_order=["strain_a", "strain_b"])
+    assert not (run_dir / "06_reports/run_manifest.json").exists()
+    assert not (run_dir / "04_concat/supermatrix.fasta").exists()
 
 
 def test_runner_reports_fetch_failure_aggregate_warning(tmp_path):

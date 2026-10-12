@@ -880,7 +880,7 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
         """Read leaf names from the tree file and populate the outgroup combo."""
         tree_file = self._file_edit.text().strip()
         if not tree_file or not os.path.isfile(tree_file):
-            self.show_status("⚠ Please select a tree file first")
+            self.show_status("Please select a tree file first")
             return
         try:
             import toytree
@@ -904,9 +904,9 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self._outgroup_combo.addItems(names)
             self._outgroup_combo.setCurrentIndex(-1)  # no auto-selection
             self._outgroup_combo.blockSignals(False)
-            self.show_status(f"✔ Loaded {len(names)} tip names")
+            self.show_status(f"Loaded {len(names)} tip names")
         except Exception as exc:
-            self.show_status(f"✖ Could not read tree: {exc}")
+            self.show_status(f"Could not read tree: {exc}")
 
     # ------------------------------------------------------------------
     # Draw / Render
@@ -1017,6 +1017,6 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
             self._export_thread.deleteLater()
             self._export_thread = None
         if success:
-            self.show_status(f"✔ Exported: {os.path.basename(path)}")
+            self.show_status(f"Exported: {os.path.basename(path)}")
         else:
-            self.show_status(f"✖ Export failed: {msg}")
+            self.show_status(f"Export failed: {msg}")

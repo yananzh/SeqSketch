@@ -379,7 +379,7 @@ def build_default_tool_adapters(
     )
 
 
-def _project_fingerprint(project, cells, strain_order: list[str]) -> str:
+def _legacy_project_fingerprint(project, cells, strain_order: list[str]) -> str:
     """Stable digest of the inputs that resume reuse depends on.
 
     Covers the workbook identity (path + mtime), selected genes, strain list,
@@ -414,13 +414,20 @@ def _project_fingerprint(project, cells, strain_order: list[str]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def _read_previous_fingerprint(manifest_path: Path) -> str | None:
-    try:
-        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    value = payload.get("input_fingerprint")
-    return value if isinstance(value, str) else None
+def _project_fingerprint(project, cells, strain_order: list[str], stage: str = "tree") -> str:
+    """Hash only semantic inputs affecting the reused stage, not workbook metadata."""
+    payload = {
+        "gene_columns": list(project.gene_columns),
+        "strain_order": list(strain_order),
+        "cell_values": sorted(
+            (c.strain_name, c.gene_name, c.value_type, c.accession or "",
+             c.raw_value or "") for c in cells
+        ),
+    }
+    if stage == "tree":
+        payload.update(mafft_mode=project.mafft_mode, trimal_mode=project.trimal_mode,
+                       missing_gene_strategy=project.missing_gene_strategy)
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
 def _build_manifest_payload(
@@ -430,6 +437,7 @@ def _build_manifest_payload(
     input_fingerprint: str = "",
     commands: list[str] | None = None,
     tool_versions: dict[str, str] | None = None,
+    resume_fingerprints: dict[str, str] | None = None,
 ) -> dict:
     paths = list(artifacts.normalized_files.values()) + list(artifacts.trimmed_files.values())
     paths += [artifacts.extra_paths.get(k, "") for k in ("supermatrix", "partitions")]
@@ -441,6 +449,7 @@ def _build_manifest_payload(
         "steps": step_status,
         "warnings": warnings,
         "input_fingerprint": input_fingerprint,
+        "resume_fingerprints": resume_fingerprints or {},
         "commands": list(commands or []),
         "tool_versions": tool_versions or {},
         "artifacts": {
@@ -819,45 +828,82 @@ class OneStepMultiGenePhyRunner:
             warnings.append(message)
             log_line(message)
 
-        # Resume safety: intermediate files are only reusable when the inputs
-        # (workbook content, gene selection, tool parameters) are unchanged.
-        # A fingerprint mismatch falls back to a full from-scratch run.
+        # Resume checks happen before writing reports or invoking any pipeline stage.
         input_fingerprint = _project_fingerprint(project, cells, strain_order)
+        resume_fingerprints = {
+            stage: _project_fingerprint(project, cells, strain_order, stage)
+            for stage in ("align", "tree")
+        }
         resume_paths = {}
+        previous_payload = {}
+        concat_path = stage_dirs["concat"] / "supermatrix.fasta"
+        partition_path = stage_dirs["concat"] / "partitions.nex"
         if project.resume_mode != "scratch":
-            previous = _read_previous_fingerprint(
-                Path(project.output_dir) / "06_reports" / "run_manifest.json"
-            )
-            if previous is None or previous != input_fingerprint:
-                add_warning(
-                    "Workbook or parameters changed since the previous run "
-                    "(or no fingerprint recorded) — resume disabled, running from scratch."
-                )
-                project.resume_mode = "scratch"
-            else:
+            def resume_error(reason: str) -> None:
+                message = (f"Cannot resume from {project.resume_mode}: {reason}. "
+                           "No earlier steps were run. Select the matching previous output "
+                           "folder or choose From scratch explicitly.")
+                log_line(message)
+                raise ValueError(message)
+
+            try:
                 previous_payload = json.loads(Path(artifacts.manifest_path).read_text(encoding="utf-8"))
-                hashes = previous_payload.get("artifact_hashes", {})
-                required = ["normalized"] + (["trimmed"] if project.resume_mode == "tree" else [])
-                valid = bool(hashes) and previous_payload.get("gene_ids") == gene_ids
-                for stage in required:
-                    saved = previous_payload.get("artifacts", {}).get(stage, {})
+                if not isinstance(previous_payload, dict):
+                    raise ValueError("Invalid manifest")
+            except (OSError, ValueError):
+                resume_error("a readable previous run manifest is required")
+            previous = previous_payload.get("resume_fingerprints", {}).get(project.resume_mode)
+            if previous is None:
+                # Older manifests can migrate only when their full fingerprint matches.
+                previous = previous_payload.get("input_fingerprint")
+                compatible = previous in (
+                    input_fingerprint, _legacy_project_fingerprint(project, cells, strain_order)
+                )
+            else:
+                compatible = previous == resume_fingerprints[project.resume_mode]
+            if not compatible:
+                resume_error("inputs or upstream parameters changed, or the manifest is unverified")
+            hashes = previous_payload.get("artifact_hashes", {})
+            if not hashes or previous_payload.get("gene_ids") != gene_ids:
+                resume_error("artifact checksums or gene mapping are missing or incompatible")
+
+            def verified_path(value: str) -> Path:
+                path = Path(value)
+                if not path.is_file() or not path.resolve().is_relative_to(root_dir):
+                    raise ValueError(f"Missing or invalid artifact: {path}")
+                if hashes.get(str(path)) != hashlib.sha256(path.read_bytes()).hexdigest():
+                    raise ValueError(f"Changed or unverified artifact: {path}")
+                return path
+
+            try:
+                if project.resume_mode == "tree":
+                    for path in (concat_path, partition_path):
+                        verified_path(str(path))
+                    sequences = _fasta_dict_from_file(concat_path)
+                    if set(sequences) != set(strain_order) or len({len(v) for v in sequences.values()}) != 1:
+                        raise ValueError("Supermatrix taxa or sequence lengths do not match")
+                    total = len(next(iter(sequences.values())))
+                    saved_partitions = [(name, int(start), int(end)) for name, start, end in
+                        re.findall(r"charset\s+(\w+)\s*=\s*(\d+)-(\d+)\s*;",
+                                   partition_path.read_text(encoding="utf-8"), re.IGNORECASE)]
+                    end = 0
+                    for name, start, stop in saved_partitions:
+                        if name not in gene_ids.values() or start != end + 1 or stop < start:
+                            raise ValueError("Invalid saved partitions")
+                        end = stop
+                    if not saved_partitions or end != total:
+                        raise ValueError("Partitions do not span the saved supermatrix")
+                    self.concat_info = saved_partitions
+                else:
+                    saved = previous_payload.get("artifacts", {}).get("normalized", {})
                     for gene_id in gene_ids.values():
-                        path = Path(saved.get(gene_id, ""))
-                        try:
-                            if not path.is_file() or not path.resolve().is_relative_to(root_dir):
-                                raise ValueError("Invalid artifact path")
-                            valid = valid and hashes.get(str(path)) == hashlib.sha256(path.read_bytes()).hexdigest()
-                            sequences = _fasta_dict_from_file(path)
-                            valid = valid and bool(sequences) and set(sequences).issubset(strain_order)
-                            if stage == "trimmed":
-                                valid = valid and len({len(s) for s in sequences.values()}) == 1
-                            resume_paths[(stage, gene_id)] = path
-                        except (OSError, ValueError, RuntimeError):
-                            valid = False
-                if not valid:
-                    add_warning("Intermediate artifacts are missing, changed or unverified — resume disabled.")
-                    project.resume_mode = "scratch"
-                    resume_paths = {}
+                        path = verified_path(saved.get(gene_id, ""))
+                        sequences = _fasta_dict_from_file(path)
+                        if not sequences or not set(sequences).issubset(strain_order):
+                            raise ValueError(f"Invalid normalized sequences: {path}")
+                        resume_paths[("normalized", gene_id)] = path
+            except (OSError, ValueError, RuntimeError) as exc:
+                resume_error(str(exc))
 
         def persist_run_outputs(suppress_errors: bool = False) -> None:
             set_step("Summarize", "running")
@@ -884,6 +930,7 @@ class OneStepMultiGenePhyRunner:
                         input_fingerprint,
                         commands=self.commands,
                         tool_versions=self.tool_versions,
+                        resume_fingerprints=resume_fingerprints,
                     ),
                 )
                 manifest_written = True
@@ -926,6 +973,7 @@ class OneStepMultiGenePhyRunner:
                             input_fingerprint,
                             commands=self.commands,
                             tool_versions=self.tool_versions,
+                            resume_fingerprints=resume_fingerprints,
                         ),
                     )
                 except OSError:
@@ -937,6 +985,48 @@ class OneStepMultiGenePhyRunner:
                 raise persistence_errors[-1]
 
             set_step("Summarize", "succeeded")
+
+        def infer_tree() -> None:
+            _check_abort()
+            set_step("Build Tree", "running")
+            log_line("Running IQ-TREE")
+            treefile_path = self.adapters.run_iqtree(
+                str(concat_path),
+                str(partition_path),
+                str(stage_dirs["iqtree"]),
+                project.iqtree_bootstrap,
+                project.threads,
+                getattr(project, "iqtree_bootstrap_mode", "ufboot"),
+            )
+            artifacts.treefile_path = treefile_path
+            artifacts.extra_paths["iqtree_dir"] = str(stage_dirs["iqtree"])
+            # Parse per-gene models from IQ-TREE output
+            best_model_path = str(stage_dirs["iqtree"] / "final.best_model.nex")
+            self.gene_models = _parse_best_model_nex(best_model_path)
+            set_step("Build Tree", "succeeded")
+
+        if project.resume_mode == "tree":
+            for step in ("Import", "Fetch/Normalize", "Align per Gene", "Trim per Gene", "Concatenate"):
+                set_step(step, "skipped")
+            log_line("From tree: verified supermatrix and partitions; running IQ-TREE only")
+            artifacts.extra_paths.update(supermatrix=str(concat_path), partitions=str(partition_path))
+            # Keep verified optional intermediates for later align/trim resumes.
+            for stage, target in (("normalized", artifacts.normalized_files),
+                                  ("trimmed", artifacts.trimmed_files)):
+                for gene, value in previous_payload.get("artifacts", {}).get(stage, {}).items():
+                    try:
+                        target[gene] = str(verified_path(value))
+                    except (OSError, ValueError):
+                        pass
+            try:
+                infer_tree()
+            except Exception as exc:
+                set_step("Build Tree", "failed")
+                add_warning(f"Build Tree failed: {exc}")
+                persist_run_outputs(suppress_errors=True)
+                raise
+            persist_run_outputs()
+            return WorkflowRunResult(step_status=step_status, warnings=warnings, artifacts=artifacts)
 
         current_step = "Import"
 
@@ -977,10 +1067,10 @@ class OneStepMultiGenePhyRunner:
             _check_abort()
             current_step = "Fetch/Normalize"
             fetch_skipped = (
-                project.resume_mode in ("align", "tree")
+                project.resume_mode == "align"
                 and bool(datasets)
                 and all(
-                    (stage_dirs["normalized"] / f"{ds.gene_name}.fasta").is_file()
+                    resume_paths.get(("normalized", ds.gene_name), Path()).is_file()
                     for ds in datasets.values()
                 )
             )
@@ -997,7 +1087,7 @@ class OneStepMultiGenePhyRunner:
                 gene_name = dataset.gene_name
                 # Skip the network fetch when reusing a previous run's normalized output
                 normalized_path = resume_paths.get(("normalized", gene_name), stage_dirs["normalized"] / f"{gene_name}.fasta")
-                if project.resume_mode in ("align", "tree") and normalized_path.is_file():
+                if project.resume_mode == "align" and normalized_path.is_file():
                     dataset.normalized_sequences = _fasta_dict_from_file(normalized_path)
                     gene_stats[gene_name] = {
                         "accessions": 0,
@@ -1087,22 +1177,9 @@ class OneStepMultiGenePhyRunner:
                 )
 
             current_step = "Align per Gene"
-            trim_skipped = (
-                project.resume_mode == "tree"
-                and bool(datasets)
-                and all(
-                    resume_paths.get(("trimmed", ds.gene_name), Path()).is_file()
-                    for ds in datasets.values()
-                )
-            )
-            if trim_skipped:
-                set_step("Align per Gene", "skipped")
-                set_step("Trim per Gene", "skipped")
-                log_line("Align/trim skipped — reusing existing trimmed alignments")
-            else:
-                set_step("Align per Gene", "running")
-                set_step("Trim per Gene", "running")
-                log_line("Aligning and trimming per-gene sequences")
+            set_step("Align per Gene", "running")
+            set_step("Trim per Gene", "running")
+            log_line("Aligning and trimming per-gene sequences")
 
             alignment_warning = False
             trimming_warning = False
@@ -1117,22 +1194,6 @@ class OneStepMultiGenePhyRunner:
                     dataset.status = "warning"
                     add_warning(
                         f"{dataset.gene_name}: skipped because fewer than 2 usable sequences remain"
-                    )
-                    continue
-
-                # Skip align/trim when reusing a previous run's trimmed output
-                trimmed_path = resume_paths.get(("trimmed", dataset.gene_name), stage_dirs["trimmed"] / f"{dataset.gene_name}.trimmed.fasta")
-                if project.resume_mode == "tree" and trimmed_path.is_file():
-                    dataset.trimmed_sequences = _fasta_dict_from_file(trimmed_path)
-                    gs["aligned"] = True
-                    gs["trimmed"] = True
-                    dataset.status = "succeeded"
-                    dataset.artifacts["trimmed"] = str(trimmed_path)
-                    artifacts.trimmed_files[dataset.gene_name] = str(trimmed_path)
-                    trimmed_gene_count += 1
-                    log_line(
-                        f"  {dataset.gene_name}: reusing existing trimmed alignment "
-                        "(skip align/trim)"
                     )
                     continue
 
@@ -1183,73 +1244,41 @@ class OneStepMultiGenePhyRunner:
                 trimmed_gene_count += 1
                 dataset.status = "succeeded"
 
-            if not trim_skipped:
-                set_step("Align per Gene", "warning" if alignment_warning else "succeeded")
-                trim_status = (
-                    "warning" if trimming_warning or trimmed_gene_count == 0 else "succeeded"
-                )
-                set_step("Trim per Gene", trim_status)
+            set_step("Align per Gene", "warning" if alignment_warning else "succeeded")
+            trim_status = (
+                "warning" if trimming_warning or trimmed_gene_count == 0 else "succeeded"
+            )
+            set_step("Trim per Gene", trim_status)
 
             _check_abort()
             current_step = "Concatenate"
             concat_path = stage_dirs["concat"] / "supermatrix.fasta"
             partition_path = stage_dirs["concat"] / "partitions.nex"
-            concat_skipped = (
-                project.resume_mode == "tree" and trim_skipped and concat_path.is_file() and partition_path.is_file()
-                and previous_payload.get("artifact_hashes", {}).get(str(concat_path)) == hashlib.sha256(concat_path.read_bytes()).hexdigest()
-                and previous_payload.get("artifact_hashes", {}).get(str(partition_path)) == hashlib.sha256(partition_path.read_bytes()).hexdigest()
+            set_step("Concatenate", "running")
+            log_line("Concatenating trimmed gene alignments")
+            concatenated, partitions = concatenate_gene_alignments(
+                datasets,
+                strain_order,
+                gene_order=list(gene_ids.values()),
             )
-            if concat_skipped:
-                set_step("Concatenate", "skipped")
-                log_line("Concatenate skipped — reusing existing supermatrix")
-                _, partitions = concatenate_gene_alignments(datasets, strain_order, gene_order=list(gene_ids.values()))
-                self.concat_info = list(partitions)
-                for name, gs in gene_stats.items():
-                    gs["included"] = bool(datasets[name].trimmed_sequences)
-                    gs["missing_strains"] = [s for s in strain_order if s not in datasets[name].trimmed_sequences]
-            else:
-                set_step("Concatenate", "running")
-                log_line("Concatenating trimmed gene alignments")
-                concatenated, partitions = concatenate_gene_alignments(
-                    datasets,
-                    strain_order,
-                    gene_order=list(gene_ids.values()),
-                )
-                self.concat_info = list(partitions)
-                # Track which genes are included and missing strains
-                for gene_name, gs in gene_stats.items():
-                    if gene_name in datasets and datasets[gene_name].trimmed_sequences:
-                        gs["included"] = True
-                        trimmed_set = set(datasets[gene_name].trimmed_sequences)
-                        gs["missing_strains"] = [s for s in strain_order if s not in trimmed_set]
-                log_line("Genes in concatenation: {n}".format(n=len(partitions)))
-                if not partitions:
-                    raise RuntimeError("No genes remain usable for concatenation")
-                _write_fasta(concat_path, concatenated, strain_order)
-                _write_partitions(partition_path, partitions)
+            self.concat_info = list(partitions)
+            # Track which genes are included and missing strains
+            for gene_name, gs in gene_stats.items():
+                if gene_name in datasets and datasets[gene_name].trimmed_sequences:
+                    gs["included"] = True
+                    trimmed_set = set(datasets[gene_name].trimmed_sequences)
+                    gs["missing_strains"] = [s for s in strain_order if s not in trimmed_set]
+            log_line("Genes in concatenation: {n}".format(n=len(partitions)))
+            if not partitions:
+                raise RuntimeError("No genes remain usable for concatenation")
+            _write_fasta(concat_path, concatenated, strain_order)
+            _write_partitions(partition_path, partitions)
             artifacts.extra_paths["supermatrix"] = str(concat_path)
             artifacts.extra_paths["partitions"] = str(partition_path)
-            if not concat_skipped:
-                set_step("Concatenate", "succeeded")
+            set_step("Concatenate", "succeeded")
 
-            _check_abort()
             current_step = "Build Tree"
-            set_step("Build Tree", "running")
-            log_line("Running IQ-TREE")
-            treefile_path = self.adapters.run_iqtree(
-                str(concat_path),
-                str(partition_path),
-                str(stage_dirs["iqtree"]),
-                project.iqtree_bootstrap,
-                project.threads,
-                getattr(project, "iqtree_bootstrap_mode", "ufboot"),
-            )
-            artifacts.treefile_path = treefile_path
-            artifacts.extra_paths["iqtree_dir"] = str(stage_dirs["iqtree"])
-            # Parse per-gene models from IQ-TREE output
-            best_model_path = str(stage_dirs["iqtree"] / "final.best_model.nex")
-            self.gene_models = _parse_best_model_nex(best_model_path)
-            set_step("Build Tree", "succeeded")
+            infer_tree()
         except Exception as exc:
             set_step(current_step, "failed")
             add_warning(f"{current_step} failed: {exc}")

@@ -1,7 +1,6 @@
 import os
 import re
 import tempfile
-from datetime import datetime
 
 from Bio.Seq import Seq
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -26,7 +25,6 @@ from PyQt6.QtWidgets import (
 )
 
 from modules.fasta_processor import FASTAProcessor
-from utils.app_paths import user_data_dir
 from utils.common_components import (
     FileDropLineEdit,
     unify_status_button_sizes,
@@ -162,8 +160,8 @@ class SangerTab(QWidget):
         output_row = QHBoxLayout()
         output_row.addWidget(QLabel("Output File:"))
         self.output_edit = FileDropLineEdit()
-        self.output_edit.setPlaceholderText("Leave blank to auto-generate an output FASTA file")
-        self.output_edit.setToolTip("Output FASTA path; an empty path uses the user data folder")
+        self.output_edit.setPlaceholderText("Default: assembled_contig.fasta beside the forward input")
+        self.output_edit.setToolTip("Output FASTA path; an empty path uses the forward input folder")
         output_row.addWidget(self.output_edit, 1)
         self._btn_browse_output = QPushButton("Browse")
         self._btn_browse_output.clicked.connect(self._browse_output_file)
@@ -243,10 +241,7 @@ class SangerTab(QWidget):
 
         output_path = self.output_edit.text().strip()
         if not output_path:
-            stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            output_path = os.path.join(
-                user_data_dir(), "sanger_assembly", f"assembled_{stamp}.fasta"
-            )
+            output_path = self._default_output_path()
         output_path = os.path.abspath(output_path)
         normalized_output = os.path.normcase(os.path.realpath(output_path))
         if normalized_output in {
@@ -440,7 +435,7 @@ class SangerTab(QWidget):
         self.fwd_edit.clear()
         self.rev_edit.clear()
         self.output_edit.clear()
-        self.output_edit.setToolTip("Output FASTA path; an empty path uses the user data folder")
+        self.output_edit.setToolTip("Output FASTA path; an empty path uses the forward input folder")
         self._last_output_path = ""
         self.result_folder_btn.setEnabled(False)
         self.status_label.setToolTip("")
@@ -479,9 +474,15 @@ class SangerTab(QWidget):
 
     # ── Output file ────────────────────────────────────────────────────
 
+    def _default_output_path(self):
+        input_path = self.fwd_edit.text().strip()
+        if not input_path:
+            return "assembled_contig.fasta"
+        return os.path.join(os.path.dirname(os.path.abspath(input_path)), "assembled_contig.fasta")
+
     def _browse_output_file(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save assembled sequence", self.output_edit.text() or "assembled_contig.fasta",
+            self, "Save assembled sequence", self.output_edit.text() or self._default_output_path(),
             "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
         )
         if path:
@@ -504,7 +505,7 @@ class SangerTab(QWidget):
             "<ol>"
             "<li>Select the forward and reverse FASTA files (via <b>Browse</b> or drag-and-drop)</li>"
             "<li>Set <b>Min overlap</b> (bp) and <b>Min identity</b> (%)</li>"
-            "<li>Choose an <b>Output File</b>, or leave it blank to generate a FASTA file in the user data folder.</li>"
+            "<li>Choose an <b>Output File</b>, or leave it blank to save <code>assembled_contig.fasta</code> beside the forward input.</li>"
             "<li>Click <b>Run</b> to assemble and save the FASTA file automatically.</li>"
             "<li>Inspect the overlap chart; <b>Result Folder</b> opens the saved file location.</li>"
             "</ol>"

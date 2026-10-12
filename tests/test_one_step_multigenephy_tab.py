@@ -47,6 +47,129 @@ class _FakeWorker:
         self.deleteLater_calls += 1
 
 
+@pytest.mark.parametrize("case", ["valid", "missing_file", "missing_column", "missing_tool"])
+def test_validate_inputs_opens_dialog_with_checks(qapp, monkeypatch, tmp_path, case):
+    import pandas as pd
+    from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QLabel, QPushButton, QTextEdit
+
+    excel_path = tmp_path / "input.xlsx"
+    if case != "missing_file":
+        pd.DataFrame({"ID": ["taxon1", "taxon2"], "ACT": ["AB123456", "ACGT"]}).to_excel(
+            excel_path, index=False
+        )
+    tool = tmp_path / "tool.exe"
+    tool.touch()
+    for resolver in ("_mafft_executable", "_trimal_executable", "_iqtree_executable"):
+        monkeypatch.setattr(tab_module, resolver, lambda: str(tool))
+    if case == "missing_tool":
+        monkeypatch.setattr(tab_module, "_trimal_executable", lambda: str(tmp_path / "absent"))
+
+    observed = {}
+
+    def capture_dialog(dialog):
+        observed["title"] = dialog.windowTitle()
+        observed["status"] = dialog.findChild(QLabel).text()
+        details = dialog.findChild(QTextEdit)
+        observed["report"] = details.toPlainText()
+        assert details.isReadOnly()
+        close = dialog.findChild(QDialogButtonBox).button(QDialogButtonBox.StandardButton.Close)
+        close.click()
+        assert dialog.result() == QDialog.DialogCode.Rejected
+        return dialog.result()
+
+    monkeypatch.setattr(QDialog, "exec", capture_dialog)
+    tab = OneStepMultiGenePhyTab()
+    tab.excel_path_edit.setText(str(excel_path))
+    tab.strain_column_combo.blockSignals(True)
+    tab.strain_column_combo.setCurrentText("Absent" if case == "missing_column" else "ID")
+    tab.strain_column_combo.blockSignals(False)
+    tab._populate_gene_columns(["ACT"])
+    tab.email_edit.setText("user@example.com")
+    next(b for b in tab.findChildren(QPushButton) if b.text() == "Validate Inputs").click()
+
+    assert observed["title"] == "Input Validation"
+    assert observed["report"] == tab.log_area.toPlainText()
+    assert observed["status"] == tab.status_label.text()
+    assert "[OK] MAFFT" in observed["report"]
+    if case == "valid":
+        assert observed["status"] == "Validation passed"
+        assert "Accessions: 1" in observed["report"]
+        assert "Raw sequences: 1" in observed["report"]
+    else:
+        assert observed["status"] == "Validation failed"
+        expected = {"missing_file": "Excel file not found", "missing_column": "Missing strain column",
+                    "missing_tool": "[FAIL] trimAl: NOT FOUND"}
+        assert expected[case] in observed["report"]
+
+
+def test_validate_inputs_reports_warnings(qapp, monkeypatch, tmp_path):
+    import pandas as pd
+
+    excel_path = tmp_path / "input.xlsx"
+    pd.DataFrame({"ID": ["taxon1", "taxon2", "taxon3"],
+                  "ACT": ["AB123456", "invalid!", None]}).to_excel(excel_path, index=False)
+    tool = tmp_path / "tool.exe"
+    tool.touch()
+    for resolver in ("_mafft_executable", "_trimal_executable", "_iqtree_executable"):
+        monkeypatch.setattr(tab_module, resolver, lambda: str(tool))
+    observed = []
+    tab = OneStepMultiGenePhyTab()
+    monkeypatch.setattr(tab, "_show_validation_results", lambda *args: observed.append(args))
+    tab.excel_path_edit.setText(str(excel_path))
+    tab.strain_column_combo.setCurrentText("ID")
+    tab._populate_gene_columns(["ACT"])
+    tab._check_inputs()
+    status, report = observed[0]
+    assert status == "Validation passed with warnings"
+    assert "Missing entries: 1" in report
+    assert "[WARN] Invalid entries: 1" in report
+    assert "taxon2 / ACT: invalid!" in report
+    assert "NCBI email is required" in report
+
+
+@pytest.mark.parametrize("terminal_status", ["succeeded", "failed", "skipped"])
+def test_iqtree_activity_tracks_elapsed_and_stops(qapp, terminal_status):
+    tab = OneStepMultiGenePhyTab()
+    milliseconds = [0]
+    tab._iqtree_elapsed = SimpleNamespace(start=lambda: None, elapsed=lambda: milliseconds[0])
+    tab._handle_step_update("Align per Gene", "running")
+    assert tab._iqtree_progress_widget.isHidden()
+    tab._handle_step_update("Build Tree", "running")
+    assert not tab._iqtree_progress_widget.isHidden()
+    assert tab._iqtree_timer.isActive()
+    assert tab._iqtree_progress_bar.minimum() == tab._iqtree_progress_bar.maximum() == 0
+    assert tab.log_group.layout().itemAt(0).widget() is tab._iqtree_progress_widget
+    assert "Running IQ-TREE" in tab._iqtree_progress_label.text()
+    milliseconds[0] = 3_661_000
+    tab._iqtree_timer.timeout.emit()
+    assert "01:01:01" in tab._iqtree_progress_label.text()
+    tab._handle_step_update("Build Tree", terminal_status)
+    assert not tab._iqtree_timer.isActive()
+    assert tab._iqtree_progress_widget.isHidden()
+    assert "Build Tree: " + terminal_status in tab.log_area.toPlainText()
+
+
+def test_iqtree_activity_cancellation_cleanup_and_restart(qapp):
+    tab = OneStepMultiGenePhyTab()
+    tab._handle_step_update("Build Tree", "running")
+    worker = SimpleNamespace(isRunning=lambda: True, requestInterruption=lambda: None, _abort=False)
+    tab._worker = worker
+    tab._cancel_workflow()
+    assert worker._abort
+    assert tab._iqtree_timer.isActive()
+    assert "Cancelling IQ-TREE" in tab._iqtree_progress_label.text()
+    tab._worker = None
+    tab._handle_run_failed("Workflow cancelled by user")
+    assert not tab._iqtree_timer.isActive()
+    assert tab._iqtree_progress_widget.isHidden()
+    tab._handle_step_update("Build Tree", "running")
+    assert "Running IQ-TREE" in tab._iqtree_progress_label.text()
+    assert "00:00:00" in tab._iqtree_progress_label.text()
+    tab._clear()
+    assert not tab._iqtree_timer.isActive()
+    assert tab._iqtree_progress_widget.isHidden()
+
+
 def test_tab_renders_import_summary_and_gene_list(qapp):
     tab = OneStepMultiGenePhyTab()
     tab._populate_gene_columns(["ITS", "TEF1", "RPB2"])
@@ -140,7 +263,10 @@ def test_tab_updates_status_log_step_summary_and_artifacts_after_mocked_run(qapp
     assert "HTML report: F:/run/06_reports/run_report.html" in log_text
 
 
-def test_start_run_parses_sheet_builds_runner_and_starts_worker(qapp, monkeypatch, tmp_path):
+@pytest.mark.parametrize("resume_mode", ["scratch", "align", "tree"])
+def test_start_run_parses_sheet_builds_runner_and_starts_worker(
+    qapp, monkeypatch, tmp_path, resume_mode
+):
     excel_path = tmp_path / "input.xlsx"
     output_dir = tmp_path / "run"
     parsed = SimpleNamespace(
@@ -195,6 +321,7 @@ def test_start_run_parses_sheet_builds_runner_and_starts_worker(qapp, monkeypatc
     tab.output_dir_edit.setText(str(output_dir))
     tab.email_edit.setText("user@example.com")
     tab._populate_gene_columns(["ITS", "TEF1"])
+    tab.resume_mode_combo.setCurrentIndex(tab.resume_mode_combo.findData(resume_mode))
 
     tab.start_run()
 
@@ -220,6 +347,7 @@ def test_start_run_parses_sheet_builds_runner_and_starts_worker(qapp, monkeypatc
     assert worker.project.iqtree_bootstrap == 1000
     assert worker.project.threads == "2"
     assert worker.project.keep_intermediates is True
+    assert worker.project.resume_mode == resume_mode
     assert worker.cells == parsed.cells
     assert worker.strain_order == parsed.strain_order
     assert worker.completed.callbacks == [tab._handle_run_completed]
