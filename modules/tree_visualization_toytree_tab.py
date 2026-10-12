@@ -14,7 +14,9 @@ toytree API reference (v3.x):
 """
 
 import io
+import math
 import os
+import re
 import tempfile
 
 from PyQt6.QtCore import QRectF, Qt, QThread, pyqtSignal
@@ -90,6 +92,17 @@ def _load_and_root(tree_file: str, params: dict):
     import toytree
 
     tre = toytree.tree(tree_file)
+    # IQ-TREE compound labels are parsed as names, not numeric support.
+    # Register their display text as edge data before any re-rooting.
+    for node in tre:
+        node.support_label = ""
+        if not node.is_leaf() and not node.is_root():
+            label = node.name.strip()
+            if re.fullmatch(r"\d+(?:\.\d+)?(?:/\d+(?:\.\d+)?)*", label):
+                node.support_label = label
+            elif math.isfinite(node.support):
+                node.support_label = str(node.support).removesuffix(".0")
+    tre.edge_features.add("support_label")
 
     # Apply tip name mapping if provided
     mapping = params.get("tip_mapping", {})
@@ -306,21 +319,16 @@ def _build_draw_kwargs(params: dict, tre) -> dict:
 
 
 def _get_support_labels(tre) -> list:
-    """Extract and format support values from a ToyTree as node labels.
-
-    Returns a list of strings, one per node.  Tip nodes (support = NaN)
-    get an empty string so no label is shown.  Internal nodes are rounded
-    to the nearest integer.
-    """
-    import math
-
-    support = tre.get_node_data("support")
+    """Return edge support text, preserving compound values and precision."""
     labels = []
-    for val in support:
-        if isinstance(val, float) and math.isnan(val):
+    for node in tre:
+        if node.is_leaf() or node.is_root():
             labels.append("")
         else:
-            labels.append(str(int(round(val))))
+            label = getattr(node, "support_label", "")
+            if not label and math.isfinite(node.support):
+                label = str(node.support).removesuffix(".0")
+            labels.append(label or "")
     return labels
 
 
@@ -543,6 +551,9 @@ class ToytreeVisualizationTab(BaseTabWidget):
 
         # checkboxes
         self._show_support_check = QCheckBox("Show support values")
+        self._show_support_check.setToolTip(
+            "Preserve support values, including IQ-TREE SH-aLRT/UFBoot labels."
+        )
         self._show_support_check.setChecked(False)
         ol.addWidget(self._show_support_check)
 
@@ -688,7 +699,8 @@ outgroup rooting, support-value display, and publication-ready exports.</p>
     Midpoint &mdash; root at the longest branch midpoint<br>
     Outgroup &mdash; root on a specified tip taxon</td></tr>
   <tr><td><b>Show support values</b></td><td>
-    display bootstrap / posterior probabilities at internal nodes</td></tr>
+    display bootstrap / posterior probabilities at internal nodes, preserving
+    decimal precision and IQ-TREE SH-aLRT/UFBoot labels (e.g. 98.2/100)</td></tr>
   <tr><td><b>Show scale bar</b></td><td>
     display the evolutionary distance scale</td></tr>
   <tr><td><b>Align tip labels</b></td><td>

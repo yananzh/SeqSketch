@@ -18,6 +18,57 @@ def _find_button(widget, text: str):
     return None
 
 
+@pytest.mark.parametrize("root_method", ["none", "midpoint", "outgroup"])
+def test_compound_support_follows_splits_after_rooting(tmp_path, root_method):
+    from modules.tree_visualization_toytree_tab import _get_support_labels, _load_and_root
+
+    path = tmp_path / "iqtree.treefile"
+    path.write_text("((a:1,b:2)98.2/100:3,(c:1,d:2)71.6/55:4,e:1);")
+    tree = _load_and_root(str(path), {"root_method": root_method, "outgroup_name": "a"})
+    tips = set(tree.get_tip_labels())
+    expected = {"98.2/100": {"a", "b"}, "71.6/55": {"c", "d"}}
+    seen = set()
+    for node, label in zip(tree, _get_support_labels(tree)):
+        if node.is_leaf() or node.is_root():
+            assert label == ""
+        if label:
+            descendants = set(node.get_leaf_names())
+            assert expected[label] in (descendants, tips - descendants)
+            seen.add(label)
+    assert seen == set(expected)
+
+
+@pytest.mark.parametrize("layout", ["Rectangular", "Circular", "Unrooted"])
+def test_compound_support_rendered_in_svg(tmp_path, layout):
+    from modules.tree_visualization_toytree_tab import _render_svg_bytes
+
+    path = tmp_path / "iqtree.treefile"
+    path.write_text("((a:1,b:2)98.2/100:3,(c:1,d:2)71.6/55:4,e:1);")
+    svg = _render_svg_bytes(str(path), {"show_support": True, "layout": layout})
+    assert b">98.2/100<" in svg
+    assert b">71.6/55<" in svg
+    hidden = _render_svg_bytes(str(path), {"show_support": False, "layout": layout})
+    assert b">98.2/100<" not in hidden
+
+
+@pytest.mark.parametrize(
+    "newick, expected",
+    [
+        ("((a,b)0.975,(c,d)98.2,e);", {"0.975", "98.2"}),
+        ("((a,b)98.2/100,(c,d)74,e);", {"98.2/100", "74"}),
+        ("((a,b)clade_name,(c,d),e);", set()),
+        ("((a,b)98.2/0.99/100,(c,d),e);", {"98.2/0.99/100"}),
+    ],
+)
+def test_support_precision_and_non_support_names(tmp_path, newick, expected):
+    from modules.tree_visualization_toytree_tab import _get_support_labels, _load_and_root
+
+    path = tmp_path / "tree.nwk"
+    path.write_text(newick)
+    tree = _load_and_root(str(path), {})
+    assert set(_get_support_labels(tree)) - {""} == expected
+
+
 def test_toytree_tab_instantiates(qapp):
     from modules.tree_visualization_toytree_tab import ToytreeVisualizationTab
 
