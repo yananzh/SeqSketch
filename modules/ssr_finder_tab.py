@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QSpinBox,
@@ -49,12 +50,27 @@ def _load_fasta_records(text: str) -> List[Tuple[str, str]]:
     return parse_fasta_tuples(text)
 
 
+def _normalize_ssr_sequence(seq: str) -> str:
+    """Remove formatting whitespace only; never silently remove sequence positions."""
+    seq = "".join(c for c in seq if not c.isspace()).upper().replace("U", "T")
+    for position, base in enumerate(seq, 1):
+        if base in "-.":
+            raise ValueError(
+                f"Gap {base!r} at position {position}. Use an ungapped sequence; "
+                "gaps are not removed automatically because this changes coordinates."
+            )
+        if base not in "ACGTNRYSWKMBDHV":
+            raise ValueError(f"Invalid character {base!r} at position {position}.")
+    return seq
+
+
 def find_ssrs(seq: str, thresholds: Dict[int, int]) -> List[dict]:
     """Scan perfect tandem repeats of unit length 1-6.
 
     Nested hits (e.g. (AT)10 also matches the tetra search) are deduplicated:
     the shortest repeat unit that forms a run wins, matching MISA behaviour.
     """
+    seq = _normalize_ssr_sequence(seq)
     results: List[dict] = []
     covered: List[Tuple[int, int]] = []
     n = len(seq)
@@ -63,6 +79,9 @@ def find_ssrs(seq: str, thresholds: Dict[int, int]) -> List[dict]:
         i = 0
         while i < n - unit_len:
             motif = seq[i : i + unit_len]
+            if any(base not in "ACGT" for base in motif):
+                i += 1
+                continue
             j = i
             while j + unit_len <= n and seq[j : j + unit_len] == motif:
                 j += unit_len
@@ -134,6 +153,7 @@ class SsrFinderTab(BaseTabWidget):
         super().__init__("SSR / Microsatellite Finder", "sequence")
         self._records: List[Tuple[str, str]] = []
         self._record_results: List[dict] = []
+        self._all_results: List[dict] = []
         self._all_records_mode = True
         self._perfect: List[dict] = []
         self._compound: List[dict] = []
@@ -176,20 +196,8 @@ class SsrFinderTab(BaseTabWidget):
         form.addWidget(self.browse_btn, 0, 2)
         form.addWidget(self.example_btn, 0, 3)
 
-        # Record selector: analyze all FASTA records or a single one.
-        form.addWidget(QLabel("Sequence:"), 1, 0)
-        self._record_combo = PlaceholderComboBox()
-        self._record_combo.setPlaceholderText(
-            "Run first, then select a record to view (multi-record files)"
-        )
-        self._record_combo.setToolTip(
-            "Analyze all FASTA records, or pick one record "
-            "(single-record files show just the record)"
-        )
-        form.addWidget(self._record_combo, 1, 1, 1, 3)
         form.setColumnStretch(1, 1)
         ig_layout.insertLayout(1, form)
-        self._record_combo.currentIndexChanged.connect(self._on_record_changed)
 
     def _browse_input_file(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -289,12 +297,42 @@ class SsrFinderTab(BaseTabWidget):
         grp = QGroupBox("Microsatellites")
         grp.setFlat(True)
         gl = QVBoxLayout(grp)
-        gl.setContentsMargins(0, 14, 0, 4)
-        gl.setSpacing(4)
+        gl.setContentsMargins(12, 18, 12, 10)
+        gl.setSpacing(10)
+
+        filters = QHBoxLayout()
+        filters.setSpacing(8)
+        filters.addWidget(QLabel("Record:"))
+        self._record_combo = PlaceholderComboBox()
+        self._record_combo.setPlaceholderText(
+            "Run first, then select a record to view (multi-record files)"
+        )
+        self._record_combo.setMinimumWidth(180)
+        self._record_combo.setToolTip("Filter computed results by FASTA record")
+        filters.addWidget(self._record_combo, 1)
+        filters.addSpacing(16)
+        filters.addWidget(QLabel("Type:"))
+        self._type_combo = QComboBox()
+        self._type_combo.addItems(["All", "Perfect", "Compound"])
+        filters.addWidget(self._type_combo)
+        filters.addSpacing(16)
+        filters.addWidget(QLabel("Search:"))
+        self._search_edit = QLineEdit()
+        self._search_edit.setPlaceholderText("Record or motif")
+        self._search_edit.setClearButtonEnabled(True)
+        filters.addWidget(self._search_edit, 1)
+        gl.addLayout(filters)
+        controls = (self._record_combo, self._type_combo, self._search_edit)
+        control_height = max(control.sizeHint().height() for control in controls)
+        for control in controls:
+            control.setFixedHeight(control_height)
+        self._record_combo.currentIndexChanged.connect(self._on_record_changed)
+        self._type_combo.currentTextChanged.connect(self._refresh_results)
+        self._search_edit.textChanged.connect(self._refresh_results)
 
         self._ssr_table = QTableWidget(0, 8)
         self._ssr_table.setHorizontalHeaderLabels([
-            "#",
+            "Record",
             "Type",
             "Motif",
             "Unit",
@@ -304,7 +342,7 @@ class SsrFinderTab(BaseTabWidget):
             "Size (bp)",
         ])
         header = self._ssr_table.horizontalHeader()
-        for col in range(7):
+        for col in range(8):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self._ssr_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -340,12 +378,13 @@ class SsrFinderTab(BaseTabWidget):
             return
         cleaned: List[Tuple[str, str]] = []
         for header, seq in records:
-            seq = "".join(c for c in seq.upper() if c.isalpha()).replace("U", "T")
+            try:
+                seq = _normalize_ssr_sequence(seq)
+            except ValueError as exc:
+                self.show_status(f"Invalid sequence {header!r}: {exc}")
+                return
             if not seq:
                 continue
-            if not all(c in "ACGTN" for c in seq):
-                self.show_status("Invalid characters. Only A/T/G/C/N allowed")
-                return
             cleaned.append((header, seq))
         if not cleaned:
             self.show_status("No valid sequence found")
@@ -368,50 +407,59 @@ class SsrFinderTab(BaseTabWidget):
 
     @staticmethod
     def _record_label(header: str, index: int) -> str:
-        """Short display label for a FASTA record (first token, max 40 chars)."""
+        """Full primary ID for a FASTA record."""
         name = header.split()[0].strip() if header.strip() else ""
         name = name or f"Record {index}"
-        return name if len(name) <= 40 else name[:40] + "..."
+        return name
 
     def _analyze(self):
-        """Detect SSRs for the currently selected record(s) and refresh results."""
+        """Detect SSRs for all input records and refresh the filtered view."""
         if not self._records:
             return
-        combo_idx = self._record_combo.currentIndex()
-        self._all_records_mode = combo_idx <= 0 and len(self._records) > 1
         thresholds = self._thresholds()
         max_dist = self._compound_dist_spin.value()
         report_compound = self._compound_check.isChecked()
-
-        indexes = range(len(self._records)) if self._all_records_mode else [max(combo_idx - 1, 0)]
-        self._record_results = []
-        for i in indexes:
-            header, seq = self._records[i]
+        self._all_results = []
+        for i, (header, seq) in enumerate(self._records):
             perfect = find_ssrs(seq, thresholds)
             compound = find_compound_ssrs(perfect, max_dist) if report_compound else []
-            self._record_results.append({
+            self._all_results.append({
                 "name": self._record_label(header, i + 1),
                 "seq": seq,
                 "perfect": perfect,
                 "compound": compound,
             })
+        self._refresh_results()
+
+    def _refresh_results(self, *_args):
+        """Filter the completed run without searching sequences again."""
+        if not self._all_results:
+            return
+        combo_idx = self._record_combo.currentIndex()
+        self._all_records_mode = combo_idx <= 0 and len(self._all_results) > 1
+        selected = self._all_results if self._all_records_mode else [
+            self._all_results[max(combo_idx - 1, 0)]
+        ]
+        kind = self._type_combo.currentText()
+        query = self._search_edit.text().strip().casefold()
+        self._record_results = []
+        for rec in selected:
+            filtered = {"name": rec["name"], "seq": rec["seq"]}
+            for key, label in (("perfect", "Perfect"), ("compound", "Compound")):
+                filtered[key] = [
+                    hit for hit in rec[key]
+                    if kind in ("All", label) and (
+                        not query or query in rec["name"].casefold()
+                        or query in f"({hit['motif']}){hit.get('repeats', '')}".casefold()
+                    )
+                ]
+            self._record_results.append(filtered)
 
         # Compound grouping is per record; flatten for the table.
         self._perfect = [r for rec in self._record_results for r in rec["perfect"]]
         self._compound = [r for rec in self._record_results for r in rec["compound"]]
 
-        # ── Table (Record column only when scanning all records) ──
-        record_col = self._all_records_mode
-        labels = ["#", "Type", "Motif", "Unit", "Repeats", "Start", "End", "Size (bp)"]
-        if record_col:
-            labels.append("Record")
-        self._ssr_table.setColumnCount(len(labels))
-        self._ssr_table.setHorizontalHeaderLabels(labels)
-        if record_col:
-            self._ssr_table.horizontalHeader().setSectionResizeMode(
-                8, QHeaderView.ResizeMode.ResizeToContents
-            )
-
+        # Keep the same columns for all-record and single-record views.
         flat_perfect = [(r, rec["name"]) for rec in self._record_results for r in rec["perfect"]]
         flat_compound = [(r, rec["name"]) for rec in self._record_results for r in rec["compound"]]
 
@@ -419,7 +467,7 @@ class SsrFinderTab(BaseTabWidget):
         self._ssr_table.setRowCount(len(flat_perfect) + len(flat_compound))
         for i, (r, name) in enumerate(flat_perfect):
             values = [
-                str(i + 1),
+                name,
                 "Perfect",
                 f"({r['motif']}){r['repeats']}",
                 str(r["unit_len"]),
@@ -428,13 +476,11 @@ class SsrFinderTab(BaseTabWidget):
                 str(r["end"]),
                 str(r["end"] - r["start"]),
             ]
-            if record_col:
-                values.append(name)
             self._fill_row(i, values)
         for j, (r, name) in enumerate(flat_compound):
             row_idx = len(flat_perfect) + j
             values = [
-                f"c{j + 1}",
+                name,
                 "Compound",
                 r["motif"],
                 "-",
@@ -443,8 +489,6 @@ class SsrFinderTab(BaseTabWidget):
                 str(r["end"]),
                 str(r["size"]),
             ]
-            if record_col:
-                values.append(name)
             self._fill_row(row_idx, values)
         self._ssr_table.setSortingEnabled(True)
         self._ssr_table.sortItems(5, Qt.SortOrder.AscendingOrder)
@@ -452,7 +496,9 @@ class SsrFinderTab(BaseTabWidget):
         # ── Status / export state ──
         self._export_btn.setEnabled(bool(self._perfect or self._compound))
         if not self._perfect and not self._compound:
-            self.show_status("No microsatellites found")
+            self.show_status("No matching microsatellites" if (
+                self._type_combo.currentText() != "All" or self._search_edit.text().strip()
+            ) else "No microsatellites found")
             return
         if self._all_records_mode:
             scope = f" across {len(self._record_results)} sequences"
@@ -475,10 +521,8 @@ class SsrFinderTab(BaseTabWidget):
             self._ssr_table.setItem(row_idx, col_idx, item)
 
     def _on_record_changed(self, _index: int):
-        """Re-analyze when the record selector changes (no data yet: ignore)."""
-        if not self._records:
-            return
-        self._analyze()
+        """Filter the completed run by record."""
+        self._refresh_results()
 
     # ── Export ─────────────────────────────────────────────────────────
 
@@ -579,6 +623,9 @@ class SsrFinderTab(BaseTabWidget):
         self.input_path_edit.clear()
         self._records = []
         self._record_results = []
+        self._all_results = []
+        self._type_combo.setCurrentIndex(0)
+        self._search_edit.clear()
         self._perfect = []
         self._compound = []
         self._all_records_mode = True
@@ -604,8 +651,8 @@ thresholds, plus compound SSR reporting when two repeats lie close together.</p>
 <h3>Quick Start</h3>
 <ol>
 <li>Select a FASTA file (via <b>Browse</b> or drag-and-drop) or click <b>Example</b></li>
-<li>Choose <b>Sequence</b> &mdash; <b>All records</b> scans every FASTA record (results
-    get a <b>Record</b> column); single-record files show just the record name</li>
+<li>Choose <b>Record</b> &mdash; <b>All records</b> scans every FASTA record (results
+    show the record ID in the first column); single-record files show just the record name</li>
 <li>Adjust the minimum repeat counts if needed (MISA defaults are pre-set)</li>
 <li>Click <b>Run</b> &mdash; results appear in the table</li>
 <li>Click <b>Export CSV</b> to save the results table with a summary-statistics
@@ -625,6 +672,14 @@ switches the preset to <b>Custom</b>.</p>
 SSRs separated by at most the <b>Compound distance</b> (default 100 bp), e.g.
 <code>(AT)9(TG)6</code>.</p>
 
+<h3>Sequence handling and coordinates</h3>
+<p>Whitespace is ignored; lowercase is accepted and U is converted to T.
+IUPAC ambiguous bases (N/R/Y/S/W/K/M/B/D/H/V) retain their positions but
+break perfect repeats. Gaps (- or .) and other invalid characters are rejected,
+never silently deleted. Use ungapped sequences.</p>
+<p>Start and End are 1-based inclusive coordinates in the input sequence,
+excluding formatting whitespace. Compound spans include intervening bases.</p>
+
 <h3>Result columns</h3>
 <ul>
 <li><b>Motif</b> &mdash; repeat unit with copy number, e.g. (AT)9</li>
@@ -639,7 +694,7 @@ SSRs separated by at most the <b>Compound distance</b> (default 100 bp), e.g.
 <li>Click a column header to sort; results default to ascending start position</li>
 <li>Multi-record FASTA files default to <b>All records</b>; compound SSRs are grouped
     within each record only, never across records</li>
-<li>Switching the <b>Sequence</b> dropdown re-runs the analysis automatically</li>
+<li>Record, Type and Search filter completed results without re-running the analysis</li>
 </ul>
 """
         self.show_help_dialog("Help - SSR / Microsatellite Finder", help_text, 620, 520)

@@ -1524,13 +1524,13 @@ def test_ssr_finder_multirecord_all_and_single_modes(qapp, tmp_path):
     # Default: all-records mode -> Record column.
     assert tab._record_combo.count() == 3
     assert tab._all_records_mode
-    assert tab._ssr_table.columnCount() == 9
+    assert tab._ssr_table.columnCount() == 8
     assert tab._ssr_table.rowCount() == 2
     assert "across 2 sequences" in str(tab.status_label.text())
-    records = {tab._ssr_table.item(r, 8).text() for r in range(2)}
+    records = {tab._ssr_table.item(r, 0).text() for r in range(2)}
     assert records == {"rec_one", "rec_two"}
 
-    # Switch to a single record -> no Record column, per-record status.
+    # Switch to a single record; keep the Record column and per-record status.
     tab._record_combo.setCurrentIndex(2)  # rec_two
     assert not tab._all_records_mode
     assert tab._ssr_table.columnCount() == 8
@@ -1541,7 +1541,7 @@ def test_ssr_finder_multirecord_all_and_single_modes(qapp, tmp_path):
     # Switch back to all records.
     tab._record_combo.setCurrentIndex(0)
     assert tab._all_records_mode
-    assert tab._ssr_table.columnCount() == 9
+    assert tab._ssr_table.columnCount() == 8
 
 
 def test_ssr_finder_single_record_combo_has_one_option(qapp, tmp_path):
@@ -1604,7 +1604,7 @@ def test_ssr_finder_export_csv(qapp, tmp_path, monkeypatch):
     assert out.is_file()
     lines = out.read_text(encoding="utf-8-sig").strip().splitlines()
     assert lines[0] == "== Statistics =="
-    header_idx = next(i for i, ln in enumerate(lines) if ln.startswith("#,Type,Motif"))
+    header_idx = next(i for i, ln in enumerate(lines) if ln.startswith("Record,Type,Motif"))
     assert any(ln.startswith("Perfect_SSRs,4") for ln in lines[:header_idx])
     assert any(ln.startswith("Compound_SSRs,1") for ln in lines[:header_idx])
     assert any(ln.startswith("SSR_density_per_Mb,") for ln in lines[:header_idx])
@@ -1638,11 +1638,11 @@ def test_ssr_finder_export_csv_includes_record_column(qapp, tmp_path, monkeypatc
     )
     tab._export_csv()
     lines = out.read_text(encoding="utf-8-sig").strip().splitlines()
-    header_idx = next(i for i, ln in enumerate(lines) if ln.startswith("#,Type,Motif"))
-    assert lines[header_idx].endswith("Record")
+    header_idx = next(i for i, ln in enumerate(lines) if ln.startswith("Record,Type,Motif"))
+    assert lines[header_idx].startswith("Record,Type")
     assert any(ln.startswith("Sequences,2") for ln in lines[:header_idx])
     data = [ln for ln in lines[header_idx + 1 :] if ln]
-    assert all(ln.endswith("rec_one") or ln.endswith("rec_two") for ln in data)
+    assert all(ln.startswith("rec_one,") or ln.startswith("rec_two,") for ln in data)
 
 
 def test_phylo_tabs_status_bar_button_sizes_unified(qapp):

@@ -501,7 +501,7 @@ def test_ssr_finder_example_detects_embedded_repeats(qapp):
     tab.run()
     # The example file contains two records -> all-records mode with Record column.
     assert tab._all_records_mode
-    assert tab._ssr_table.columnCount() == 9
+    assert tab._ssr_table.columnCount() == 8
     assert "across 2 sequences" in str(tab.status_label.text())
 
     rows = tab._ssr_table.rowCount()
