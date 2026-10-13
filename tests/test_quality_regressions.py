@@ -321,7 +321,7 @@ def test_ncbi_snapshot_survives_programmatic_output_change(qapp, tmp_path, monke
     tab.deleteLater()
 
 
-@pytest.mark.parametrize("damage", [None, "deleted", "changed"])
+@pytest.mark.parametrize("damage", [None, "deleted", "changed", "matrix_deleted", "matrix_changed"])
 def test_production_adapter_outputs_support_validated_resume(tmp_path, monkeypatch, damage):
     import modules.one_step_multigenephy_workflow as workflow
     marker = tmp_path / "tool.exe"
@@ -358,9 +358,22 @@ def test_production_adapter_outputs_support_validated_resume(tmp_path, monkeypat
         trimmed.unlink()
     elif damage == "changed":
         trimmed.write_text(">a\nAAAA\n>b\nTTTT\n", encoding="utf-8")
+    matrix = Path(result.artifacts.extra_paths["supermatrix"])
+    if damage == "matrix_deleted":
+        matrix.unlink()
+    elif damage == "matrix_changed":
+        matrix.write_text(">a\nAAAA\n>b\nTTTT\n", encoding="utf-8")
     calls.clear()
     project.resume_mode = "tree"
+    if damage in ("matrix_deleted", "matrix_changed"):
+        saved_manifest = Path(result.artifacts.manifest_path).read_bytes()
+        with pytest.raises(ValueError, match="Cannot resume from tree"):
+            workflow.OneStepMultiGenePhyRunner(adapters).run(project, cells, ["a", "b"])
+        assert calls == []
+        assert Path(result.artifacts.manifest_path).read_bytes() == saved_manifest
+        return
     resumed = workflow.OneStepMultiGenePhyRunner(adapters).run(project, cells, ["a", "b"])
-    assert calls == (["tree"] if damage is None else ["align", "trim", "tree"])
-    assert resumed.step_status["Concatenate"] == ("skipped" if damage is None else "succeeded")
+    # Tree-only reuse depends on the supermatrix and partitions, not earlier files.
+    assert calls == ["tree"]
+    assert resumed.step_status["Concatenate"] == "skipped"
     assert "ATGC" in Path(resumed.artifacts.extra_paths["supermatrix"]).read_text(encoding="utf-8")
