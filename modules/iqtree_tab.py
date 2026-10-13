@@ -11,7 +11,6 @@ from Bio import AlignIO
 from PyQt6.QtCore import QThread, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QComboBox,
     QFileDialog,
     QFormLayout,
@@ -242,34 +241,33 @@ class IqTreeTab(BaseTabWidget):
         row1.addStretch()
         form.addRow("Sequence type:", row1)
 
-        # Row 2: Bootstrap + UFBoot + SH-aLRT
+        # Row 2: match the One Step MultiGenePhy bootstrap controls.
         boot_row = QHBoxLayout()
+        self._bootstrap_mode_combo = QComboBox()
+        self._bootstrap_mode_combo.addItem("UFBoot (ultrafast)", "ufboot")
+        self._bootstrap_mode_combo.addItem("UFBoot + SH-aLRT", "ufboot_shalrt")
+        self._bootstrap_mode_combo.addItem("Standard bootstrap", "standard")
+        self._bootstrap_mode_combo.setMinimumWidth(180)
+        self._bootstrap_mode_combo.setMaximumWidth(260)
+        self._bootstrap_mode_combo.setToolTip(
+            "UFBoot: ultrafast (-B) | +SH-aLRT: ultrafast + branch test (-B -alrt) | "
+            "Standard: nonparametric (-b)"
+        )
         self._bootstrap_spin = QSpinBox()
         self._bootstrap_spin.setRange(0, 10000)
         self._bootstrap_spin.setValue(1000)
         self._bootstrap_spin.setSpecialValueText("0 (disabled)")
-        self._bootstrap_spin.setToolTip("Ultrafast bootstrap replicates (0 = skip)")
-        self._ufboot_check = QCheckBox("UFBoot (ultrafast, recommended)")
-        self._ufboot_check.setChecked(True)
-        self._ufboot_check.setToolTip("Checked: UFBoot (-B) | Unchecked: standard bootstrap (-b)")
-        self._alrt_spin = QSpinBox()
-        self._alrt_spin.setRange(100, 10000)
-        self._alrt_spin.setValue(1000)
-        self._alrt_spin.setEnabled(False)
-        self._alrt_spin.setToolTip("Number of SH-aLRT replicates (default 1000)")
-        self._alrt_check = QCheckBox("Enable SH-aLRT")
-        self._alrt_check.setChecked(False)
-        self._alrt_check.setToolTip("SH-like approximate likelihood ratio test for branch support")
-        self._alrt_check.toggled.connect(self._alrt_spin.setEnabled)
+        self._bootstrap_spin.setFixedWidth(90)
+        self._bootstrap_spin.setToolTip(
+            "Bootstrap replicates (0 = off). UFBoot >= 1000, Standard default: 500. "
+            "UFBoot + SH-aLRT uses this count for both tests."
+        )
+        self._bootstrap_mode_combo.currentIndexChanged.connect(self._on_bootstrap_mode_changed)
+        boot_row.addWidget(self._bootstrap_mode_combo)
+        boot_row.addSpacing(12)
+        boot_row.addWidget(QLabel("Bootstrap replicates:"))
         boot_row.addWidget(self._bootstrap_spin)
-        boot_row.addWidget(self._ufboot_check)
-        boot_row.addWidget(self._alrt_check)
-        boot_row.addWidget(self._alrt_spin)
-        boot_row.addStretch()
-        form.addRow("Bootstrap replicates:", boot_row)
-
-        # Row 4: Outgroup (populated from the alignment once a file is loaded)
-        outgroup_row = QHBoxLayout()
+        # Outgroup shares the bootstrap row, after the replicate count.
         self._outgroup_combo = QComboBox()
         self._outgroup_combo.setEditable(True)
         self._outgroup_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
@@ -277,11 +275,17 @@ class IqTreeTab(BaseTabWidget):
             "Optional — select a taxon or type comma-separated taxa"
         )
         self._outgroup_combo.setToolTip("Root the tree on these taxa (IQ-TREE -o option)")
-        outgroup_row.addWidget(self._outgroup_combo, 1)
-        outgroup_row.addStretch()
-        form.addRow("Outgroup:", outgroup_row)
+        self._outgroup_combo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+        )
+        self._outgroup_combo.setMinimumContentsLength(8)
+        self._outgroup_combo.setMinimumWidth(120)
+        boot_row.addSpacing(12)
+        boot_row.addWidget(QLabel("Outgroup:"))
+        boot_row.addWidget(self._outgroup_combo, 1)
+        form.addRow("IQ-TREE Bootstrap:", boot_row)
 
-        # Row 5: Output directory
+        # Row 3: Output directory
         outdir_row = QHBoxLayout()
         self._outdir_edit = QLineEdit()
         self._outdir_edit.setPlaceholderText("Optional — leave blank to save alongside input file")
@@ -333,6 +337,11 @@ class IqTreeTab(BaseTabWidget):
         # Consistent status-bar button widths across the app's tabs
         unify_status_button_sizes(self)
         self.content_area.addStretch()
+
+    def _on_bootstrap_mode_changed(self):
+        suggested = 500 if self._bootstrap_mode_combo.currentData() == "standard" else 1000
+        if self._bootstrap_spin.value() > 0:
+            self._bootstrap_spin.setValue(suggested)
 
     def _auto_fill_outdir(self):
         """Auto-fill output directory from input alignment path."""
@@ -441,9 +450,7 @@ class IqTreeTab(BaseTabWidget):
         self._seqtype_combo.setCurrentIndex(0)
         self._threads_spin.setValue(2)
         self._bootstrap_spin.setValue(1000)
-        self._ufboot_check.setChecked(True)
-        self._alrt_check.setChecked(False)
-        self._alrt_spin.setValue(1000)
+        self._bootstrap_mode_combo.setCurrentIndex(0)
         self._view_tree_btn.setVisible(False)
         self._last_treefile = ""
         self.log_area.clear()
@@ -466,10 +473,11 @@ class IqTreeTab(BaseTabWidget):
             cmd += ["-m", model]
         boot_val = self._bootstrap_spin.value()
         if boot_val > 0:
-            flag = "-B" if self._ufboot_check.isChecked() else "-b"
+            mode = self._bootstrap_mode_combo.currentData()
+            flag = "-b" if mode == "standard" else "-B"
             cmd += [flag, str(boot_val)]
-        if self._alrt_check.isChecked():
-            cmd += ["-alrt", str(self._alrt_spin.value())]
+            if mode == "ufboot_shalrt":
+                cmd += ["-alrt", str(boot_val)]
         outgroup = self._outgroup_combo.currentText().strip()
         if outgroup:
             cmd += ["-o", outgroup]
@@ -519,8 +527,9 @@ to root the tree on (IQ-TREE <code>-o</code>).</li>
 <h3>Bootstrap &amp; Branch Support</h3>
 <ul>
 <li><b>UFBoot</b> &mdash; Ultrafast bootstrap, fast and reliable. Recommended: <b>1000</b>.</li>
-<li><b>Standard bootstrap</b> (uncheck UFBoot) &mdash; Classic method, slower.</li>
-<li><b>SH-aLRT</b> &mdash; Additional branch support test.</li>
+<li><b>UFBoot + SH-aLRT</b> &mdash; Both tests use the selected replicate count.</li>
+<li><b>Standard bootstrap</b> &mdash; Classic method, slower; default 500 replicates.</li>
+<li><b>Bootstrap replicates</b> &mdash; Default 1000 for UFBoot modes, 500 for Standard; 0 disables both bootstrap and SH-aLRT.</li>
 </ul>
 
 <h3>Output Files</h3>
@@ -594,12 +603,12 @@ to root the tree on (IQ-TREE <code>-o</code>).</li>
         self.log_area.append(f"  Model        : {self._model_edit.text().strip() or 'TEST'}")
         boot = self._bootstrap_spin.value()
         if boot > 0:
-            flag = "UFBoot" if self._ufboot_check.isChecked() else "Standard"
-            self.log_area.append(f"  Bootstrap    : {boot} ({flag})")
+            method = self._bootstrap_mode_combo.currentText()
+            self.log_area.append(f"  Bootstrap    : {boot} ({method})")
         else:
             self.log_area.append("  Bootstrap    : disabled")
-        if self._alrt_check.isChecked():
-            self.log_area.append(f"  SH-aLRT      : {self._alrt_spin.value()}")
+        if boot > 0 and self._bootstrap_mode_combo.currentData() == "ufboot_shalrt":
+            self.log_area.append(f"  SH-aLRT      : {boot}")
         outgroup = self._outgroup_combo.currentText().strip()
         if outgroup:
             self.log_area.append(f"  Outgroup     : {outgroup}")

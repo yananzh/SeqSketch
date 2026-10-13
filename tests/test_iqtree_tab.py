@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+import pytest
 from PyQt6.QtCore import QUrl
 from PyQt6.QtWidgets import QPushButton
 
@@ -132,7 +133,7 @@ def test_log_output_files_lists_existing_outputs(qapp, tmp_path):
     assert "best-scoring ML tree" in log
 
 
-def test_sh_alrt_checkbox_in_bootstrap_row(qapp):
+def test_bootstrap_method_and_replicates_share_row(qapp):
     tab = IqTreeTab()
     param_layout = tab._bootstrap_spin.parent().layout()
 
@@ -143,8 +144,8 @@ def test_sh_alrt_checkbox_in_bootstrap_row(qapp):
             boot_row = row
             break
     assert boot_row is not None
-    assert boot_row.indexOf(tab._alrt_check) >= 0
-    assert boot_row.indexOf(tab._alrt_spin) >= 0
+    assert boot_row.indexOf(tab._bootstrap_mode_combo) >= 0
+    assert boot_row.indexOf(tab._outgroup_combo) > boot_row.indexOf(tab._bootstrap_spin)
 
 
 def test_outgroup_row_above_output_directory(qapp):
@@ -181,3 +182,32 @@ def test_row1_param_boxes_have_same_width(qapp):
     }
 
     assert widths == {90}
+
+
+@pytest.mark.parametrize("mode, expected", [
+    ("ufboot", {"-B": "1000"}),
+    ("ufboot_shalrt", {"-B": "1000", "-alrt": "1000"}),
+    ("standard", {"-b": "500"}),
+])
+def test_bootstrap_method_generates_matching_flags(qapp, mode, expected):
+    tab = IqTreeTab()
+    tab._bootstrap_mode_combo.setCurrentIndex(tab._bootstrap_mode_combo.findData(mode))
+    cmd = tab._build_cmd()
+    actual = {flag: cmd[cmd.index(flag) + 1] for flag in ("-B", "-b", "-alrt") if flag in cmd}
+    assert actual == expected
+    tab._bootstrap_spin.setValue(0)
+    assert not {"-B", "-b", "-alrt"} & set(tab._build_cmd())
+
+
+def test_bootstrap_mode_switch_and_reset_match_pipeline(qapp):
+    tab = IqTreeTab()
+    tab._bootstrap_mode_combo.setCurrentIndex(2)
+    tab._bootstrap_spin.setValue(50)
+    tab._bootstrap_mode_combo.setCurrentIndex(0)
+    assert tab._bootstrap_spin.value() == 1000
+    tab._bootstrap_spin.setValue(0)
+    tab._bootstrap_mode_combo.setCurrentIndex(1)
+    assert tab._bootstrap_spin.value() == 0
+    tab._clear()
+    assert tab._bootstrap_mode_combo.currentData() == "ufboot"
+    assert tab._bootstrap_spin.value() == 1000

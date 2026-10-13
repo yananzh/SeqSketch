@@ -284,7 +284,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self.bootstrap_spin.setValue(1000)
         self.bootstrap_spin.setSpecialValueText("0 (disabled)")
         self.bootstrap_spin.setToolTip(
-            "Bootstrap replicates (0 = off). UFBoot ≥ 1000, Standard ≥ 100 recommended."
+            "Bootstrap replicates (0 = off). UFBoot ≥ 1000, Standard default: 500."
         )
 
         self.threads_spin = QSpinBox()
@@ -526,9 +526,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     def _on_bootstrap_mode_changed(self) -> None:
         """Suggest a replicate count for the selected mode (0 = off)."""
         mode = self.bootstrap_mode_combo.currentData()
-        suggested = 100 if mode == "standard" else 1000
+        suggested = 500 if mode == "standard" else 1000
         self.bootstrap_spin.setMinimum(0)
-        if 0 < self.bootstrap_spin.value() < suggested:
+        if self.bootstrap_spin.value() > 0:
             self.bootstrap_spin.setValue(suggested)
 
     def _choose_output_dir(self) -> None:
@@ -1063,7 +1063,7 @@ expected workbook layout.</li>
 <li><b>MAFFT</b> &mdash; Auto (automatic selection), Local Pair, Global Pair, or Conserved Region.</li>
 <li><b>trimAl</b> &mdash; automated1 (heuristic), gappyout (adaptive), strict/plus (conservative), nogaps.</li>
 <li><b>Threads</b> &mdash; number of CPU threads for IQ-TREE (default 2, up to your CPU core count).</li>
-<li><b>IQ-TREE Bootstrap</b> &mdash; UFBoot (ultrafast, 1000 recommended), UFBoot + SH-aLRT (branch test), or Standard bootstrap (100 recommended). The value is auto-filled when you switch modes; 0 turns bootstrap off.</li>
+<li><b>IQ-TREE Bootstrap</b> &mdash; UFBoot (ultrafast, 1000 recommended), UFBoot + SH-aLRT (branch test), or Standard bootstrap (default 500). The value is auto-filled when you switch modes; 0 turns bootstrap off.</li>
 <li>Per-gene alignments and trimmed files are always kept for inspection under the stage folders.</li>
 <li><b>Skip completed steps</b> &mdash; resume a previous run in the same output folder:
 <p>Reuse requires matching inputs and verified artifact hashes. Missing, changed, or older
