@@ -20,6 +20,7 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
@@ -362,94 +363,80 @@ class DistanceTreeTab(BaseTabWidget):
 
     # ── UI ──────────────────────────────────────────────────────────
     def _build_ui(self):
-        lbl_w = 120
-
-        # ── Input group ─────────────────────────────────────────────
-        grp_in = QGroupBox("Input and Method")
+        grp_in = QGroupBox("Input and Parameters")
         gl = QVBoxLayout(grp_in)
-        gl.setSpacing(8)
+        gl.setSpacing(16)
 
-        # file row
-        fr = QHBoxLayout()
-        lbl_file = QLabel("Alignment file:")
-        lbl_file.setFixedWidth(lbl_w)
-        fr.addWidget(lbl_file)
+        # Shared grid keeps both path fields and Browse buttons aligned.
+        paths = QGridLayout()
+        paths.setHorizontalSpacing(8)
+        paths.setVerticalSpacing(8)
+        paths.setColumnStretch(1, 1)
+        paths.addWidget(QLabel("Alignment:"), 0, 0)
         self._file_edit = _DropLineEdit()
         self._file_edit.setPlaceholderText("Select or drag & drop a FASTA alignment...")
-        fr.addWidget(self._file_edit, 1)
-        self._example_btn = QPushButton("Example")
-        self._example_btn.setToolTip(
-            "Load bundled example alignment (csrA_pro_mafft.fasta)"
-        )
-        self._example_btn.clicked.connect(self._load_example)
-        fr.addWidget(self._example_btn)
+        paths.addWidget(self._file_edit, 0, 1)
         self._browse_btn = QPushButton("Browse")
         self._browse_btn.setFixedWidth(90)
         self._browse_btn.clicked.connect(self._browse_input)
-        fr.addWidget(self._browse_btn)
-        gl.addLayout(fr)
+        paths.addWidget(self._browse_btn, 0, 2)
+        paths.addWidget(QLabel("Output:"), 1, 0)
+        self._out_edit = QLineEdit()
+        self._out_edit.setPlaceholderText(
+            "Auto-generated from input name, or choose manually..."
+        )
+        paths.addWidget(self._out_edit, 1, 1)
+        self._save_btn = QPushButton("Browse")
+        self._save_btn.setFixedWidth(90)
+        self._save_btn.clicked.connect(self._browse_output)
+        paths.addWidget(self._save_btn, 1, 2)
+        gl.addLayout(paths)
 
-        # model + method + bootstrap row
         opt_row = QHBoxLayout()
-        lbl_model = QLabel("Model Selection:")
-        lbl_model.setFixedWidth(lbl_w)
-        opt_row.addWidget(lbl_model)
+        opt_row.setSpacing(8)
+        opt_row.addWidget(QLabel("Method:"))
+        self._method_combo = QComboBox()
+        self._method_combo.addItem("NJ", "nj")
+        self._method_combo.addItem("UPGMA", "upgma")
+        self._method_combo.setFixedWidth(110)
+        self._method_combo.setToolTip(
+            "nj: Neighbor-Joining (fast, accurate, no clock assumption)  |  "
+            "upgma: UPGMA (assumes a molecular clock — check before using)"
+        )
+        opt_row.addWidget(self._method_combo)
+        opt_row.addSpacing(16)
+        opt_row.addWidget(QLabel("Model:"))
         self._model_combo = QComboBox()
         for display, data in _DNA_MODELS:
             self._model_combo.addItem(display, data)
         self._model_combo.setMinimumWidth(220)
         self._model_combo.setToolTip(
             "p-distance: fraction of differing sites  |  JC69: Jukes-Cantor correction  |  "
-                "K80: Kimura 2-parameter (transitions vs transversions)\n"
-                "First time? NJ + p-distance is a safe start."
+            "K80: Kimura 2-parameter (transitions vs transversions)\n"
+            "First time? NJ + p-distance is a safe start."
         )
         opt_row.addWidget(self._model_combo)
-        opt_row.addSpacing(20)
-        opt_row.addWidget(QLabel("Method:"))
-        self._method_combo = QComboBox()
-        self._method_combo.addItem("NJ", "nj")
-        self._method_combo.addItem("UPGMA", "upgma")
-        self._method_combo.setMinimumWidth(100)
-        self._method_combo.setToolTip(
-            "nj: Neighbor-Joining (fast, accurate, no clock assumption)  |  "
-                "upgma: UPGMA (assumes a molecular clock — check before using)"
-        )
-        opt_row.addWidget(self._method_combo)
-        opt_row.addSpacing(20)
-        opt_row.addWidget(QLabel("Bootstrap:"))
+        opt_row.addSpacing(16)
+        opt_row.addWidget(QLabel("Bootstrap replicates:"))
         self._bootstrap_spin = QSpinBox()
         self._bootstrap_spin.setRange(0, 10000)
         self._bootstrap_spin.setSingleStep(100)
         self._bootstrap_spin.setValue(1000)
+        self._bootstrap_spin.setFixedWidth(110)
         self._bootstrap_spin.setSpecialValueText("Off")
         self._bootstrap_spin.setToolTip(
-            "Number of bootstrap replicates (0 = off). 100–1000 recommended."
+            "Number of standard bootstrap replicates (0 = off; default: 1000)."
         )
         opt_row.addWidget(self._bootstrap_spin)
         opt_row.addStretch()
+        control_height = max(
+            control.sizeHint().height()
+            for control in (self._method_combo, self._model_combo, self._bootstrap_spin)
+        )
+        for control in (self._method_combo, self._model_combo, self._bootstrap_spin):
+            control.setFixedHeight(control_height)
         gl.addLayout(opt_row)
         self.content_area.addWidget(grp_in)
-
-        # ── Output group ────────────────────────────────────────────
-        grp_out = QGroupBox("Output")
-        ol = QVBoxLayout(grp_out)
-        ol.setSpacing(8)
-
-        out_row = QHBoxLayout()
-        lbl_out = QLabel("Tree file (.nwk):")
-        lbl_out.setFixedWidth(lbl_w)
-        out_row.addWidget(lbl_out)
-        self._out_edit = QLineEdit()
-        self._out_edit.setPlaceholderText(
-            "Auto-generated from input name, or choose manually..."
-        )
-        out_row.addWidget(self._out_edit, 1)
-        self._save_btn = QPushButton("Browse")
-        self._save_btn.setFixedWidth(90)
-        self._save_btn.clicked.connect(self._browse_output)
-        out_row.addWidget(self._save_btn)
-        ol.addLayout(out_row)
-        self.content_area.addWidget(grp_out)
 
         # ── Distance matrix table ───────────────────────────────────
         matrix_grp = QGroupBox("Distance Matrix")
@@ -473,6 +460,12 @@ class DistanceTreeTab(BaseTabWidget):
         self._run_btn = QPushButton("Run")
         self._run_btn.clicked.connect(self._compute)
 
+        self._example_btn = QPushButton("Example")
+        self._example_btn.setToolTip(
+            "Load bundled example alignment (csrA_pro_mafft.fasta)"
+        )
+        self._example_btn.clicked.connect(self._load_example)
+
         self._view_tree_btn = QPushButton("View Tree")
         self._view_tree_btn.setVisible(False)
         self._view_tree_btn.clicked.connect(self._open_tree_viewer)
@@ -485,8 +478,9 @@ class DistanceTreeTab(BaseTabWidget):
         self._clear_btn.clicked.connect(self._clear_all)
 
         # Insert before Help button (rightmost in status_layout)
-        # Order: [Run] [View Tree] [Export Matrix] [Clear] [Help]
+        # Order: [Run] [Example] [View Tree] [Export Matrix] [Clear] [Help]
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._run_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._example_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._view_tree_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._export_csv_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._clear_btn)

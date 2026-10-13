@@ -150,18 +150,13 @@ def test_view_tree_button_hidden_initially(qapp):
     assert tab._view_tree_btn.isHidden()
 
 
-def test_example_button_moved_to_input_group_left_of_browse(qapp):
+def test_example_button_immediately_after_run(qapp):
     tab = DistanceTreeTab()
 
-    # Example is no longer in the status bar
-    assert tab.status_layout.indexOf(tab._example_btn) == -1
+    assert tab.status_layout.indexOf(tab._example_btn) == (
+        tab.status_layout.indexOf(tab._run_btn) + 1
+    )
 
-    # Example shares the file row with Browse, positioned to its left
-    group_layout = tab._browse_btn.parent().layout()  # "Input and Method" group
-    file_row = group_layout.itemAt(0).layout()
-    assert file_row.indexOf(tab._example_btn) >= 0
-    assert file_row.indexOf(tab._browse_btn) >= 0
-    assert file_row.indexOf(tab._example_btn) < file_row.indexOf(tab._browse_btn)
 
 
 def test_view_tree_button_visible_after_successful_result(qapp, tmp_path):
