@@ -112,6 +112,59 @@ def test_worker_warns_when_bootstrap_unavailable(tmp_path, monkeypatch):
     assert "Bootstrap support is unavailable" in results[0]["warning"]
 
 
+def test_worker_bootstrap_support_values_are_valid_percentages(tmp_path):
+    # BioPython's NJ names internal nodes Inner1..Inner(n-2); at 13 taxa the
+    # two-digit names made the old ")Inner11 98.00:" regex post-processing emit
+    # labels like "198.00" (the node-number digit glued onto the support value).
+    # Every internal label must be a plain support percentage in [0, 100].
+    import re
+
+    import numpy as np
+
+    np.random.seed(20261014)
+    swap = {"A": "C", "C": "G", "G": "T", "T": "A"}
+    records = []
+    for i in range(13):
+        chars = list("ACGT" * 15)
+        # 5 group-specific columns make four well-separated clusters...
+        group = i // 4
+        for j in range(group * 5, group * 5 + 5):
+            chars[j] = swap[chars[j]]
+        # ...and one unique column per taxon separates members inside a group.
+        chars[40 + i] = swap[chars[40 + i]]
+        records.append(f">t{i:02d}\n{''.join(chars)}\n")
+    aln_file = tmp_path / "aln13.fasta"
+    aln_file.write_text("".join(records), encoding="utf-8")
+
+    worker = _DistanceTreeWorker(str(aln_file), "jc69", "nj", 50)
+    results, errors = [], []
+    worker.finished_ok.connect(results.append)
+    worker.finished_err.connect(errors.append)
+
+    worker.run()
+
+    assert not errors, errors
+    newick = results[0]["newick"]
+    assert "Inner" not in newick
+    labels = re.findall(r"\)([0-9.]+)(?=[;:])", newick)
+    assert labels, "expected bootstrap support labels on internal nodes"
+    for label in labels:
+        assert 0.0 <= float(label) <= 100.0, f"support value out of range: {label}"
+
+
+def test_worker_without_bootstrap_has_no_placeholder_node_names(tmp_path):
+    aln_file = tmp_path / "aln.fasta"
+    aln_file.write_text(">a\nATGC\n>b\nATGC\n>c\nATTC\n", encoding="utf-8")
+
+    worker = _DistanceTreeWorker(str(aln_file), "jc69", "nj", 0)
+    results = []
+    worker.finished_ok.connect(results.append)
+
+    worker.run()
+
+    assert "Inner" not in results[0]["newick"]
+
+
 def test_on_result_logs_warning(qapp, tmp_path):
     tab = DistanceTreeTab()
     tab._out_edit.setText(str(tmp_path / "t.nwk"))

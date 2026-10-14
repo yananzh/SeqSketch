@@ -485,15 +485,22 @@ class IqTreeTab(BaseTabWidget):
         cmd += ["--redo"]
         outdir = self._outdir_edit.text().strip()
         prefix = self._prefix_edit.text().strip()
-        if outdir or prefix:
-            if outdir and prefix:
-                full_prefix = os.path.join(outdir, os.path.basename(prefix))
-            elif outdir and input_path:
-                input_basename = os.path.splitext(os.path.basename(input_path))[0]
-                full_prefix = os.path.join(outdir, input_basename)
-            else:
-                full_prefix = prefix
-            cmd += ["--prefix", full_prefix]
+        if outdir and prefix:
+            full_prefix = os.path.join(outdir, os.path.basename(prefix))
+        elif outdir and input_path:
+            input_basename = os.path.splitext(os.path.basename(input_path))[0]
+            full_prefix = os.path.join(outdir, input_basename)
+        elif prefix:
+            full_prefix = prefix
+        elif input_path:
+            # Both fields blank: save alongside the input file, as the output
+            # directory placeholder promises. Without --prefix, IQ-TREE writes
+            # into the app's working directory and the run skips run_log.txt
+            # provenance plus the treefile hand-off entirely.
+            full_prefix = os.path.splitext(input_path)[0]
+        else:
+            return cmd
+        cmd += ["--prefix", full_prefix]
         return cmd
 
     def show_help(self):

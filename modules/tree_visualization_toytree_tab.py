@@ -30,7 +30,7 @@ from PyQt6.QtCore import (
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QColor, QDragEnterEvent, QDropEvent, QPainter, QPixmap, QWheelEvent
+from PyQt6.QtGui import QColor, QDragEnterEvent, QDropEvent, QImage, QPainter, QWheelEvent
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtSvgWidgets import QGraphicsSvgItem
 from PyQt6.QtWidgets import (
@@ -228,7 +228,7 @@ def _inject_white_background(svg_bytes: bytes) -> bytes:
     toyplot sets ``fill:rgb(16%,15%,14%)`` and ``background-color:transparent``
     on the root <svg> element.  QSvgRenderer on Windows dark‑mode interprets
     the root fill as the viewport background, producing a near‑black canvas
-    that makes the tree unreadable even when the QPixmap is pre‑filled white.
+    that makes the tree unreadable even when the raster image is pre‑filled white.
 
     We rewrite the root SVG tag's style attribute:
       - fill:rgb(...)        → fill:white
@@ -452,19 +452,23 @@ class _ExportThread(QThread):
         toyplot.pdf.render(canvas, self.out_path)
 
     def _export_png(self):
-        """Export PNG by rendering SVG then rasterizing via QSvgRenderer."""
+        """Export PNG by rendering SVG then rasterizing via QSvgRenderer.
+
+        QImage, not QPixmap: this runs on the export thread, and QPixmap
+        painting is only supported on the GUI thread.
+        """
         svg_bytes = _render_svg_bytes(self.tree_file, self.params)
         renderer = QSvgRenderer(svg_bytes)
         dpi_scale = self.params.get("dpi", 300) / 96.0
         default_size = renderer.defaultSize()
         w = int(default_size.width() * dpi_scale)
         h = int(default_size.height() * dpi_scale)
-        pixmap = QPixmap(w, h)
-        pixmap.fill(QColor("#ffffff"))
-        painter = QPainter(pixmap)
+        image = QImage(w, h, QImage.Format.Format_ARGB32)
+        image.fill(QColor("#ffffff"))
+        painter = QPainter(image)
         renderer.render(painter)
         painter.end()
-        pixmap.save(self.out_path, "PNG")
+        image.save(self.out_path, "PNG")
 
 
 # ---------------------------------------------------------------------------

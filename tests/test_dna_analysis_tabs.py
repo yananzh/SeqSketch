@@ -479,6 +479,51 @@ def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
         assert tab.output_text.viewport().styleSheet() == "background: transparent; border: none;"
 
 
+def test_orf_single_record_still_draws_map(qapp, monkeypatch):
+    from PyQt6.QtWidgets import QMessageBox
+
+    popups = []
+    monkeypatch.setattr(
+        QMessageBox, "information", staticmethod(lambda *a, **k: popups.append(a))
+    )
+    tab = ORFTab()
+    tab.min_len_box.setValue(30)
+
+    tab.input_text.setPlainText(">recA\n" + "ATG" + "AAA" * 10 + "TAA\n")
+    tab.run()
+
+    assert tab._orf_table.rowCount() == 1
+    assert tab._orf_table.item(0, 1).text() == "recA"
+    assert tab._orf_fig.axes, "single-record input must still draw the ORF map"
+    assert not popups
+
+
+def test_orf_multi_record_skips_map_and_attributes_table_rows(qapp, monkeypatch):
+    """Multi-record input: no map (its x-axis is one record's coordinate
+    space), a popup explains why, and every table row says its record."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    popups = []
+    monkeypatch.setattr(
+        QMessageBox, "information", staticmethod(lambda *a, **k: popups.append(a))
+    )
+    tab = ORFTab()
+    tab.min_len_box.setValue(30)
+
+    orf = "ATG" + "AAA" * 10 + "TAA"
+    tab.input_text.setPlainText(f">recA\n{orf}\n>recB\n{orf}\n")
+    tab.run()
+
+    assert tab._orf_table.rowCount() == 2
+    origins = {
+        tab._orf_table.item(row, 1).text()
+        for row in range(tab._orf_table.rowCount())
+    }
+    assert origins == {"recA", "recB"}
+    assert popups and "single-record" in popups[0][2]
+    assert not tab._orf_fig.axes, "the map must be cleared for multi-record input"
+
+
 
 def test_dotplot_tab_hides_output_panel_and_removes_reverse_complement_option(qapp):
     tab = DotPlotTab()

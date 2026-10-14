@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QMessageBox,
     QPushButton,
     QSpinBox,
     QSplitter,
@@ -166,9 +167,10 @@ class ORFTab(BaseTabWidget):
         splitter.setChildrenCollapsible(False)
 
         # ── ORF table ──────────────────────────────────────────────
-        self._orf_table = QTableWidget(0, 6)
+        self._orf_table = QTableWidget(0, 7)
         self._orf_table.setHorizontalHeaderLabels([
             "#",
+            "Record",
             "Frame",
             "Start",
             "End",
@@ -269,6 +271,7 @@ class ORFTab(BaseTabWidget):
                 )
             for o in results:
                 o["header_tag"] = prefix
+                o["record"] = rec_header.removeprefix(">")
             results = [o for o in results if o["length"] >= min_len]
             all_results.extend(results)
 
@@ -276,8 +279,22 @@ class ORFTab(BaseTabWidget):
 
         self._results = all_results
         self._populate_table(all_results)
-        if records:
+        if len(records) == 1:
             self._draw_orf_map(all_results, len(records[0][1]))
+        elif records:
+            # The map's x-axis is one record's coordinate space; ORFs from
+            # several records would be drawn at unrelated positions. Keep the
+            # map for single-record input and point multi-record runs at the
+            # table, whose Record column carries each ORF's origin.
+            self._orf_fig.clear()
+            self._orf_canvas.draw_idle()
+            QMessageBox.information(
+                self,
+                "ORF Map",
+                f"The ORF map is drawn for single-record input only. "
+                f"{len(records)} records were analyzed — see the Record "
+                f"column in the results table for each ORF's origin.",
+            )
 
         # Also populate output_text for export/copy
         out_lines = []
@@ -373,13 +390,14 @@ class ORFTab(BaseTabWidget):
                 aa_len -= 1
             items = [
                 QTableWidgetItem(str(row + 1)),
+                QTableWidgetItem(o.get("record", "")),
                 QTableWidgetItem(o["frame"]),
                 QTableWidgetItem(str(start_disp)),
                 QTableWidgetItem(str(end_disp)),
                 QTableWidgetItem(str(o["length"])),
                 QTableWidgetItem(str(aa_len)),
             ]
-            for ci in (0, 2, 3, 4, 5):
+            for ci in (0, 3, 4, 5, 6):
                 items[ci].setTextAlignment(
                     Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                 )

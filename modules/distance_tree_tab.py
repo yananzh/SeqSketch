@@ -204,15 +204,17 @@ class _DistanceTreeWorker(QThread):
                             "the tree was built without support values."
                         )
 
+            # BioPython emits each internal node as ")Name+confidence:" with no
+            # separator (e.g. ")Inner57100.00:0.18"). Clearing the auto-generated
+            # node names makes it write the bootstrap support as the label itself
+            # (")100.00:0.18") — the old regex post-processing mis-split any
+            # node numbered Inner10 and above.
+            for clade in tree.find_clades(order="level"):
+                if not clade.is_terminal():
+                    clade.name = None
             buf = StringIO()
             Phylo.write(tree, buf, "newick")
             newick_str = buf.getvalue().strip()
-
-            # Convert BioPython node-name bootstrap to standard Newick:
-            #   )Inner2100.00:0.18  →  )100.00:0.18
-            import re
-
-            newick_str = re.sub(r"\)Inner\d+?(\d+\.\d+):", r")\1:", newick_str)
 
             self.finished_ok.emit({
                 "matrix": matrix,

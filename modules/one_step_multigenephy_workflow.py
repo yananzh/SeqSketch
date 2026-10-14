@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import socket
 import subprocess
 import tempfile
 import threading
@@ -212,6 +213,31 @@ def build_default_tool_adapters(
         check = abort_holder["check"]
         return bool(check is not None and check())
 
+    def _raise_if_aborted() -> None:
+        if _is_aborted():
+            raise RuntimeError("Workflow cancelled by user")
+
+    def _abortable_sleep(seconds: float) -> None:
+        """Sleep in short slices so Cancel is noticed immediately."""
+        deadline = time.monotonic() + seconds
+        while True:
+            _raise_if_aborted()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return
+            time.sleep(min(0.1, remaining))
+
+    # NCBI asks for at most ~3 requests/second without an API key; the same
+    # 0.34s spacing the Download-from-NCBI tab uses keeps this pipeline just
+    # under that limit across per-accession fetches.
+    _last_ncbi_request = {"monotonic": 0.0}
+
+    def _pace_ncbi_requests() -> None:
+        wait = 0.34 - (time.monotonic() - _last_ncbi_request["monotonic"])
+        if wait > 0:
+            _abortable_sleep(wait)
+        _last_ncbi_request["monotonic"] = time.monotonic()
+
     def fetch_accession(accession: str, email: str) -> str:
         if Entrez is None:
             raise RuntimeError("Biopython Entrez is not available")
@@ -219,25 +245,38 @@ def build_default_tool_adapters(
             raise ValueError("NCBI email is required to fetch accession sequences")
 
         Entrez.email = email
+        _pace_ncbi_requests()
+        # Without a socket timeout a stalled efetch blocks this worker forever
+        # and Cancel never takes effect (same discipline as the NCBI tab).
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(60)
         last_error: Exception | None = None
-        for attempt in range(3):
-            try:
-                with Entrez.efetch(
-                    db="nucleotide",
-                    id=accession,
-                    rettype="fasta",
-                    retmode="text",
-                ) as handle:
-                    sequences = _fasta_dict_from_text(handle.read())
+        try:
+            for attempt in range(3):
+                _raise_if_aborted()
+                try:
+                    with Entrez.efetch(
+                        db="nucleotide",
+                        id=accession,
+                        rettype="fasta",
+                        retmode="text",
+                    ) as handle:
+                        sequences = _fasta_dict_from_text(handle.read())
 
-                if not sequences:
-                    raise RuntimeError(f"No FASTA sequence returned for {accession}")
-                return next(iter(sequences.values()))
-            except Exception as exc:
-                last_error = exc
-                if attempt < 2:
-                    delay = (2**attempt) * 0.5
-                    time.sleep(delay)
+                    if not sequences:
+                        raise RuntimeError(f"No FASTA sequence returned for {accession}")
+                    return next(iter(sequences.values()))
+                except Exception as exc:
+                    if _is_aborted():
+                        # The user cancelled during the fetch: propagate the
+                        # cancellation instead of retrying or failing the cell.
+                        raise RuntimeError("Workflow cancelled by user") from exc
+                    last_error = exc
+                    if attempt < 2:
+                        delay = (2**attempt) * 0.5
+                        _abortable_sleep(delay)
+        finally:
+            socket.setdefaulttimeout(old_timeout)
         raise last_error  # type: ignore[misc]
 
     def run_alignment(
@@ -1163,6 +1202,9 @@ class OneStepMultiGenePhyRunner:
                                 .upper()
                             )
                         except Exception as exc:
+                            # A fetch that failed because the user cancelled
+                            # must propagate, not become a per-cell warning.
+                            _check_abort()
                             fetch_warning = True
                             acc_failed += 1
                             cell.status = "warning"

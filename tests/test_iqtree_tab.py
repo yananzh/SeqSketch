@@ -56,6 +56,30 @@ def test_outgroup_omitted_when_blank(qapp):
     assert "-o" not in cmd
 
 
+def test_blank_outdir_and_prefix_derive_prefix_from_input(qapp):
+    """Both output fields blank: the prefix must fall back to the input path.
+
+    Without --prefix, IQ-TREE writes into the app's working directory (not
+    "alongside the input file" as the placeholder promises), and the worker
+    then records no run_log.txt provenance and hands off no treefile.
+    """
+    tab = IqTreeTab()
+    tab._input_edit.setText("C:/x/aln.fasta")
+
+    cmd = tab._build_cmd()
+
+    assert "--prefix" in cmd
+    assert cmd[cmd.index("--prefix") + 1] == "C:/x/aln"
+
+
+def test_no_input_and_blank_output_fields_omit_prefix(qapp):
+    tab = IqTreeTab()
+
+    cmd = tab._build_cmd()
+
+    assert "--prefix" not in cmd
+
+
 def test_outgroup_dropdown_populated_from_input_file(qapp, tmp_path):
     aln_file = tmp_path / "aln.fasta"
     aln_file.write_text(

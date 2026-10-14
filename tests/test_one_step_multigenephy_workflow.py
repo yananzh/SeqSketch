@@ -583,6 +583,109 @@ def test_build_default_tool_adapters_fetch_accession_uses_entrez_email(monkeypat
     )
 
 
+class _FastaHandle:
+    def __init__(self, text=">ON123456.1 sample\nATGC\n"):
+        self._text = text
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def read(self):
+        return self._text
+
+
+def test_fetch_accession_aborts_before_touching_the_network(monkeypatch):
+    """Cancel must win before a fetch: no efetch call is made at all."""
+    calls = {"efetch": 0}
+
+    class FakeEntrez:
+        email = ""
+
+        @staticmethod
+        def efetch(**kwargs):
+            calls["efetch"] += 1
+            raise AssertionError("efetch must not be called after cancellation")
+
+    monkeypatch.setattr(workflow_module, "Entrez", FakeEntrez)
+    adapters = build_default_tool_adapters()
+    adapters.set_abort(lambda: True)
+
+    with pytest.raises(RuntimeError, match="cancelled"):
+        adapters.fetch_accession("ON123456.1", "user@example.com")
+
+    assert calls["efetch"] == 0
+
+
+def test_fetch_accession_aborts_during_retry_backoff(monkeypatch):
+    """A cancel pressed while backing off between retries stops the fetch
+    immediately instead of running the remaining attempts."""
+    attempts = {"count": 0}
+
+    class FakeEntrez:
+        email = ""
+
+        @staticmethod
+        def efetch(**kwargs):
+            attempts["count"] += 1
+            return _FastaHandle(text="")  # forces the retry path
+
+    monkeypatch.setattr(workflow_module, "Entrez", FakeEntrez)
+    adapters = build_default_tool_adapters()
+    adapters.set_abort(lambda: attempts["count"] >= 2)
+
+    with pytest.raises(RuntimeError, match="cancelled"):
+        adapters.fetch_accession("ON123456.1", "user@example.com")
+
+    assert attempts["count"] == 2, "cancellation must preempt the third attempt"
+
+
+def test_fetch_accession_sets_and_restores_socket_timeout(monkeypatch):
+    """A stalled efetch must hit a 60s socket timeout, restored afterwards."""
+    seen = {}
+
+    class FakeEntrez:
+        email = ""
+
+        @staticmethod
+        def efetch(**kwargs):
+            seen["timeout"] = workflow_module.socket.getdefaulttimeout()
+            return _FastaHandle()
+
+    monkeypatch.setattr(workflow_module, "Entrez", FakeEntrez)
+    adapters = build_default_tool_adapters()
+    original = workflow_module.socket.getdefaulttimeout()
+
+    assert adapters.fetch_accession("ON123456.1", "user@example.com") == "ATGC"
+    assert seen["timeout"] == 60
+    assert workflow_module.socket.getdefaulttimeout() == original
+
+
+def test_fetch_accession_paces_consecutive_requests(monkeypatch):
+    """Consecutive fetches keep NCBI's ~3 req/s limit (0.34s spacing, the
+    same interval the Download-from-NCBI tab uses)."""
+    import time as time_mod
+
+    class FakeEntrez:
+        email = ""
+
+        @staticmethod
+        def efetch(**kwargs):
+            return _FastaHandle()
+
+    monkeypatch.setattr(workflow_module, "Entrez", FakeEntrez)
+    adapters = build_default_tool_adapters()
+
+    start = time_mod.monotonic()
+    adapters.fetch_accession("ON123456.1", "user@example.com")
+    adapters.fetch_accession("ON123456.2", "user@example.com")
+    elapsed = time_mod.monotonic() - start
+
+    assert elapsed >= 0.3
+
+
 def test_build_default_tool_adapters_use_resource_paths_and_parse_outputs(tmp_path, monkeypatch):
     mafft_exe = tmp_path / "mafft.bat"
     trimal_exe = tmp_path / "trimal.exe"

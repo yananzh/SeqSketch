@@ -168,9 +168,7 @@ class DeduplicateTab(BaseTabWidget):
     def handle_input_file_selected(self, file_path: str):
         self.input_edit.setText(file_path)
         base = os.path.splitext(os.path.basename(file_path))[0]
-        suggested = os.path.join(os.path.dirname(file_path), base + "_dedup.fasta").replace(
-            "/", "\\"
-        )
+        suggested = os.path.join(os.path.dirname(file_path), base + "_dedup.fasta")
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")

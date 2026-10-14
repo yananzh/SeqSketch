@@ -140,7 +140,10 @@ excludes = [
     'Tcl',
     'Tk',
     'test',
-    # Unused matplotlib backends
+    # Unused matplotlib backends. NOTE: backend_pdf and backend_svg must NOT
+    # be listed here — seven tabs export via figure.savefig('*.pdf'/'*.svg'),
+    # and matplotlib loads the output-format backend dynamically at save time
+    # (tests/test_build_spec.py guards this).
     'matplotlib.backends.backend_gtk3',
     'matplotlib.backends.backend_gtk3agg',
     'matplotlib.backends.backend_gtk4',
@@ -149,9 +152,7 @@ excludes = [
     'matplotlib.backends.backend_tkcairo',
     'matplotlib.backends.backend_wxagg',
     'matplotlib.backends.backend_wx',
-    'matplotlib.backends.backend_pdf',
     'matplotlib.backends.backend_ps',
-    'matplotlib.backends.backend_svg',
     'matplotlib.backends.backend_pgf',
     # IPython / Jupyter not needed
     'IPython',

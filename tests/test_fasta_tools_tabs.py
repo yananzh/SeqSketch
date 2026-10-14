@@ -10,10 +10,12 @@ import pytest
 from PyQt6.QtWidgets import QApplication, QFileDialog, QGroupBox
 
 from modules.batch_rename_ids_tab import BatchRenameIDsTab
+from modules.deduplicate_tab import DeduplicateTab
 from modules.download_from_ncbi_tab import DownloadFromNCBITab
 from modules.extract_by_id_tab import ExtractByIDTab
 from modules.extract_by_regex_tab import ExtractByRegexTab
 from modules.fasta_table_converter_tab import FastaTableConverterTab
+from modules.filter_by_length_tab import FilterByLengthTab
 from modules.sequence_statistics_tab import SequenceStatisticsTab
 from modules.simplify_ids_tab import SimplifyIDsTab
 from modules.sort_fasta_tab import SortFastaTab
@@ -170,6 +172,11 @@ def test_fasta_tools_plain_text_editors_have_border_style(qapp):
         (SequenceStatisticsTab, "_length_statistics.txt"),
         (ExtractByRegexTab, "_regex_extracted.fasta"),
         (BatchRenameIDsTab, "_renamed.fasta"),
+        (SortFastaTab, "_sorted.fasta"),
+        (FilterByLengthTab, "_filtered.fasta"),
+        (ExtractByIDTab, "_extracted.fasta"),
+        (DeduplicateTab, "_dedup.fasta"),
+        (SimplifyIDsTab, "_simplified.fasta"),
     ],
 )
 def test_suggested_output_path_uses_native_separators(qapp, tab_class, suffix, tmp_path: Path):
@@ -188,6 +195,27 @@ def test_suggested_output_path_uses_native_separators(qapp, tab_class, suffix, t
     suggested = tab.output_edit.text()
     assert suggested == str(tmp_path / f"sample{suffix}")
     assert os.path.dirname(suggested) == str(tmp_path)
+
+
+def test_converter_suggested_output_path_uses_native_separators(qapp, tmp_path: Path):
+    """Both converter directions suggest native-separator sibling paths.
+
+    The FASTA Table Converter carried the same 'every / becomes a backslash'
+    bug in both branches of its suggestion, so it is asserted separately from
+    the parametrized tabs above (its suggestion depends on the direction).
+    """
+    source = tmp_path / "sample.fasta"
+    source.write_text(">seq1\nATGC\n", encoding="utf-8")
+
+    tab = FastaTableConverterTab()
+
+    tab.handle_input_file_selected(str(source))  # default: FASTA -> Table, CSV
+    assert tab.output_edit.text() == str(tmp_path / "sample_table.csv")
+
+    tab.output_edit.clear()
+    tab.direction_combo.setCurrentIndex(1)  # Table -> FASTA
+    tab.handle_input_file_selected(str(source))
+    assert tab.output_edit.text() == str(tmp_path / "sample.fasta")
 
 
 def test_sequence_statistics_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
@@ -296,6 +324,44 @@ def test_simplify_ids_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):
     assert "Simplification complete!" in log_text(tab)
     assert tab.status_label.text() == "Ready"
     print("[Simplify IDs] finished successfully")
+
+
+def test_simplify_ids_auto_number_mapping_report_stays_aligned(qapp, tmp_path: Path):
+    """Auto-numbering must update the matching row of the ID mapping report.
+
+    mapping_rows[0] is the header line, so record i lives at i+1; the pre-fix
+    code wrote each renumbered ID one row early, so the exported audit trail
+    mapped originals to the wrong output IDs.
+    """
+    input_path = tmp_path / "dups.fasta"
+    input_path.write_text(
+        ">same alpha\nATG\n>same beta\nATG\n>other gamma\nATG\n", encoding="utf-8"
+    )
+    output_path = tmp_path / "simplified.fasta"
+    tab = SimplifyIDsTab()
+    tab.input_edit.setText(str(input_path))
+    tab.output_edit.setText(str(output_path))
+    tab.export_mapping_checkbox.setChecked(True)
+    tab.auto_number_checkbox.setChecked(True)
+
+    tab.run_simplify()
+
+    assert output_path.exists()
+    assert fasta_headers(output_path) == ["same", "same_2", "other"]
+
+    mapping_path = tmp_path / "simplified_id_mapping.tsv"
+    assert mapping_path.exists()
+    rows = [
+        line.split("\t")
+        for line in mapping_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert rows[0][0] == "Original_ID"
+    # Each original must map to the ID it actually received in the output FASTA.
+    assert [(row[0], row[1]) for row in rows[1:]] == [
+        ("same", "same"),
+        ("same", "same_2"),
+        ("other", "other"),
+    ]
 
 
 def test_extract_by_id_happy_path(qapp, sample_fasta_file: Path, tmp_path: Path):

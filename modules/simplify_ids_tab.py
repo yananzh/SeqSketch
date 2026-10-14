@@ -437,9 +437,7 @@ class SimplifyIDsTab(BaseTabWidget):
     def handle_input_file_selected(self, file_path: str):
         self.input_edit.setText(file_path)
         base = os.path.splitext(os.path.basename(file_path))[0]
-        suggested = os.path.join(os.path.dirname(file_path), base + "_simplified.fasta").replace(
-            "/", "\\"
-        )
+        suggested = os.path.join(os.path.dirname(file_path), base + "_simplified.fasta")
         if not self.output_edit.text().strip():
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
@@ -638,9 +636,10 @@ class SimplifyIDsTab(BaseTabWidget):
                             record.header = f"{base_id}_{seen[base_id]}"
                             auto_count += 1
                             # Keep the mapping report in sync with the renumbered ID
-                            fields = mapping_rows[row_idx].split("\t")
+                            # (mapping_rows[0] is the header line; record i lives at i+1)
+                            fields = mapping_rows[row_idx + 1].split("\t")
                             fields[1] = record.header
-                            mapping_rows[row_idx] = "\t".join(fields)
+                            mapping_rows[row_idx + 1] = "\t".join(fields)
                         else:
                             seen[base_id] = 1
                     self.log_message(

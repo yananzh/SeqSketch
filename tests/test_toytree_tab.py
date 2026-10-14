@@ -455,6 +455,23 @@ def test_all_support_labels_preview_and_export_agree(qapp, tmp_path):
         assert b">a<" in svg
 
 
+def test_png_export_produces_valid_raster_image(qapp, tmp_path):
+    """PNG export renders through QImage (QPixmap is GUI-thread-only and this
+    code runs inside the export thread)."""
+    from modules.tree_visualization_toytree_tab import _ExportThread
+
+    tree = tmp_path / "tree.nwk"
+    tree.write_text("((a:1,b:1)49/100:1,(c:1,d:1)50/100:1,e:1);")
+    output = tmp_path / "tree.png"
+    worker = _ExportThread(str(tree), {"show_support": True}, str(output))
+
+    worker._export_png()
+
+    data = output.read_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    assert len(data) > 1000, "expected rasterized tree content, not an empty canvas"
+
+
 def test_toytree_tab_instantiates(qapp):
     from modules.tree_visualization_toytree_tab import ToytreeVisualizationTab
 

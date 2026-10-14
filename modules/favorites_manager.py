@@ -77,6 +77,13 @@ _migrate_legacy_bookmarks()
 
 MIME_TYPE = "application/x-bookmark-item"
 
+# QListWidgetItem role holding the category that owns the bookmark. Mutations
+# must resolve entries through this role, not the displayed row number: while a
+# search filter is active the list shows a subset of a category (or a result
+# list across all categories), so the row index no longer matches the index in
+# self.bookmarks[category].
+CATEGORY_ROLE = Qt.ItemDataRole.UserRole + 1
+
 
 class EditBookmarkDialog(QDialog):
     def __init__(self, name: str = "", url: str = "", parent=None):
@@ -441,6 +448,32 @@ class BookmarkManager(QWidget):
             return ""
         return item.data(0, Qt.ItemDataRole.UserRole) or item.text(0)
 
+    def _item_category(self, item: QListWidgetItem) -> str:
+        """Category that owns a bookmark row (empty for items built without one)."""
+        return item.data(CATEGORY_ROLE) or ""
+
+    def _find_bookmark_index(self, category: str, bm: dict) -> int:
+        """Index of an equal bookmark in its category list (-1 if absent).
+
+        QListWidgetItem.data() returns an equal *copy* of the stored dict, so
+        the lookup is by equality; content-equal bookmarks are interchangeable
+        (the add flow explicitly allows keeping duplicates).
+        """
+        for i, entry in enumerate(self.bookmarks.get(category, [])):
+            if entry == bm:
+                return i
+        return -1
+
+    def _refresh_bookmark_view(self):
+        """Re-apply the live search after a mutation, or show the category list."""
+        text = self.search_box.text().strip()
+        if text:
+            self.filter_bookmarks(text)
+            return
+        cat_item = self.category_tree.currentItem()
+        if cat_item:
+            self._display_bookmarks(self._cat_name(cat_item))
+
     def _populate_categories(self):
         self.category_tree.clear()
         for cat in self.categories:
@@ -465,6 +498,7 @@ class BookmarkManager(QWidget):
             display = bm["name"]
             it = QListWidgetItem(display)
             it.setData(Qt.ItemDataRole.UserRole, bm)
+            it.setData(CATEGORY_ROLE, category)
             self.bookmark_list.addItem(it)
         count = len(self.bookmarks.get(category, []))
         self.status_label.setText(f"{category}: {count} bookmark(s)")
@@ -640,14 +674,13 @@ class BookmarkManager(QWidget):
             if not name or not url:
                 QMessageBox.warning(self, "Notice", "Name and URL cannot be empty.")
                 return
-            category_item = self.category_tree.currentItem()
-            if not category_item:
-                return
-            category = self._cat_name(category_item)
-            row = self.bookmark_list.row(item)
-            if row >= 0 and category in self.bookmarks and row < len(self.bookmarks[category]):
-                self.bookmarks[category][row] = {"name": name, "url": url}
-                self._display_bookmarks(category)
+            category = self._item_category(item) or self._cat_name(
+                self.category_tree.currentItem()
+            )
+            idx = self._find_bookmark_index(category, data)
+            if idx >= 0:
+                self.bookmarks[category][idx] = {"name": name, "url": url}
+                self._refresh_bookmark_view()
                 self._save_bookmarks()
 
     def open_bookmark(self, item: QListWidgetItem | None):
@@ -687,15 +720,13 @@ class BookmarkManager(QWidget):
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        category_item = self.category_tree.currentItem()
-        if not category_item:
-            return
-        category = self._cat_name(category_item)
-        rows = sorted([self.bookmark_list.row(it) for it in items], reverse=True)
-        for r in rows:
-            if 0 <= r < len(self.bookmarks.get(category, [])):
-                del self.bookmarks[category][r]
-        self._display_bookmarks(category)
+        for it in items:
+            bm = it.data(Qt.ItemDataRole.UserRole)
+            category = self._item_category(it)
+            idx = self._find_bookmark_index(category, bm)
+            if idx >= 0:
+                del self.bookmarks[category][idx]
+        self._refresh_bookmark_view()
         self._save_bookmarks()
 
     def show_bookmark_menu(self, pos):
@@ -733,21 +764,21 @@ class BookmarkManager(QWidget):
         items = self.bookmark_list.selectedItems()
         if not items:
             return
-        src_item = self.category_tree.currentItem()
-        if not src_item:
-            return
-        src_cat = self._cat_name(src_item)
-        if src_cat == target_cat:
+        moved: List[Dict[str, str]] = []
+        for it in items:
+            bm = it.data(Qt.ItemDataRole.UserRole)
+            src_cat = self._item_category(it)
+            if not src_cat or src_cat == target_cat:
+                continue
+            idx = self._find_bookmark_index(src_cat, bm)
+            if idx >= 0:
+                moved.append(self.bookmarks[src_cat].pop(idx))
+        if not moved:
             QMessageBox.information(self, "Notice", "Target category is the same as current.")
             return
-        rows = sorted([self.bookmark_list.row(it) for it in items], reverse=True)
-        moved: List[Dict[str, str]] = []
-        for r in rows:
-            if 0 <= r < len(self.bookmarks.get(src_cat, [])):
-                moved.append(self.bookmarks[src_cat].pop(r))
-        for bm in reversed(moved):
+        for bm in moved:
             self.bookmarks.setdefault(target_cat, []).append(bm)
-        self._display_bookmarks(src_cat)
+        self._refresh_bookmark_view()
         self._save_bookmarks()
 
     # ============== Drag & Drop ==============
@@ -773,19 +804,20 @@ class BookmarkManager(QWidget):
             target_item = self.category_tree.topLevelItem(0)
         target_cat = self._cat_name(target_item)
 
-        src_item = self.category_tree.currentItem()
-        src_cat = self._cat_name(src_item)
-
         selected = self.bookmark_list.selectedItems()
         moved = False
         if selected:
-            if src_cat:
-                rows = sorted([self.bookmark_list.row(it) for it in selected], reverse=True)
-                copied: List[Dict[str, str]] = []
-                for r in rows:
-                    if 0 <= r < len(self.bookmarks.get(src_cat, [])):
-                        copied.append(self.bookmarks[src_cat].pop(r))
-                for bm in reversed(copied):
+            copied: List[Dict[str, str]] = []
+            for it in selected:
+                bm = it.data(Qt.ItemDataRole.UserRole)
+                src_cat = self._item_category(it)
+                if not src_cat or src_cat == target_cat:
+                    continue
+                idx = self._find_bookmark_index(src_cat, bm)
+                if idx >= 0:
+                    copied.append(self.bookmarks[src_cat].pop(idx))
+            if copied:
+                for bm in copied:
                     self.bookmarks.setdefault(target_cat, []).append(bm)
                 moved = True
 
@@ -799,12 +831,7 @@ class BookmarkManager(QWidget):
                         "url": url,
                     })
 
-        cur_item = self.category_tree.currentItem()
-        cur_cat = self._cat_name(cur_item)
-        if cur_cat == src_cat:
-            self._display_bookmarks(src_cat)
-        if cur_cat == target_cat:
-            self._display_bookmarks(target_cat)
+        self._refresh_bookmark_view()
         self._save_bookmarks()
 
     # ============== Search ==============
@@ -824,6 +851,7 @@ class BookmarkManager(QWidget):
                 if text in bm["name"].lower() or text in bm["url"].lower():
                     it = QListWidgetItem(f"{bm['name']}  ({bm['url']})")
                     it.setData(Qt.ItemDataRole.UserRole, bm)
+                    it.setData(CATEGORY_ROLE, cat)
                     self.bookmark_list.addItem(it)
                     count += 1
         else:
@@ -832,6 +860,7 @@ class BookmarkManager(QWidget):
                     if text in bm["name"].lower() or text in bm["url"].lower():
                         it = QListWidgetItem(f"[{cat}] {bm['name']}  ({bm['url']})")
                         it.setData(Qt.ItemDataRole.UserRole, bm)
+                        it.setData(CATEGORY_ROLE, cat)
                         self.bookmark_list.addItem(it)
                         count += 1
         self.status_label.setText(f"Search: {count} match(es) for '{text}'")

@@ -226,13 +226,9 @@ class FastaTableConverterTab(BaseTabWidget):
             base = os.path.splitext(os.path.basename(file_path))[0]
             if to_table:
                 ext = self._table_extension()
-                suggested = os.path.join(os.path.dirname(file_path), base + "_table" + ext).replace(
-                    "/", "\\"
-                )
+                suggested = os.path.join(os.path.dirname(file_path), base + "_table" + ext)
             else:
-                suggested = os.path.join(os.path.dirname(file_path), base + ".fasta").replace(
-                    "/", "\\"
-                )
+                suggested = os.path.join(os.path.dirname(file_path), base + ".fasta")
             self.output_edit.setText(suggested)
         self.show_status("Input file selected")
 

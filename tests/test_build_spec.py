@@ -151,3 +151,35 @@ def test_spec_excludes_tkinter():
     with open(SPEC_PATH, "r", encoding="utf-8") as fh:
         source = fh.read()
     assert "'tkinter'" in source or '"tkinter"' in source, "tkinter must be in excludes"
+
+
+def _spec_excluded_modules():
+    """String constants of the spec's `excludes = [...]` list."""
+    tree = ast.parse(_spec_source())
+    excluded = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "excludes"
+            for target in node.targets
+        ):
+            excluded.update(
+                elt.value for elt in node.value.elts if isinstance(elt, ast.Constant)
+            )
+    assert excluded, "could not locate the excludes list in the spec"
+    return excluded
+
+
+def test_spec_keeps_the_matplotlib_pdf_and_svg_backends():
+    """PDF/SVG export must work in the packaged app.
+
+    Seven tabs (codon usage, dotplot, GC plot, hydrophobicity, MSA
+    visualization, sequence logo, Sanger viewer) offer *.pdf / *.svg in their
+    export dialogs and save via figure.savefig(). Matplotlib loads the
+    output-format backend dynamically at save time, so excluding
+    backend_pdf/backend_svg from the frozen app breaks those exports even
+    though running from source (and therefore the whole test suite) never
+    notices.
+    """
+    excluded = _spec_excluded_modules()
+    assert "matplotlib.backends.backend_pdf" not in excluded
+    assert "matplotlib.backends.backend_svg" not in excluded
