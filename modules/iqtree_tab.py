@@ -435,9 +435,15 @@ class IqTreeTab(BaseTabWidget):
     def _stop(self):
         if self._thread and self._thread.isRunning():
             request_task_stop(self._thread)
-        self.stop_btn.setVisible(False)
-        self.run_btn.setEnabled(True)
-        self.show_status("Stopped")
+            self.show_status("Stopping…")
+            # Run stays disabled until the thread's finished handler runs.
+            # Re-enabling it here let a new run start while the old thread
+            # was still unwinding, and its queued finished signal then
+            # wait()/deleteLater()'d the *new* thread.
+        else:
+            self.stop_btn.setVisible(False)
+            self.run_btn.setEnabled(True)
+            self.show_status("Stopped")
 
     def _clear(self):
         """Clear the log area and reset all parameters to defaults."""
@@ -628,15 +634,30 @@ to root the tree on (IQ-TREE <code>-o</code>).</li>
         self.stop_btn.setVisible(True)
         self.show_status("IQ-TREE running…")
 
-        self._thread = _IqTreeThread(cmd)
-        self._thread.progress.connect(self.show_status)
-        self._thread.log_line.connect(self._append_log_line)
-        self._thread.finished.connect(self._on_finished)
-        self._thread.start()
+        thread = _IqTreeThread(cmd)
+        self._thread = thread
+        thread.progress.connect(self.show_status)
+        thread.log_line.connect(self._append_log_line)
+        # Bind the thread into the completion handler: after Stop → Run the
+        # old thread's queued finished signal must not operate on the new
+        # run's thread (it used to wait() the GUI thread for the whole new
+        # run, then deleteLater() a running QThread).
+        thread.finished.connect(
+            lambda ok, treefile, output, t=thread: self._on_thread_finished(
+                t, ok, treefile, output
+            )
+        )
+        thread.start()
 
     def _append_log_line(self, line: str):
         self.log_area.moveCursor(self.log_area.textCursor().MoveOperation.End)
         self.log_area.insertPlainText(line + "\n")
+
+    @skip_when_closing
+    def _on_thread_finished(self, thread, success: bool, treefile: str, output: str):
+        if thread is not self._thread:
+            return  # stale completion from a superseded run (Stop → Run)
+        self._on_finished(success, treefile, output)
 
     @skip_when_closing
     def _on_finished(self, success: bool, treefile: str, output: str):

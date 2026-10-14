@@ -24,7 +24,7 @@ from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
 
-matplotlib.use("Qt5Agg")
+matplotlib.use("QtAgg")
 import math
 
 import matplotlib.ticker as ticker
@@ -35,6 +35,20 @@ from matplotlib.figure import Figure
 
 class GCPlotTab(BaseTabWidget):
     """GC Content / GC Skew Plot — sliding-window analysis for DNA sequences."""
+
+    @staticmethod
+    def _read_sequence_file(path: str) -> str:
+        """Read a sequence file as UTF-8, falling back to Latin-1.
+
+        Mirrors FASTAProcessor.read_file's tolerance so non-UTF-8 FASTA files
+        produce a clean status message instead of an unhandled exception.
+        """
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                return fh.read()
+        except UnicodeDecodeError:
+            with open(path, "r", encoding="latin-1") as fh:
+                return fh.read()
 
     def __init__(self, parent=None):
         super().__init__("GC Content / GC Skew", "sequence")
@@ -130,9 +144,8 @@ class GCPlotTab(BaseTabWidget):
         if not path:
             return
         try:
-            with open(path, "r", encoding="utf-8") as fh:
-                text = fh.read()
-        except OSError:
+            text = self._read_sequence_file(path)
+        except (OSError, UnicodeDecodeError):
             return
         records = parse_fasta_tuples(text)
         if not records:
@@ -298,8 +311,7 @@ class GCPlotTab(BaseTabWidget):
             QMessageBox.warning(self, "Input Error", "Please select a DNA sequence file.")
             return
         try:
-            with open(path, "r", encoding="utf-8") as fh:
-                text = fh.read()
+            text = self._read_sequence_file(path)
         except OSError as exc:
             QMessageBox.warning(self, "Input Error", str(exc))
             return

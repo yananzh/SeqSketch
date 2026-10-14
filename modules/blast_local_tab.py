@@ -1304,8 +1304,10 @@ class BlastLocalTab(BaseTabWidget):
 
     def _load_example(self):
         """Load bundled E.coli protein BLAST example query and database."""
-        query_path = resource_path("examples", "blast", "query_seq_pro.fasta")
-        db_path = resource_path("examples", "blast", "E.coli_pro_db")
+        from utils.example_data import example_path
+
+        query_path = example_path("blast", "query_seq_pro.fasta")
+        db_path = example_path("blast", "E.coli_pro_db")
         if not os.path.isfile(query_path):
             QMessageBox.information(
                 self,

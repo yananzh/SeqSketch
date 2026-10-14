@@ -416,7 +416,16 @@ and calculates the expected PCR product size.</p>
         if template_raw and len(template_raw) >= len(fwd) + len(rev):
             fwd_pos = self._find_binding(template_raw, fwd)
             rev_pos = self._find_binding(template_raw, rev)
-            product_size = abs(rev_pos - fwd_pos) + len(rev) if fwd_pos > 0 and rev_pos > 0 else 0
+            if fwd_pos > 0 and rev_pos > 0:
+                # The amplicon spans from the earlier binding site's start to
+                # the later site's end; add the length of the primer binding
+                # further downstream (not always the reverse primer — swapped
+                # F/R input or a reverse-complemented template inverts it).
+                lo, hi = (fwd_pos, rev_pos) if fwd_pos < rev_pos else (rev_pos, fwd_pos)
+                hi_len = len(fwd) if fwd_pos > rev_pos else len(rev)
+                product_size = hi - lo + hi_len
+            else:
+                product_size = 0
             html.append('<h4 style="color:#1976d2;margin:12px 0 6px 0;">Template Binding</h4>')
             html.append(
                 '<table cellpadding="5" cellspacing="0" style="border-collapse:collapse;width:100%;">'

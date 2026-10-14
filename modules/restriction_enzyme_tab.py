@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
 from utils.task_lifecycle import skip_when_closing
@@ -287,18 +288,22 @@ class RestrictionEnzymeTab(BaseTabWidget):
             return
         raw = raw.strip()
 
-        # Parse FASTA
-        seq = raw
-        if ">" in seq:
-            lines = seq.split("\n")
-            seq_parts = []
-            for line in lines:
-                line = line.strip()
-                if line.startswith(">"):
-                    continue
-                if line:
-                    seq_parts.append(line)
-            seq = "".join(seq_parts)
+        # Parse FASTA: analyze the first record only. The old parser silently
+        # concatenated every record into one sequence, reporting cut sites
+        # across unrelated record junctions.
+        self._record_note = ""
+        if ">" in raw:
+            records = parse_fasta_tuples(raw)
+            if not records:
+                self.show_status("No valid sequence found")
+                return
+            if len(records) > 1:
+                self._record_note = (
+                    f"  (first of {len(records)} records: {records[0][0]})"
+                )
+            seq = records[0][1]
+        else:
+            seq = raw
 
         seq = seq.replace("\n", "").replace(" ", "").upper().replace("U", "T")
         if not seq:
@@ -350,11 +355,11 @@ class RestrictionEnzymeTab(BaseTabWidget):
 
         n_total = sum(1 for r in results for _ in r["positions"])
         if min_cuts == 0 and max_cuts == 0:
-            self.show_status(f"Found {len(results)} enzymes with no cut sites")
+            self.show_status(f"Found {len(results)} enzymes with no cut sites{self._record_note}")
         else:
             self.show_status(
                 f"Found {len(results)} enzymes, {n_total} cut sites  "
-                    f"(cuts: {min_cuts}–{max_cuts})"
+                    f"(cuts: {min_cuts}–{max_cuts}){self._record_note}"
             )
 
         # Populate output_text for export (kept hidden)

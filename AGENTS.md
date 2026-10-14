@@ -19,8 +19,9 @@ ruff check .                          # lint
 ```
 
 CI (`.github/workflows/ci.yml`) runs `ruff check .` plus the suite on `windows-latest`
-and `macos-15`. It does **not** fetch the tools: tests that shell out to them mock the
-launcher, and the two that need a real bundle skip themselves.
+and `macos-15` (Python 3.13, plus a Python 3.10 leg on Windows to protect the
+`target-version = "py310"` floor). It does **not** fetch the tools: tests that shell
+out to them mock the launcher, and the two that need a real bundle skip themselves.
 
 Build the Windows portable onedir distribution with PyInstaller:
 
@@ -172,8 +173,9 @@ tests/               -> Pytest regression coverage
 
 Core packages currently declared in [requirements.txt](requirements.txt):
 
-- `PyQt6`
+- `PyQt6` (pinned: Qt 6.11 changed Windows style rendering — bump deliberately)
 - `biopython`
-- `numpy`, `matplotlib`, `pandas`
+- `numpy`, `matplotlib`, `pandas`, `openpyxl`
 - `primer3-py`
 - `logomaker`
+- `toytree` (tree visualization), `pymsaviz` (MSA visualization)

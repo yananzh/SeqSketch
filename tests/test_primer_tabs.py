@@ -271,6 +271,24 @@ def test_analysis_tab_template_binding_not_found(qapp, monkeypatch):
     assert "NOT FOUND" in html
 
 
+def test_analysis_tab_product_size_when_forward_binds_downstream(qapp, monkeypatch):
+    """The amplicon must end at the downstream primer's 3' end regardless of
+    which primer that is — the old formula always added the reverse primer's
+    length, so swapped F/R input under-reported the size."""
+    _mock_primer3_for_analysis(monkeypatch)
+    tab = PrimerAnalysisTab()
+    # rev (10 nt) binds at position 1, fwd (12 nt) at position 18: the whole
+    # 29 bp template is the product.
+    tab.template_edit.setPlainText("CCCTTTAAAG" + "NNNNNNN" + "AAACCCGGGTTT")
+    tab.fwd_edit.setText("AAACCCGGGTTT")
+    tab.rev_edit.setText("CCCTTTAAAG")
+    tab.run_analysis()
+
+    html = tab.results_text.toHtml()
+    assert "Product Size" in html
+    assert "29 bp" in html
+
+
 # ── PrimerAnalysisTab: _find_binding ────────────────────────────────────────
 
 

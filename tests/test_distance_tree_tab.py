@@ -165,6 +165,66 @@ def test_worker_without_bootstrap_has_no_placeholder_node_names(tmp_path):
     assert "Inner" not in results[0]["newick"]
 
 
+def test_worker_stop_cancels_before_any_work(tmp_path):
+    """A worker stopped before running must report cancellation, not compute."""
+    aln_file = tmp_path / "aln.fasta"
+    aln_file.write_text(">a\nATGC\n>b\nATGC\n>c\nATTC\n", encoding="utf-8")
+
+    worker = _DistanceTreeWorker(str(aln_file), "jc69", "nj", 1000)
+    errors, oks = [], []
+    worker.finished_err.connect(errors.append)
+    worker.finished_ok.connect(oks.append)
+    worker.stop()
+
+    worker.run()
+
+    assert errors == ["Stopped by user"]
+    assert not oks
+
+
+def test_worker_stop_halts_bootstrap_after_first_replicate(tmp_path):
+    """The 1000-replicate bootstrap loop must check the stop flag between
+    replicates — it used to be un-cancellable (and kept burning CPU after the
+    tab closed, since request_task_stop had nothing to reach)."""
+    records = "".join(
+        f">t{i}\n{'ACGT' * 15}\n".replace("ACGT", "ACGT", 1) for i in range(4)
+    )
+    aln_file = tmp_path / "aln.fasta"
+    aln_file.write_text(records, encoding="utf-8")
+
+    worker = _DistanceTreeWorker(str(aln_file), "jc69", "nj", 1000)
+    errors, oks, progress = [], [], []
+    worker.finished_err.connect(errors.append)
+    worker.finished_ok.connect(oks.append)
+
+    def on_progress(current, total):
+        progress.append(current)
+        worker.stop()  # cancel as soon as the first replicate completes
+
+    worker.progress.connect(on_progress)
+
+    worker.run()
+
+    assert errors == ["Stopped by user"]
+    assert not oks
+    assert len(progress) <= 2, "cancellation must preempt the remaining replicates"
+
+
+def test_stop_button_wiring_and_cancelled_status(qapp, tmp_path):
+    tab = DistanceTreeTab()
+    assert tab._stop_btn.isHidden()
+
+    tab._set_running(True)
+    assert not tab._stop_btn.isHidden()
+    assert not tab._run_btn.isEnabled()
+
+    tab._on_error("Stopped by user")
+    assert tab._stop_btn.isHidden()
+    assert tab._run_btn.isEnabled()
+    assert tab.status_label.text() == "Stopped by user"
+    assert tab._thread is None
+
+
 def test_on_result_logs_warning(qapp, tmp_path):
     tab = DistanceTreeTab()
     tab._out_edit.setText(str(tmp_path / "t.nwk"))
@@ -206,8 +266,12 @@ def test_view_tree_button_hidden_initially(qapp):
 def test_example_button_immediately_after_run(qapp):
     tab = DistanceTreeTab()
 
-    assert tab.status_layout.indexOf(tab._example_btn) == (
+    # Order: [Run] [Stop] [Example] …
+    assert tab.status_layout.indexOf(tab._stop_btn) == (
         tab.status_layout.indexOf(tab._run_btn) + 1
+    )
+    assert tab.status_layout.indexOf(tab._example_btn) == (
+        tab.status_layout.indexOf(tab._run_btn) + 2
     )
 
 

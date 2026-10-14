@@ -38,6 +38,7 @@ def tab(qapp, tmp_path, monkeypatch):
     manager._populate_categories()
     manager.category_tree.setCurrentItem(manager.category_tree.topLevelItem(0))
     manager._display_bookmarks("Courses")
+    manager._save_bookmarks()
     yield manager
     manager.deleteLater()
 
@@ -155,3 +156,67 @@ def test_edit_keeps_the_bookmarks_position_in_the_category(tab, monkeypatch):
     tab.rename_selected_bookmark()
 
     assert _names(tab, "Courses") == ["Alpha course", "Beta renamed", "Gamma course"]
+
+
+def test_import_rejects_files_that_are_not_bookmark_documents(tab, monkeypatch):
+    """An unvalidated import used to be persisted as-is and crash the tab on
+    the next open; malformed categories must be rejected outright."""
+    import_file = favorites.tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False, encoding="utf-8"
+    )
+    json.dump({"Courses": {"a": 1}}, import_file)
+    import_file.close()
+    monkeypatch.setattr(
+        favorites.QFileDialog, "getOpenFileName", staticmethod(lambda *a: (import_file.name, ""))
+    )
+    warnings = []
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: warnings.append(a)))
+    before = json.dumps(tab.bookmarks, sort_keys=True)
+
+    tab.import_bookmarks()
+
+    assert warnings and warnings[0][1] == "Import Failed"
+    assert "not a bookmarks file" in warnings[0][2]
+    assert json.dumps(tab.bookmarks, sort_keys=True) == before
+    with open(favorites.DATA_FILE, encoding="utf-8") as fh:
+        assert json.dumps(json.load(fh), sort_keys=True) == before
+
+
+def test_import_merges_valid_documents(tab, monkeypatch):
+    import_file = favorites.tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False, encoding="utf-8"
+    )
+    json.dump(
+        {"NewCat": [{"name": "Imported", "url": "https://example.com/new"}]},
+        import_file,
+    )
+    import_file.close()
+    monkeypatch.setattr(
+        favorites.QFileDialog, "getOpenFileName", staticmethod(lambda *a: (import_file.name, ""))
+    )
+    monkeypatch.setattr(QMessageBox, "information", staticmethod(lambda *a, **k: None))
+
+    tab.import_bookmarks()
+
+    assert _names(tab, "NewCat") == ["Imported"]
+    with open(favorites.DATA_FILE, encoding="utf-8") as fh:
+        saved = json.load(fh)
+    assert saved["NewCat"] == [{"name": "Imported", "url": "https://example.com/new"}]
+
+
+def test_corrupt_schema_on_load_starts_empty_without_crashing(
+    qapp, tmp_path, monkeypatch
+):
+    """A schema-corrupt bookmarks.json (not just invalid JSON) must take the
+    corrupt-load recovery path instead of crashing _display_bookmarks."""
+    monkeypatch.setattr(favorites, "DATA_FILE", str(tmp_path / "bookmarks.json"))
+    (tmp_path / "bookmarks.json").write_text(
+        json.dumps({"Courses": {"a": 1}}), encoding="utf-8"
+    )
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: None))
+
+    manager = BookmarkManager()
+
+    assert manager.bookmarks == {}
+    assert manager.categories == []
+    manager.deleteLater()

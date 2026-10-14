@@ -23,6 +23,13 @@ jobs:
         # macos-15 is arm64 (Apple Silicon). Add macos-15-intel for an x86_64
         # leg; it costs the same per minute.
         os: [windows-latest, macos-15]
+        python: ["3.13"]
+        include:
+          # ruff's target-version (pyproject.toml) declares py310 as the
+          # supported floor; test that floor on one leg so 3.11+ only syntax
+          # cannot slip past CI unnoticed.
+          - os: windows-latest
+            python: "3.10"
     runs-on: ${{ matrix.os }}
     env:
       # Qt has no display on the runner; conftest.py also sets this.
@@ -32,7 +39,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python }}
           cache: pip
 
       - name: Install dependencies

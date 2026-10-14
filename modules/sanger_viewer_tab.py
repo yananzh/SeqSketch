@@ -78,12 +78,17 @@ class _LoadWorker(QObject):
             record = SeqIO.read(self._path, "abi")
             raw = record.annotations.get("abif_raw", {})
 
-            # Standard ABIF trace channels: DATA9=G DATA10=A DATA11=T DATA12=C
+            # The base assigned to each of DATA9..DATA12 is file-specific and
+            # comes from the FWO_ (filter wheel order) tag; hardcoding GATC
+            # drew every channel in the wrong base's color when it differed.
+            order = raw.get("FWO_", b"GATC")
+            if isinstance(order, bytes):
+                order = order.decode("ascii", "ignore")
+            if sorted(order[:4]) != list("ACGT"):
+                order = "GATC"
             channels = {
-                "G": list(raw.get("DATA9", [])),
-                "A": list(raw.get("DATA10", [])),
-                "T": list(raw.get("DATA11", [])),
-                "C": list(raw.get("DATA12", [])),
+                base: list(raw.get(f"DATA{9 + offset}", []))
+                for offset, base in enumerate(order[:4])
             }
             # Peak scan positions — one entry per called base
             peak_locs: List[int] = list(raw.get("PLOC1", []))

@@ -323,6 +323,17 @@ def test_cpg_default_thresholds_reject_low_oe():
     assert islands == []
 
 
+def test_cpg_window_oe_ignores_straddling_dinucleotide():
+    from modules.cpg_island_tab import find_cpg_islands
+
+    # Window "CGC" followed by "G": the CG straddling the window's right edge
+    # (its G lies outside, and that G is not in the C*G denominator either)
+    # must not count. With the straddle, o/e = 3.0 and an island is found;
+    # counting only fully-inside dinucleotides gives 1.5 and none.
+    islands = find_cpg_islands("CGCG", window=3, min_len=3, min_gc=50.0, min_oe=2.0)
+    assert islands == []
+
+
 # ── F. SSR thresholds ─────────────────────────────────────────────────────
 
 

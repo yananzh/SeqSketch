@@ -1014,7 +1014,10 @@ that meet strict Tm, GC%, and product-size constraints suitable for qPCR.</p>
 <ul>
 <li><b>Pair #</b> — ranked by Primer3 penalty score (1 = best).</li>
 <li><b>Fwd / Rev</b> — Forward (sense) or Reverse (antisense) primer.</li>
-<li><b>Position</b> — 5' start coordinate on the template (0-based, as reported by Primer3).</li>
+<li><b>Position</b> — 0-based template coordinate as reported by Primer3:
+    the 5'-most base for a forward primer, the 3'-most base for a reverse
+    primer. A reverse primer's binding span therefore runs from
+    Position−Length+1 to Position.</li>
 <li><b>Length</b> — primer length in nucleotides.</li>
 <li><b>Tm</b> — melting temperature. Fwd and Rev should be within 2°C.</li>
 <li><b>GC%</b> — GC content. 40-60% is optimal for qPCR.</li>

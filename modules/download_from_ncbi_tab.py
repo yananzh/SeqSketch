@@ -110,7 +110,10 @@ def fetch_batch_with_retries(
                 retmode="text",
             ) as handle:
                 return handle.read(), attempt
-        except URLError as exc:
+        except (URLError, OSError) as exc:
+            # OSError covers the read-phase faults urllib does not wrap in
+            # URLError (TimeoutError, ConnectionResetError): the 60s socket
+            # timeout exists precisely so those become retryable.
             last_error = exc
             if attempt < retry_count:
                 _sleep_backoff(2**attempt * 0.5, is_cancelled)
@@ -462,8 +465,8 @@ class DownloadFromNCBITab(BaseTabWidget):
         if not acc_text:
             QMessageBox.information(
                 self,
-                self.tr("Example"),
-                self.tr("Failed to load example data. The installation may be incomplete."),
+                "Example",
+                "Failed to load example data. The installation may be incomplete.",
             )
             return
         count = len([line for line in acc_text.splitlines() if line.strip()])

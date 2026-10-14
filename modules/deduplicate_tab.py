@@ -318,14 +318,21 @@ class DeduplicateTab(BaseTabWidget):
             total_removed = len(removed_records)
             mode_label = "by ID" if self.mode_combo.currentData() == DEDUP_BY_ID else "by sequence"
             export_removed = self.export_removed_checkbox.isChecked()
-            strategy = self.keep_combo.currentText()
+            # The keep strategy only applies in by-ID mode; by-sequence groups
+            # are identical sequences, so keep-first is the only semantics
+            # there and the log must not claim an unapplied strategy.
+            strategy = (
+                self.keep_combo.currentText().lower()
+                if self.mode_combo.currentData() == DEDUP_BY_ID
+                else "keep first"
+            )
 
             if total_removed == 0:
                 self.log_message("No duplicates found", "INFO")
                 return
 
             self.log_message(
-                f"Deduplicated ({mode_label}, {strategy.lower()}): kept {len(kept)}, removed {total_removed}",
+                f"Deduplicated ({mode_label}, {strategy}): kept {len(kept)}, removed {total_removed}",
                 "INFO",
             )
             if not processor.save_file(output_path, kept):

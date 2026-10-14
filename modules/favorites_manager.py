@@ -77,6 +77,33 @@ _migrate_legacy_bookmarks()
 
 MIME_TYPE = "application/x-bookmark-item"
 
+
+def _is_valid_bookmark(value: Any) -> bool:
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("name"), str)
+        and isinstance(value.get("url"), str)
+    )
+
+
+def _sanitize_bookmarks(data: Any) -> Dict[str, List[Dict[str, str]]] | None:
+    """Validate a parsed bookmarks document.
+
+    Returns the ``{category: [bookmark]}`` mapping when every category is a
+    list of ``{"name", "url"}`` dicts (an empty document is valid), or None
+    when the structure is not a bookmarks document at all. Hand-edited or
+    foreign files that pass "is a dict" used to be persisted as-is and crash
+    the tab on the next open.
+    """
+    if not isinstance(data, dict):
+        return None
+    for cat, items in data.items():
+        if not isinstance(cat, str) or not isinstance(items, list):
+            return None
+        if not all(_is_valid_bookmark(bm) for bm in items):
+            return None
+    return data
+
 # QListWidgetItem role holding the category that owns the bookmark. Mutations
 # must resolve entries through this role, not the displayed row number: while a
 # search filter is active the list shows a subset of a category (or a result
@@ -293,11 +320,14 @@ class BookmarkManager(QWidget):
             try:
                 with open(DATA_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                if isinstance(data, dict):
-                    self.categories = list(data.keys())
-                    self.bookmarks = data
-                else:
-                    raise ValueError("Invalid data format")
+                # Schema-check the whole document, not just "is a dict": a
+                # hand-edited {"Courses": {"a": 1}} used to be accepted and
+                # then crash the tab on the next open (bm["name"] on an int).
+                validated = _sanitize_bookmarks(data)
+                if validated is None:
+                    raise ValueError("Invalid bookmarks data format")
+                self.categories = list(validated.keys())
+                self.bookmarks = validated
             except Exception as exc:
                 # Corrupt/failed load — DO NOT silently overwrite user data
                 # with sample data. Preserve the bad file as a backup, start
@@ -934,7 +964,15 @@ automatically to your user data folder.</p>
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
                     imported = json.load(f)
-                for cat, items in imported.items():
+                # Validate before merging: an unvalidated import used to be
+                # persisted as-is and could break the tab on the next open.
+                validated = _sanitize_bookmarks(imported)
+                if validated is None:
+                    raise ValueError(
+                        "not a bookmarks file — expected a JSON object of "
+                        'categories, each a list of {"name", "url"} entries'
+                    )
+                for cat, items in validated.items():
                     target_cat = cat
                     i = 1
                     while target_cat in self.bookmarks:

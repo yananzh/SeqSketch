@@ -2,6 +2,7 @@ import re
 
 from PyQt6.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QMessageBox, QPushButton
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 
@@ -114,37 +115,16 @@ class ComplementTab(BaseTabWidget):
 
     def _convert_fasta(self, fasta_text):
         """Convert FASTA format DNA with the selected mode."""
-        lines = fasta_text.split("\n")
+        records = parse_fasta_tuples(fasta_text, include_gt=True)
+        if not records:
+            return None
         output_lines = []
-        current_seq = []
-        current_header = None
-
-        for line in lines:
-            line = line.strip()
-            if line.startswith(">"):
-                if current_header is not None and current_seq:
-                    seq = "".join(current_seq)
-                    if self.is_valid_dna(seq):
-                        transformed = self._transform_sequence(seq)
-                        output_lines.append(current_header)
-                        output_lines.append(transformed)
-                    else:
-                        return None
-                current_header = line
-                current_seq = []
-            elif line:
-                current_seq.append(line)
-
-        if current_header is not None and current_seq:
-            seq = "".join(current_seq)
-            if self.is_valid_dna(seq):
-                transformed = self._transform_sequence(seq)
-                output_lines.append(current_header)
-                output_lines.append(transformed)
-            else:
+        for header, seq in records:
+            if not self.is_valid_dna(seq):
                 return None
-
-        return "\n".join(output_lines) if output_lines else None
+            output_lines.append(header)
+            output_lines.append(self._transform_sequence(seq))
+        return "\n".join(output_lines)
 
     def is_valid_dna(self, seq):
         return re.fullmatch(r"[ACGTNacgtnRYMKSWBDHVrykmswbdhv\s]+", seq) is not None

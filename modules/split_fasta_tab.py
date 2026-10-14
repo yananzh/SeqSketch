@@ -202,9 +202,19 @@ class SplitFastaTab(BaseTabWidget):
         mode = self.split_mode_combo.currentData()
         if mode == SPLIT_BY_PARTS:
             n_parts = max(1, self.parts_spin.value())
-            size = max(1, -(-len(records) // n_parts))  # ceil division
-        else:
-            size = max(1, self.count_spin.value())
+            # Even distribution: the first len % n_parts parts get one extra
+            # record, so exactly n_parts files are produced whenever there
+            # are enough records. (Ceil-sized chunks fell short of the count:
+            # 4 records / 3 parts yielded only 2 files.)
+            base, extra = divmod(len(records), n_parts)
+            chunks = []
+            start = 0
+            for i in range(min(n_parts, len(records))):
+                take = base + (1 if i < extra else 0)
+                chunks.append(records[start : start + take])
+                start += take
+            return chunks
+        size = max(1, self.count_spin.value())
         return [records[i : i + size] for i in range(0, len(records), size)]
 
     def _output_dir(self) -> str | None:

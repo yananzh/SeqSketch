@@ -524,6 +524,127 @@ def test_orf_multi_record_skips_map_and_attributes_table_rows(qapp, monkeypatch)
     assert not tab._orf_fig.axes, "the map must be cleared for multi-record input"
 
 
+def test_orf_export_headers_match_the_table_span(qapp, monkeypatch, tmp_path):
+    """Minus-strand ORFs store start > end (5' end first); the exported FASTA
+    header must show the same stored span as the table and output_text."""
+    from PyQt6.QtWidgets import QFileDialog, QMessageBox
+
+    popups = []
+    monkeypatch.setattr(
+        QMessageBox, "information", staticmethod(lambda *a, **k: popups.append(a))
+    )
+    tab = ORFTab()
+    tab.min_len_box.setValue(30)
+    tab.chain_box.setCurrentIndex(2)  # both strands
+    # revcomp("ATG"+"AAA"*10+"TAA") — the ORF lives on the minus strand;
+    # a second record makes the multi-record origin tag appear.
+    tab.input_text.setPlainText(
+        ">rec\nTTA" + "TTT" * 10 + "CAT\n>other\nATGAAATAA\n"
+    )
+    tab.run()
+
+    minus_orf = next(
+        o for o in tab._results if o["frame"].startswith("-") and o["start"] > o["end"]
+    )
+
+    out = tmp_path / "orfs.fasta"
+    monkeypatch.setattr(
+        QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(out), ""))
+    )
+    tab.export_result()
+
+    content = out.read_text(encoding="utf-8")
+    assert f"Pos:{minus_orf['start']}-{minus_orf['end']}" in content
+    # The record tag keeps multi-record exports attributable.
+    assert "[rec]" in content
+
+
+def test_rna_tab_converts_multi_fasta_records(qapp):
+    """Multi-FASTA conversion goes through parse_fasta_tuples (AGENTS.md:
+    no hand-rolled parsers); headers keep their full description line."""
+    from modules.rna_tab import RNATab
+
+    tab = RNATab()
+    tab.input_text.setPlainText(">a first desc\nATGC\n>b second\nTTTT\n")
+
+    tab.run()
+
+    assert tab.output_text.toPlainText() == ">a first desc\nAUGC\n>b second\nUUUU"
+
+
+def test_complement_tab_converts_multi_fasta_records(qapp):
+    from modules.complement_tab import ComplementTab
+
+    tab = ComplementTab()  # default mode: Complement
+    tab.input_text.setPlainText(">a desc\nATGC\n>b\nTTTT\n")
+
+    tab.run()
+
+    assert tab.output_text.toPlainText() == ">a desc\nTACG\n>b\nAAAA"
+
+
+def test_restriction_tab_analyzes_first_record_only(qapp, tmp_path, monkeypatch):
+    """The old hand-rolled parser concatenated every record into one sequence,
+    reporting cut sites across unrelated record junctions."""
+    from PyQt6.QtCore import QObject, pyqtSignal
+
+    import modules.restriction_enzyme_tab as restriction_mod
+    from modules.restriction_enzyme_tab import RestrictionEnzymeTab
+
+    captured = {}
+
+    class FakeWorker(QObject):
+        finished = pyqtSignal(list)
+        error = pyqtSignal(str)
+
+        def __init__(self, seq, enzyme_names, linear=True):
+            super().__init__()
+            captured.update(seq=seq, n_enzymes=len(enzyme_names), linear=linear)
+
+        def run(self):
+            pass  # the QThread never starts in this test
+
+    monkeypatch.setattr(restriction_mod.QThread, "start", lambda self: None)
+    monkeypatch.setattr(restriction_mod, "_AnalysisWorker", FakeWorker)
+
+    two_records = tmp_path / "two.fasta"
+    two_records.write_text(">one\nGAATTC\n>two\nGGATCC\n", encoding="utf-8")
+    tab = RestrictionEnzymeTab()
+    tab.input_path_edit.setText(str(two_records))
+
+    tab.run()
+
+    # Only record one's sequence, not "GAATTCGGATCC".
+    assert captured["seq"] == "GAATTC"
+    assert captured["n_enzymes"] > 0
+
+
+def test_gc_plot_reads_latin1_fasta_files(qapp, tmp_path):
+    """Non-UTF-8 FASTA must go through the Latin-1 fallback instead of
+    raising UnicodeDecodeError out of the Qt slot (AGENTS.md: mirror
+    FASTAProcessor's tolerance)."""
+    from modules.gc_plot_tab import GCPlotTab
+
+    path = tmp_path / "seq.fasta"
+    path.write_bytes(">séquence é\nATGC\n".encode("latin-1"))
+
+    text = GCPlotTab._read_sequence_file(str(path))
+
+    assert "ATGC" in text
+
+
+def test_gc_plot_selects_the_qt6_compatible_backend():
+    """The tab used matplotlib.use("Qt5Agg") in a PyQt6-only app, breaking
+    figure creation after any sibling tab had set QtAgg."""
+    from pathlib import Path
+
+    import modules.gc_plot_tab as gc_plot_mod
+
+    source = Path(gc_plot_mod.__file__).read_text(encoding="utf-8")
+    assert 'matplotlib.use("Qt5Agg")' not in source
+    assert 'matplotlib.use("QtAgg")' in source
+
+
 
 def test_dotplot_tab_hides_output_panel_and_removes_reverse_complement_option(qapp):
     tab = DotPlotTab()

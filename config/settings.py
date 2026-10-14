@@ -4,7 +4,6 @@
 
 import json
 import os
-import sys
 from typing import Any, Dict
 
 from utils.app_paths import user_data_file
@@ -15,10 +14,10 @@ class Settings:
 
     def __init__(self, config_file: str | None = None):
         if config_file is None:
-            if getattr(sys, "frozen", False):
-                self.config_file = user_data_file("config.json")
-            else:
-                self.config_file = "config.json"
+            # Always resolve through user_data_file: dev mode used to write a
+            # CWD-relative config.json, scattering state into whatever
+            # directory the app was launched from.
+            self.config_file = user_data_file("config.json")
         else:
             self.config_file = config_file
         self.settings = self._load_settings()

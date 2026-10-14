@@ -771,6 +771,74 @@ def test_download_from_ncbi_retries_after_network_error(qapp, tmp_path: Path, mo
     assert "Batch 1 succeeded after 2 attempt(s)" in log_text(tab)
 
 
+def test_download_from_ncbi_retries_read_phase_timeouts(qapp, tmp_path: Path, monkeypatch):
+    """A timeout raised while reading the response body is not wrapped in
+    URLError by urllib; it used to fail the batch on the first attempt even
+    though the 60s socket timeout exists precisely so such stalls retry."""
+    output_path = tmp_path / "downloaded_read_timeout.fasta"
+    tab = DownloadFromNCBITab()
+
+    class StalledHandle:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            raise TimeoutError("read timed out")
+
+    class RecoveredHandle:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return ">NM_001 recovered\nATGCATGC\n"
+
+    from Bio import Entrez
+
+    attempts = {"count": 0}
+
+    def fake_efetch(**kwargs):
+        attempts["count"] += 1
+        return StalledHandle() if attempts["count"] == 1 else RecoveredHandle()
+
+    monkeypatch.setattr(Entrez, "efetch", fake_efetch)
+
+    tab.email_edit.setText("tester@example.com")
+    tab.acc_edit.setPlainText("NM_001")
+    tab.output_edit.setText(str(output_path))
+    tab.retry_count_spin.setValue(1)
+    tab.run_download()
+    _wait_for_worker(tab)
+
+    assert output_path.exists()
+    assert attempts["count"] == 2, "read-phase timeouts must consume the retry budget"
+    assert "Batch 1 succeeded after 2 attempt(s)" in log_text(tab)
+
+
+def test_deduplicate_by_sequence_logs_the_applied_strategy(qapp, tmp_path: Path):
+    """By-sequence mode always keeps the first occurrence; the log must not
+    claim the (hidden, inapplicable) keep-longest/shortest selection."""
+    input_path = tmp_path / "dups.fasta"
+    input_path.write_text(">a one\nATGC\n>b two\nATGC\n>c\nGGGG\n", encoding="utf-8")
+    output_path = tmp_path / "dedup.fasta"
+    tab = DeduplicateTab()
+
+    tab.input_edit.setText(str(input_path))
+    tab.output_edit.setText(str(output_path))
+    tab.mode_combo.setCurrentIndex(1)  # Sequence content
+    tab.keep_combo.setCurrentText("Keep longest")  # hidden combo, not applied
+    tab.run_deduplicate()
+
+    assert "keep first" in log_text(tab)
+    assert "keep longest" not in log_text(tab)
+    assert fasta_headers(output_path) == ["a one", "c"]
+
+
 def test_download_from_ncbi_empty_result_exports_failure_report(qapp, tmp_path: Path, monkeypatch):
     output_path = tmp_path / "download_empty.fasta"
     report_path = tmp_path / "download_empty_download_report.txt"
@@ -1283,6 +1351,32 @@ def test_split_fasta_by_parts_happy_path(qapp, sample_fasta_file: Path, tmp_path
     assert "Split complete: 4 sequences → 2 file(s)" in log_text(tab)
 
 
+@pytest.mark.parametrize(
+    "n_records,n_parts,expected_sizes",
+    [
+        (4, 3, [2, 1, 1]),  # ceil-sized chunks used to yield only 2 files
+        (6, 4, [2, 2, 1, 1]),
+        (4, 4, [1, 1, 1, 1]),
+        (4, 2, [2, 2]),
+        (3, 5, [1, 1, 1]),  # more parts than records: one file per record
+    ],
+)
+def test_split_by_parts_produces_exactly_the_requested_file_count(
+    qapp, n_records, n_parts, expected_sizes
+):
+    """The mode's contract is "N files of roughly equal size" — the old
+    ceil-division plan produced fewer files than requested."""
+    tab = SplitFastaTab()
+    tab.split_mode_combo.setCurrentIndex(1)  # Number of parts
+    tab.parts_spin.setValue(n_parts)
+    records = [(f"seq{i}", "ATGC") for i in range(n_records)]
+
+    chunks = tab._build_plan(records)
+
+    assert [len(c) for c in chunks] == expected_sizes
+    assert sum(len(c) for c in chunks) == n_records
+
+
 def test_split_fasta_missing_output_dir_logs_error(qapp, sample_fasta_file: Path):
     tab = SplitFastaTab()
     tab.input_edit.setText(str(sample_fasta_file))
@@ -1406,3 +1500,26 @@ def test_table_to_fasta_missing_columns_logs_error(qapp, tmp_path: Path):
 
     assert "Table has no ID column" in log_text(tab)
     assert tab.status_label.text() == "Ready"
+
+
+def test_table_to_fasta_splits_whitespace_ids_into_description(qapp):
+    """A hand-made table can carry full header lines in the ID cell; the
+    primary ID must not absorb the words (FASTAProcessor splits headers on
+    the first space, so whitespace in record.header would shift the ID on
+    the next read)."""
+    from modules.fasta_table_converter_tab import table_to_records
+
+    df = pd.DataFrame(
+        {
+            "id": ["tr|A0AAI7ZCJ9|xyz Pyruvate dehydrogenase", "plain"],
+            "description": ["from locus A", ""],
+            "sequence": ["MKT", "MKA"],
+        }
+    )
+
+    records, error = table_to_records(df)
+
+    assert error is None
+    assert [r.header for r in records] == ["tr|A0AAI7ZCJ9|xyz", "plain"]
+    assert records[0].description == "Pyruvate dehydrogenase from locus A"
+    assert records[1].description == ""

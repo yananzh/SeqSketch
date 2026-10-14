@@ -2,6 +2,7 @@ import re
 
 from PyQt6.QtWidgets import QHBoxLayout, QMessageBox, QPushButton
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
 
@@ -75,40 +76,16 @@ class RNATab(BaseTabWidget):
 
     def _convert_fasta(self, fasta_text):
         """Convert FASTA format DNA to RNA"""
-        lines = fasta_text.split("\n")
+        records = parse_fasta_tuples(fasta_text, include_gt=True)
+        if not records:
+            return None
         output_lines = []
-        current_seq = []
-        current_header = None
-
-        for line in lines:
-            line = line.strip()
-            if line.startswith(">"):
-                # Save previous sequence if exists
-                if current_header is not None and current_seq:
-                    seq = "".join(current_seq)
-                    if self.is_valid_dna(seq):
-                        rna = seq.upper().replace("T", "U").replace("t", "u")
-                        output_lines.append(current_header)
-                        output_lines.append(rna)
-                    else:
-                        return None
-                # Start new sequence
-                current_header = line
-                current_seq = []
-            elif line:
-                current_seq.append(line)
-
-        # Save last sequence
-        if current_header is not None and current_seq:
-            seq = "".join(current_seq)
-            if self.is_valid_dna(seq):
-                rna = seq.upper().replace("T", "U").replace("t", "u")
-                output_lines.append(current_header)
-                output_lines.append(rna)
-            else:
+        for header, seq in records:
+            if not self.is_valid_dna(seq):
                 return None
-
-        return "\n".join(output_lines) if output_lines else None
+            output_lines.append(header)
+            output_lines.append(seq.upper().replace("T", "U").replace("t", "u"))
+        return "\n".join(output_lines)
 
     def is_valid_dna(self, seq):
         # Allow IUPAC nucleotide codes (incl. U — already-RNA input is accepted unchanged)

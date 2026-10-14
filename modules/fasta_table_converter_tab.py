@@ -82,6 +82,15 @@ def table_to_records(df: pd.DataFrame) -> tuple[list[FASTARecord], str | None]:
         description = ""
         if desc_col is not None and not pd.isna(row[desc_col]):
             description = str(row[desc_col]).strip()
+        # A FASTA primary ID cannot contain whitespace (FASTAProcessor splits
+        # headers on the first space); route trailing words of the ID cell
+        # into the description so the content survives the round trip instead
+        # of silently shifting the ID on the next read.
+        header_parts = header.split(None, 1)
+        header = header_parts[0]
+        if len(header_parts) > 1:
+            extra = header_parts[1].strip()
+            description = f"{extra} {description}".strip() if description else extra
         records.append(FASTARecord(header=header, sequence=sequence, description=description))
     if not records:
         return [], "No usable rows found (ID and Sequence must be non-empty)"

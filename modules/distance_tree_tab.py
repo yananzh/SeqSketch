@@ -104,6 +104,21 @@ class _DistanceTreeWorker(QThread):
         self._model = model
         self._method = method
         self._n_bootstrap = n_bootstrap
+        self._killed = False
+
+    def stop(self):
+        """Cooperative cancel; checked between replicates and stage borders.
+
+        Named ``stop`` so ``utils.task_lifecycle.request_task_stop`` (used by
+        the Stop button and by tab close) reaches it.
+        """
+        self._killed = True
+
+    def _cancelled(self) -> bool:
+        if self._killed or self.isInterruptionRequested():
+            self.finished_err.emit("Stopped by user")
+            return True
+        return False
 
     def run(self):
         try:
@@ -114,6 +129,8 @@ class _DistanceTreeWorker(QThread):
             n_taxa = len(alignment)
             if n_taxa < 3:
                 self.finished_err.emit(f"Need at least 3 sequences, found {n_taxa}.")
+                return
+            if self._cancelled():
                 return
 
             # ── calculate distance matrix ─────────────────────────
@@ -133,6 +150,8 @@ class _DistanceTreeWorker(QThread):
                 tree = constructor.nj(dm)
             else:
                 tree = constructor.upgma(dm)
+            if self._cancelled():
+                return
 
             n_bootstrap_done = 0
             n_bootstrap_skipped = 0
@@ -151,6 +170,8 @@ class _DistanceTreeWorker(QThread):
                     aln_array = np.array([list(str(rec.seq)) for rec in alignment])
                     bootstrap_trees = []
                     for i in range(self._n_bootstrap):
+                        if self._cancelled():
+                            return
                         indices = np.random.randint(0, n_cols, size=n_cols)
                         boot_cols = aln_array[:, indices]
                         # Rebuild bootstrap alignment in memory
@@ -462,6 +483,10 @@ class DistanceTreeTab(BaseTabWidget):
         self._run_btn = QPushButton("Run")
         self._run_btn.clicked.connect(self._compute)
 
+        self._stop_btn = QPushButton("Stop")
+        self._stop_btn.setVisible(False)
+        self._stop_btn.clicked.connect(self._stop)
+
         self._example_btn = QPushButton("Example")
         self._example_btn.setToolTip(
             "Load bundled example alignment (csrA_pro_mafft.fasta)"
@@ -480,8 +505,9 @@ class DistanceTreeTab(BaseTabWidget):
         self._clear_btn.clicked.connect(self._clear_all)
 
         # Insert before Help button (rightmost in status_layout)
-        # Order: [Run] [Example] [View Tree] [Export Matrix] [Clear] [Help]
+        # Order: [Run] [Stop] [Example] [View Tree] [Export Matrix] [Clear] [Help]
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._run_btn)
+        self.status_layout.insertWidget(self.status_layout.count() - 1, self._stop_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._example_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._view_tree_btn)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._export_csv_btn)
@@ -660,8 +686,12 @@ class DistanceTreeTab(BaseTabWidget):
 
     @skip_when_closing
     def _on_error(self, msg: str):
-        self.log_message(msg, "ERROR")
-        self.show_status(f"Error: {msg}")
+        if msg == "Stopped by user":
+            self.log_message("Computation stopped by user", "WARNING")
+            self.show_status("Stopped by user")
+        else:
+            self.log_message(msg, "ERROR")
+            self.show_status(f"Error: {msg}")
         self._set_running(False)
         self._thread = None
 
@@ -777,6 +807,7 @@ class DistanceTreeTab(BaseTabWidget):
 
     def _set_running(self, running: bool):
         self._run_btn.setEnabled(not running)
+        self._stop_btn.setVisible(running)
         self._file_edit.setEnabled(not running)
         self._model_combo.setEnabled(not running)
         self._method_combo.setEnabled(not running)
@@ -785,6 +816,17 @@ class DistanceTreeTab(BaseTabWidget):
         self._browse_btn.setEnabled(not running)
         self._save_btn.setEnabled(not running)
         self._example_btn.setEnabled(not running)
+
+    def _stop(self):
+        """Ask the running worker to cancel at the next check point.
+
+        Run stays disabled until the worker reports back (a 1000-replicate
+        bootstrap takes a moment to unwind); re-enabling eagerly would let a
+        second run race the still-running worker.
+        """
+        if self._thread and self._thread.isRunning():
+            self._thread.stop()
+            self.show_status("Stopping…")
 
     # ── Help ────────────────────────────────────────────────────────
     def show_help(self):

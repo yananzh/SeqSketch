@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
 
@@ -218,21 +219,10 @@ class ORFTab(BaseTabWidget):
         # Parse FASTA records (support single raw sequence and multi-FASTA)
         records: list[tuple[str, str]] = []  # (header_or_label, clean_seq)
         if ">" in raw:
-            lines = raw.split("\n")
-            seq_lines: list[str] = []
-            current_header = None
-            for line in lines:
-                line = line.strip()
-                if line.startswith(">"):
-                    if current_header is not None and seq_lines:
-                        seq = "".join(seq_lines)
-                        records.append((current_header, seq))
-                        seq_lines = []
-                    current_header = line
-                elif line:
-                    seq_lines.append(line)
-            if current_header is not None and seq_lines:
-                records.append((current_header, "".join(seq_lines)))
+            records = [
+                (header, seq)
+                for header, seq in parse_fasta_tuples(raw, include_gt=True)
+            ]
         else:
             records = [("Single sequence", raw)]
 
@@ -253,7 +243,9 @@ class ORFTab(BaseTabWidget):
                 return
 
             # Tag with origin header so multi-record output is readable
-            prefix = f" [{rec_header}]" if len(records) > 1 else ""
+            prefix = (
+                f" [{rec_header.removeprefix('>')}]" if len(records) > 1 else ""
+            )
             results = []
             if chain_mode in (0, 2):
                 results += self.find_orfs(
@@ -493,8 +485,11 @@ class ORFTab(BaseTabWidget):
             sorted_results = sorted(self._results, key=lambda o: o["length"], reverse=True)
             with open(path, "w", encoding="utf-8") as fh:
                 for idx, o in enumerate(sorted_results, 1):
+                    # Minus-strand ORFs store start > end (5' end first);
+                    # export the stored span, matching the table and
+                    # output_text displays.
                     fh.write(
-                        f">ORF_{idx} | Frame:{o['frame']} | "
+                        f">ORF_{idx}{o.get('header_tag', '')} | Frame:{o['frame']} | "
                         f"Pos:{o['start']}-{o['end']} | "
                         f"Len:{o['length']}nt\n{o['seq']}\n"
                     )

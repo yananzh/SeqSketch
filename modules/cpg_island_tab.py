@@ -98,7 +98,10 @@ def find_cpg_islands(
         end = start + window
         c = c_pref[end] - c_pref[start]
         g = g_pref[end] - g_pref[start]
-        cpg = cpg_pref[end] - cpg_pref[start]
+        # Count only dinucleotides fully inside the window: a "CG" starting at
+        # end-1 has its G outside, and that G is not in the denominator either
+        # (the merged-region stats via region.count("CG") match this).
+        cpg = cpg_pref[end - 1] - cpg_pref[start]
         gc = (c + g) / window * 100
         oe = (cpg * window) / (c * g) if c and g else 0.0
         ok = gc >= min_gc and oe >= min_oe

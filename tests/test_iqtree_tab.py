@@ -80,6 +80,56 @@ def test_no_input_and_blank_output_fields_omit_prefix(qapp):
     assert "--prefix" not in cmd
 
 
+def test_stale_thread_completion_is_ignored(qapp):
+    """Stop → Run race: the old thread's queued finished signal used to
+    wait()/deleteLater() the *new* run's thread (GUI freeze, then abort)."""
+    from PyQt6.QtCore import QThread
+
+    tab = IqTreeTab()
+    tab.run_btn.setEnabled(False)
+    tab.stop_btn.setVisible(True)
+    old_thread = QThread()
+    new_thread = QThread()
+    tab._thread = new_thread
+    try:
+        # The superseded thread completes late: must be a complete no-op.
+        tab._on_thread_finished(old_thread, True, "", "late output")
+        assert not tab.run_btn.isEnabled()
+        assert not tab.stop_btn.isHidden()
+        assert tab._thread is new_thread
+
+        # The current thread's completion takes the normal path.
+        tab._on_thread_finished(new_thread, False, "", "Stopped by user.\n")
+        assert tab.run_btn.isEnabled()
+        assert tab.stop_btn.isHidden()
+        assert tab._thread is None
+    finally:
+        old_thread.deleteLater()
+        new_thread.deleteLater()
+
+
+def test_stop_keeps_run_disabled_until_the_thread_reports_back(qapp):
+    """The old _stop re-enabled Run immediately, opening the Stop → Run
+    window the stale-completion guard above has to close."""
+    from PyQt6.QtCore import QThread
+
+    tab = IqTreeTab()
+    thread = QThread()
+    thread.start()
+    tab._thread = thread
+    tab.run_btn.setEnabled(False)
+    tab.stop_btn.setVisible(True)
+    try:
+        tab._stop()
+        assert not tab.run_btn.isEnabled(), "Run must stay disabled while unwinding"
+        assert tab.status_label.text() == "Stopping…"
+    finally:
+        thread.quit()
+        thread.wait(1000)
+        thread.deleteLater()
+        tab._thread = None
+
+
 def test_outgroup_dropdown_populated_from_input_file(qapp, tmp_path):
     aln_file = tmp_path / "aln.fasta"
     aln_file.write_text(

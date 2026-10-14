@@ -648,7 +648,11 @@ class _Worker(QObject):
         try:
             records = _load_fasta_records(self._text)
             if not records:
-                records = [("Sequence", self._text.strip())]
+                # Raw pasted sequence (no FASTA header): allow wrapped lines
+                # and spaces, matching what _count_codons/_gc_positions do —
+                # otherwise a wrapped raw sequence always fails the ACGT
+                # gate and is reported as skipped "ambiguous bases".
+                records = [("Sequence", "".join(self._text.split()))]
             total = len(records)
             results = []
             skipped_count = 0

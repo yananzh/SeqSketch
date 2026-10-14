@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -73,6 +74,23 @@ def test_unavailable_enc_displays_and_exports_without_numeric_bias(qapp, tmp_pat
     tab._export_csv()
     assert "N/A" in output.read_text(encoding="utf-8-sig")
     tab.deleteLater()
+
+
+def test_codon_usage_wrapped_raw_sequence_is_not_skipped():
+    """A raw pasted sequence (no FASTA header) with wrapped lines used to fail
+    the ACGT fullmatch gate and be reported as skipped "ambiguous bases"."""
+    import modules.codon_usage_tab as codon
+
+    worker = codon._Worker("ATGAAATAA\nATGAAATAA\n", 1, "")
+    results, skipped = [], []
+    worker.finished.connect(results.append)
+    worker.skipped.connect(skipped.append)
+
+    worker.run()
+
+    assert skipped == [0]
+    assert results and len(results[0]) == 1
+    assert results[0][0]["counts"]
 
 
 @pytest.mark.parametrize("text", [">a\nAAAA\n>b\nTTTT\n", "ACGT!", "AC-GT", ""])
@@ -209,6 +227,18 @@ def test_sanger_file_output_defaults_and_failures(qapp, monkeypatch, tmp_path, o
 def test_partition_names_are_unique_after_suffix_collisions():
     names, _ = _sanitize_gene_names(["gene", "gene", "gene_2", "Gene"])
     assert len({n.casefold() for n in names}) == 4
+
+
+def test_ui_strings_are_not_tr_wrapped():
+    """i18n was dropped (2026-08); UI strings must be plain English literals
+    (AGENTS.md). One straggler self.tr() pair survived in the NCBI tab."""
+    modules_dir = Path(__file__).resolve().parent.parent / "modules"
+    offenders = [
+        path.name
+        for path in sorted(modules_dir.glob("*.py"))
+        if re.search(r"\.tr\(", path.read_text(encoding="utf-8"))
+    ]
+    assert offenders == []
 
 
 @pytest.mark.parametrize("name", ["Sample A", "Sample:1", "样本", "Sample-1"])

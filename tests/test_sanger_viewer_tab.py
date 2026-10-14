@@ -102,3 +102,45 @@ def test_invalid_exports_preserve_existing_files(viewer, tmp_path, monkeypatch, 
     assert viewer._status_label.text().startswith("Error:")
     assert not viewer._btn_result_folder.isEnabled()
     assert not list(tmp_path.glob("tmp*.fasta"))
+
+
+def test_load_worker_maps_channels_via_fwo_tag(monkeypatch):
+    """The dye-to-channel assignment comes from the file's FWO_ (filter wheel
+    order) tag, not a hardcoded GATC: with FWO_=CTGA each DATA channel maps to
+    its own base, so peaks keep matching the called letters."""
+    from types import SimpleNamespace
+
+    from Bio import SeqIO
+
+    import modules.sanger_viewer_tab as viewer_mod
+
+    raw = {
+        "FWO_": b"CTGA",
+        "DATA9": [1, 1],
+        "DATA10": [2, 2],
+        "DATA11": [3, 3],
+        "DATA12": [4, 4],
+        "PLOC1": [10, 20],
+    }
+    record = SimpleNamespace(
+        annotations={"abif_raw": raw},
+        seq="AC",
+        letter_annotations={"phred_quality": [40, 41]},
+    )
+    monkeypatch.setattr(SeqIO, "read", lambda *a, **k: record)
+
+    results = []
+    worker = viewer_mod._LoadWorker("read.ab1")
+    worker.finished.connect(lambda *args: results.append(args))
+    worker.run()
+
+    abi, sequence, quality = results[0]
+    assert abi["channels"] == {
+        "C": [1, 1],
+        "T": [2, 2],
+        "G": [3, 3],
+        "A": [4, 4],
+    }
+    assert abi["peak_locs"] == [10, 20]
+    assert sequence == "AC"
+    assert quality == [40, 41]
