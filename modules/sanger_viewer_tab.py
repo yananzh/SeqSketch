@@ -166,7 +166,7 @@ class SangerViewerTab(QWidget):
             "No chromatogram loaded.\nSelect an AB1 file or drag & drop one here."
         )
         self._hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._hint_label.setStyleSheet("color: #888;")
+        self._hint_label.setProperty("hintLabel", True)
         hint_layout.addWidget(self._hint_label)
 
         self._plot_stack = QStackedWidget()

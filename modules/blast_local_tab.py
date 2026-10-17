@@ -584,7 +584,7 @@ class _ManageDatabasesDialog(QDialog):
         layout.addLayout(btn_row)
 
         hint = QLabel("Remove only deletes the saved record — files on disk are kept.")
-        hint.setStyleSheet("color: #777;")
+        hint.setProperty("hintLabel", True)
         layout.addWidget(hint)
 
     def _records(self) -> list[dict]:

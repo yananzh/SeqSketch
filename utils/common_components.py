@@ -87,6 +87,7 @@ class FileDropLineEdit(QLineEdit):
 
     def __init__(self, allowed_extensions=None, parent=None):
         super().__init__(parent)
+        self.setProperty("dataText", True)
         self._allowed = allowed_extensions or self.FASTA_EXTENSIONS
         self.setAcceptDrops(True)
 
@@ -146,7 +147,6 @@ LOG_VIEWER_STYLE = (
     "padding: 8px 10px;"
     "background: #ffffff;"
     "color: #1e293b;"
-    'font-family: "Cascadia Mono", "Consolas", monospace;'
 )
 
 
@@ -202,6 +202,15 @@ def apply_log_viewer_style(editor: QTextEdit) -> None:
 
 
 # ── Unified status-bar button sizing ───────────────────────────────────────
+def add_page_title(layout, title: str) -> QLabel:
+    """Add a wrapping heading without changing feature content-layout indices."""
+    label = QLabel(title)
+    label.setProperty("pageTitle", True)
+    label.setWordWrap(True)
+    layout.insertWidget(0, label)
+    return label
+
+
 STATUS_BUTTON_WIDTH_SINGLE = 80   # one-word labels: Run, Clear, Help, Stop, ...
 STATUS_BUTTON_WIDTH_DOUBLE = 120  # two-word labels: View Tree, Export Matrix, ...
 
@@ -335,6 +344,7 @@ class BaseTabWidget(QWidget):
     def init_common_ui(self):
         """Initialize common UI components"""
         self.main_layout = QVBoxLayout(self)
+        self.page_title = add_page_title(self.main_layout, self.title)
 
         # Content area for subclasses
         self.content_area = QVBoxLayout()
@@ -347,7 +357,10 @@ class BaseTabWidget(QWidget):
         # Status area — Run/Clear go on the same row as Help, bottom-right
         self.status_layout = QHBoxLayout()
         self.status_label = QLabel("Ready")
-        self.status_layout.addWidget(QLabel("Status:"))
+        self.status_label.setProperty("statusText", True)
+        status_caption = QLabel("Status:")
+        status_caption.setProperty("statusText", True)
+        self.status_layout.addWidget(status_caption)
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
 
@@ -404,7 +417,7 @@ class BaseTabWidget(QWidget):
         self.upload_btn = QPushButton("Upload File")
         self.upload_btn.clicked.connect(self.open_file)
         self.input_hint = QLabel("")
-        self.input_hint.setStyleSheet("color: #888;")
+        self.input_hint.setProperty("hintLabel", True)
 
         ig_layout.addWidget(self.input_text)
         ig_layout.addWidget(self.upload_btn)

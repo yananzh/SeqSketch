@@ -16,7 +16,7 @@ from config.settings import Settings
 from menus import create_menus
 from utils.app_paths import resource_path
 from utils.app_version import APP_VERSION
-from utils.common_components import BaseWorker, park_qthread
+from utils.common_components import BaseWorker, add_page_title, park_qthread
 from utils.task_lifecycle import (
     mark_closing,
     request_task_stop,
@@ -134,6 +134,12 @@ class MainWindow(QMainWindow):
                     self.tabs.setCurrentIndex(i)
                     return None
         tab = (factory or tab_class)()
+        if not hasattr(tab, "page_title"):
+            tab.page_title = add_page_title(tab.layout(), title)
+        for name in ("status_label", "_status_label"):
+            status_label = getattr(tab, name, None)
+            if status_label is not None:
+                status_label.setProperty("statusText", True)
         self.tabs.addTab(tab, title)
         self.tabs.setCurrentWidget(tab)
         # Prevent wider tabs from expanding the main window

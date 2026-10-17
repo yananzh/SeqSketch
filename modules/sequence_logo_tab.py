@@ -191,7 +191,7 @@ class SequenceLogoTab(BaseTabWidget):
 
         # Inline hint for the currently selected mode
         self._mode_hint = QLabel("Height = letter frequency (0–1)")
-        self._mode_hint.setStyleSheet("color: #777; font-size: 12px;")
+        self._mode_hint.setProperty("hintLabel", True)
         self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
         row.addWidget(self._mode_hint)
         row.addStretch()

@@ -619,6 +619,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
         self._mapping_browse_btn.clicked.connect(self._browse_mapping)
         mapping_layout.addWidget(self._mapping_browse_btn)
         mapping_hint = QLabel("Two columns, no header: old_name,new_name\nCSV / TSV / TXT / Excel")
+        mapping_hint.setProperty("hintLabel", True)
         mapping_hint.setWordWrap(True)
         mapping_layout.addWidget(mapping_hint)
         self._mapping_feedback = QLabel("")

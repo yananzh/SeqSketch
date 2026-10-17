@@ -5,7 +5,7 @@ import tempfile
 from datetime import datetime
 
 from PyQt6.QtCore import QThread, QUrl, pyqtSignal
-from PyQt6.QtGui import QDesktopServices, QFont
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -625,9 +625,6 @@ class MafftAlignmentTab(BaseTabWidget):
 
     def _setup_output(self):
         self.output_label.setText("Alignment Result:")
-        mono = QFont("Courier New", 10)
-        mono.setStyleHint(QFont.StyleHint.Monospace)
-        self.output_text.setFont(mono)
         self.output_text.setMinimumHeight(220)
         self.output_group.hide()
         self.run_btn.setText("Run")

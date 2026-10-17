@@ -4,7 +4,7 @@ import re
 from Bio import Align
 from Bio.Align import substitution_matrices
 from PyQt6.QtCore import QUrl
-from PyQt6.QtGui import QDesktopServices, QFont
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -296,16 +296,8 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.content_area.insertLayout(4, fmt_row)
 
         self.output_label.setText("Alignment Result:")
-        mono = QFont("Courier New", 10)
-        mono.setStyleHint(QFont.StyleHint.Monospace)
-        self.output_text.setFont(mono)
-        # styles.qss has a global `* { font-family: Segoe UI }` rule that
-        # overrides setFont().  Appending to the widget-level stylesheet gives
-        # higher CSS specificity and forces Courier New for column alignment.
-        self.output_text.setStyleSheet(
-            self.output_text.styleSheet()
-            + "font-family: 'Courier New', monospace; font-size: 10pt;"
-        )
+        # The shared sequence-editor QSS supplies a fixed-width font for
+        # column-aligned reports, at the same size as other sequence editors.
         self.output_text.setMinimumHeight(220)
         self.run_btn.setText("Run")
 

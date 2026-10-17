@@ -271,7 +271,7 @@ class ProteaseCleavageTab(BaseTabWidget):
 
         # Row 2 — Protease description hint
         self._protease_hint = QLabel(PROTEASES["Trypsin"]["desc"])
-        self._protease_hint.setStyleSheet("color: #777; font-size: 12px;")
+        self._protease_hint.setProperty("hintLabel", True)
         self._protease_hint.setWordWrap(True)
         pg_layout.addWidget(self._protease_hint)
 

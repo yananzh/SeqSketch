@@ -39,7 +39,27 @@ QLabel#treePreviewZoom {
 /* 1. 全局字体 */
 * {
     font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: normal;
+}
+
+/* Typography roles shared by both Light and Dark themes.
+   Page 18 / section 15 / body 14 / supporting text 13 (logical pixels).
+   Keep scientific figure labels and exported report typography independent. */
+QLabel[pageTitle="true"] {
+    font-size: 18px;
+    font-weight: 600;
+    color: #0f172a;
+    padding: 2px 0 4px 0;
+}
+QLabel[statusText="true"], QStatusBar, QToolTip {
+    font-size: 13px;
+}
+QPlainTextEdit, QTextEdit[sequenceEditorStyled="true"],
+QLineEdit[dataText="true"] {
+    font-family: "Cascadia Mono", "Consolas", "Menlo", monospace;
+    font-size: 14px;
+    font-weight: normal;
 }
 
 QMainWindow {
@@ -51,7 +71,7 @@ QMenuBar, QToolBar {
     background: #eaeaea;
     border-bottom: 1px solid #cccccc;
     min-height: 26px;
-    font-size: 15px;
+    font-size: 14px;
 }
 QMenuBar::item {
     padding: 4px 8px;
@@ -194,16 +214,19 @@ QPlainTextEdit[sequenceEditorStyled="true"][readOnly="true"]:focus {
 }
 QLabel[logSectionTitle="true"] {
     color: #334155;
+    font-size: 15px;
     font-weight: 600;
     padding-top: 2px;
 }
 QLabel[sectionTitle="true"] {
     color: #0f172a;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
 }
 QLabel[mutedText="true"] {
     color: #475569;
+    font-size: 13px;
+    font-weight: normal;
 }
 QTextEdit[logViewer="true"],
 QTextEdit[logViewer="true"]:focus {
@@ -211,7 +234,9 @@ QTextEdit[logViewer="true"]:focus {
     padding: 8px 10px;
     background: #ffffff;
     color: #1e293b;
-    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-family: "Cascadia Mono", "Consolas", "Menlo", monospace;
+    font-size: 13px;
+    font-weight: normal;
 }
 QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
     background: #f0f0f0;
@@ -237,10 +262,12 @@ QPlainTextEdit[listDisplay="true"]:focus {
 QLabel[hintLabel="true"] {
     color: #888;
     font-size: 13px;
+    font-weight: normal;
 }
 
 /* 6. GroupBox */
 QGroupBox {
+    font-size: 15px;
     font-weight: 600;
     border: 1px solid #c8c8c8;
     border-radius: 6px;
