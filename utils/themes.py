@@ -11,12 +11,30 @@ import weakref
 from PyQt6 import sip
 from PyQt6.QtCore import QEvent, QObject, Qt
 from PyQt6.QtGui import QColor, QPalette
-from PyQt6.QtWidgets import QApplication, QWidget
+from PyQt6.QtWidgets import QApplication, QPushButton, QWidget
 
 from utils.app_paths import resource_path
 
 THEMES = {"light": "Light", "dark": "Dark"}
 _COLOR = re.compile(r"#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b|\bwhite\b|\bblack\b")
+
+
+def apply_button_roles(root):
+    """Assign roles before parenting a new tab into the styled main window."""
+    for button in root.findChildren(QPushButton):
+        if button.property("actionRole"):
+            continue
+        text = button.text().replace("&", "").strip().lower()
+        if button.property("stopButton") or text == "stop":
+            role = "danger"
+        elif text in {"run", "start", "analyze", "calculate", "align"}:
+            role = "primary"
+        elif text in {"clear", "clear all", "reset", "help", "close", "cancel"}:
+            role = "quiet"
+        else:
+            role = "secondary"
+        # Assign once so progress captions retain their execution role.
+        button.setProperty("actionRole", role)
 
 
 class ThemeManager(QObject):
@@ -34,6 +52,11 @@ class ThemeManager(QObject):
         ) as handle:
             self.colors = json.load(handle)
         app.installEventFilter(self)
+        app.aboutToQuit.connect(self._stop_filter)
+
+    def _stop_filter(self):
+        # Native widgets can outlive Python during application teardown.
+        self.app.removeEventFilter(self)
 
     def recolor(self, stylesheet):
         if self.name == "light":

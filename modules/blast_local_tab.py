@@ -42,7 +42,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.app_paths import exe_name, resource_path
-from utils.common_components import BaseTabWidget, unify_status_button_sizes
+from utils.common_components import BaseTabWidget, unify_button_size, unify_status_button_sizes
 from utils.task_lifecycle import request_task_stop, skip_when_closing
 
 from .blast_config import (
@@ -337,7 +337,7 @@ class _BuildDbWidget(QWidget):
         self.build_btn.setFixedWidth(150)
         self.build_btn.clicked.connect(self._start_build)
         self.cancel_build_btn = QPushButton("Cancel")
-        _set_action_role(self.cancel_build_btn, "secondary")
+        _set_action_role(self.cancel_build_btn, "danger")
         self.cancel_build_btn.setFixedWidth(75)
         self.cancel_build_btn.clicked.connect(self._cancel_build)
         self.cancel_build_btn.setVisible(False)
@@ -376,13 +376,7 @@ class _BuildDbWidget(QWidget):
             return
         for label in (self._fasta_lbl, self._outdir_lbl, self._name_lbl):
             label.setFixedWidth(width)
-        # Fit the Build database button to its text at the resolved font
-        # (QSS button padding is 12px per side) and align its height with the
-        # form's Browse buttons (they render taller due to their 1px border).
-        metrics = QFontMetrics(self.font())
-        self.build_btn.setFixedWidth(metrics.horizontalAdvance(self.build_btn.text()) + 26)
-        if getattr(self, "_ref_btn", None) is not None and self._ref_btn.height() > 0:
-            self.build_btn.setFixedHeight(self._ref_btn.height())
+        unify_button_size(self.build_btn)
 
     def _current_blast_bin_dir(self) -> str:
         path = self._blast_bin_dir_getter()
@@ -947,7 +941,7 @@ class _RunQueryWidget(QWidget):
         self.run_btn.setFixedWidth(75)
         self.run_btn.clicked.connect(self._start_run)
         self.cancel_run_btn = QPushButton("Cancel")
-        _set_action_role(self.cancel_run_btn, "secondary")
+        _set_action_role(self.cancel_run_btn, "danger")
         self.cancel_run_btn.setFixedWidth(75)
         self.cancel_run_btn.clicked.connect(self._cancel_run)
         self.cancel_run_btn.setVisible(False)

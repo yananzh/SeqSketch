@@ -9,7 +9,7 @@ import re
 from typing import Any, Dict, Optional
 
 from PyQt6.QtCore import QObject, Qt, QThread, QUrl, pyqtSignal
-from PyQt6.QtGui import QDesktopServices, QPainter, QPalette
+from PyQt6.QtGui import QDesktopServices, QFont, QFontInfo, QFontMetrics, QPainter, QPalette
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -136,7 +136,7 @@ SEQUENCE_EDITOR_STYLE = (
     "border-radius: 6px;"
     "padding: 8px 10px;"
     "background: #ffffff;"
-    "selection-background-color: #d9ebff;"
+    "selection-background-color: #e5efed;"
     "selection-color: #1a1a1a;"
 )
 
@@ -201,8 +201,38 @@ def apply_log_viewer_style(editor: QTextEdit) -> None:
 
 
 # ── Unified status-bar button sizing ───────────────────────────────────────
-STATUS_BUTTON_WIDTH_SINGLE = 80   # one-word labels: Run, Clear, Help, Stop, ...
-STATUS_BUTTON_WIDTH_DOUBLE = 120  # two-word labels: View Tree, Export Matrix, ...
+STATUS_BUTTON_WIDTH_SINGLE = 90   # one-word labels: Run, Clear, Help, Stop, ...
+STATUS_BUTTON_WIDTH_DOUBLE = 140  # two-word labels: View Tree, Export Matrix, ...
+BUTTON_HEIGHT = 32
+
+
+def unify_button_size(button: QPushButton) -> None:
+    """Size text actions consistently, allowing extra room for long captions."""
+    text = button.text().replace("&", "").strip()
+    if not text:
+        return  # Preserve icon-only controls.
+    width = STATUS_BUTTON_WIDTH_DOUBLE if len(text.split()) > 1 else STATUS_BUTTON_WIDTH_SINGLE
+    # Tabs are prepared before inheriting the main window's stylesheet.
+    # Measure using the shared QSS body font, in logical pixels for HiDPI.
+    font = QFont("Segoe UI")
+    font.setPixelSize(14)
+    # Headless Qt can have no fonts at all; its missing-glyph boxes are not
+    # representative of the UI. Keep the standard tiers in that environment.
+    required = (
+        QFontMetrics(font).horizontalAdvance(text) + 26
+        if QFontInfo(font).family()
+        else 0
+    )
+    if not button.icon().isNull():
+        required += button.iconSize().width() + 6
+    width = max(width, ((required + 9) // 10) * 10)
+    button.setFixedSize(width, BUTTON_HEIGHT)
+
+
+def unify_tab_button_sizes(tab: QWidget) -> None:
+    """Apply the same sizing to form actions and the bottom operation row."""
+    for button in tab.findChildren(QPushButton):
+        unify_button_size(button)
 
 
 def unify_status_button_sizes(tab) -> None:
@@ -216,12 +246,7 @@ def unify_status_button_sizes(tab) -> None:
     for i in range(layout.count()):
         widget = layout.itemAt(i).widget()
         if isinstance(widget, QPushButton):
-            width = (
-                STATUS_BUTTON_WIDTH_DOUBLE
-                if len(widget.text().split()) > 1
-                else STATUS_BUTTON_WIDTH_SINGLE
-            )
-            widget.setFixedWidth(width)
+            unify_button_size(widget)
 
 
 class BaseWorker(QObject):

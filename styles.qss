@@ -13,16 +13,16 @@ QWidget#treePreviewToolbar QToolButton {
     font-size: 14px;
 }
 QWidget#treePreviewToolbar QToolButton:hover {
-    background: #edf5ff;
-    color: #2563a6;
-    border-color: #93b7e2;
+    background: #edf4f2;
+    color: #527a78;
+    border-color: #9bb7b1;
 }
 QWidget#treePreviewToolbar QToolButton:pressed {
-    background: #dcecff;
-    border-color: #4a90e2;
+    background: #d7e6e2;
+    border-color: #759a94;
 }
 QWidget#treePreviewToolbar QToolButton:focus {
-    border-color: #4a90e2;
+    border-color: #759a94;
 }
 QWidget#treePreviewToolbar QToolButton:disabled {
     color: #a8b2c0;
@@ -72,7 +72,7 @@ QMenuBar::item {
     padding: 4px 8px;
 }
 QMenuBar::item:selected {
-    background: #d0eaff;
+    background: #e5efed;
     border-radius: 3px;
 }
 QMenu {
@@ -84,7 +84,7 @@ QMenu::item {
     padding: 5px 24px 5px 16px;
 }
 QMenu::item:selected {
-    background: #d0eaff;
+    background: #e5efed;
     color: #1a1a1a;
     border-radius: 3px;
 }
@@ -102,7 +102,7 @@ QTabWidget::pane {
 /* Stat value labels in FASTA QC tab */
 QLabel[statValue="true"] {
     font-weight: bold;
-    color: #2196F3;
+    color: #527a78;
 }
 
 /* 2. 标签页 */
@@ -115,8 +115,8 @@ QTabBar::tab {
     color: #555555;
 }
 QTabBar::tab:selected {
-    background: #d0eaff;
-    color: #1565c0;
+    background: #e5efed;
+    color: #385956;
     font-weight: 600;
 }
 QTabBar::tab:hover:!selected {
@@ -126,57 +126,59 @@ QTabBar::tab:!selected {
     margin-top: 3px;
 }
 
+/* Neutral actions by default; only execution actions use a solid accent. */
 QPushButton {
-    background: #4a90e2;
-    color: #fff;
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #d8e0ea;
     border-radius: 4px;
     padding: 5px 12px;
 }
-QPushButton:hover {
-    background: #357ab8;
+QPushButton:hover { background: #f1f5f9; border-color: #94a3b8; }
+QPushButton:pressed { background: #e2e8f0; }
+QPushButton:focus { border-color: #759a94; }
+QPushButton[actionRole="primary"] {
+    background: #527a78; color: #ffffff; border-color: #527a78;
 }
-QPushButton#localBlastBuildDatabase {
-    background: #21875b;
-    color: #ffffff;
+QPushButton[actionRole="primary"]:hover {
+    background: #446764; border-color: #446764;
 }
-QPushButton#localBlastBuildDatabase:hover {
-    background: #176b45;
+QPushButton[actionRole="primary"]:pressed {
+    background: #385956; border-color: #385956;
 }
-QPushButton#localBlastBuildDatabase:disabled {
-    background: #8cb8a1;
-    color: #ffffff;
+QPushButton[actionRole="primary"]:focus { border-color: #385956; }
+QPushButton[actionRole="quiet"] {
+    background: transparent; color: #475569; border-color: #d8e0ea;
 }
-/* Secondary action button — same blue fill, consistent across all buttons */
-QPushButton[actionRole="secondary"] {
-    color: #ffffff;
-    background: #4a90e2;
-    border: 1px solid #4a90e2;
+QPushButton[actionRole="quiet"]:hover {
+    background: #f1f5f9; border-color: #d8e0ea;
 }
-QPushButton[actionRole="secondary"]:hover {
-    background: #357ab8;
-    border-color: #357ab8;
+QPushButton[actionRole="quiet"]:pressed { background: #e2e8f0; }
+QPushButton[actionRole="quiet"]:focus { border-color: #759a94; }
+QPushButton[actionRole="danger"], QPushButton[stopButton="true"] {
+    background: #a65353; color: #ffffff; border-color: #a65353;
 }
-QPushButton:disabled {
-    background: #cbd5e1;
-    border-color: #cbd5e1;
-    color: #f8fafc;
+QPushButton[actionRole="danger"]:hover, QPushButton[stopButton="true"]:hover {
+    background: #904646; border-color: #904646;
 }
-/* Accent buttons keep their blue fill even when disabled (e.g. Export CSV
-   before any results exist) so they read as primary actions. */
-QPushButton[accentButton="true"]:disabled {
-    background: #4a90e2;
-    border-color: #4a90e2;
-    color: #ffffff;
+QPushButton[actionRole="danger"]:pressed, QPushButton[stopButton="true"]:pressed {
+    background: #7c3c3c; border-color: #7c3c3c;
 }
-QPushButton[stopButton="true"] {
-    background: #d32f2f;
-    color: white;
-    border-radius: 4px;
-    font-weight: bold;
+QPushButton[actionRole="danger"]:focus, QPushButton[stopButton="true"]:focus {
+    border-color: #7c3c3c;
 }
-QPushButton[stopButton="true"]:hover {
-    background: #b71c1c;
+QPushButton[viewToggle="true"] { padding: 4px 12px; border-radius: 3px; }
+QPushButton[viewToggle="true"]:checked {
+    background: #e5efed; color: #385956; border-color: #759a94;
 }
+QPushButton:disabled, QPushButton[actionRole]:disabled,
+QPushButton[stopButton="true"]:disabled, QPushButton[viewToggle="true"]:disabled {
+    background: #f1f5f9; color: #64748b; border-color: #e2e8f0;
+}
+QPushButton[actionRole="quiet"]:disabled {
+    background: transparent; border-color: #e2e8f0; color: #64748b;
+}
+QProgressBar::chunk { background: #527a78; }
 
 /* 5. 输入控件 */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QPlainTextEdit {
@@ -184,12 +186,12 @@ QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QPlainTextEdit {
     border-radius: 4px;
     padding: 3px 6px;
     background: #ffffff;
-    selection-background-color: #d0eaff;
+    selection-background-color: #e5efed;
     selection-color: #1a1a1a;
 }
 QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus,
 QTextEdit:focus, QPlainTextEdit:focus {
-    border: 1.5px solid #4a90e2;
+    border: 1.5px solid #759a94;
 }
 /* Sequence editor widgets keep their custom border on focus */
 QTextEdit[sequenceEditorStyled="true"],
@@ -296,7 +298,7 @@ QLabel#homeTitle {
     font-size: 32px;
     font-weight: 600;
 }
-QLabel#homeTagline { color: #2563a6; font-size: 18px; }
+QLabel#homeTagline { color: #527a78; font-size: 18px; }
 QLabel#homeDescription { color: #475569; font-size: 14px; }
 QLabel#homeFeatureTitle { color: #334155; font-size: 15px; font-weight: 600; }
 QLabel#homeFeatureDescription { color: #64748b; font-size: 13px; }
@@ -323,12 +325,12 @@ QTabBar::tab:selected {
     background: #3a5068;
 }
 QPushButton {
-    background: #4a90e2;
+    background: #759a94;
     color: #fff;
     border-radius: 4px;
     padding: 5px 12px;
 }
 QPushButton:hover {
-    background: #357ab8;
+    background: #446764;
 }
 */

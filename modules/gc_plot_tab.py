@@ -233,10 +233,7 @@ class GCPlotTab(BaseTabWidget):
         self._btn_cumul.clicked.connect(lambda: self._switch_view(2))
 
         for btn in (self._btn_gc, self._btn_skew, self._btn_cumul):
-            btn.setStyleSheet(
-                "QPushButton { padding: 4px 12px; border: 1px solid #bbb; border-radius: 3px; background: #eee; }"
-                "QPushButton:checked { background: #1976d2; color: white; border-color: #1976d2; }"
-            )
+            btn.setProperty("viewToggle", True)
         btn_layout.addWidget(self._btn_gc)
         btn_layout.addWidget(self._btn_skew)
         btn_layout.addWidget(self._btn_cumul)

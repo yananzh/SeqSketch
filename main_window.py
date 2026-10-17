@@ -17,7 +17,7 @@ from config.settings import Settings
 from menus import create_menus
 from utils.app_paths import resource_path
 from utils.app_version import APP_VERSION
-from utils.common_components import BaseWorker, park_qthread
+from utils.common_components import BaseWorker, park_qthread, unify_tab_button_sizes
 from utils.home_page import HomePage
 from utils.task_lifecycle import (
     mark_closing,
@@ -26,7 +26,7 @@ from utils.task_lifecycle import (
     task_objects,
     tasks_running,
 )
-from utils.themes import THEMES, theme_manager
+from utils.themes import THEMES, apply_button_roles, theme_manager
 from utils.update_check import (
     RELEASES_PAGE_URL,
     fetch_latest_version,
@@ -148,6 +148,8 @@ class MainWindow(QMainWindow):
             status_label = getattr(tab, name, None)
             if status_label is not None:
                 status_label.setProperty("statusText", True)
+        apply_button_roles(tab)
+        unify_tab_button_sizes(tab)
         self.tabs.addTab(tab, title)
         self.tabs.setCurrentWidget(tab)
         # Prevent wider tabs from expanding the main window
@@ -309,6 +311,8 @@ class MainWindow(QMainWindow):
                 return
         tab = ComplementTab()
         tab.set_mode(mode)
+        apply_button_roles(tab)
+        unify_tab_button_sizes(tab)
         self.tabs.addTab(tab, "Complement/Reverse Complement")
         self.tabs.setCurrentWidget(tab)
 
@@ -446,6 +450,8 @@ class MainWindow(QMainWindow):
         tab = BlastLocalTab(
             status_callback=self.status.showMessage,
         )
+        apply_button_roles(tab)
+        unify_tab_button_sizes(tab)
         self.tabs.addTab(tab, "Local BLAST")
         self.tabs.setCurrentWidget(tab)
         tab.switch_to(sub_index)
