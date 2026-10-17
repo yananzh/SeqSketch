@@ -1,0 +1,35 @@
+/* Additional surfaces not explicitly styled by the original light theme. */
+QWidget { color: #e2e8f0; }
+QDialog, QMessageBox, QScrollArea, QScrollArea > QWidget > QWidget {
+    background: #20252d;
+}
+QLabel { background: transparent; }
+QMenuBar::item, QMenu::item { background: transparent; }
+QMenuBar::item:selected, QMenu::item:selected { background: #284e76; }
+QAbstractItemView {
+    background: #171c24;
+    alternate-background-color: #262e39;
+    color: #e2e8f0;
+    selection-background-color: #284e76;
+    selection-color: #ffffff;
+}
+QHeaderView::section {
+    background: #303b49;
+    color: #e2e8f0;
+    border: 1px solid #465264;
+    padding: 4px 6px;
+}
+QToolTip { background: #303b49; color: #e2e8f0; border: 1px solid #596b82; }
+QProgressBar {
+    background: #171c24;
+    border: 1px solid #465264;
+    border-radius: 4px;
+    text-align: center;
+}
+QProgressBar::chunk { background: #357ab8; }
+QPushButton, QPushButton[actionRole="secondary"],
+QPushButton[accentButton="true"]:disabled { color: #ffffff; }
+QPushButton:disabled { background: #303b49; color: #a0adbe; }
+QPushButton[accentButton="true"]:disabled { background: #303b49; color: #a0adbe; }
+QGroupBox::title { color: #82b7fa; }
+QTabBar::tab:disabled, QLabel:disabled { color: #a0adbe; }

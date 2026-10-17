@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QTabWidget,
 )
 
+from config.settings import Settings
 from menus import create_menus
 from utils.app_paths import resource_path
 from utils.app_version import APP_VERSION
@@ -23,6 +24,7 @@ from utils.task_lifecycle import (
     task_objects,
     tasks_running,
 )
+from utils.themes import THEMES, theme_manager
 from utils.update_check import (
     RELEASES_PAGE_URL,
     fetch_latest_version,
@@ -74,6 +76,11 @@ class MainWindow(QMainWindow):
         self._close_timer = QTimer(self)
         self._close_timer.setInterval(25)
         self._close_timer.timeout.connect(self._finish_closing_tasks)
+        self.settings = Settings()
+        saved_theme = self.settings.get("window.theme", "light")
+        self.current_theme = (
+            saved_theme if isinstance(saved_theme, str) and saved_theme in THEMES else "light"
+        )
         self._init_ui()
         self._load_style()
 
@@ -86,25 +93,25 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status)
         create_menus(self)
 
-    def _load_style(self, dark=False):
-        qss_path = resource_path("styles.qss")
+    def _load_style(self):
         try:
-            with open(qss_path, "r", encoding="utf-8") as f:
-                qss = f.read()
-            self.setStyleSheet(qss)
-        except Exception as e:
-            print("QSS load failed:", e)
-            return
-        # Applying a stylesheet resets the PlaceholderText palette role to
-        # black (indistinguishable from real input). Restore a muted gray so
-        # placeholder hints stay visually distinct — must run after setStyleSheet.
-        from PyQt6.QtGui import QColor, QPalette
+            theme_manager().apply(self.current_theme, self)
+        except (OSError, ValueError) as exc:
+            print("Theme load failed:", exc)
 
-        app = QApplication.instance()
-        if app is not None:
-            pal = app.palette()
-            pal.setColor(QPalette.ColorRole.PlaceholderText, QColor("#888888"))
-            app.setPalette(pal)
+    def set_theme(self, name):
+        if not isinstance(name, str) or name not in THEMES:
+            return
+        try:
+            theme_manager().apply(name, self)
+        except (OSError, ValueError) as exc:
+            self.show_message(f"Could not load theme: {exc}", error=True)
+            self.theme_actions[self.current_theme].setChecked(True)
+            return
+        self.current_theme = name
+        self.theme_actions[name].setChecked(True)
+        self.settings.set("window.theme", name)
+        self.status.showMessage(f"Theme: {THEMES[name]}", 5000)
 
     def show_message(self, text, error=False):
         if error:

@@ -2,8 +2,10 @@ import importlib.util
 import os
 import sys
 
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QActionGroup
 from PyQt6.QtWidgets import QMenu, QMenuBar
+
+from utils.themes import THEMES
 
 
 def create_menus(window):
@@ -315,6 +317,18 @@ def create_menus(window):
     fav_menu.addAction(manage_fav_action)
     # Settings menu
     settings_menu = menubar.addMenu("Settings")
+    theme_menu = settings_menu.addMenu("Theme")
+    theme_group = QActionGroup(window)
+    theme_group.setExclusive(True)
+    window.theme_actions = {}
+    for name, label in THEMES.items():
+        action = QAction(label, theme_group)
+        action.setCheckable(True)
+        action.setChecked(name == window.current_theme)
+        action.triggered.connect(lambda checked, theme=name: window.set_theme(theme))
+        theme_menu.addAction(action)
+        window.theme_actions[name] = action
+    settings_menu.addSeparator()
 
     # 关于
     about_action = QAction("About", window)

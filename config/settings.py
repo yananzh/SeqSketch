@@ -38,15 +38,24 @@ class Settings:
             try:
                 with open(self.config_file, "r", encoding="utf-8") as f:
                     settings = json.load(f)
-                    # 合并默认设置
-                    for key, value in default_settings.items():
-                        if key not in settings:
-                            settings[key] = value
-                    return settings
+                    return self._merge_defaults(default_settings, settings)
             except (OSError, json.JSONDecodeError):
                 return default_settings
 
         return default_settings
+
+    @staticmethod
+    def _merge_defaults(defaults, saved):
+        """Preserve preferences while tolerating invalid/partial JSON objects."""
+        if not isinstance(saved, dict):
+            return defaults
+        merged = dict(saved)
+        for key, value in defaults.items():
+            if isinstance(value, dict):
+                merged[key] = Settings._merge_defaults(value, saved.get(key))
+            elif key not in merged:
+                merged[key] = value
+        return merged
 
     def save_settings(self):
         """保存设置"""

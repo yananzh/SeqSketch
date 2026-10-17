@@ -36,6 +36,8 @@ version, full command, timestamp) to `run_log.txt`, keeping results traceable an
 
 ## Highlights
 
+- **Light and dark themes** — switch instantly via `Settings → Theme`; your choice is remembered. Scientific figures and exported reports retain their own colors.
+
 - **Zero setup** — portable builds for Windows and macOS; the five external tools ship inside the download
 - **45 task-focused tabs** — one feature per tab, multiple tasks open side by side
 - **One-step multi-gene phylogeny** — gene FASTAs in, concatenated multi-gene tree out, in a single run

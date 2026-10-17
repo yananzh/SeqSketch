@@ -9,7 +9,7 @@ import re
 from typing import Any, Dict, Optional
 
 from PyQt6.QtCore import QObject, Qt, QThread, QUrl, pyqtSignal
-from PyQt6.QtGui import QColor, QDesktopServices, QPainter
+from PyQt6.QtGui import QDesktopServices, QPainter, QPalette
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -55,7 +55,7 @@ class PlaceholderComboBox(QComboBox):
                 QStyle.SubControl.SC_ComboBoxEditField,
                 self,
             )
-            painter.setPen(QColor("#888888"))
+            painter.setPen(self.palette().color(QPalette.ColorRole.PlaceholderText))
             painter.drawText(
                 rect.adjusted(3, 0, -3, 0),
                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
