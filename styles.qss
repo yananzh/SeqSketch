@@ -44,19 +44,14 @@ QLabel#treePreviewZoom {
 }
 
 /* Typography roles shared by both Light and Dark themes.
-   Page 18 / section 15 / body 14 / supporting text 13 (logical pixels).
+   Section 15 / body 14 / supporting text 13 (logical pixels).
    Keep scientific figure labels and exported report typography independent. */
-QLabel[pageTitle="true"] {
-    font-size: 18px;
-    font-weight: 600;
-    color: #0f172a;
-    padding: 2px 0 4px 0;
-}
 QLabel[statusText="true"], QStatusBar, QToolTip {
     font-size: 13px;
 }
-QPlainTextEdit, QTextEdit[sequenceEditorStyled="true"],
-QLineEdit[dataText="true"] {
+/* Single-line paths and their placeholders use the regular UI font above.
+   Reserve monospace for sequence/alignment text and multi-line data panels. */
+QPlainTextEdit, QTextEdit[sequenceEditorStyled="true"] {
     font-family: "Cascadia Mono", "Consolas", "Menlo", monospace;
     font-size: 14px;
     font-weight: normal;
@@ -100,7 +95,7 @@ QStatusBar {
 }
 
 QTabWidget::pane {
-    border: 1px solid #cccccc;
+    border: 1px solid #e0e4e9;
     background: #ffffff;
 }
 
@@ -213,13 +208,13 @@ QPlainTextEdit[sequenceEditorStyled="true"][readOnly="true"]:focus {
     background: #f7f9fc;
 }
 QLabel[logSectionTitle="true"] {
-    color: #334155;
+    color: #475569;
     font-size: 15px;
     font-weight: 600;
     padding-top: 2px;
 }
 QLabel[sectionTitle="true"] {
-    color: #0f172a;
+    color: #475569;
     font-size: 15px;
     font-weight: 600;
 }
@@ -265,11 +260,11 @@ QLabel[hintLabel="true"] {
     font-weight: normal;
 }
 
-/* 6. GroupBox */
+/* 6. GroupBox: quiet boundaries; headings use weight instead of accent color. */
 QGroupBox {
     font-size: 15px;
     font-weight: 600;
-    border: 1px solid #c8c8c8;
+    border: 1px solid #e0e4e9;
     border-radius: 6px;
     margin-top: 8px;
     padding-top: 6px;
@@ -279,7 +274,7 @@ QGroupBox::title {
     subcontrol-position: top left;
     left: 10px;
     padding: 0 4px;
-    color: #1976d2;
+    color: #475569;
 }
 QGroupBox[logGroup="true"] {
     margin-top: 4px;
@@ -291,6 +286,21 @@ QGroupBox[logGroup="true"]::title {
     left: 8px;
     padding: 0 2px;
 }
+
+/* Introduction page: typography and whitespace instead of card borders. */
+QWidget#homePage { background: #f7f9fc; }
+QWidget#homeContent { background: transparent; }
+QLabel#homeLogo { background: transparent; }
+QLabel#homeTitle {
+    color: #0f172a;
+    font-size: 32px;
+    font-weight: 600;
+}
+QLabel#homeTagline { color: #2563a6; font-size: 18px; }
+QLabel#homeDescription { color: #475569; font-size: 14px; }
+QLabel#homeFeatureTitle { color: #334155; font-size: 15px; font-weight: 600; }
+QLabel#homeFeatureDescription { color: #64748b; font-size: 13px; }
+QLabel#homeHint { color: #64748b; font-size: 13px; }
 
 /* 深色主题（可切换） */
 /*

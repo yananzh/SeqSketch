@@ -31,5 +31,5 @@ QPushButton, QPushButton[actionRole="secondary"],
 QPushButton[accentButton="true"]:disabled { color: #ffffff; }
 QPushButton:disabled { background: #303b49; color: #a0adbe; }
 QPushButton[accentButton="true"]:disabled { background: #303b49; color: #a0adbe; }
-QGroupBox::title { color: #82b7fa; }
+QGroupBox::title { color: #b5c1d1; }
 QTabBar::tab:disabled, QLabel:disabled { color: #a0adbe; }

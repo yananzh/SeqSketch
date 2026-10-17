@@ -66,8 +66,10 @@ def test_main_window_reuses_single_complement_tools_tab(qapp):
     assert first_tab.mode_combo.currentText() == "Reverse Complement"
 
 
-def test_stylesheet_keeps_placeholder_text_gray(qapp):
+def test_stylesheet_keeps_placeholder_text_gray(qapp, monkeypatch, tmp_path):
     """QSS resets the PlaceholderText role to black; the app must restore gray."""
+    # Test the default Light theme independently of the user's saved preference.
+    monkeypatch.setattr("config.settings.user_data_file", lambda name: str(tmp_path / name))
     MainWindow()  # constructor applies QSS then restores the gray placeholder role
     color = qapp.palette().color(QPalette.ColorRole.PlaceholderText)
     assert color.name() == "#888888", f"placeholder color is {color.name()}"

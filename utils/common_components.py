@@ -87,7 +87,6 @@ class FileDropLineEdit(QLineEdit):
 
     def __init__(self, allowed_extensions=None, parent=None):
         super().__init__(parent)
-        self.setProperty("dataText", True)
         self._allowed = allowed_extensions or self.FASTA_EXTENSIONS
         self.setAcceptDrops(True)
 
@@ -202,15 +201,6 @@ def apply_log_viewer_style(editor: QTextEdit) -> None:
 
 
 # ── Unified status-bar button sizing ───────────────────────────────────────
-def add_page_title(layout, title: str) -> QLabel:
-    """Add a wrapping heading without changing feature content-layout indices."""
-    label = QLabel(title)
-    label.setProperty("pageTitle", True)
-    label.setWordWrap(True)
-    layout.insertWidget(0, label)
-    return label
-
-
 STATUS_BUTTON_WIDTH_SINGLE = 80   # one-word labels: Run, Clear, Help, Stop, ...
 STATUS_BUTTON_WIDTH_DOUBLE = 120  # two-word labels: View Tree, Export Matrix, ...
 
@@ -344,7 +334,6 @@ class BaseTabWidget(QWidget):
     def init_common_ui(self):
         """Initialize common UI components"""
         self.main_layout = QVBoxLayout(self)
-        self.page_title = add_page_title(self.main_layout, self.title)
 
         # Content area for subclasses
         self.content_area = QVBoxLayout()

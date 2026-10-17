@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QStackedWidget,
     QStatusBar,
     QTabWidget,
 )
@@ -16,7 +17,8 @@ from config.settings import Settings
 from menus import create_menus
 from utils.app_paths import resource_path
 from utils.app_version import APP_VERSION
-from utils.common_components import BaseWorker, add_page_title, park_qthread
+from utils.common_components import BaseWorker, park_qthread
+from utils.home_page import HomePage
 from utils.task_lifecycle import (
     mark_closing,
     request_task_stop,
@@ -88,10 +90,18 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
         self.tabs.tabCloseRequested.connect(self.close_tab)
-        self.setCentralWidget(self.tabs)
+        self.home_page = HomePage()
+        self.pages = QStackedWidget()
+        self.pages.addWidget(self.home_page)
+        self.pages.addWidget(self.tabs)
+        self.tabs.currentChanged.connect(self._sync_home_page)
+        self.setCentralWidget(self.pages)
         self.status = QStatusBar()
         self.setStatusBar(self.status)
         create_menus(self)
+
+    def _sync_home_page(self, _index):
+        self.pages.setCurrentWidget(self.tabs if self.tabs.count() else self.home_page)
 
     def _load_style(self):
         try:
@@ -134,8 +144,6 @@ class MainWindow(QMainWindow):
                     self.tabs.setCurrentIndex(i)
                     return None
         tab = (factory or tab_class)()
-        if not hasattr(tab, "page_title"):
-            tab.page_title = add_page_title(tab.layout(), title)
         for name in ("status_label", "_status_label"):
             status_label = getattr(tab, name, None)
             if status_label is not None:
