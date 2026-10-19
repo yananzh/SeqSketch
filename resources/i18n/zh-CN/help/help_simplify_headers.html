@@ -1,0 +1,122 @@
+<h2>简化序列头 &mdash; 生成简洁的序列 ID</h2>
+
+<h3>本工具有什么用？</h3>
+<p>来自 NCBI 或 UniProt 等数据库的 FASTA 文件，其序列头往往很长，充满各种注释。本工具将其缩短为简洁、可预测的 ID，使下游工具（比对软件、系统发育软件、可视化工具）不会因此出错或误读。</p>
+
+<h3>什么是&quot;序列头&quot;？</h3>
+<p>FASTA 序列头在 <code>&gt;</code> 之后的第一个空白字符处被切分。第一个空格之前的部分是 <b>ID</b>（本工具要简化的部分）；之后的部分是 <b>Description</b>（描述）。例如：</p>
+<pre>&gt;NM_001101.5 Homo sapiens protein kinase
+ |----ID----| |-------描述--------|</pre>
+<p>除非勾选了<b>保留描述</b>，否则输出中会去掉描述部分。所有模式都基于完整的序列头行（ID + 描述）进行处理。</p>
+
+<h3>使用示例数据试一试</h3>
+<p>点击文件输入框旁的<b>示例</b>按钮，它会载入 <code>simple_header.fasta</code>——包含 <code>tr|acc|entry</code> 格式的真实 UniProt/TrEMBL 序列头。该文件非常适合用来测试每种简化模式。</p>
+
+<h3>使用内置数据的示例</h3>
+<p>载入<b>示例</b>文件后，对下面的序列头尝试这些设置：<br>
+<code>&gt;tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC Pyruvate dehydrogenase ...</code>：</p>
+<pre>
+第一个单词                        &rarr;  tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC
+分隔符 "|" 第 2 个字段            &rarr;  A0AAI7ZCJ9
+分隔符 "|" 第 3 个字段            &rarr;  A0AAI7ZCJ9_XANAC_Pyruvate_...（最后一个字段保留其余部分）
+保留 2 个单词                     &rarr;  tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC_Pyruvate
+正则表达式 tr\|([^|]+)\|            &rarr;  A0AAI7ZCJ9
+正则表达式 ([A-Z0-9]{10}_[A-Z]+)   &rarr;  A0AAI7ZCJ9_XANAC
+</pre>
+
+<h3>应选择哪种模式？</h3>
+<p>观察你的序列头格式，选择对应的规则：</p>
+<table border="0" cellpadding="5" cellspacing="2">
+<tr><td><b>你的序列头形如</b></td><td><b>&rarr; 使用此模式</b></td></tr>
+<tr><td><code>&gt;NM_001101.5 Homo sapiens gene</code><br>
+    （登录号后跟一个空格）</td>
+    <td>&rarr; <b>First word</b></td></tr>
+<tr><td><code>&gt;tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC</code><br>
+    （UniProt，以竖线分隔的字段）</td>
+    <td>&rarr; <b>Regex</b> <code>tr\|([^|]+)\|</code>（字段 3 会吞掉描述部分）</td></tr>
+<tr><td><code>&gt;contig_123 length=5000 cov=10.5</code><br>
+    （以空格分隔的标记，保留前几个）</td>
+    <td>&rarr; <b>Keep first N words</b></td></tr>
+<tr><td><code>&gt;lcl|seq_001 gene:kinase</code><br>
+    （结构化，但不完全基于分隔符）</td>
+    <td>&rarr; <b>Regex capture</b></td></tr>
+</table>
+
+<h3>快速入门</h3>
+<ol>
+<li>点击<b>示例</b>载入内置的 <code>simple_header.fasta</code>，或浏览选择你自己的 FASTA 文件。</li>
+<li>从下拉框中选择简化模式——下拉框旁会显示带示例的提示。</li>
+<li>填写所需参数（分隔符、字段序号、正则表达式或单词数）。</li>
+<li>点击<b>预览</b>，在处理整个文件之前检查前 5 个 ID。</li>
+<li>调整选项（大小写、前缀/后缀、保留描述等）。</li>
+<li>点击<b>运行</b>，简化每个序列头并保存结果。</li>
+</ol>
+
+<h3>各模式详解</h3>
+
+<p><b>1. First word</b><br>
+只保留序列头中第一个以空白分隔的单词。</p>
+<table border="0" cellpadding="2"><tr><td><b>输入</b></td>
+    <td><code>&gt;NM_001101.5 Homo sapiens protein kinase</code></td></tr>
+<tr><td><b>输出</b></td>
+    <td><code>&gt;NM_001101.5</code></td></tr></table>
+
+<p><b>2. Delimiter field</b><br>
+按某个字符（例如 <code>|</code>、<code>_</code>、<code>:</code>）拆分序列头，并选取一个字段。字段序号从 1 开始（1 表示起始 <code>&gt;</code> 之后的第一个字段）。</p>
+<table border="0" cellpadding="2"><tr><td><b>输入</b></td>
+    <td><code>&gt;tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC Pyruvate ...</code></td></tr>
+<tr><td><b>分隔符</b></td><td><code>|</code></td></tr>
+<tr><td><b>字段序号 2</b></td><td>&rarr; <code>A0AAI7ZCJ9</code></td></tr>
+<tr><td><b>字段序号 3</b></td><td>&rarr; <code>A0AAI7ZCJ9_XANAC</code></td></tr></table>
+
+<p><b>3. Keep first N words</b><br>
+取前 N 个以空白分隔的单词，并用下划线连接。适用于保留物种名加登录号前缀，同时去掉重复的注释文字。</p>
+<table border="0" cellpadding="2"><tr><td><b>输入</b></td>
+    <td><code>&gt;Salmon_salar_cytb mitochondrial cytochrome b</code></td></tr>
+<tr><td><b>保留 2 个单词</b></td>
+    <td>&rarr; <code>Salmon_salar_cytb_mitochondrial</code></td></tr></table>
+
+<p><b>4. Regex capture</b><br>
+对序列头应用正则表达式。第一个捕获组 <code>(...)</code> 将成为新的 ID。若不含捕获组，则整个匹配结果成为 ID。未匹配的序列头保留原始 ID，并记录一条警告。</p>
+
+<p><b>UniProt / NCBI 常用正则表达式：</b></p>
+<table border="0" cellpadding="5" cellspacing="2">
+<tr><td><b>模式</b></td><td><b>提取内容</b></td></tr>
+<tr><td><code>tr\|([^|]+)\|</code></td>
+    <td>UniProt TrEMBL 登录号——第 2 个以竖线分隔的字段</td></tr>
+<tr><td><code>sp\|([^|]+)\|</code></td>
+    <td>UniProt Swiss-Prot 登录号</td></tr>
+<tr><td><code>ref\|([^|]+)\|</code></td>
+    <td>来自 <code>gi|...|ref|...</code> 序列头的 NCBI RefSeq 登录号</td></tr>
+<tr><td><code>([A-Z0-9]{10}_[A-Z]+)</code></td>
+    <td>UniProt TrEMBL 条目名（例如 <code>A0AAI7ZCJ9_XANAC</code>）</td></tr>
+<tr><td><code>GN=(\w+)</code></td>
+    <td>注释部分中的基因名</td></tr>
+</table>
+<p><i>提示：运行前，可使用在线正则表达式测试工具（例如 regex101.com）构建并验证你的模式。</i></p>
+
+<h3>其他选项</h3>
+
+<p><b>大小写转换</b><br>
+将所有简化后的 ID 强制转为 <b>UPPERCASE</b>（大写）或 <b>lowercase</b>（小写），或保持 <b>As-is</b>（原样）。区分大小写的下游工具（例如某些系统发育软件）通常要求统一的大小写。</p>
+
+<p><b>前缀 / 后缀</b><br>
+在每个简化后的 ID 之前或之后添加固定文本（例如样本编号或物种代码）。<i>示例：</i>对 <code>NM_001101.5</code> 添加前缀 <code>S1_</code>，得到 <code>S1_NM_001101.5</code>。</p>
+
+<p><b>保留描述</b><br>
+默认情况下，第一个空格之后的文本（序列头中的“描述”或“注释”部分）会与简化后的 ID 一起被去掉。勾选此项可将描述文本保留在新的、更短的 ID 之后。当下游注释需要这些信息时很有用。</p>
+
+<p><b>自动编号重复 ID</b><br>
+若两个或多个原始序列头简化后得到相同的 ID（即“冲突”），此选项会追加 <code>_2</code>、<code>_3</code> 等后缀，而不是拒绝保存。未勾选时，重复 ID 会使运行因错误而停止，以便你手动修正问题。</p>
+
+<p><b>导出 ID 映射报告</b><br>
+在输出文件旁保存一个 TSV 文件，列出每个旧 ID、其新 ID、是否发生变化，以及由哪种模式生成。这对于审计追踪，以及重新关联存储在旧 ID 下的注释信息至关重要。</p>
+
+<h3>使用技巧</h3>
+<ul>
+<li>处理大文件前务必先<b>预览</b>——正则表达式的拼写错误和错误的字段序号很容易被忽略。</li>
+<li>先运行 <b>FASTA 统计</b>，检查源文件中是否存在重复 ID；如果不知道输入中本就存在重复，输出中的重复将更难排查。</li>
+<li>处理将用于发表或与合作者共享的文件时，请启用<b>导出 ID 映射报告</b>。</li>
+<li>若<i>没有任何 ID 发生变化</i>，请检查操作日志中关于分隔符不匹配或正则未匹配的警告——工具无法应用所选规则时会保留原始 ID。</li>
+<li>使用<b>大小写</b>选项，在输入区分大小写的流程之前统一混合大小写的登录号。</li>
+</ul>

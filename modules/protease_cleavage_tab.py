@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.i18n import tr_format, tr_ui
 
 # ── Protease definitions ─────────────────────────────────────────────────────
 # Each entry: (display_name, cleavage_rule)
@@ -278,7 +279,7 @@ class ProteaseCleavageTab(BaseTabWidget):
         self.content_area.insertWidget(1, param_group)
 
     def _update_protease_hint(self, name):
-        self._protease_hint.setText(PROTEASES.get(name, {}).get("desc", ""))
+        self._protease_hint.setText(tr_ui(PROTEASES.get(name, {}).get("desc", "")))
 
     # ── Core logic ──────────────────────────────────────────────────────────
 
@@ -342,9 +343,21 @@ class ProteaseCleavageTab(BaseTabWidget):
         self.export_csv_btn.setEnabled(True)
         total = len(all_fragments)
         if len(records) > 1:
-            self.status_label.setText(f"Digested {total} fragments ({protease_name})")
+            self.status_label.setText(
+                tr_format(
+                    "Digested {count} fragments ({protease})",
+                    count=total,
+                    protease=protease_name,
+                )
+            )
         else:
-            self.status_label.setText(f"Digested: {total} fragments ({protease_name})")
+            self.status_label.setText(
+                tr_format(
+                    "Digested: {count} fragments ({protease})",
+                    count=total,
+                    protease=protease_name,
+                )
+            )
 
     @staticmethod
     def _short_header(header: str) -> str:
@@ -388,7 +401,7 @@ class ProteaseCleavageTab(BaseTabWidget):
         self.current_results = []
         self.export_csv_btn.setEnabled(False)
         self.open_folder_btn.setEnabled(False)
-        self.status_label.setText("Cleared")
+        self.status_label.setText(tr_ui("Cleared"))
 
     def _open_output_folder(self):
         """Open the folder of the most recently exported CSV file."""
@@ -406,9 +419,9 @@ class ProteaseCleavageTab(BaseTabWidget):
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export CSV",
+            tr_ui("Export CSV"),
             "protease_fragments.csv",
-            "CSV Files (*.csv);;All Files (*)",
+            tr_ui("CSV Files (*.csv);;All Files (*)"),
         )
         if not path:
             return
@@ -434,7 +447,7 @@ class ProteaseCleavageTab(BaseTabWidget):
                         f"{frag['mw']:.2f}",
                         frag["sequence"],
                     ])
-            self.status_label.setText(f"Exported: {os.path.basename(path)}")
+            self.status_label.setText(tr_format("Exported: {path}", path=os.path.basename(path)))
             self._last_export_dir = os.path.dirname(path)
             self.open_folder_btn.setEnabled(True)
         except Exception as e:

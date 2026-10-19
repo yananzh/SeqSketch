@@ -1,0 +1,42 @@
+<h2>比对格式转换 &mdash; 多序列比对格式之间的转换</h2>
+
+<p><b>本工具有什么用？</b><br>
+在常见生物信息学格式之间转换比对文件：
+FASTA、CLUSTAL、PHYLIP 和 NEXUS。输入序列必须已经比对到相同长度。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>选择一个已比对的输入文件（或直接拖放）</li>
+<li>确认<b>输入格式</b> &mdash; 工具会根据文件扩展名自动识别</li>
+<li>选择<b>输出格式</b>和输出路径</li>
+<li>点击<b>运行</b></li>
+</ol>
+
+<h3>支持的格式</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>FASTA</b></td><td>&rarr; 标准的比对 FASTA（<code>.fasta</code>、<code>.fa</code>、<code>.afa</code>）</td></tr>
+<tr><td><b>CLUSTAL</b></td><td>&rarr; CLUSTAL-W 比对格式（<code>.aln</code>、<code>.clustal</code>）</td></tr>
+<tr><td><b>PHYLIP</b></td><td>&rarr; relaxed 交错式 PHYLIP（<code>.phy</code>）</td></tr>
+<tr><td><b>NEXUS</b></td><td>&rarr; NEXUS 比对数据块（<code>.nex</code>）</td></tr>
+</table>
+
+<h3>自动识别</h3>
+<p>选择文件时，会根据文件扩展名推断输入格式。
+常见扩展名会被自动识别；如有需要，可手动覆盖识别结果。</p>
+
+<h3>输出自动命名</h3>
+<p>选择输入文件后，输出路径会自动填入相同的主文件名，并使用与所选输出格式对应的扩展名。
+如需保存到其他位置，请点击输出栏旁边的<b>浏览</b>。</p>
+
+<h3>局限性</h3>
+<ul>
+<li>输入序列必须<b>已比对到相同长度</b>（各列必须对齐）。本工具不执行比对。</li>
+<li>NEXUS 输入可以包含一个只含单个比对的 DATA 数据块。</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>请先使用 <b>MAFFT</b> 或 <b>MUSCLE</b> 进行比对，再进行转换 &mdash; 本工具不会添加或删除空位。</li>
+<li><b>trimAl</b>、<b>IQ-TREE</b> 和 <b>MSA 可视化</b>都读取比对后的 FASTA；仅当下游程序要求时才选择 PHYLIP 或 NEXUS。</li>
+<li>若输入文件使用非标准扩展名，请在运行前手动覆盖自动识别的输入格式。</li>
+</ul>

@@ -28,6 +28,7 @@ from utils.common_components import (
     unify_status_button_sizes,
 )
 from utils.example_data import load_example_text
+from utils.i18n import tr_format, tr_ui
 
 
 def _load_fasta_records(text: str):
@@ -388,9 +389,9 @@ class PairwiseAlignmentTab(BaseTabWidget):
         """Override: load into Sequence 1."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select sequence file",
+            tr_ui("Select sequence file"),
             "",
-            "FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)",
+            tr_ui("FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)"),
         )
         if file_path:
             try:
@@ -408,7 +409,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         self.seq2_text.clear()
         self.output_text.clear()
         self.open_folder_btn.setEnabled(False)
-        self.status_label.setText("Ready")
+        self.status_label.setText(tr_ui("Ready"))
 
     def export_result(self):
         """Export the alignment report and remember its folder."""
@@ -417,15 +418,17 @@ class PairwiseAlignmentTab(BaseTabWidget):
             return
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Result",
+            tr_ui("Export Result"),
             "alignment_result.txt",
-            "Text Files (*.txt);;FASTA Files (*.fasta);;CSV Files (*.csv);;All Files (*)",
+            tr_ui("Text Files (*.txt);;FASTA Files (*.fasta);;CSV Files (*.csv);;All Files (*)"),
         )
         if file_path:
             try:
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(self.output_text.toPlainText())
-                self.status_label.setText(f"Exported: {os.path.basename(file_path)}")
+                self.status_label.setText(
+                    tr_format("Exported: {path}", path=os.path.basename(file_path))
+                )
                 self._last_export_dir = os.path.dirname(file_path)
                 self.open_folder_btn.setEnabled(True)
             except Exception as e:
@@ -487,7 +490,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
             alignments = aligner.align(seq1, seq2)
             if len(alignments) == 0:
-                self.status_label.setText("No alignment found.")
+                self.status_label.setText(tr_ui("No alignment found."))
                 return
 
             best = alignments[0]
@@ -546,7 +549,12 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
             self.output_text.setPlainText(output)
             self.status_label.setText(
-                f"Done — score {score:.0f}, ident {pct(n_ident)}%, sim {pct(n_sim)}%"
+                tr_format(
+                    "Done — score {score}, ident {ident}%, sim {sim}%",
+                    score=f"{score:.0f}",
+                    ident=pct(n_ident),
+                    sim=pct(n_sim),
+                )
             )
         except Exception as e:
             QMessageBox.critical(self, "Alignment Error", str(e))

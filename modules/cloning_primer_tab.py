@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.i18n import tr_format, tr_ui
 
 # (name, recognition site, 0-based cut index on the 5'->3' strand, protection bases)
 CLONING_ENZYMES: list[tuple[str, str, int, int]] = [
@@ -508,9 +509,9 @@ class CloningPrimerTab(BaseTabWidget):
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select sequence file",
+            tr_ui("Select sequence file"),
             "",
-            "FASTA/TXT (*.fasta *.fa *.fas *.txt);;All Files (*)",
+            tr_ui("FASTA/TXT (*.fasta *.fa *.fas *.txt);;All Files (*)"),
         )
         if not file_path:
             return
@@ -523,7 +524,7 @@ class CloningPrimerTab(BaseTabWidget):
         if self._reject_multi_record(content):
             return
         self.input_text.setPlainText(content)
-        self.input_hint.setText(f"Loaded file: {file_path}")
+        self.input_hint.setText(tr_format("Loaded file: {path}", path=file_path))
 
     def _drop_event(self, event):
         urls = event.mimeData().urls()
@@ -542,7 +543,7 @@ class CloningPrimerTab(BaseTabWidget):
             event.ignore()
             return
         self.input_text.setPlainText(content)
-        self.input_hint.setText(f"Loaded file: {file_path}")
+        self.input_hint.setText(tr_format("Loaded file: {path}", path=file_path))
         event.acceptProposedAction()
 
     def run(self):
@@ -590,11 +591,14 @@ class CloningPrimerTab(BaseTabWidget):
         hits = [w for w in design.get("warnings", []) if "cuts inside the insert" in w]
         if not hits:
             return
+        details = "\n".join(tr_ui(hit) for hit in hits)
         QMessageBox.warning(
             self,
             "Internal Cut Site Detected",
-            "A selected restriction enzyme cuts inside the insert:\n"
-            + "\n".join(hits),
+            tr_format(
+                "A selected restriction enzyme cuts inside the insert:\n{details}",
+                details=details,
+            ),
         )
 
     def _fill_table(self, design: dict[str, Any]) -> None:
@@ -603,10 +607,10 @@ class CloningPrimerTab(BaseTabWidget):
         mono = QFont("Consolas")
         mono.setStyleHint(QFont.StyleHint.TypeWriter)
         for row, data in enumerate(rows):
-            self.results_table.setItem(row, 0, QTableWidgetItem(data["label"]))
+            self.results_table.setItem(row, 0, QTableWidgetItem(tr_ui(data["label"])))
             full_item = QTableWidgetItem(data["full"])
             full_item.setFont(mono)
-            full_item.setToolTip("Double-click to copy this sequence")
+            full_item.setToolTip(tr_ui("Double-click to copy this sequence"))
             self.results_table.setItem(row, 1, full_item)
             self.results_table.setItem(row, 2, QTableWidgetItem(str(len(data["full"]))))
             overhang_item = QTableWidgetItem(data["overhang"])
@@ -620,19 +624,24 @@ class CloningPrimerTab(BaseTabWidget):
             tm_item = QTableWidgetItem(f"{tm_core:.1f}" if tm_core else "-")
             if tm_full:
                 tm_item.setToolTip(
-                    f"Full primer Tm: {tm_full:.1f} °C (core {tm_core:.1f} °C)"
+                    tr_format(
+                        "Full primer Tm: {tm} °C (core {core} °C)",
+                        tm=f"{tm_full:.1f}",
+                        core=f"{tm_core:.1f}",
+                    )
                 )
             self.results_table.setItem(row, 5, tm_item)
             gc_item = QTableWidgetItem(f"{data['gc']:.1f}")
             gc_item.setToolTip(
-                "GC content of the primer core; 35-65% is recommended"
+                tr_ui("GC content of the primer core; 35-65% is recommended")
             )
             self.results_table.setItem(row, 6, gc_item)
             dimer = data["dimer"]
             self.results_table.setItem(
                 row, 7, QTableWidgetItem(f"{dimer:.1f}" if dimer is not None else "-")
             )
-            self.results_table.setItem(row, 8, QTableWidgetItem("; ".join(data["flags"])))
+            flags = "; ".join(tr_ui(flag) for flag in data["flags"])
+            self.results_table.setItem(row, 8, QTableWidgetItem(flags))
 
     def _copy_full_sequence(self, item) -> None:
         if item.column() == 1 and item.text():
@@ -646,9 +655,9 @@ class CloningPrimerTab(BaseTabWidget):
             return
         file_path, selected_filter = QFileDialog.getSaveFileName(
             self,
-            "Export Primers Table",
+            tr_ui("Export Primers Table"),
             "primers_table.xlsx",
-            "Excel (*.xlsx);;CSV (*.csv);;TSV (*.tsv)",
+            tr_ui("Excel (*.xlsx);;CSV (*.csv);;TSV (*.tsv)"),
         )
         if not file_path:
             return
@@ -677,7 +686,9 @@ class CloningPrimerTab(BaseTabWidget):
                 self._export_delimited(file_path, headers, rows, "\t")
         except Exception as exc:
             QMessageBox.warning(
-                self, "Export Failed", f"Could not export: {exc}"
+                self,
+                "Export Failed",
+                tr_format("Could not export: {error}", error=exc),
             )
             return
         self._last_export_dir = os.path.dirname(os.path.abspath(file_path))

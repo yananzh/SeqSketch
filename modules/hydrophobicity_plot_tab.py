@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.i18n import tr_format, tr_ui
 
 # ── Hydrophobicity scales ───────────────────────────────────────────────────
 # Values for the 20 standard amino acids (A R N D C Q E G H I L K M F P S T W Y V)
@@ -321,7 +322,13 @@ class HydrophobicityPlotTab(BaseTabWidget):
         averaged = self._window_average(scores, window)
         self._draw_plot(seq, averaged, scale_name, window, header)
         self.export_plot_btn.setEnabled(True)
-        self.status_label.setText(f"Plotted {scale_name} (window={window}) — {len(seq)} residues")
+        status = tr_format(
+            "Plotted {scale} (window={window}) — {residues} residues",
+            scale=scale_name,
+            window=window,
+            residues=len(seq),
+        )
+        self.status_label.setText(status)
 
     @staticmethod
     def _window_average(scores: np.ndarray, window: int) -> np.ndarray:
@@ -372,7 +379,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
         self.current_figure = None
         self.export_plot_btn.setEnabled(False)
         self.open_folder_btn.setEnabled(False)
-        self.status_label.setText("Cleared")
+        self.status_label.setText(tr_ui("Cleared"))
 
     def _open_output_folder(self):
         """Open the folder of the most recently exported figure."""
@@ -387,14 +394,16 @@ class HydrophobicityPlotTab(BaseTabWidget):
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Hydrophobicity Plot",
+            tr_ui("Save Hydrophobicity Plot"),
             "hydrophobicity_plot.png",
-            "PNG Files (*.png);;PDF Files (*.pdf);;SVG Files (*.svg);;All Files (*)",
+            tr_ui("PNG Files (*.png);;PDF Files (*.pdf);;SVG Files (*.svg);;All Files (*)"),
         )
         if file_path:
             try:
                 self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight")
-                self.status_label.setText(f"Figure saved: {os.path.basename(file_path)}")
+                self.status_label.setText(
+                    tr_format("Figure saved: {name}", name=os.path.basename(file_path))
+                )
                 self._last_export_dir = os.path.dirname(file_path)
                 self.open_folder_btn.setEnabled(True)
             except Exception as e:

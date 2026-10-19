@@ -22,6 +22,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
+from utils.i18n import tr_ui
 
 DIRECTION_FASTA_TO_TABLE = "fasta_to_table"
 DIRECTION_TABLE_TO_FASTA = "table_to_fasta"
@@ -212,19 +213,21 @@ class FastaTableConverterTab(BaseTabWidget):
         to_table = self.direction_combo.currentData() == DIRECTION_FASTA_TO_TABLE
         self.format_combo.setEnabled(to_table)
         self.input_edit.setPlaceholderText(
-            "Select or drop a FASTA file..."
+            tr_ui("Select or drop a FASTA file...")
             if to_table
-            else "Select or drop a CSV / TSV / Excel table..."
+            else tr_ui("Select or drop a CSV / TSV / Excel table...")
         )
 
     def select_input_file(self):
         to_table = self.direction_combo.currentData() == DIRECTION_FASTA_TO_TABLE
         file_filter = (
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)"
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)")
             if to_table
-            else "Table Files (*.csv *.tsv *.txt *.xlsx *.xls);;All Files (*)"
+            else tr_ui("Table Files (*.csv *.tsv *.txt *.xlsx *.xls);;All Files (*)")
         )
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select input file", "", file_filter)
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, tr_ui("Select input file"), "", file_filter
+        )
         if file_path:
             self.handle_input_file_selected(file_path)
 
@@ -252,11 +255,13 @@ class FastaTableConverterTab(BaseTabWidget):
     def select_output_file(self):
         to_table = self.direction_combo.currentData() == DIRECTION_FASTA_TO_TABLE
         file_filter = (
-            "Table Files (*.csv *.tsv *.xlsx);;All Files (*)"
+            tr_ui("Table Files (*.csv *.tsv *.xlsx);;All Files (*)")
             if to_table
-            else "FASTA Files (*.fasta *.fa *.fas);;All Files (*)"
+            else tr_ui("FASTA Files (*.fasta *.fa *.fas);;All Files (*)")
         )
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save converted file", "", file_filter)
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, tr_ui("Save converted file"), "", file_filter
+        )
         if file_path:
             self.output_edit.setText(file_path)
 

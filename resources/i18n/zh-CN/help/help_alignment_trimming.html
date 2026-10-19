@@ -1,0 +1,41 @@
+<h2>比对修剪（trimAl） &mdash; 清理你的多序列比对</h2>
+
+<p><b>本工具有什么用？</b><br>
+trimAl 会从多序列比对（MSA）中移除比对质量差或空位过多的列。
+更干净的比对能产生更准确的系统发育树，并让下游分析更可靠。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>通过<b>添加文件</b>按钮或拖放添加比对文件。</li>
+<li>选择<b>输出文件夹</b>（会根据第一个文件自动填入）。</li>
+<li>选择<b>修剪方法</b>（建议从 <b>automated1</b> 开始）。</li>
+<li>点击<b>运行</b>。</li>
+</ol>
+
+<h3>修剪方法</h3>
+<ul>
+<li><b>gappyout</b> &mdash; 移除空位比例异常高的列。较为保守 &mdash; 保留的数据最多。</li>
+<li><b>automated1</b> &mdash; 根据比对统计量自动选择最佳方法。<b>推荐的默认选项。</b></li>
+<li><b>strict</b> &mdash; 依据比对统计量进行更激进的修剪。</li>
+<li><b>strictplus</b> &mdash; 与 strict 类似，但还会过滤掉较短的序列片段。</li>
+<li><b>nogaps</b> &mdash; 移除所有含空位的列。最严格的选项 &mdash; 输出中不含缺失残基
+（当下游分析要求完整列时很有用）。</li>
+</ul>
+
+<h3>输出格式</h3>
+<ul>
+<li><b>FASTA</b> &mdash; 默认格式，兼容大多数工具。</li>
+<li><b>PHYLIP</b> &mdash; 用于 IQ-TREE / RAxML。</li>
+<li><b>NEXUS</b> &mdash; 用于 MrBayes / BEAST。</li>
+<li><b>CLUSTAL</b> &mdash; ClustalW 格式。</li>
+<li><b>MEGA</b> &mdash; MEGA 格式。</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>对大多数数据集，从 <b>automated1</b>（默认值）开始；<b>gappyout</b>
+是更保守的选择；<b>nogaps</b> 是最严格的选项。</li>
+<li>修剪完成后，可将输出用于<b>最大似然树构建（IQ-TREE）</b>或<b>MSA 可视化</b>。</li>
+<li>每次运行后查看日志，了解列数的变化以及是否有警告。</li>
+<li>支持的输入格式：FASTA、CLUSTAL、PHYLIP、NEXUS（会自动转换）。</li>
+</ul>

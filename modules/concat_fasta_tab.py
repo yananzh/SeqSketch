@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.common_components import BaseTabWidget, apply_input_list_style, unify_status_button_sizes
+from utils.i18n import tr_ui
 
 
 class ConcatFastaTab(BaseTabWidget):
@@ -159,9 +160,9 @@ class ConcatFastaTab(BaseTabWidget):
     def add_files(self):
         file_paths, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select FASTA files",
+            tr_ui("Select FASTA files"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)"),
         )
         for p in file_paths:
             self._add_path(p)
@@ -204,9 +205,9 @@ class ConcatFastaTab(BaseTabWidget):
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save concatenated file",
+            tr_ui("Save concatenated file"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas);;All Files (*)"),
         )
         if file_path:
             self.output_edit.setText(file_path)

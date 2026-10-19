@@ -35,6 +35,7 @@ from PyQt6.QtWidgets import (
 
 from utils.app_paths import user_data_file
 from utils.common_components import unify_status_button_sizes
+from utils.i18n import tr_format, tr_ui
 
 # URL validation regex
 _URL_RE = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
@@ -206,7 +207,7 @@ class BookmarkManager(QWidget):
 
         self._setup_ui()
         self._load_bookmarks()
-        # 检查并更新默认分类名称
+        # Check and update the default category names
         self._check_and_update_default_categories()
         self._populate_categories()
         if self.category_tree.topLevelItemCount() > 0:
@@ -344,13 +345,16 @@ class BookmarkManager(QWidget):
             if os.path.exists(DATA_FILE):
                 os.replace(DATA_FILE, backup_path)
         except OSError:
-            backup_path = "(backup unavailable)"
+            backup_path = tr_ui("(backup unavailable)")
         QMessageBox.warning(
             self,
             "Bookmarks could not be loaded",
-            "Your bookmarks file could not be read (it may be corrupted or "
-            "truncated).\n\nStarting with an empty collection so nothing is "
-            f"overwritten. Your previous file was backed up to:\n{backup_path}",
+            tr_format(
+                "Your bookmarks file could not be read (it may be corrupted or "
+                "truncated).\n\nStarting with an empty collection so nothing is "
+                "overwritten. Your previous file was backed up to:\n{path}",
+                path=backup_path,
+            ),
         )
         self.bookmarks = {}
         self.categories = []
@@ -468,7 +472,9 @@ class BookmarkManager(QWidget):
                     os.remove(tmp_path)
             except OSError:
                 pass
-            QMessageBox.warning(self, "Save Error", f"Failed to save bookmarks: {e}")
+            QMessageBox.warning(
+                self, "Save Error", tr_format("Failed to save bookmarks: {error}", error=e)
+            )
 
     # ============== UI Sync ==============
     @staticmethod
@@ -531,7 +537,9 @@ class BookmarkManager(QWidget):
             it.setData(CATEGORY_ROLE, category)
             self.bookmark_list.addItem(it)
         count = len(self.bookmarks.get(category, []))
-        self.status_label.setText(f"{category}: {count} bookmark(s)")
+        self.status_label.setText(
+            tr_format("{category}: {count} bookmark(s)", category=category, count=count)
+        )
 
     def reorder_categories_by_tree(self):
         new_order = []
@@ -597,7 +605,7 @@ class BookmarkManager(QWidget):
         reply = QMessageBox.question(
             self,
             "Confirm Delete",
-            f'Delete category "{cat}" and all its bookmarks?',
+            tr_format('Delete category "{category}" and all its bookmarks?', category=cat),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
@@ -643,7 +651,7 @@ class BookmarkManager(QWidget):
                 webbrowser.open(bm["url"])
             except OSError:
                 pass
-        self.status_label.setText(f"Opened all in '{cat}'")
+        self.status_label.setText(tr_format("Opened all in '{category}'", category=cat))
 
     def add_bookmark_in_context(self):
         item = self.category_tree.currentItem()
@@ -683,7 +691,10 @@ class BookmarkManager(QWidget):
                     reply = QMessageBox.question(
                         self,
                         "Duplicate URL",
-                        f"URL already exists in this category:\n{url}\n\nAdd anyway?",
+                        tr_format(
+                            "URL already exists in this category:\n{url}\n\nAdd anyway?",
+                            url=url,
+                        ),
                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     )
                     if reply != QMessageBox.StandardButton.Yes:
@@ -725,7 +736,7 @@ class BookmarkManager(QWidget):
         try:
             webbrowser.open(url)
         except Exception:
-            QMessageBox.warning(self, "Error", f"Cannot open URL: {url}")
+            QMessageBox.warning(self, "Error", tr_format("Cannot open URL: {url}", url=url))
 
     def rename_selected_bookmark(self):
         items = self.bookmark_list.selectedItems()
@@ -745,7 +756,7 @@ class BookmarkManager(QWidget):
         reply = QMessageBox.question(
             self,
             "Confirm Delete",
-            f"Delete {len(items)} selected bookmarks?",
+            tr_format("Delete {count} selected bookmarks?", count=len(items)),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -872,7 +883,7 @@ class BookmarkManager(QWidget):
         if not text:
             if cat_item:
                 self._display_bookmarks(self._cat_name(cat_item))
-            self.status_label.setText("Ready")
+            self.status_label.setText(tr_ui("Ready"))
             return
         count = 0
         if cat_item:
@@ -893,7 +904,9 @@ class BookmarkManager(QWidget):
                         it.setData(CATEGORY_ROLE, cat)
                         self.bookmark_list.addItem(it)
                         count += 1
-        self.status_label.setText(f"Search: {count} match(es) for '{text}'")
+        self.status_label.setText(
+            tr_format("Search: {count} match(es) for '{text}'", count=count, text=text)
+        )
 
     # ============== Help ==============
     def _show_help(self):
@@ -958,7 +971,7 @@ automatically to your user data folder.</p>
     # ============== Import / Export ==============
     def import_bookmarks(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Import Bookmarks", "", "JSON Files (*.json)"
+            self, tr_ui("Import Bookmarks"), "", tr_ui("JSON Files (*.json)")
         )
         if file_path:
             try:
@@ -988,24 +1001,30 @@ automatically to your user data folder.</p>
                     "Imported content merged into current bookmarks.",
                 )
             except Exception as e:
-                QMessageBox.warning(self, "Import Failed", f"Failed to import: {e}")
+                QMessageBox.warning(
+                    self, "Import Failed", tr_format("Failed to import: {error}", error=e)
+                )
 
     def export_bookmarks(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Export Bookmarks", "", "JSON Files (*.json)"
+            self, tr_ui("Export Bookmarks"), "", tr_ui("JSON Files (*.json)")
         )
         if file_path:
             try:
                 ordered = {cat: self.bookmarks.get(cat, []) for cat in self.categories}
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(ordered, f, ensure_ascii=False, indent=2)
-                QMessageBox.information(self, "Export Successful", f"Exported to: {file_path}")
+                QMessageBox.information(
+                    self, "Export Successful", tr_format("Exported to: {path}", path=file_path)
+                )
             except Exception as e:
-                QMessageBox.warning(self, "Export Failed", f"Failed to export: {e}")
+                QMessageBox.warning(
+                    self, "Export Failed", tr_format("Failed to export: {error}", error=e)
+                )
 
     def export_to_html(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Export as HTML Bookmarks", "", "HTML Files (*.html)"
+            self, tr_ui("Export as HTML Bookmarks"), "", tr_ui("HTML Files (*.html)")
         )
         if not file_path:
             return
@@ -1037,10 +1056,12 @@ automatically to your user data folder.</p>
                 f.write("\n".join(lines))
 
             QMessageBox.information(
-                self, "Export Successful", f"Bookmarks exported as HTML:\n{file_path}"
+                self,
+                "Export Successful",
+                tr_format("Bookmarks exported as HTML:\n{path}", path=file_path),
             )
         except Exception as e:
-            QMessageBox.critical(self, "Export Failed", f"Error: {e}")
+            QMessageBox.critical(self, "Export Failed", tr_format("Error: {error}", error=e))
 
     def _escape_html(self, text: str) -> str:
         return (

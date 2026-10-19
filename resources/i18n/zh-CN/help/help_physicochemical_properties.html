@@ -1,0 +1,37 @@
+<h2>理化性质 &mdash; 蛋白质性质计算器</h2>
+
+<p><b>本工具有什么用？</b><br>
+它为一条或多条蛋白质序列计算关键的理化性质，包括分子量、理论 pI、消光系数、半衰期估计值、不稳定指数、脂肪族指数和 GRAVY。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>以 FASTA 格式粘贴一条或多条蛋白质序列</li>
+<li>点击<b>分析</b></li>
+<li>查看每条序列的计算结果</li>
+<li>点击<b>导出 CSV</b>，将全部结果保存为电子表格</li>
+</ol>
+
+<h3>计算的性质</h3>
+<table border='0' cellpadding='4' cellspacing='2'>
+<tr><td><b>性质</b></td><td><b>说明</b></td></tr>
+<tr><td>分子量</td><td>以道尔顿（Da）计的质量</td></tr>
+<tr><td>理论 pI</td><td>等电点 &mdash; 蛋白质净电荷为零时的 pH</td></tr>
+<tr><td>消光系数</td><td>280 nm 处的吸光度（M<sup>-1</sup>cm<sup>-1</sup>），包括还原态和氧化态</td></tr>
+<tr><td>半衰期（哺乳动物）</td><td>基于 N 端规则估计的哺乳动物网织红细胞中的半衰期</td></tr>
+<tr><td>不稳定指数</td><td>&gt; 40 提示该蛋白质在<i>体内</i>可能不稳定</td></tr>
+<tr><td>脂肪族指数</td><td>脂肪族侧链的相对体积 &mdash; 与热稳定性相关</td></tr>
+<tr><td>GRAVY</td><td>Grand Average of HydropathY（平均亲水性） &mdash; 正值 = 疏水，负值 = 亲水</td></tr>
+</table>
+
+<h3>输入格式</h3>
+<ul>
+<li>FASTA 格式：<code>&gt;header</code> 之后紧跟蛋白质序列</li>
+<li>仅识别 20 种标准氨基酸</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>支持多条 FASTA 输入 &mdash; 每条序列独立计算</li>
+<li>半衰期估计基于哺乳动物细胞的 N 端规则，仅为近似值</li>
+<li>使用<b>导出 CSV</b>，即可在电子表格中比较多个蛋白质的性质</li>
+</ul>

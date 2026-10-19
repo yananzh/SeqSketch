@@ -45,6 +45,7 @@ except Exception as _e:
     raise
 
 from main_window import MainWindow
+from utils.i18n import activate_saved_language
 
 
 def _excepthook(exc_type, exc_value, exc_tb):
@@ -118,6 +119,7 @@ def main():
             _log_f.write(f"FATAL: QApplication init failed: {_e}\n")
             traceback.print_exc(file=_log_f)
         raise
+    activate_saved_language(app)
     # 显示启动界面
 
     logo_path = resource_path("start_logo.png")

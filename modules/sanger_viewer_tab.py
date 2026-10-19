@@ -35,6 +35,7 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import stage_example
+from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 # Pixels per raw scan when sizing the canvas (1 scan ≈ 1 px gives good peak clarity)
@@ -268,9 +269,9 @@ class SangerViewerTab(QWidget):
     def _browse(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open AB1 File",
+            tr_ui("Open AB1 File"),
             "",
-            "AB1 Files (*.ab1 *.AB1);;All Files (*)",
+            tr_ui("AB1 Files (*.ab1 *.AB1);;All Files (*)"),
         )
         if path:
             self._file_edit.setText(path)
@@ -321,7 +322,7 @@ class SangerViewerTab(QWidget):
         self._last_output_path = ""
         self._btn_result_folder.setEnabled(False)
         self._btn_export_plot.setEnabled(False)
-        self._set_status("Loading\u2026")
+        self._set_status(tr_ui("Loading\u2026"))
 
         self._thread = _LoadThread(self)
         self._worker = _LoadWorker(path)
@@ -374,12 +375,12 @@ class SangerViewerTab(QWidget):
 
         self._draw_chromatogram()
         self._plot_stack.setCurrentIndex(1)  # show the chromatogram
-        self._set_status(f"Loaded \u2014 {n} bases")
+        self._set_status(tr_format("Loaded \u2014 {count} bases", count=n))
 
     @skip_when_closing
     def _on_error(self, msg: str) -> None:
         QMessageBox.critical(self, "Load Error", msg)
-        self._set_status("Error: " + msg[:120])
+        self._set_status(tr_format("Error: {message}", message=msg[:120]))
 
     # ------------------------------------------------------------------
     # Drawing
@@ -521,8 +522,10 @@ class SangerViewerTab(QWidget):
 
     def _browse_output_file(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save selected sequence", self._output_edit.text() or "sanger_sequence.fasta",
-            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
+            self,
+            tr_ui("Save selected sequence"),
+            self._output_edit.text() or "sanger_sequence.fasta",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas);;All Files (*)"),
         )
         if path:
             self._output_edit.setText(os.path.normpath(path))
@@ -539,7 +542,7 @@ class SangerViewerTab(QWidget):
         start = self._spin_start.value()
         end = self._spin_end.value()
         if start > end:
-            self._set_status("Error: Invalid range")
+            self._set_status(tr_ui("Error: Invalid range"))
             QMessageBox.warning(self, "Invalid Range", "Start must be \u2264 End.")
             return
         selected = self._sequence[start - 1 : end]
@@ -555,12 +558,12 @@ class SangerViewerTab(QWidget):
         if os.path.normcase(os.path.realpath(path)) == os.path.normcase(
             os.path.realpath(self._file_edit.text().strip())
         ):
-            self._set_status("Error: Output path matches the input file")
+            self._set_status(tr_ui("Error: Output path matches the input file"))
             QMessageBox.warning(self, "Export Error", "Choose an output file different from the AB1 input.")
             return
         valid, error = validate_output_path(path)
         if not valid:
-            self._set_status("Error: Invalid output path")
+            self._set_status(tr_ui("Error: Invalid output path"))
             QMessageBox.warning(self, "Export Error", error)
             return
         processor = FASTAProcessor()
@@ -575,7 +578,7 @@ class SangerViewerTab(QWidget):
                 raise OSError("Cannot write the selected sequence to FASTA.")
             os.replace(temporary_path, path)
         except OSError as exc:
-            self._set_status("Error: Cannot save FASTA")
+            self._set_status(tr_ui("Error: Cannot save FASTA"))
             QMessageBox.warning(self, "Export Error", str(exc))
             return
         finally:
@@ -586,7 +589,7 @@ class SangerViewerTab(QWidget):
         self._last_output_path = path
         self._btn_result_folder.setEnabled(True)
         self._status_label.setToolTip(path)
-        self._set_status(f"FASTA saved: {os.path.basename(path)}")
+        self._set_status(tr_format("FASTA saved: {name}", name=os.path.basename(path)))
 
     def _export_plot(self) -> None:
         """Save the current chromatogram figure as an image file."""
@@ -595,14 +598,14 @@ class SangerViewerTab(QWidget):
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Plot",
+            tr_ui("Export Plot"),
             "chromatogram.png",
-            "PNG Images (*.png);;PDF Files (*.pdf);;SVG Files (*.svg)",
+            tr_ui("PNG Images (*.png);;PDF Files (*.pdf);;SVG Files (*.svg)"),
         )
         if path:
             try:
                 self._fig.savefig(path, dpi=150, bbox_inches="tight", pad_inches=0.15)
-                self._set_status(f"Plot saved: {path}")
+                self._set_status(tr_format("Plot saved: {path}", path=path))
             except Exception as e:
                 QMessageBox.warning(self, "Export Error", str(e))
 
@@ -627,7 +630,7 @@ class SangerViewerTab(QWidget):
         self._fig.clear()
         self._canvas.draw_idle()
         self._plot_stack.setCurrentIndex(0)  # back to the empty-state hint
-        self._set_status("Load an AB1 file to begin")
+        self._set_status(tr_ui("Load an AB1 file to begin"))
 
     # ------------------------------------------------------------------
     # Help

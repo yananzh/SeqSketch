@@ -32,6 +32,7 @@ from utils.common_components import (
     unify_status_button_sizes,
 )
 from utils.example_data import stage_example
+from utils.i18n import tr_ui
 
 # MISA default thresholds: minimum repeat count per unit length (1-6).
 DEFAULT_THRESHOLDS: Dict[int, int] = {1: 10, 2: 6, 3: 5, 4: 5, 5: 5, 6: 5}
@@ -42,6 +43,8 @@ THRESHOLD_PRESETS: Dict[str, Dict[int, int]] = {
     "Stringent": {1: 12, 2: 8, 3: 7, 4: 6, 5: 6, 6: 6},
     "Relaxed": {1: 8, 2: 5, 3: 4, 4: 4, 5: 4, 6: 4},
 }
+
+TABLE_HEADERS = ["Record", "Type", "Motif", "Unit", "Repeats", "Start", "End", "Size (bp)"]
 
 
 def _load_fasta_records(text: str) -> List[Tuple[str, str]]:
@@ -202,9 +205,9 @@ class SsrFinderTab(BaseTabWidget):
     def _browse_input_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open FASTA File",
+            tr_ui("Open FASTA File"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
         )
         if path:
             self.input_path_edit.setText(os.path.normpath(path))
@@ -331,16 +334,7 @@ class SsrFinderTab(BaseTabWidget):
         self._search_edit.textChanged.connect(self._refresh_results)
 
         self._ssr_table = QTableWidget(0, 8)
-        self._ssr_table.setHorizontalHeaderLabels([
-            "Record",
-            "Type",
-            "Motif",
-            "Unit",
-            "Repeats",
-            "Start",
-            "End",
-            "Size (bp)",
-        ])
+        self._ssr_table.setHorizontalHeaderLabels(TABLE_HEADERS)
         header = self._ssr_table.horizontalHeader()
         for col in range(8):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
@@ -546,7 +540,7 @@ class SsrFinderTab(BaseTabWidget):
         if not self._perfect and not self._compound:
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save CSV", "ssr_results.csv", "CSV Files (*.csv)"
+            self, tr_ui("Save CSV"), "ssr_results.csv", tr_ui("CSV Files (*.csv)")
         )
         if not path:
             return
@@ -557,10 +551,7 @@ class SsrFinderTab(BaseTabWidget):
                 for key, value in self._statistics():
                     writer.writerow([key, value])
                 writer.writerow([])
-                writer.writerow([
-                    self._ssr_table.horizontalHeaderItem(c).text()
-                    for c in range(self._ssr_table.columnCount())
-                ])
+                writer.writerow(TABLE_HEADERS)
                 for row_idx in range(self._ssr_table.rowCount()):
                     writer.writerow([
                         self._ssr_table.item(row_idx, col).text()

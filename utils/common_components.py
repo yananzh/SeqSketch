@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from utils.i18n import tr_ui
 from utils.task_lifecycle import park_thread, request_task_stop, skip_when_closing
 
 # ── Shared placeholder combo box ────────────────────────────────────────────
@@ -500,14 +501,14 @@ class BaseTabWidget(QWidget):
             self,
             "Select sequence file",
             "",
-            "FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)",
+            tr_ui("FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)"),
         )
         if file_path:
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 self.input_text.setPlainText(content)
-                self.input_hint.setText(f"Loaded file: {file_path}")
+                self.input_hint.setText(tr_ui(f"Loaded file: {file_path}"))
             except Exception as e:
                 QMessageBox.warning(self, "File Read Error", str(e))
 
@@ -519,13 +520,13 @@ class BaseTabWidget(QWidget):
             self,
             "Export Result",
             "result.fasta",
-            "FASTA Files (*.fasta);;Text Files (*.txt);;CSV Files (*.csv)",
+            tr_ui("FASTA Files (*.fasta);;Text Files (*.txt);;CSV Files (*.csv)"),
         )
         if file_path:
             try:
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(self.output_text.toPlainText())
-                self.status_label.setText(f"Exported: {file_path}")
+                self.status_label.setText(tr_ui(f"Exported: {file_path}"))
             except Exception as e:
                 QMessageBox.warning(self, "Export Error", str(e))
 
@@ -533,7 +534,7 @@ class BaseTabWidget(QWidget):
         """Copy result to clipboard (sequence mode)"""
         self.output_text.selectAll()
         self.output_text.copy()
-        self.status_label.setText("Copied to clipboard")
+        self.status_label.setText(tr_ui("Copied to clipboard"))
 
     def run(self):
         """由子类实现的主要运行方法"""
@@ -640,7 +641,7 @@ class BaseTabWidget(QWidget):
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 self.input_text.setPlainText(content)
-                self.input_hint.setText(f"Loaded file: {file_path}")
+                self.input_hint.setText(tr_ui(f"Loaded file: {file_path}"))
                 event.acceptProposedAction()
             except Exception as e:
                 self.show_status(f"Error loading file: {e}")
@@ -665,7 +666,7 @@ class BaseTabWidget(QWidget):
 
     def show_status(self, message: str):
         """Show status message"""
-        self.status_label.setText(message)
+        self.status_label.setText(tr_ui(message))
         self.logger.info(message)
 
     def add_open_output_dir_button(self):
@@ -703,12 +704,12 @@ class BaseTabWidget(QWidget):
         if not hasattr(self, "log_area"):
             return
 
-        prefix = {"INFO": "[Info]", "ERROR": "[Error]", "WARNING": "[Warning]"}.get(level, "[Info]")
+        prefix = tr_ui({"INFO": "[Info]", "ERROR": "[Error]", "WARNING": "[Warning]"}.get(level, "[Info]"))
 
         # 文件输出地址单独一行显示
         display = re.sub(r"(?<=to: )(?=[A-Za-z]:[\\\\/]|\\\\|/)", "\n", message)
 
-        self.log_area.append(f"{prefix} {display}")
+        self.log_area.append(f"{prefix} {tr_ui(display)}")
 
         if level == "ERROR":
             self.logger.error(message)

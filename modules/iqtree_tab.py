@@ -33,6 +33,7 @@ from utils.common_components import (
     validate_input_path,
 )
 from utils.example_data import stage_example
+from utils.i18n import tr_format, tr_ui
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
 from utils.task_lifecycle import request_task_stop, skip_when_closing
@@ -374,7 +375,10 @@ class IqTreeTab(BaseTabWidget):
     # ------------------------------------------------------------------
     def _choose_exe(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select IQ-TREE executable", "", "Executables (*.exe);;All Files (*)"
+            self,
+            tr_ui("Select IQ-TREE executable"),
+            "",
+            tr_ui("Executables (*.exe);;All Files (*)"),
         )
         if path:
             self._exe_edit.setText(path)
@@ -395,9 +399,9 @@ class IqTreeTab(BaseTabWidget):
     def _browse_input(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open alignment file",
+            tr_ui("Open alignment file"),
             "",
-            "Alignment files (*.fasta *.fa *.phy *.nex *.nxs *.aln *.txt);;All Files (*)",
+            tr_ui("Alignment files (*.fasta *.fa *.phy *.nex *.nxs *.aln *.txt);;All Files (*)"),
         )
         if path:
             self._input_edit.setText(path)
@@ -405,15 +409,15 @@ class IqTreeTab(BaseTabWidget):
     def _browse_partition(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open partition file",
+            tr_ui("Open partition file"),
             "",
-            "Partition files (*.nex *.nxs *.txt *.part *.cfg);;All Files (*)",
+            tr_ui("Partition files (*.nex *.nxs *.txt *.part *.cfg);;All Files (*)"),
         )
         if path:
             self._partition_edit.setText(path)
 
     def _browse_outdir(self):
-        path = QFileDialog.getExistingDirectory(self, "Select output directory", "")
+        path = QFileDialog.getExistingDirectory(self, tr_ui("Select output directory"), "")
         if path:
             self._outdir_edit.setText(path)
 
@@ -609,24 +613,37 @@ to root the tree on (IQ-TREE <code>-o</code>).</li>
         sep = "─" * 48
         self.log_area.clear()
         self.log_area.append(f"{sep}")
-        self.log_area.append("  IQ-TREE Run Summary")
+        self.log_area.append(tr_ui("  IQ-TREE Run Summary"))
         self.log_area.append(f"{sep}")
-        self.log_area.append(f"  Alignment    : {input_path}")
-        self.log_area.append(f"  Seq type     : {self._seqtype_combo.currentText()}")
-        self.log_area.append(f"  Model        : {self._model_edit.text().strip() or 'TEST'}")
+        self.log_area.append(tr_format("  Alignment    : {path}", path=input_path))
+        self.log_area.append(
+            tr_format("  Seq type     : {value}", value=self._seqtype_combo.currentText())
+        )
+        self.log_area.append(
+            tr_format(
+                "  Model        : {model}",
+                model=self._model_edit.text().strip() or "TEST",
+            )
+        )
         boot = self._bootstrap_spin.value()
         if boot > 0:
             method = self._bootstrap_mode_combo.currentText()
-            self.log_area.append(f"  Bootstrap    : {boot} ({method})")
+            self.log_area.append(
+                tr_format("  Bootstrap    : {count} ({method})", count=boot, method=method)
+            )
         else:
-            self.log_area.append("  Bootstrap    : disabled")
+            self.log_area.append(tr_ui("  Bootstrap    : disabled"))
         if boot > 0 and self._bootstrap_mode_combo.currentData() == "ufboot_shalrt":
-            self.log_area.append(f"  SH-aLRT      : {boot}")
+            self.log_area.append(tr_format("  SH-aLRT      : {count}", count=boot))
         outgroup = self._outgroup_combo.currentText().strip()
         if outgroup:
-            self.log_area.append(f"  Outgroup     : {outgroup}")
-        self.log_area.append(f"  Threads      : {self._threads_spin.value()}")
-        self.log_area.append(f"  Command      : {subprocess.list2cmdline(cmd)}")
+            self.log_area.append(tr_format("  Outgroup     : {value}", value=outgroup))
+        self.log_area.append(
+            tr_format("  Threads      : {count}", count=self._threads_spin.value())
+        )
+        self.log_area.append(
+            tr_format("  Command      : {command}", command=subprocess.list2cmdline(cmd))
+        )
         self.log_area.append(f"{sep}")
         self.log_area.append("")
 
@@ -690,12 +707,18 @@ to root the tree on (IQ-TREE <code>-o</code>).</li>
             ("iqtree", "full analysis report"),
             ("log", "run log"),
         ]
-        self.log_area.append("  ── Output files ──")
+        self.log_area.append(tr_ui("  ── Output files ──"))
         listed = False
         for ext, desc in descriptions:
             path = f"{prefix}.{ext}"
             if os.path.isfile(path):
-                self.log_area.append(f"    {os.path.basename(path)}  ({desc})")
+                self.log_area.append(
+                    tr_format(
+                        "    {name}  ({description})",
+                        name=os.path.basename(path),
+                        description=tr_ui(desc),
+                    )
+                )
                 listed = True
         if not listed:
             self.log_area.append(f"    {os.path.basename(self._last_treefile)}")

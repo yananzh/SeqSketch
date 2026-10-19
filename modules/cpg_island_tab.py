@@ -31,6 +31,7 @@ from utils.common_components import (
     unify_status_button_sizes,
 )
 from utils.example_data import stage_example
+from utils.i18n import tr_format, tr_ui
 
 # Gardiner-Garden & Frommer (1987) default criteria.
 DEFAULT_CRITERIA: Dict[str, object] = {
@@ -162,6 +163,7 @@ class CpGIslandTab(BaseTabWidget):
         self._record_results: List[dict] = []
         self._all_records_mode = True
         self._results: List[dict] = []
+        self._table_headers: List[str] = []
         self._setup_file_input()
         self._setup_parameters()
         self._setup_results_area()
@@ -220,9 +222,9 @@ class CpGIslandTab(BaseTabWidget):
     def _browse_input_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open FASTA File",
+            tr_ui("Open FASTA File"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
         )
         if path:
             self.input_path_edit.setText(os.path.normpath(path))
@@ -390,7 +392,7 @@ class CpGIslandTab(BaseTabWidget):
             with open(path, "r", encoding="latin-1") as fh:
                 text = fh.read()
         except OSError as exc:
-            self.show_status(f"Error: Cannot read file \u2014 {exc}")
+            self.show_status(tr_format("Error: Cannot read file \u2014 {error}", error=exc))
             return
 
         records = _load_fasta_records(text)
@@ -461,9 +463,10 @@ class CpGIslandTab(BaseTabWidget):
 
         # ── Table (Record column only when scanning all records) ──
         record_col = self._all_records_mode
-        labels = ["#", "Start", "End", "Length (bp)", "GC%", "CpG o/e", "CpG", "C+G"]
+        self._table_headers = ["#", "Start", "End", "Length (bp)", "GC%", "CpG o/e", "CpG", "C+G"]
         if record_col:
-            labels.append("Record")
+            self._table_headers.append("Record")
+        labels = [tr_ui(label) for label in self._table_headers]
         self._island_table.setColumnCount(len(labels))
         self._island_table.setHorizontalHeaderLabels(labels)
         if record_col:
@@ -540,7 +543,7 @@ class CpGIslandTab(BaseTabWidget):
         if not self._results:
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save CSV", "cpg_islands.csv", "CSV Files (*.csv)"
+            self, tr_ui("Save CSV"), "cpg_islands.csv", tr_ui("CSV Files (*.csv)")
         )
         if not path:
             return
@@ -551,10 +554,7 @@ class CpGIslandTab(BaseTabWidget):
                 for key, value in self._statistics():
                     writer.writerow([key, value])
                 writer.writerow([])
-                writer.writerow([
-                    self._island_table.horizontalHeaderItem(c).text()
-                    for c in range(self._island_table.columnCount())
-                ])
+                writer.writerow(self._table_headers)
                 for row_idx in range(self._island_table.rowCount()):
                     writer.writerow([
                         self._island_table.item(row_idx, col).text()
@@ -562,7 +562,7 @@ class CpGIslandTab(BaseTabWidget):
                     ])
             self.show_status(f"Exported: {os.path.normpath(path)}")
         except OSError as exc:
-            self.show_status(f"Error: Cannot write CSV \u2014 {exc}")
+            self.show_status(tr_format("Error: Cannot write CSV \u2014 {error}", error=exc))
 
     def _statistics(self) -> List[Tuple[str, str]]:
         """Summary statistics for the current view (single record or all)."""

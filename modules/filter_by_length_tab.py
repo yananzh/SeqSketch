@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
+from utils.i18n import tr_ui
 
 
 class FilterByLengthTab(BaseTabWidget):
@@ -118,9 +119,9 @@ class FilterByLengthTab(BaseTabWidget):
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select FASTA file",
+            tr_ui("Select FASTA file"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)"),
         )
         if file_path:
             self.handle_input_file_selected(file_path)
@@ -136,9 +137,9 @@ class FilterByLengthTab(BaseTabWidget):
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save filtered file",
+            tr_ui("Save filtered file"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas);;All Files (*)"),
         )
         if file_path:
             self.output_edit.setText(file_path)

@@ -1,0 +1,74 @@
+<h2>One Step MultiGenePhy &mdash; 自动化系统发育基因组学流程</h2>
+
+<p><b>本工具有什么用？</b><br>
+导入按基因组织的 Excel 工作簿，一步运行完整的
+<b>获取 &rarr; 标准化 &rarr; 比对 &rarr; 修剪 &rarr; 拼接 &rarr; 建树</b>流程。
+支持混合使用 NCBI 登录号与私有序列。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>点击<b>示例</b>载入内置演示工作簿，或点击<b>浏览</b>
+选择自己的 Excel 文件。点击<b>格式参考</b>可查看预期的
+工作簿布局。</li>
+<li>检查自动检测到的<b>工作表</b>和<b>菌株列</b>。在
+<b>基因列表</b>中，取消勾选所有并非基因的元数据列。</li>
+<li>若任一单元格包含登录号，请输入你的 <b>NCBI 邮箱</b>。</li>
+<li>点击<b>校验输入</b>，检查文件格式和外部工具路径。</li>
+<li>选择<b>输出目录</b>，然后点击<b>运行</b>。</li>
+</ol>
+
+<h3>工作簿格式</h3>
+<ul>
+<li>第一行 = 表头行。</li>
+<li>其中一列 = <b>菌株标识</b>（例如 <i>Species</i>）。</li>
+<li>其余列 = <b>基因位点</b>（例如 <i>ITS、TEF1、RPB2</i>）。</li>
+<li>每个基因单元格：<b>NCBI 登录号</b>、<b>原始序列</b>或<b>空白</b>（缺失数据）。</li>
+</ul>
+
+<h3>流程步骤</h3>
+<ol>
+<li><b>导入</b> &mdash; 解析 Excel，区分登录号与原始序列。</li>
+<li><b>获取</b> &mdash; 下载 NCBI 序列，按基因标准化为 FASTA。</li>
+<li><b>比对</b> &mdash; 对每个基因分别运行 MAFFT。</li>
+<li><b>修剪</b> &mdash; 运行 trimAl，去除比对质量较差的列。</li>
+<li><b>拼接</b> &mdash; 合并为超级矩阵 + NEXUS 分区文件。</li>
+<li><b>建树</b> &mdash; 使用分区感知模型运行 IQ-TREE。</li>
+<li><b>汇总</b> &mdash; 生成 HTML 报告、清单和日志。</li>
+</ol>
+
+<h3>参数</h3>
+<ul>
+<li><b>MAFFT</b> &mdash; Auto（自动选择）、Local Pair（局部比对）、Global Pair（全局比对）或 Conserved Region（保守区域比对）。</li>
+<li><b>trimAl</b> &mdash; automated1（启发式）、gappyout（自适应空位移除）、strict/plus（保守的空位+相似性）、nogaps（移除全空位列）。</li>
+<li><b>线程数</b> &mdash; 供 IQ-TREE 使用的 CPU 线程数（默认 2，最大可至你的 CPU 核心数）。</li>
+<li><b>IQ-TREE 自举</b> &mdash; UFBoot（超快，推荐 1000）、UFBoot + SH-aLRT（分支检验）或 Standard bootstrap（默认 500）。切换模式时该值会自动填入；设为 0 表示关闭自举。</li>
+<li>每个基因的比对结果和修剪后文件始终保留在各阶段文件夹中，便于检查。</li>
+<li><b>跳过已完成的步骤</b> &mdash; 复用同一输出文件夹中此前运行的成果：
+<p>复用要求输入一致，且产物哈希已验证。若产物缺失、发生变化或为较早的未验证版本，
+运行会停止并给出说明。若要重新构建，请显式选择 From scratch。选择任一复用模式都会运行只读的
+后台预检；结果会显示在对话框中，说明哪些步骤将被跳过，或为何无法复用。
+输入或参数变化会自动重新检查复用条件。相同的结果不会重复显示。运行开始时还会再次检查文件。
+仅建树的运行允许修改自举设置和线程数，而无需重复之前的步骤。基因显示名会映射为安全的唯一 ID；
+原始名称映射保存在 <code>run_manifest.json</code> 中。</p>
+<b>From scratch</b>（默认，完整流程）、<b>From align/trim</b>（复用
+<code>01_normalized</code>，跳过网络获取）或 <b>From tree</b>
+（复用 <code>04_concat</code>，跳过获取/比对/修剪/拼接，仅重新运行 IQ-TREE）。如果修改了工作簿，请选择 <b>From scratch</b>。</li>
+</ul>
+
+<h3>输出文件</h3>
+<ul>
+<li><code>05_iqtree/final.treefile</code> &mdash; Newick 格式的最佳最大似然树。</li>
+<li><code>04_concat/supermatrix.fasta</code> + <code>partitions.nex</code> &mdash; 拼接后的比对及其 NEXUS 分区文件。</li>
+<li><code>06_reports/run_report.html</code> &mdash; 含系统树和统计信息的交互式 HTML 摘要。</li>
+<li><code>06_reports/run_manifest.json</code> &mdash; 用于可复现性的文件清单。</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>先点击<b>格式参考</b>查看预期的工作簿布局，再点击<b>示例</b>载入演示工作簿。</li>
+<li>菌株名称只应包含字母、数字和下划线。</li>
+<li>运行前使用<b>校验输入</b>，可及早发现格式问题。</li>
+<li>对于大型数据集，可增加<b>线程数</b>以加快 IQ-TREE（比对本身以单线程运行）。</li>
+<li>运行完成后，点击<b>查看系统树</b>可视化结果。</li>
+<li>预先修剪过的输入序列通常能获得更好的比对结果。</li>
+</ul>

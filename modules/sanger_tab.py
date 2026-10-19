@@ -31,6 +31,7 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import stage_example
+from utils.i18n import tr_format, tr_ui
 
 _BASE_COLOR = {"A": "#007700", "T": "#BB0000", "G": "#111111", "C": "#0044AA", "N": "#888888"}
 
@@ -209,7 +210,7 @@ class SangerTab(QWidget):
         rev_path = self.rev_edit.text().strip()
         if not fwd_path or not rev_path:
             self.status_label.setText(
-                "Error: Select both forward and reverse sequence files"
+                tr_ui("Error: Select both forward and reverse sequence files")
             )
             QMessageBox.warning(
                 self,
@@ -221,17 +222,19 @@ class SangerTab(QWidget):
             fwd = self._sequence_from_input(self._load_input_file(fwd_path))
             rev = self._sequence_from_input(self._load_input_file(rev_path))
         except (OSError, ValueError) as exc:
-            self.status_label.setText("Error: Cannot read input file")
+            self.status_label.setText(tr_ui("Error: Cannot read input file"))
             QMessageBox.warning(self, "Input Error", str(exc))
             return
         if not fwd or not rev:
-            self.status_label.setText("Error: No sequence found in the input files")
+            self.status_label.setText(
+                tr_ui("Error: No sequence found in the input files")
+            )
             QMessageBox.warning(
                 self, "Input Error", "No sequence found in the input files"
             )
             return
 
-        self.status_label.setText("Running assembly...")
+        self.status_label.setText(tr_ui("Running assembly..."))
         rev_rc = self.reverse_complement(rev)
         min_overlap = self.min_overlap_spin.value()
         min_identity = self.min_identity_spin.value() / 100.0
@@ -247,12 +250,12 @@ class SangerTab(QWidget):
         if normalized_output in {
             os.path.normcase(os.path.realpath(path)) for path in (fwd_path, rev_path)
         }:
-            self.status_label.setText("Error: Output path matches an input file")
+            self.status_label.setText(tr_ui("Error: Output path matches an input file"))
             QMessageBox.warning(self, "Output Error", "Choose an output file different from both inputs.")
             return
         valid, error = validate_output_path(output_path)
         if not valid:
-            self.status_label.setText("Error: Invalid output path")
+            self.status_label.setText(tr_ui("Error: Invalid output path"))
             QMessageBox.warning(self, "Output Error", error)
             return
 
@@ -269,7 +272,7 @@ class SangerTab(QWidget):
                 raise OSError("Cannot write the assembled FASTA file.")
             os.replace(temporary_path, output_path)
         except OSError as exc:
-            self.status_label.setText("Error: Cannot save assembly result")
+            self.status_label.setText(tr_ui("Error: Cannot save assembly result"))
             QMessageBox.warning(self, "Output Error", str(exc))
             return
         finally:
@@ -285,10 +288,21 @@ class SangerTab(QWidget):
         self.output_edit.setToolTip(output_path)
         self.result_folder_btn.setEnabled(True)
         self._draw_overlap_alignment()
-        self.status_label.setText(f"Saved: {os.path.basename(output_path)} ({len(merged):,} bp)")
+        self.status_label.setText(
+            tr_format(
+                "Saved: {name} ({length} bp)",
+                name=os.path.basename(output_path),
+                length=f"{len(merged):,}",
+            )
+        )
         self.status_label.setToolTip(output_path)
         if overlap < min_overlap or identity < min_identity:
-            self.status_label.setText(f"Saved concatenated reads: {os.path.basename(output_path)}")
+            self.status_label.setText(
+                tr_format(
+                    "Saved concatenated reads: {name}",
+                    name=os.path.basename(output_path),
+                )
+            )
             QMessageBox.warning(
                 self, "Assembly Warning",
                 "No clear overlap detected; concatenated reads were saved to the output FASTA file.",
@@ -323,9 +337,9 @@ class SangerTab(QWidget):
     def _browse_input_file(self, edit: FileDropLineEdit) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open FASTA File",
+            tr_ui("Open FASTA File"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
         )
         if path:
             edit.setText(os.path.normpath(path))
@@ -353,9 +367,9 @@ class SangerTab(QWidget):
         ax.set_ylim(-0.15, 3.6)
 
         rows = (
-            ("Forward read", "read-forward", 0, len(fwd), 2.8),
-            ("Reverse complement", "read-reverse-rc", reverse_start, len(rev_rc), 1.6),
-            ("Merged sequence", "read-merged", 0, merged_length, 0.4),
+            (tr_ui("Forward read"), "read-forward", 0, len(fwd), 2.8),
+            (tr_ui("Reverse complement"), "read-reverse-rc", reverse_start, len(rev_rc), 1.6),
+            (tr_ui("Merged sequence"), "read-merged", 0, merged_length, 0.4),
         )
         for label, gid, start, length, y in rows:
             reverse_row = gid == "read-reverse-rc"
@@ -388,13 +402,17 @@ class SangerTab(QWidget):
                 # Mark nonmatching positions on the read tracks only: the merged
                 # sequence retains the forward base, as in auto_assemble().
                 ax.vlines(mismatches, 2.68, 2.92, color=mismatch_color,
-                          linewidth=1, label="Mismatch", zorder=3)
+                          linewidth=1, label=tr_ui("Mismatch"), zorder=3)
                 ax.vlines(mismatches, 1.48, 1.72, color=mismatch_color,
                           linewidth=1, zorder=3)
                 ax.legend(loc="upper right", fontsize=8, frameon=False)
-            summary = f"{overlap:,} bp overlap · {self._last_identity:.1%} identity"
+            summary = tr_format(
+                "{overlap} bp overlap · {identity} identity",
+                overlap=f"{overlap:,}",
+                identity=f"{self._last_identity:.1%}",
+            )
         else:
-            summary = "No overlap · concatenated reads"
+            summary = tr_ui("No overlap · concatenated reads")
         self._overlap_fig.text(0.5, 0.94, summary, fontsize=10,
                                color=overlap_color, ha="center", va="center")
 
@@ -406,7 +424,7 @@ class SangerTab(QWidget):
             ticks.append(merged_length)
         ax.set_xticks(ticks)
         ax.xaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
-        ax.set_xlabel("Contig position (bp)", fontsize=9, labelpad=5)
+        ax.set_xlabel(tr_ui("Contig position (bp)"), fontsize=9, labelpad=5)
         ax.tick_params(axis="x", labelsize=8, length=3, width=0.6)
         ax.set_yticks([])
         for side in ("left", "right", "top"):
@@ -429,13 +447,15 @@ class SangerTab(QWidget):
             return
         self.fwd_edit.setText(fwd_path)
         self.rev_edit.setText(rev_path)
-        self.status_label.setText("Example loaded: 16S_F.fasta + 16S_R.fasta")
+        self.status_label.setText(tr_ui("Example loaded: 16S_F.fasta + 16S_R.fasta"))
 
     def _clear_all(self):
         self.fwd_edit.clear()
         self.rev_edit.clear()
         self.output_edit.clear()
-        self.output_edit.setToolTip("Output FASTA path; an empty path uses the forward input folder")
+        self.output_edit.setToolTip(
+            tr_ui("Output FASTA path; an empty path uses the forward input folder")
+        )
         self._last_output_path = ""
         self.result_folder_btn.setEnabled(False)
         self.status_label.setToolTip("")
@@ -445,7 +465,7 @@ class SangerTab(QWidget):
         self._last_identity = 0.0
         self._overlap_fig.clear()
         self._overlap_canvas.draw_idle()
-        self.status_label.setText("Ready")
+        self.status_label.setText(tr_ui("Ready"))
 
     @staticmethod
     def reverse_complement(seq):
@@ -482,8 +502,10 @@ class SangerTab(QWidget):
 
     def _browse_output_file(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save assembled sequence", self.output_edit.text() or self._default_output_path(),
-            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
+            self,
+            tr_ui("Save assembled sequence"),
+            self.output_edit.text() or self._default_output_path(),
+            tr_ui("FASTA Files (*.fasta *.fa *.fas);;All Files (*)"),
         )
         if path:
             self.output_edit.setText(os.path.normpath(path))

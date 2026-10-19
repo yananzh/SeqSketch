@@ -1,0 +1,26 @@
+<h2>示例工作簿格式 &mdash; 每行一个菌株、每列一个基因位点</h2>
+
+<p>Excel 工作簿必须包含一个<b>表头行</b>，其中有一个<b>菌株列</b>
+和一个或多个<b>基因列</b>。</p>
+
+<table border='1' cellpadding='4' cellspacing='0'>
+<tr><th>菌株</th><th>ITS</th><th>TEF1</th><th>RPB2</th></tr>
+<tr><td>Strain_A</td><td>MK123456</td><td>MK123457</td><td>ATGCGTACGT...</td></tr>
+<tr><td>Strain_B</td><td>MK123458</td><td>MK123459</td><td>ATGCGTTCGT...</td></tr>
+<tr><td>Strain_C</td><td></td><td>MK123460</td><td>ATGCCTACGT...</td></tr>
+</table>
+
+<h3>单元格内容可以是：</h3>
+<ul>
+<li><b>NCBI 登录号</b> &mdash; 例如 <code>MK123456</code>（自动获取）</li>
+<li><b>原始序列</b> &mdash; 例如 <code>ATGCGTACGT...</code>（直接使用）</li>
+<li><b>空白</b> &mdash; 缺失数据（以空位填充）</li>
+</ul>
+
+<h3>要求</h3>
+<ul>
+<li>第一行 = 表头</li>
+<li>菌株列 = 唯一的菌株标识</li>
+<li>基因列 = 每个位点一列</li>
+<li>菌株名称：仅限字母、数字和下划线</li>
+</ul>

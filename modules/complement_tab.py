@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QMessageB
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
+from utils.i18n import tr_ui
 
 
 class ComplementTab(BaseTabWidget):
@@ -74,9 +75,11 @@ class ComplementTab(BaseTabWidget):
 
     def _update_output_placeholder(self):
         if self.mode_combo.currentText() == "Reverse Complement":
-            self.output_text.setPlaceholderText("Reverse complement sequences will appear here...")
+            self.output_text.setPlaceholderText(
+                tr_ui("Reverse complement sequences will appear here...")
+            )
         else:
-            self.output_text.setPlaceholderText("Complement sequences will appear here...")
+            self.output_text.setPlaceholderText(tr_ui("Complement sequences will appear here..."))
 
     def set_mode(self, mode: str):
         index = self.mode_combo.findText(mode)

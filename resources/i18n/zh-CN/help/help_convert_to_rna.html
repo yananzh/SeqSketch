@@ -1,0 +1,44 @@
+<h2>转换为 RNA &mdash; 将胸腺嘧啶（T）替换为尿嘧啶（U）</h2>
+
+<p><b>本工具有什么用？</b><br>
+它会将每个 T（胸腺嘧啶）替换为 U（尿嘧啶），从而把 DNA 序列转换为 RNA。支持单条序列、多序列 FASTA 文件以及 IUPAC 模糊核苷酸代码。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>粘贴 DNA 序列，或拖放一个 FASTA 文件。</li>
+<li>点击<b>运行</b>进行转换。</li>
+<li>导出或复制 RNA 结果。</li>
+</ol>
+
+<h3>输入格式</h3>
+<ul>
+<li><b>原始序列</b> &mdash; 纯 DNA 文本（例如 <code>ATGCGATCG</code>）</li>
+<li><b>单条 FASTA</b> &mdash; <code>&gt;header</code> 后接序列</li>
+<li><b>多条 FASTA</b> &mdash; 含多条带序列头的序列，每条都会被独立转换</li>
+</ul>
+
+<h3>支持的字符</h3>
+<p>所有 IUPAC 核苷酸代码都会被识别并原样保留（只有 T &rarr; U 会被转换）：</p>
+<p><code>A C G T U N R Y M K S W B D H V</code>（不区分大小写）</p>
+
+<h3>示例</h3>
+<pre>
+输入：
+>seq1
+ATGCGATCG
+>seq2
+TTAAGGCC
+
+输出：
+>seq1
+AUGCGAUCG
+>seq2
+UUAAGGCC
+</pre>
+
+<h3>使用技巧</h3>
+<ul>
+<li>输入已经是 RNA 序列？本工具同样安全 &mdash; 已有的 U 字符保持不变</li>
+<li>处理大型多条 FASTA 文件？请使用<b>导出结果</b>保存为 .fasta 文件</li>
+<li>IUPAC 代码（R、Y、M 等）会被保留；只有 A/T/G/C 这四种标准碱基会受 T &rarr; U 转换影响</li>
+</ul>

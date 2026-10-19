@@ -5,6 +5,7 @@ import sys
 from PyQt6.QtGui import QAction, QActionGroup
 from PyQt6.QtWidgets import QMenu, QMenuBar
 
+from utils.i18n import LANGUAGES, normalize_language, translate_menu_tree
 from utils.themes import THEMES
 
 
@@ -328,9 +329,22 @@ def create_menus(window):
         action.triggered.connect(lambda checked, theme=name: window.set_theme(theme))
         theme_menu.addAction(action)
         window.theme_actions[name] = action
+    language_menu = settings_menu.addMenu("Language")
+    language_group = QActionGroup(window)
+    language_group.setExclusive(True)
+    window.language_actions = {}
+    saved_language = normalize_language(window.settings.get("ui.language"))
+    for code, label in LANGUAGES.items():
+        action = QAction(label, language_group)
+        action.setCheckable(True)
+        action.setChecked(code == saved_language)
+        action.triggered.connect(lambda checked, code=code: window.set_language(code))
+        language_menu.addAction(action)
+        window.language_actions[code] = action
     settings_menu.addSeparator()
 
     # 关于
     about_action = QAction("About", window)
     about_action.triggered.connect(window.show_about_dialog)
     settings_menu.addAction(about_action)
+    translate_menu_tree(menubar)

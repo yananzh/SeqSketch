@@ -21,6 +21,8 @@ pytest.importorskip("PyQt6")
 
 from PyQt6.QtWidgets import QApplication, QDialog, QLabel, QTextBrowser  # noqa: E402
 
+from utils.i18n import help_path  # noqa: E402
+
 _CJK = re.compile(r"[\u4e00-\u9fff]")
 
 
@@ -125,3 +127,12 @@ def test_help_body_has_h2_with_tagline_and_quick_start(help_dialogs):
 def test_help_body_is_english_only(help_dialogs):
     bad = {n: t[:40] for n, (_t, t) in help_dialogs.items() if _CJK.search(t)}
     assert not bad, f"CJK characters found in help body: {bad}"
+
+
+def test_every_help_dialog_has_a_chinese_page(help_dialogs):
+    missing = []
+    for name, (title, _html) in help_dialogs.items():
+        path = help_path(title, "zh-CN")
+        if not os.path.isfile(path):
+            missing.append(f"{name}: {title!r} -> {os.path.basename(path)}")
+    assert not missing, missing

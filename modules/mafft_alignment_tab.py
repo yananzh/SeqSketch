@@ -40,6 +40,7 @@ from utils.common_components import (
     unify_status_button_sizes,
 )
 from utils.example_data import load_example_text, stage_example
+from utils.i18n import tr_format, tr_ui
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
 from utils.task_lifecycle import request_task_stop, skip_when_closing
@@ -528,7 +529,7 @@ class MafftAlignmentTab(BaseTabWidget):
     def _cancel_batch(self):
         if self._batch_worker is not None and self._batch_worker.isRunning():
             request_task_stop(self._batch_worker)
-            self.status_label.setText("Cancelling…")
+            self.status_label.setText(tr_ui("Cancelling…"))
 
     def _rebuild_input_area(self):
         self.input_label.setText("Input Sequences (FASTA):")
@@ -812,9 +813,9 @@ class MafftAlignmentTab(BaseTabWidget):
     def _browse_mafft_exe(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select MAFFT launcher",
+            tr_ui("Select MAFFT launcher"),
             "",
-            "Launchers (*.bat *.ps1 *.exe);;All Files (*)",
+            tr_ui("Launchers (*.bat *.ps1 *.exe);;All Files (*)"),
         )
         if path:
             self.mafft_path_edit.setText(os.path.normpath(path))
@@ -822,9 +823,9 @@ class MafftAlignmentTab(BaseTabWidget):
     def _browse_batch_mafft_exe(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select MAFFT launcher",
+            tr_ui("Select MAFFT launcher"),
             "",
-            "Launchers (*.bat *.ps1 *.exe);;All Files (*)",
+            tr_ui("Launchers (*.bat *.ps1 *.exe);;All Files (*)"),
         )
         if path:
             self.batch_mafft_path_edit.setText(os.path.normpath(path))
@@ -851,7 +852,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.batch_files_list.clear()
         for p in paths:
             self.batch_files_list.addItem(QListWidgetItem(p))
-        self.batch_files_edit.setText(f"{len(paths)} file(s) selected")
+        self.batch_files_edit.setText(tr_format("{count} file(s) selected", count=len(paths)))
         if not self.batch_out_dir_edit.text().strip() and paths:
             parent_dir = os.path.dirname(paths[0])
             if parent_dir:
@@ -861,9 +862,9 @@ class MafftAlignmentTab(BaseTabWidget):
     def _browse_output_file(self):
         path, selected_filter = QFileDialog.getSaveFileName(
             self,
-            "Select aligned FASTA output file",
+            tr_ui("Select aligned FASTA output file"),
             self.output_file_edit.text().strip() or "mafft_alignment.fasta",
-            "FASTA files (*.fasta *.fa);;All Files (*)",
+            tr_ui("FASTA files (*.fasta *.fa);;All Files (*)"),
         )
         if not path:
             return
@@ -874,9 +875,9 @@ class MafftAlignmentTab(BaseTabWidget):
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open FASTA file",
+            tr_ui("Open FASTA file"),
             "",
-            "FASTA files (*.fasta *.fa *.fna *.faa *.txt);;All Files (*)",
+            tr_ui("FASTA files (*.fasta *.fa *.fna *.faa *.txt);;All Files (*)"),
         )
         if path:
             try:
@@ -903,7 +904,7 @@ class MafftAlignmentTab(BaseTabWidget):
             self.batch_out_dir_edit.clear()
         if hasattr(self, "batch_log"):
             self.batch_log.clear()
-        self.status_label.setText("Ready")
+        self.status_label.setText(tr_ui("Ready"))
 
     def export_result(self):
         QMessageBox.information(
@@ -915,23 +916,23 @@ class MafftAlignmentTab(BaseTabWidget):
     def _select_batch_files(self):
         paths, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select FASTA files",
+            tr_ui("Select FASTA files"),
             "",
-            "FASTA files (*.fasta *.fa *.fna *.faa *.txt);;All Files (*)",
+            tr_ui("FASTA files (*.fasta *.fa *.fna *.faa *.txt);;All Files (*)"),
         )
         if not paths:
             return
         self.batch_files_list.clear()
         for p in paths:
             self.batch_files_list.addItem(QListWidgetItem(os.path.normpath(p)))
-        self.batch_files_edit.setText(f"{len(paths)} file(s) selected")
+        self.batch_files_edit.setText(tr_format("{count} file(s) selected", count=len(paths)))
         if not self.batch_out_dir_edit.text().strip():
             parent_dir = os.path.dirname(paths[0])
             if parent_dir:
                 self.batch_out_dir_edit.setText(os.path.normpath(parent_dir))
 
     def _select_batch_output_dir(self):
-        out_dir = QFileDialog.getExistingDirectory(self, "Select output directory")
+        out_dir = QFileDialog.getExistingDirectory(self, tr_ui("Select output directory"))
         if out_dir:
             self.batch_out_dir_edit.setText(os.path.normpath(out_dir))
 
@@ -972,7 +973,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.stop_btn.setVisible(True)
         self.batch_log.clear()
         self.batch_log.append(f"Starting batch for {len(input_files)} file(s)...")
-        self.status_label.setText("Running batch MAFFT alignment...")
+        self.status_label.setText(tr_ui("Running batch MAFFT alignment..."))
 
         self._batch_worker = _MafftBatchWorker(
             input_files=input_files,
@@ -992,14 +993,14 @@ class MafftAlignmentTab(BaseTabWidget):
 
     def _on_batch_progress(self, msg: str):
         self.batch_log.append(msg)
-        self.status_label.setText(msg)
+        self.status_label.setText(tr_ui(msg))
 
     @skip_when_closing
     def _on_batch_finished(self, summary: str):
         self.run_btn.setEnabled(True)
         self.stop_btn.setVisible(False)
         self.batch_log.append("\n" + summary)
-        self.status_label.setText("Batch done.")
+        self.status_label.setText(tr_ui("Batch done."))
         if self._batch_worker is not None:
             self._batch_worker.wait()
             self._batch_worker.deleteLater()
@@ -1010,7 +1011,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.run_btn.setEnabled(True)
         self.stop_btn.setVisible(False)
         self.batch_log.append("Error: " + msg)
-        self.status_label.setText("Batch failed.")
+        self.status_label.setText(tr_ui("Batch failed."))
         QMessageBox.critical(self, "Batch MAFFT Error", msg)
         if self._batch_worker is not None:
             self._batch_worker.wait()
@@ -1043,7 +1044,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
         output_path = self._normalized_output_file_path()
         if not output_path:
-            self.status_label.setText("Output file path not set.")
+            self.status_label.setText(tr_ui("Output file path not set."))
             QMessageBox.warning(
                 self,
                 "Output File Error",
@@ -1058,7 +1059,7 @@ class MafftAlignmentTab(BaseTabWidget):
             QMessageBox.warning(self, "Input Error", str(exc))
             return
         if len(seqs) < 2:
-            self.status_label.setText("Need ≥ 2 sequences for MSA.")
+            self.status_label.setText(tr_ui("Need ≥ 2 sequences for MSA."))
             QMessageBox.warning(
                 self,
                 "Input Error",
@@ -1073,7 +1074,7 @@ class MafftAlignmentTab(BaseTabWidget):
         mafft_exe = self.mafft_path_edit.text().strip() or _default_mafft_exe()
 
         if not os.path.isfile(mafft_exe):
-            self.status_label.setText("MAFFT launcher not found.")
+            self.status_label.setText(tr_ui("MAFFT launcher not found."))
             QMessageBox.warning(
                 self,
                 "MAFFT Path Error",
@@ -1085,7 +1086,13 @@ class MafftAlignmentTab(BaseTabWidget):
         self._run_output_path = output_path
         self._run_order = self.order_combo.currentText()
         self.run_btn.setEnabled(False)
-        self.status_label.setText(f"Running MAFFT ({_strategy_key(strategy)}), {len(seqs)} seqs…")
+        self.status_label.setText(
+            tr_format(
+                "Running MAFFT ({method}), {count} seqs…",
+                method=_strategy_key(strategy),
+                count=len(seqs),
+            )
+        )
 
         self._worker = _MafftWorker(
             clean_fasta,
@@ -1118,7 +1125,7 @@ class MafftAlignmentTab(BaseTabWidget):
         try:
             saved_path = self._write_single_file_output(self._aligned_fasta)
         except OSError as exc:
-            self.status_label.setText("Output save failed.")
+            self.status_label.setText(tr_ui("Output save failed."))
             QMessageBox.critical(
                 self,
                 "Output Save Error",
@@ -1129,7 +1136,14 @@ class MafftAlignmentTab(BaseTabWidget):
         n_seq = len(ordered_seqs)
         aln_len = len(next(iter(ordered_seqs.values())))
         fname = os.path.basename(saved_path)
-        self.status_label.setText(f"Done — {n_seq} seqs, {aln_len} bp, → {fname}")
+        self.status_label.setText(
+            tr_format(
+                "Done — {count} seqs, {length} bp, → {name}",
+                count=n_seq,
+                length=aln_len,
+                name=fname,
+            )
+        )
         self.set_running_state(False)
         # 线程引用由 start_worker() 的 _on_worker_thread_finished() 在线程停止后释放
 
@@ -1137,7 +1151,7 @@ class MafftAlignmentTab(BaseTabWidget):
     def handle_worker_error(self, error_msg: str):
         self.run_btn.setEnabled(True)
         self._aligned_fasta = ""
-        self.status_label.setText("MAFFT alignment failed.")
+        self.status_label.setText(tr_ui("MAFFT alignment failed."))
         QMessageBox.critical(self, "MAFFT Error", error_msg)
         self.set_running_state(False)
         # 线程引用由 start_worker() 的 _on_worker_thread_finished() 在线程停止后释放

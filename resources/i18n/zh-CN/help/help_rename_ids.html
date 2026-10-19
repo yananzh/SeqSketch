@@ -1,0 +1,39 @@
+<h2>重命名 ID &mdash; 批量重命名 FASTA 序列 ID</h2>
+
+<p><b>本工具有什么用？</b><br>
+它借助映射文件批量重命名 FASTA 序列 ID。你只需准备一个两列的表格（旧 ID → 新 ID），工具即可一次性完成所有替换。</p>
+
+<h3>快速入门（新手）</h3>
+<ol>
+<li>使用<b>浏览</b>按钮或拖放方式选择一个 FASTA 文件。</li>
+<li>点击<b>导出当前 ID</b>——这会生成一个模板文件（Excel、CSV 或 TSV），列出 FASTA 中的每个 ID，并附带一个空的“新 ID”列。</li>
+<li>用 Excel 或任意文本编辑器打开模板，在第二列填入所需的新 ID。</li>
+<li>保存文件并返回本工具，将编辑后的文件选为 <b>ID 映射文件</b>。</li>
+<li>点击<b>预览</b>，检查前几条重命名结果是否正确。</li>
+<li>选择输出文件，然后点击<b>运行</b>。</li>
+</ol>
+
+<h3>映射文件格式</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>old_id</b></td><td><b>new_id</b></td></tr>
+<tr><td>sequence_001</td><td>Gene_A</td></tr>
+<tr><td>sequence_002</td><td>Gene_B</td></tr>
+<tr><td>NM_001101.5</td><td>RefSeq_001</td></tr>
+</table>
+<p>支持的格式：CSV（<code>.csv</code>）、TSV/TXT（<code>.tsv .txt</code>），以及在安装 pandas 后可用的 Excel（<code>.xlsx .xls</code>）。</p>
+
+<h3>选项</h3>
+<ul>
+<li><b>映射文件包含表头行</b> &mdash; 如果文件没有表头、第一行即为数据，请取消勾选。</li>
+<li><b>冲突时阻止运行</b> &mdash; 若两个旧 ID 映射到同一个新 ID，则停止运行，防止意外产生重复的序列 ID。只有在确认允许重复时才建议关闭。</li>
+<li><b>导出重命名报告</b> &mdash; 保存一个 TSV 文件，列出每条旧→新映射、是否已应用以及原因。</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>点击<b>示例</b>可载入内置的 gyrB 蛋白质 FASTA 文件及现成的 ID 映射文件（Excel，<code>old_id → new_id</code>），适合第一次尝试。</li>
+<li>运行前务必先<b>预览</b>——映射错误很容易被忽略。</li>
+<li>只替换主 FASTA ID（第一个空格之前的部分）。默认情况下，输出序列头会去掉原始描述；如需保留，请勾选<b>保留原始描述</b>。</li>
+<li>映射文件中未列出的 ID 保持不变。</li>
+<li>如果没有任何 ID 与映射文件匹配，则不会写出 FASTA 输出（若已启用该选项，仍会保存重命名报告）。</li>
+</ul>

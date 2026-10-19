@@ -38,6 +38,8 @@ version, full command, timestamp) to `run_log.txt`, keeping results traceable an
 
 - **Light and dark themes** — switch instantly via `Settings → Theme`; your choice is remembered. Scientific figures and exported reports retain their own colors.
 
+- **English and Simplified Chinese UI** — switch via `Settings → Language`; the interface, help dialogs and status messages follow the choice after a restart.
+
 - **Zero setup** — portable builds for Windows and macOS; the five external tools ship inside the download
 - **45 task-focused tabs** — one feature per tab, multiple tasks open side by side
 - **One-step multi-gene phylogeny** — gene FASTAs in, concatenated multi-gene tree out, in a single run

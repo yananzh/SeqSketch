@@ -38,6 +38,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
+from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 # ── Distance model presets ────────────────────────────────────────────────
@@ -530,10 +531,12 @@ class DistanceTreeTab(BaseTabWidget):
     def _browse_input(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select FASTA Alignment",
+            tr_ui("Select FASTA Alignment"),
             "",
-            "Alignment Files (*.fasta *.fa *.fas *.fna *.ffn *.faa "
-                "*.phy *.phylip *.nex *.nxs *.aln *.clustal *.sto);;All Files (*)",
+            tr_ui(
+                "Alignment Files (*.fasta *.fa *.fas *.fna *.ffn *.faa "
+                "*.phy *.phylip *.nex *.nxs *.aln *.clustal *.sto);;All Files (*)"
+            ),
         )
         if path:
             self._file_edit.setText(path)
@@ -591,18 +594,21 @@ class DistanceTreeTab(BaseTabWidget):
             if seq_type == "DNA"
             else "BLOSUM62: widely used for proteins  |  Dayhoff: PAM-based  |  identity: simple p-distance"
         )
-        self._model_combo.setToolTip(tip)
+        self._model_combo.setToolTip(tr_ui(tip))
         self.log_message(
-            f"Detected sequence type: {'DNA' if seq_type == 'DNA' else 'Protein (AA)'}",
+            tr_format(
+                "Detected sequence type: {sequence_type}",
+                sequence_type=tr_ui("DNA" if seq_type == "DNA" else "Protein (AA)"),
+            ),
             "INFO",
         )
 
     def _browse_output(self):
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Tree File",
+            tr_ui("Save Tree File"),
             self._out_edit.text() or "tree.nwk",
-            "Newick Files (*.nwk *.newick *.treefile *.tre);;All Files (*)",
+            tr_ui("Newick Files (*.nwk *.newick *.treefile *.tre);;All Files (*)"),
         )
         if path:
             self._out_edit.setText(path)
@@ -628,11 +634,21 @@ class DistanceTreeTab(BaseTabWidget):
         self._set_running(True)
         if n_bootstrap > 0:
             self.log_message(
-                f"Computing {method.upper()} tree ({model}) with {n_bootstrap} bootstrap replicates …"
+                tr_format(
+                    "Computing {method} tree ({model}) with {n_bootstrap} bootstrap replicates …",
+                    method=method.upper(),
+                    model=model,
+                    n_bootstrap=n_bootstrap,
+                )
             )
         else:
             self.log_message(
-                f"Computing {method.upper()} tree ({model}) from {input_path} …"
+                tr_format(
+                    "Computing {method} tree ({model}) from {path} …",
+                    method=method.upper(),
+                    model=model,
+                    path=input_path,
+                )
             )
         self.show_status("Computing distance matrix…")
 
@@ -646,7 +662,11 @@ class DistanceTreeTab(BaseTabWidget):
     def _on_bootstrap_progress(self, current: int, total: int):
         # Throttle: update status only every 10th replicate or at start/end
         if current % 10 == 0 or current == 1 or current == total:
-            self.show_status(f"Bootstrap replicate {current}/{total}…")
+            self.show_status(
+                tr_format(
+                    "Bootstrap replicate {current}/{total}…", current=current, total=total
+                )
+            )
 
     @skip_when_closing
     def _on_result(self, data: dict):
@@ -671,14 +691,32 @@ class DistanceTreeTab(BaseTabWidget):
                 f.write(self._newick_str + "\n")
             self._last_treefile = output_path
             self._view_tree_btn.setVisible(True)
-            boot_msg = f", {n_bootstrap} bootstrap replicates" if n_bootstrap else ""
-            self.log_message(f"Tree saved → {output_path}  ({n_taxa} taxa{boot_msg})")
-            status_msg = f"{self._method_combo.currentText()} tree saved ({n_taxa} taxa{boot_msg})"
+            boot_msg = (
+                tr_format(", {count} bootstrap replicates", count=n_bootstrap)
+                if n_bootstrap
+                else ""
+            )
+            self.log_message(
+                tr_format(
+                    "Tree saved → {path}  ({n_taxa} taxa{boot_msg})",
+                    path=output_path,
+                    n_taxa=n_taxa,
+                    boot_msg=boot_msg,
+                )
+            )
+            status_msg = tr_format(
+                "{method} tree saved ({n_taxa} taxa{boot_msg})",
+                method=self._method_combo.currentText(),
+                n_taxa=n_taxa,
+                boot_msg=boot_msg,
+            )
             self.show_status(status_msg)
         except Exception as exc:
             self._last_treefile = ""
             self._view_tree_btn.setVisible(False)
-            self.log_message(f"Failed to save tree: {exc}", "ERROR")
+            self.log_message(
+                tr_format("Failed to save tree: {error}", error=exc), "ERROR"
+            )
             self.show_status("Tree computed but save failed")
 
         self._set_running(False)
@@ -691,7 +729,7 @@ class DistanceTreeTab(BaseTabWidget):
             self.show_status("Stopped by user")
         else:
             self.log_message(msg, "ERROR")
-            self.show_status(f"Error: {msg}")
+            self.show_status(tr_format("Error: {message}", message=tr_ui(msg)))
         self._set_running(False)
         self._thread = None
 
@@ -755,9 +793,9 @@ class DistanceTreeTab(BaseTabWidget):
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Distance Matrix",
+            tr_ui("Export Distance Matrix"),
             "distance_matrix.csv",
-            "CSV Files (*.csv);;Excel Files (*.xlsx);;All Files (*)",
+            tr_ui("CSV Files (*.csv);;Excel Files (*.xlsx);;All Files (*)"),
         )
         if not path:
             return
@@ -780,10 +818,10 @@ class DistanceTreeTab(BaseTabWidget):
                             f"{v:.6f}" for v in self._matrix_data[i]
                         ]
                         f.write(name + "," + ",".join(row_vals) + "\n")
-            self.log_message(f"Matrix exported → {path}")
+            self.log_message(tr_format("Matrix exported → {path}", path=path))
             self.show_status("Matrix exported")
         except Exception as exc:
-            self.log_message(f"Export failed: {exc}", "ERROR")
+            self.log_message(tr_format("Export failed: {error}", error=exc), "ERROR")
 
     def _clear_all(self):
         self._file_edit.clear()

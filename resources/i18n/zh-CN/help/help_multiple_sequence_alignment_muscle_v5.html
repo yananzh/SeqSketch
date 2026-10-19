@@ -1,0 +1,46 @@
+<h2>多序列比对 &mdash; MUSCLE v5</h2>
+
+<p><b>本工具有什么用？</b><br>
+使用内置的 MUSCLE v5 可执行程序对 ≥ 2 条 DNA 或蛋白质序列进行比对。
+等同于在命令行中运行 <code>muscle -align input.fa -output output.afa</code>。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>粘贴 ≥ 2 条 FASTA 序列，或拖放一个文件</li>
+<li>选择<b>输出文件</b>（粘贴输入时必填）</li>
+<li>选择<b>比对方法</b>（大多数情况下选择 Accurate）</li>
+<li>点击<b>运行</b> &mdash; 结果会自动写入输出路径</li>
+</ol>
+
+<h3>单文件与批量多文件</h3>
+<ul>
+<li><b>单文件</b> &mdash; 对一个多序列 FASTA 输入进行比对，并保存到所选的输出文件</li>
+<li><b>批量多文件</b> &mdash; 处理多个所选的 FASTA 文件，
+    可通过 <code>{stem}</code>、<code>{method}</code>、<code>{ext}</code> 占位符自动命名</li>
+</ul>
+
+<h3>比对方法</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Accurate (&ndash;align)</b></td><td>&rarr; 带优化步骤的渐进式比对；最适合不超过几百条序列</td></tr>
+<tr><td><b>Fast / Large datasets (&ndash;super5)</b></td><td>&rarr; 启发式方法，适合数千条序列</td></tr>
+</table>
+
+<h3>序列顺序</h3>
+<ul>
+<li><b>Input sequence order</b> &mdash; 将比对后的序列恢复为与原始输入一致的顺序</li>
+<li><b>MUSCLE output order</b> &mdash; 保留 MUSCLE 返回的顺序</li>
+</ul>
+
+<h3>输出</h3>
+<ul>
+<li>比对结果以 FASTA 格式直接写入所选路径</li>
+<li>批量模式支持 FASTA、CLUSTAL 和 Summary 输出格式</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>至少需要 <b>2 条序列</b></li>
+<li>会根据字符集自动判断序列是 DNA 还是蛋白质</li>
+<li>增加<b>线程数</b>可加快多核机器上的处理速度</li>
+<li>批量命名模式的默认值为 <code>{stem}_muscle5_{method}.{ext}</code></li>
+</ul>

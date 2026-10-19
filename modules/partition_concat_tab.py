@@ -37,6 +37,7 @@ from utils.common_components import (
     validate_input_path,
     validate_output_path,
 )
+from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 
@@ -107,7 +108,7 @@ class _DropFileList(QListWidget):
             painter.drawText(
                 vp.rect(),
                 Qt.AlignmentFlag.AlignCenter,
-                self._placeholder,
+                tr_ui(self._placeholder),
             )
             painter.restore()
 
@@ -198,11 +199,11 @@ def _concatenate_alignments(
 
     for i, fpath in enumerate(files):
         if not os.path.isfile(fpath):
-            raise RuntimeError(f"File not found: {fpath}")
+            raise RuntimeError(tr_format("File not found: {path}", path=fpath))
         gene_name = gene_names[i] if gene_names and i < len(gene_names) else f"gene{i + 1}"
         ids, seqs = _load_fasta_ids_and_sequences(fpath)
         if not ids:
-            raise ValueError(f"No sequences in {fpath}")
+            raise ValueError(tr_format("No sequences in {path}", path=fpath))
         # Duplicate taxon IDs would either silently drop sequences (dict
         # collision) or duplicate rows in the supermatrix — reject up front
         # so the Run path behaves like the Validate path.
@@ -215,12 +216,22 @@ def _concatenate_alignments(
         if dup_ids:
             preview = ", ".join(sorted(dup_ids)[:5])
             raise ValueError(
-                f"Duplicate sequence ID(s) in {os.path.basename(fpath)}: {preview}. "
-                "Remove duplicates or use Simplify Headers first."
+                tr_format(
+                    "Duplicate sequence ID(s) in {name}: {ids}. "
+                    "Remove duplicates or use Simplify Headers first.",
+                    name=os.path.basename(fpath),
+                    ids=preview,
+                )
             )
         lengths = {len(s) for s in seqs}
         if len(lengths) > 1:
-            raise ValueError(f"Unaligned sequences in {fpath} (lengths: {sorted(lengths)})")
+            raise ValueError(
+                tr_format(
+                    "Unaligned sequences in {path} (lengths: {lengths})",
+                    path=fpath,
+                    lengths=sorted(lengths),
+                )
+            )
         seq_len = len(seqs[0]) if seqs else 0
 
         file_map = dict(zip(ids, seqs))
@@ -379,7 +390,7 @@ class _ConcatPartitionWorker(BaseWorker):
     def run(self):
         try:
             # --- Stage 1: Concatenate ---
-            self.progress.emit("⏳ Concatenating aligned gene sequences…")
+            self.progress.emit(tr_ui("⏳ Concatenating aligned gene sequences…"))
             missing_char = "?" if self.partition_format == "mrbayes" else "-"
             ids, seqs, partitions, gene_ids = _concatenate_alignments(
                 self.files, self.gene_names, missing_char=missing_char
@@ -388,11 +399,16 @@ class _ConcatPartitionWorker(BaseWorker):
 
             _write_fasta(self.concat_output, ids, seqs)
             self.progress.emit(
-                f"✔ Concatenation: {len(ids)} taxa, {len(partitions)} genes, {total_len} positions"
+                tr_format(
+                    "✔ Concatenation: {taxa} taxa, {genes} genes, {length} positions",
+                    taxa=len(ids),
+                    genes=len(partitions),
+                    length=total_len,
+                )
             )
 
             # --- Stage 2: Write the partition / NEXUS data file ---
-            self.progress.emit("⏳ Writing NEXUS partition file…")
+            self.progress.emit(tr_ui("⏳ Writing NEXUS partition file…"))
             if self.partition_format == "mrbayes":
                 _write_nexus_data(
                     self.partition_output,
@@ -404,25 +420,44 @@ class _ConcatPartitionWorker(BaseWorker):
                 )
             else:
                 _write_nexus_partition(self.partition_output, partitions, self.seq_type)
-            self.progress.emit(f"✔ Partition file written: {self.partition_output}")
+            self.progress.emit(
+                tr_format("✔ Partition file written: {path}", path=self.partition_output)
+            )
 
             # --- Build summary ---
-            summary = (
-                f"✔ Concatenation + Partition complete\n"
-                f"  Taxa:         {len(ids)}\n"
-                f"  Genes:        {len(partitions)}\n"
-                f"  Total length: {total_len} bp/aa\n"
-                f"  Concat FASTA: {self.concat_output}\n"
-                f"  Partition:    {self.partition_output}\n"
+            summary = tr_ui("✔ Concatenation + Partition complete") + "\n"
+            summary += tr_format("  Taxa:         {count}", count=len(ids)) + "\n"
+            summary += tr_format("  Genes:        {count}", count=len(partitions)) + "\n"
+            summary += (
+                tr_format("  Total length: {length} bp/aa", length=total_len) + "\n"
+            )
+            summary += (
+                tr_format("  Concat FASTA: {path}", path=self.concat_output) + "\n"
+            )
+            summary += (
+                tr_format("  Partition:    {path}", path=self.partition_output) + "\n"
             )
             for gene, start, end in partitions:
-                summary += f"    {gene}: {start}-{end} ({end - start + 1} bp)\n"
+                summary += tr_format(
+                    "    {gene}: {start}-{end} ({length} bp)\n",
+                    gene=gene,
+                    start=start,
+                    end=end,
+                    length=end - start + 1,
+                )
 
             # Compute missing-taxa table using raw ID lists from each file
             final_set = set(ids)
-            summary += f"\n  ── Missing Taxa (filled with '{missing_char}') ──\n"
-            summary += f"  Master taxa (deduplicated): {len(final_set)}\n"
-            summary += f"  {'Gene':<12} {'Present':>7}  Missing Taxa\n"
+            summary += tr_format(
+                "\n  ── Missing Taxa (filled with '{char}') ──\n", char=missing_char
+            )
+            summary += (
+                tr_format(
+                    "  Master taxa (deduplicated): {count}", count=len(final_set)
+                )
+                + "\n"
+            )
+            summary += tr_ui("  Gene         Present  Missing Taxa\n")
             summary += f"  {'─' * 12} {'─' * 7}  {'─' * 30}\n"
             for _gene_name, raw_ids in gene_ids:
                 taxa_set = set(raw_ids)
@@ -434,15 +469,17 @@ class _ConcatPartitionWorker(BaseWorker):
                         taxa_str += f" … (+{len(missing) - 8})"
                     summary += f"  {_gene_name:<12} {present:>7}  {taxa_str}\n"
                 else:
-                    summary += f"  {_gene_name:<12} {present:>7}  (all present)\n"
+                    summary += (
+                        f"  {_gene_name:<12} {present:>7}  {tr_ui('(all present)')}\n"
+                    )
 
             if self.partition_format == "mrbayes":
-                summary += (
+                summary += tr_ui(
                     "\nReady for MrBayes with partition-aware models "
                     "(the .nex data file is also readable by IQ-TREE -p)."
                 )
             else:
-                summary += (
+                summary += tr_ui(
                     "\nReady for IQ-TREE with partition-aware models "
                     "(load the .nex with -p). For MrBayes, switch the "
                     "partition format to 'NEXUS DATA (MrBayes)'."
@@ -570,9 +607,9 @@ class PartitionConcatTab(BaseTabWidget):
     def _add_files(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select alignment files",
+            tr_ui("Select alignment files"),
             "",
-            "FASTA files (*.fasta *.fa *.fas *.txt);;All Files (*)",
+            tr_ui("FASTA files (*.fasta *.fa *.fas *.txt);;All Files (*)"),
         )
         for path in paths:
             existing = [
@@ -586,7 +623,7 @@ class PartitionConcatTab(BaseTabWidget):
                 self._file_list.addItem(item)
         if paths:
             self._auto_fill_outdir()
-            self.show_status("Added {n} file(s)".format(n=len(paths)))
+            self.show_status(tr_format("Added {n} file(s)", n=len(paths)))
 
     def _load_example(self) -> None:
         """Load bundled example gene files into the file list."""
@@ -617,7 +654,7 @@ class PartitionConcatTab(BaseTabWidget):
             )
             return
         self._auto_fill_outdir()
-        self.show_status("Example loaded: " + ", ".join(loaded))
+        self.show_status(tr_format("Example loaded: {names}", names=", ".join(loaded)))
 
     def _auto_fill_outdir(self) -> None:
         """Set output directory to the first input file's directory."""
@@ -646,7 +683,7 @@ class PartitionConcatTab(BaseTabWidget):
         warnings: list[str] = []
 
         if not files:
-            problems.append("No gene files have been added.")
+            problems.append(tr_ui("No gene files have been added."))
         else:
             for fpath, raw in zip(files, raw_names):
                 valid, err = validate_input_path(fpath)
@@ -656,18 +693,36 @@ class PartitionConcatTab(BaseTabWidget):
                 try:
                     ids, seqs = _load_fasta_ids_and_sequences(fpath)
                 except Exception as exc:
-                    problems.append(f"{raw}: could not read FASTA ({exc})")
+                    problems.append(
+                        tr_format(
+                            "{name}: could not read FASTA ({error})",
+                            name=raw,
+                            error=str(exc),
+                        )
+                    )
                     continue
                 if not ids:
-                    problems.append(f"{raw}: file contains no sequences")
+                    problems.append(
+                        tr_format("{name}: file contains no sequences", name=raw)
+                    )
                     continue
                 lengths = {len(s) for s in seqs}
                 if len(lengths) > 1:
-                    problems.append(f"{raw}: sequences are not aligned (lengths {sorted(lengths)})")
+                    problems.append(
+                        tr_format(
+                            "{name}: sequences are not aligned (lengths {lengths})",
+                            name=raw,
+                            lengths=sorted(lengths),
+                        )
+                    )
                 duplicates = {x for x in ids if ids.count(x) > 1}
                 if duplicates:
                     problems.append(
-                        f"{raw}: duplicate sequence IDs ({', '.join(sorted(duplicates)[:5])})"
+                        tr_format(
+                            "{name}: duplicate sequence IDs ({ids})",
+                            name=raw,
+                            ids=", ".join(sorted(duplicates)[:5]),
+                        )
                     )
 
             # Taxa consistency across files (missing taxa are gap-filled)
@@ -687,8 +742,14 @@ class PartitionConcatTab(BaseTabWidget):
                         preview = ", ".join(sorted(missing)[:5])
                         more = "" if len(missing) <= 5 else f", … (+{len(missing) - 5})"
                         warnings.append(
-                            f"{raw}: missing {len(missing)} taxon/taxa vs the first file "
-                            f"({preview}{more}) — they will be filled with gaps"
+                            tr_format(
+                                "{name}: missing {count} taxon/taxa vs the first file "
+                                "({preview}{more}) — they will be filled with gaps",
+                                name=raw,
+                                count=len(missing),
+                                preview=preview,
+                                more=more,
+                            )
                         )
 
             _, name_changes = _sanitize_gene_names(raw_names)
@@ -696,27 +757,34 @@ class PartitionConcatTab(BaseTabWidget):
 
         out_dir = self._output_dir_edit.text().strip()
         if not out_dir:
-            problems.append("Output directory is not set.")
+            problems.append(tr_ui("Output directory is not set."))
         else:
             valid, err = validate_output_path(os.path.join(out_dir, "concat.out"))
             if not valid:
-                problems.append("Output directory unusable: {error}".format(error=err))
+                problems.append(
+                    tr_format("Output directory unusable: {error}", error=err)
+                )
 
         if problems:
             QMessageBox.warning(
                 self,
                 "Input Validation Failed",
-                "The following problems must be fixed before running:\n\n"
-                + "\n".join(f"• {p}" for p in problems),
+                tr_format(
+                    "The following problems must be fixed before running:\n\n{problems}",
+                    problems="\n".join(f"• {p}" for p in problems),
+                ),
             )
-            self.show_status("Validation failed — see dialog")
+            self.show_status(tr_ui("Validation failed — see dialog"))
         elif warnings:
             QMessageBox.information(
                 self,
                 "Input Validation Passed (with notes)",
-                "Inputs look ready to run. Notes:\n\n" + "\n".join(f"• {w}" for w in warnings),
+                tr_format(
+                    "Inputs look ready to run. Notes:\n\n{notes}",
+                    notes="\n".join(f"• {w}" for w in warnings),
+                ),
             )
-            self.show_status("Validation passed with notes")
+            self.show_status(tr_ui("Validation passed with notes"))
         else:
             try:
                 ids, _ = _load_fasta_ids_and_sequences(files[0])
@@ -725,17 +793,20 @@ class PartitionConcatTab(BaseTabWidget):
             QMessageBox.information(
                 self,
                 "Input Validation Passed",
-                "{count} file(s), {taxa} taxon/taxa, {genes} gene(s). "
-                "All inputs passed the pre-flight check — click Run to concatenate.".format(
-                    count=len(files), taxa=len(ids), genes=len(raw_names)
+                tr_format(
+                    "{count} file(s), {taxa} taxon/taxa, {genes} gene(s). "
+                    "All inputs passed the pre-flight check — click Run to concatenate.",
+                    count=len(files),
+                    taxa=len(ids),
+                    genes=len(raw_names),
                 ),
             )
-            self.show_status("Validation passed")
+            self.show_status(tr_ui("Validation passed"))
 
     def _browse_output_dir(self) -> None:
         directory = QFileDialog.getExistingDirectory(
             self,
-            "Select output directory",
+            tr_ui("Select output directory"),
             self._output_dir_edit.text().strip(),
         )
         if directory:
@@ -745,10 +816,10 @@ class PartitionConcatTab(BaseTabWidget):
         """Open the folder where the concatenated files are written."""
         out_dir = self._output_dir_edit.text().strip()
         if not out_dir:
-            self.show_status("No output folder selected yet")
+            self.show_status(tr_ui("No output folder selected yet"))
             return
         if not os.path.isdir(out_dir):
-            self.show_status("Output folder does not exist yet")
+            self.show_status(tr_ui("Output folder does not exist yet"))
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(out_dir))
 
@@ -767,15 +838,18 @@ class PartitionConcatTab(BaseTabWidget):
                 if fpath:
                     valid, err = validate_input_path(fpath)
                     if not valid:
-                        self.log_message(f"File not found or unreadable: {fpath}", "WARNING")
+                        self.log_message(
+                            tr_format("File not found or unreadable: {path}", path=fpath),
+                            "WARNING",
+                        )
                         continue
                     fname = os.path.splitext(os.path.basename(fpath))[0]
                     files.append(fpath)
                     gene_names.append(fname)
 
         if not files:
-            self.show_status("Please add at least one aligned FASTA file")
-            self.log_message("No input files selected.", "WARNING")
+            self.show_status(tr_ui("Please add at least one aligned FASTA file"))
+            self.log_message(tr_ui("No input files selected."), "WARNING")
             return
 
         # Sanitize gene names for the NEXUS partition file (spaces / special
@@ -783,26 +857,29 @@ class PartitionConcatTab(BaseTabWidget):
         gene_names, name_changes = _sanitize_gene_names(gene_names)
         if name_changes:
             for msg in name_changes:
-                self.log_message("Gene name adjusted: {change}".format(change=msg), "WARNING")
+                self.log_message(
+                    tr_format("Gene name adjusted: {change}", change=msg), "WARNING"
+                )
             QMessageBox.information(
                 self,
                 "Gene Names Adjusted",
-                "Some gene names contain characters that are invalid in NEXUS "
-                "charset definitions (e.g. spaces), or are duplicated. They were "
-                "adjusted for the partition file:\n\n{changes}".format(
-                    changes="\n".join(f"• {c}" for c in name_changes)
+                tr_format(
+                    "Some gene names contain characters that are invalid in NEXUS "
+                    "charset definitions (e.g. spaces), or are duplicated. They were "
+                    "adjusted for the partition file:\n\n{changes}",
+                    changes="\n".join(f"• {c}" for c in name_changes),
                 ),
             )
 
         # Validate output directory
         out_dir = self._output_dir_edit.text().strip()
         if not out_dir:
-            self.show_status("Please select an output directory")
-            self.log_message("Output directory is required.", "WARNING")
+            self.show_status(tr_ui("Please select an output directory"))
+            self.log_message(tr_ui("Output directory is required."), "WARNING")
             return
         valid, err = validate_output_path(os.path.join(out_dir, "concat.out"))
         if not valid:
-            self.show_status("Cannot create output directory")
+            self.show_status(tr_ui("Cannot create output directory"))
             self.log_message(err, "ERROR")
             return
 
@@ -816,14 +893,26 @@ class PartitionConcatTab(BaseTabWidget):
         sep = "─" * 48
         self.log_area.clear()
         self.log_area.append(f"{sep}")
-        self.log_area.append("  Sequence Concatenation Summary")
+        self.log_area.append(tr_ui("  Sequence Concatenation Summary"))
         self.log_area.append(f"{sep}")
-        self.log_area.append(f"  Sequence type    : {seq_type} (auto-detected)")
-        self.log_area.append(f"  Partition format : {self._format_combo.currentText()}")
-        self.log_area.append(f"  Output directory : {out_dir}")
-        self.log_area.append(f"  Output prefix    : {prefix}")
-        self.log_area.append(f"  Files to merge   : {len(files)}")
-        self.log_area.append("  ── Input files ──")
+        self.log_area.append(
+            tr_format(
+                "  Sequence type    : {value} (auto-detected)",
+                value=seq_type,
+            )
+        )
+        self.log_area.append(
+            tr_format(
+                "  Partition format : {value}",
+                value=self._format_combo.currentText(),
+            )
+        )
+        self.log_area.append(tr_format("  Output directory : {path}", path=out_dir))
+        self.log_area.append(tr_format("  Output prefix    : {prefix}", prefix=prefix))
+        self.log_area.append(
+            tr_format("  Files to merge   : {count}", count=len(files))
+        )
+        self.log_area.append(tr_ui("  ── Input files ──"))
         for fname in gene_names:
             self.log_area.append(f"    {fname}")
         self.log_area.append(f"{sep}")
@@ -849,7 +938,7 @@ class PartitionConcatTab(BaseTabWidget):
         self._output_dir_edit.clear()
         self._prefix_edit.setText("concat_partition")
         self.log_area.clear()
-        self.show_status("Cleared")
+        self.show_status(tr_ui("Cleared"))
 
     # ------------------------------------------------------------------
     # Worker result handlers
@@ -866,7 +955,7 @@ class PartitionConcatTab(BaseTabWidget):
         self.run_btn.setEnabled(True)
         self.clear_btn.setEnabled(True)
         if self._status_callback:
-            self._status_callback(f"Error: {error_msg}", 0)
+            self._status_callback(tr_format("Error: {message}", message=error_msg), 0)
 
     # ------------------------------------------------------------------
     # Help

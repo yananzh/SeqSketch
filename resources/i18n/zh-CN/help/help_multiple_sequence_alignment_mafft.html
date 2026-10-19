@@ -1,0 +1,47 @@
+<h2>多序列比对 &mdash; MAFFT</h2>
+
+<p><b>本工具有什么用？</b><br>
+使用内置的 MAFFT 引擎对 ≥ 2 条 DNA 或蛋白质序列进行比对。
+提供三种策略，从快速的启发式方法到高精度的迭代优化，可按需选择。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>粘贴 ≥ 2 条 FASTA 序列，或拖放一个文件。</li>
+<li>（可选）选择<b>输出文件</b> &mdash; 留空时会自动生成带时间戳的文件名。</li>
+<li>选择<b>比对策略</b>（Auto 适用于大多数情况）。</li>
+<li>点击<b>运行</b> &mdash; 结果会自动写入输出路径。</li>
+</ol>
+
+<h3>单文件与批量多文件</h3>
+<ul>
+<li><b>单文件</b> &mdash; 对一个多序列 FASTA 输入进行比对，并保存到所选的输出文件。</li>
+<li><b>批量多文件</b> &mdash; 处理多个所选的 FASTA 文件，
+    可通过 <code>{stem}</code>、<code>{method}</code>、<code>{ext}</code> 占位符自动命名。</li>
+</ul>
+
+<h3>比对策略</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Auto</b></td><td>&rarr; 均衡的默认策略，适用于大多数数据集</td></tr>
+<tr><td><b>FFT-NS-2</b></td><td>&rarr; 快速的渐进式方法，适合大型数据集</td></tr>
+<tr><td><b>L-INS-i</b></td><td>&rarr; 精度最高，采用迭代优化；适合分化程度较高的序列</td></tr>
+</table>
+
+<h3>序列顺序</h3>
+<ul>
+<li><b>Input sequence order</b> &mdash; 将比对后的序列恢复为与原始输入一致的顺序。</li>
+<li><b>MAFFT output order</b> &mdash; 保留 MAFFT 返回的顺序。</li>
+</ul>
+
+<h3>输出</h3>
+<ul>
+<li>比对结果以 FASTA 格式直接写入所选路径。</li>
+<li>批量模式支持 FASTA、CLUSTAL 和 Summary 输出格式。</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>对于大多数数据集，<b>Auto</b> 模式会自动选择合适的策略。</li>
+<li>对于分化程度较高的序列，使用 <b>L-INS-i</b> 可获得高质量比对（速度较慢但更准确）。</li>
+<li>对于注重速度的大型数据集，使用 <b>FFT-NS-2</b>。</li>
+<li>比对完成后，可使用 <b>trimAl</b> 去除比对质量较差的列，再使用 <b>IQ-TREE</b> 构建系统发育树，或使用 <b>MSA 可视化</b>查看结果。</li>
+</ul>

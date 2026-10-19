@@ -1,0 +1,55 @@
+<h2>翻译 &mdash; DNA/RNA 翻译为蛋白质</h2>
+
+<p><b>本工具有什么用？</b><br>
+它使用可选的遗传密码表（11 种 NCBI 密码表），将 DNA 或 RNA 编码序列翻译为对应的氨基酸（蛋白质）序列。支持全部六个阅读框，以及单字母和三字母氨基酸表示法。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>粘贴你的编码序列，或拖放一个 FASTA 文件。</li>
+<li>选择<b>阅读框</b>（默认的 +1 适用于大多数 CDS（编码序列）输入）。</li>
+<li>选择<b>氨基酸格式</b>（单字母或三字母）。</li>
+<li>点击<b>运行</b>进行翻译。</li>
+<li>导出或复制蛋白质序列。</li>
+</ol>
+
+<h3>阅读框 &mdash; 应选择哪一个？</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>你的序列</b></td><td><b>&rarr; 选择</b></td></tr>
+<tr><td>从第一个核苷酸开始的完整 CDS</td><td>&rarr; <b>+1</b></td></tr>
+<tr><td>基因组 DNA &mdash; 不知道 CDS 从哪里开始</td><td>&rarr; 使用 <b>ORF 查找</b>尝试全部 6 个阅读框</td></tr>
+<tr><td>目标基因位于反向链上（由反向互补序列按 5'&rarr;3' 翻译）</td><td>&rarr; <b>-1、-2 或 -3</b></td></tr>
+</table>
+
+<h3>氨基酸格式</h3>
+<ul>
+<li><b>单字母</b> &mdash; 简洁，是生物信息学中的标准写法（例如 <code>MKTFG*</code>）</li>
+<li><b>三字母</b> &mdash; 便于阅读，以短横线分隔（例如 <code>Met-Lys-Thr-Phe-Gly-Stop</code>）</li>
+</ul>
+
+<h3>示例</h3>
+<pre>
+输入 DNA：
+ATGAAATTTGGGTGA
+
+翻译结果（+1，单字母）：
+MKFG*
+
+翻译结果（+1，三字母）：
+Met-Lys-Phe-Gly-Stop
+</pre>
+
+<h3>遗传密码表说明</h3>
+<ul>
+<li>默认使用<b>标准（通用）遗传密码表</b>；对于使用其他密码表的序列，可在<b>遗传密码表</b>下拉框中选择替代项（例如 Vertebrate Mitochondrial、Bacterial/Plant Plastid）</li>
+<li>RNA 输入（U）会自动按 DNA（T）处理</li>
+<li>终止密码子：<code>*</code>（单字母）或 <code>Stop</code>（三字母）</li>
+<li>3' 末端不完整的密码子会被静默忽略</li>
+<li>未知密码子显示为 <code>X</code> / <code>Xxx</code></li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>如果序列的翻译结果不符合预期，请检查阅读框 &mdash; 偏移 1 或 2 个碱基就可能产生很大的差异</li>
+<li>如果处理的是基因组 DNA 并需要定位编码区，请先使用 <b>ORF 查找</b></li>
+<li>支持多条 FASTA 输入 &mdash; 每条记录都会被独立翻译</li>
+</ul>

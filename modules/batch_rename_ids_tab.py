@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
+from utils.i18n import tr_ui
 
 # Remove worker, use main thread
 
@@ -356,9 +357,9 @@ class BatchRenameIDsTab(BaseTabWidget):
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select FASTA file",
+            tr_ui("Select FASTA file"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)"),
         )
         if file_path:
             self.handle_input_file_selected(file_path)
@@ -394,9 +395,11 @@ class BatchRenameIDsTab(BaseTabWidget):
     def select_mapping_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select ID mapping file",
+            tr_ui("Select ID mapping file"),
             "",
-            "Excel Files (*.xlsx *.xls);;CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)",
+            tr_ui(
+                "Excel Files (*.xlsx *.xls);;CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)"
+            ),
         )
         if file_path:
             self.handle_mapping_file_selected(file_path)
@@ -415,9 +418,11 @@ class BatchRenameIDsTab(BaseTabWidget):
 
         output_path, selected_filter = QFileDialog.getSaveFileName(
             self,
-            "Export current FASTA IDs",
+            tr_ui("Export current FASTA IDs"),
             base_name,
-            "Excel Files (*.xlsx);;CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)",
+            tr_ui(
+                "Excel Files (*.xlsx);;CSV Files (*.csv);;TSV Files (*.tsv *.txt);;All Files (*)"
+            ),
         )
         if output_path:
             self.export_current_ids_template(
@@ -537,9 +542,9 @@ class BatchRenameIDsTab(BaseTabWidget):
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save renamed file",
+            tr_ui("Save renamed file"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)"),
         )
         if file_path:
             self.output_edit.setText(file_path)

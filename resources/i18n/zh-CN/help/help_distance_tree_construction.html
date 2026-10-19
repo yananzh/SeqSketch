@@ -1,0 +1,60 @@
+<h2>距离树构建 &mdash; 通过 BioPython 构建 NJ / UPGMA 树</h2>
+
+<p><b>本工具有什么用？</b><br>
+它从多序列比对计算成对的<b>距离矩阵</b>，再构建<b>邻接法（Neighbor-Joining）</b>或
+<b>UPGMA</b> 系统发育树。全部由 <b>BioPython</b> 完成 &mdash; 无需外部可执行程序。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>载入 FASTA（或 PHYLIP、NEXUS、CLUSTAL）比对文件，或点击<b>示例</b>载入内置样例。
+模型会根据检测到的 DNA 或蛋白质自动更新。</li>
+<li>选择<b>距离模型</b>和<b>建树方法</b>。</li>
+<li>可选：设置<b>自举重复次数</b>，以获得分支支持率。</li>
+<li>设置输出的<b>树文件（.nwk）</b>路径（已自动建议）。</li>
+<li>点击<b>运行</b> &mdash; 矩阵显示在下方，树已保存到文件。</li>
+<li>点击<b>查看系统树</b>，将 Newick 树在<b>系统树可视化</b>标签页中打开。</li>
+<li>使用<b>导出矩阵</b>将距离表保存为 CSV 或 Excel。</li>
+</ol>
+
+<h3>距离模型</h3>
+<ul>
+<li><b>p-distance (identity)</b> &mdash; 差异位点所占的比例（DNA 与蛋白质）。</li>
+<li><b>Jukes-Cantor (JC69)</b> &mdash; 针对多次替换校正的 DNA 距离（推荐用于 DNA）。</li>
+<li><b>Kimura 2-parameter (K80)</b> &mdash; 区分转换与颠换的 DNA 距离（推荐用于 DNA）。</li>
+<li><b>BLOSUM62</b> &mdash; 广泛用于蛋白质比对。</li>
+<li><b>Dayhoff</b> &mdash; 基于 PAM 的替换矩阵（蛋白质）。</li>
+</ul>
+
+<h3>建树方法</h3>
+<ul>
+<li><b>NJ</b> &mdash; 邻接法（Neighbor-Joining）：快速、准确、应用广泛。</li>
+<li><b>UPGMA</b> &mdash; 非加权配对算术平均法：假定分子钟（超度量性）。</li>
+</ul>
+
+<h3>自举</h3>
+<p>将<b>自举重复次数</b>设为 &gt; 0，即可通过列重采样计算分支支持值。
+自举值会作为节点标签出现在输出的 Newick 树中。建议：快速检查用 100，发表用 500–1000。</p>
+
+<h3>支持的输入格式</h3>
+<ul>
+<li><b>FASTA</b> &mdash; .fasta .fa .fas .fna .ffn .faa</li>
+<li><b>PHYLIP</b> &mdash; .phy .phylip</li>
+<li><b>NEXUS</b> &mdash; .nex .nxs</li>
+<li><b>CLUSTAL</b> &mdash; .aln .clustal</li>
+<li><b>Stockholm</b> &mdash; .sto</li>
+</ul>
+
+<h3>输出</h3>
+<ul>
+<li><b>树文件</b> &mdash; Newick 格式（.nwk），可直接在系统树可视化（Toytree）或 IQ-TREE 中查看。</li>
+<li><b>距离矩阵</b> &mdash; 显示在表格中；可导出为 CSV 或 Excel，用于绘制热图或进行外部分析。</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>点击<b>示例</b>可快速载入内置比对并试用本工具。</li>
+<li>文件可直接拖放到输入框中。</li>
+<li>对于大型比对（100+ 个分类单元），计算可能需要几秒钟。</li>
+<li>NJ 树默认无根；可使用<b>系统树可视化</b>重新定根。</li>
+<li>如需最大似然树，请参阅<b>最大似然树构建（IQ-TREE）</b>。</li>
+</ul>

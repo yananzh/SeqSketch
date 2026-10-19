@@ -1,0 +1,60 @@
+<h2>ORF 查找 &mdash; 开放阅读框检测</h2>
+
+<p><b>本工具有什么用？</b><br>
+它在全部六个阅读框中扫描 DNA 序列，报告每一个开放阅读框（ORF）&mdash; 即以起始密码子开头、以同框终止密码子结尾的区域。
+这是基因预测和编码区识别的核心工具。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>粘贴你的 DNA 序列，或拖放一个 FASTA 文件</li>
+<li>设置<b>最小 ORF 长度</b>（默认 75 nt &mdash; 数值越小找到的 ORF 越多，但噪声也越多；下面的小示例需要将阈值设为 21 或更低）</li>
+<li>选择<b>搜索链</b>（建议选择双链）</li>
+<li>选择<b>起始密码子</b>（标准 ATG，或包含替代起始密码子）</li>
+<li>点击<b>运行</b>以查找 ORF</li>
+</ol>
+
+<h3>参数指南</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>参数</b></td><td><b>控制内容</b></td></tr>
+<tr><td>最小 ORF 长度</td><td>过滤掉较短的 ORF。细菌基因组通常为 100 nt；真核生物可尝试 300 nt。</td></tr>
+<tr><td>搜索链</td><td><b>Both strands</b> = 全部 6 个阅读框（最适合发现新基因）。<b>Forward only</b> = + 链上的 3 个阅读框。</td></tr>
+<tr><td>起始密码子</td><td>真核生物通常使用<b>仅 ATG</b>。替代起始密码子常见的细菌可使用<b>ATG/GTG/TTG</b>。</td></tr>
+<tr><td>遗传密码表</td><td>用于识别终止密码子并翻译 ORF 的 NCBI 遗传密码表。默认使用 <b>Standard</b>（标准密码表）；若序列使用其他密码表，请选择线粒体或替代密码表。</td></tr>
+</table>
+
+<h3>输出说明</h3>
+<ul>
+<li><b>ORF #</b> &mdash; 顺序编号，便于引用</li>
+<li><b>Frame</b> &mdash; 阅读框（+1/+2/+3 = 正向，-1/-2/-3 = 反向）</li>
+<li><b>Position</b> &mdash; 输入序列中的起止坐标</li>
+<li><b>Length</b> &mdash; 核苷酸总数（包括起始和终止密码子）</li>
+<li><b>Sequence</b> &mdash; ORF 的 DNA 序列</li>
+<li><b>Translation</b> &mdash; 预测的氨基酸序列</li>
+</ul>
+
+<h3>示例</h3>
+<pre>
+输入 DNA：
+ATGAAACCCGGGTTTAAATAG
+
+输出：
+ORF #1 | Frame: +1 | Position: 1-21 | Length: 21 nt
+Sequence: ATGAAACCCGGGTTTAAATAG
+Translation: MKPGFK*
+</pre>
+
+<h3>应用场景</h3>
+<ul>
+<li>原核和真核生物基因组中的基因预测</li>
+<li>用于注释的编码区（CDS）识别</li>
+<li>评估基因组区域的蛋白质编码潜力</li>
+<li>查找替代的开放阅读框</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>先使用较大的<b>最小 ORF 长度</b>（300 nt），若漏掉预期的 ORF 再逐步降低</li>
+<li>除非有特定理由只搜索一条链，否则请使用<b>双链</b>搜索</li>
+<li>对于真核生物序列，请注意真实基因可能含有内含子 &mdash; ORF 查找最适合 cDNA/mRNA 序列</li>
+<li>输出表格已按 ORF 长度预先排序。使用<b>复制到剪贴板</b>复制所选 ORF 的蛋白质翻译，或使用<b>导出 ORF</b>将所有 ORF 保存为 FASTA 文件。</li>
+</ul>

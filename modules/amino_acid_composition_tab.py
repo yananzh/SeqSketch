@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.i18n import tr_format, tr_ui
 
 AMINO_ACIDS = [
     "A",
@@ -197,7 +198,7 @@ class AminoAcidCompositionTab(BaseTabWidget):
                 row_idx += 1
         self._aa_table.setSortingEnabled(True)
         self.export_csv_btn.setEnabled(True)
-        self.status_label.setText(f"Analyzed {len(records)} sequences.")
+        self.status_label.setText(tr_format("Analyzed {count} sequences.", count=len(records)))
 
     def clear(self):
         self._aa_table.setRowCount(0)
@@ -233,10 +234,10 @@ class AminoAcidCompositionTab(BaseTabWidget):
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 self.input_text.setPlainText(content)
-                self.input_hint.setText(f"Loaded file: {file_path}")
+                self.input_hint.setText(tr_format("Loaded file: {path}", path=file_path))
                 event.acceptProposedAction()
             except Exception as e:
-                self.status_label.setText(f"Error loading file: {e}")
+                self.status_label.setText(tr_format("Error loading file: {error}", error=e))
                 event.ignore()
 
     def show_help(self):
@@ -309,9 +310,9 @@ class AminoAcidCompositionTab(BaseTabWidget):
             return
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Amino Acid Composition CSV",
+            tr_ui("Export Amino Acid Composition CSV"),
             "amino_acid_composition.csv",
-            "CSV Files (*.csv)",
+            tr_ui("CSV Files (*.csv)"),
         )
         if not file_path:
             return
@@ -330,6 +331,8 @@ class AminoAcidCompositionTab(BaseTabWidget):
                         ])
             self._last_export_dir = os.path.dirname(file_path)
             self.open_folder_btn.setEnabled(True)
-            self.status_label.setText(f"Exported: {os.path.basename(file_path)}")
+            self.status_label.setText(
+                tr_format("Exported: {path}", path=os.path.basename(file_path))
+            )
         except Exception as e:
             QMessageBox.critical(self, "Export Error", str(e))

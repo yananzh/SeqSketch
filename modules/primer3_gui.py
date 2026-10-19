@@ -50,6 +50,7 @@ except ImportError:
 # Shared styling
 from utils.common_components import apply_sequence_editor_style, unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 try:
@@ -70,9 +71,11 @@ class Worker(QObject):
 
     def run(self):
         try:
-            self.progress.emit("Calling Primer3 core for computation...")
+            self.progress.emit(tr_ui("Calling Primer3 core for computation..."))
             if p3_bindings is None:
-                self.error.emit("Failed to import primer3. Please install: pip install primer3-py")
+                self.error.emit(
+                    tr_ui("Failed to import primer3. Please install: pip install primer3-py")
+                )
                 return
             if hasattr(p3_bindings, "design_primers"):
                 results = p3_bindings.design_primers(
@@ -84,10 +87,10 @@ class Worker(QObject):
                     seq_args=self.seq_args,
                     global_args=self.global_args,
                 )
-            self.progress.emit("Computation finished.")
+            self.progress.emit(tr_ui("Computation finished."))
             self.finished.emit(results)
         except Exception as exc:
-            self.error.emit(f"Error: {exc}")
+            self.error.emit(tr_format("Error: {message}", message=str(exc)))
 
 
 class PrimerDesignTab(QWidget):
@@ -149,7 +152,9 @@ class PrimerDesignTab(QWidget):
                         try:
                             with open(path, "r", encoding="utf-8") as f:
                                 _tab.seq_input.setText(f.read())
-                            _tab.status_label.setText(f"Loaded: {os.path.basename(path)}")
+                            _tab.status_label.setText(
+                                tr_format("Loaded: {path}", path=os.path.basename(path))
+                            )
                         except (OSError, UnicodeDecodeError):
                             pass
                         return
@@ -485,9 +490,9 @@ class PrimerDesignTab(QWidget):
     def load_sequence_from_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open Sequence File",
+            tr_ui("Open Sequence File"),
             "",
-            "Sequence files (*.fa *.fasta *.fna *.txt);;All files (*)",
+            tr_ui("Sequence files (*.fa *.fasta *.fna *.txt);;All files (*)"),
         )
         if not file_path:
             return
@@ -495,9 +500,15 @@ class PrimerDesignTab(QWidget):
             with open(file_path, "r", encoding="utf-8") as handle:
                 text = handle.read()
             self.seq_input.setPlainText(text)
-            self.status_label.setText(f"Loaded: {os.path.basename(file_path)}")
+            self.status_label.setText(
+                tr_format("Loaded: {path}", path=os.path.basename(file_path))
+            )
         except Exception as exc:
-            QMessageBox.critical(self, "Load Error", f"Failed to read file:\n{exc}")
+            QMessageBox.critical(
+                self,
+                "Load Error",
+                tr_format("Failed to read file:\n{error}", error=str(exc)),
+            )
 
     def _load_example(self):
         """Load the bundled HBB exon 1 DNA example."""
@@ -506,11 +517,13 @@ class PrimerDesignTab(QWidget):
             QMessageBox.information(
                 self,
                 "Example",
-                "Failed to load example data. Please check your installation.",
+                tr_ui("Failed to load example data. Please check your installation."),
             )
             return
         self.seq_input.setPlainText(text)
-        self.status_label.setText("Loaded example data: hbb_exon1.fasta")
+        self.status_label.setText(
+            tr_format("Loaded example data: {name}", name="hbb_exon1.fasta")
+        )
 
     def clear_sequence(self):
         self.seq_input.clear()
@@ -520,7 +533,7 @@ class PrimerDesignTab(QWidget):
         self._current_template_seq = ""
         self._clear_primer_map()
         self.open_folder_btn.setEnabled(False)
-        self.status_label.setText("Sequence and results cleared.")
+        self.status_label.setText(tr_ui("Sequence and results cleared."))
 
     def apply_standard_presets(self):
         """Apply balanced preset values for qPCR primer design."""
@@ -547,7 +560,7 @@ class PrimerDesignTab(QWidget):
 
         self.prod_size_min.setValue(80)
         self.prod_size_max.setValue(150)
-        self.status_label.setText("Applied qPCR preset parameters.")
+        self.status_label.setText(tr_ui("Applied qPCR preset parameters."))
 
     def on_sequence_changed(self):
         sequence = self._normalize_sequence(self.seq_input.toPlainText())
@@ -558,29 +571,31 @@ class PrimerDesignTab(QWidget):
             self.p_len_min.value() > self.p_len_opt.value()
             or self.p_len_opt.value() > self.p_len_max.value()
         ):
-            self.show_error_message("Primer length must satisfy Min ≤ Opt ≤ Max.")
+            self.show_error_message(tr_ui("Primer length must satisfy Min ≤ Opt ≤ Max."))
             return False
         if (
             self.p_tm_min.value() > self.p_tm_opt.value()
             or self.p_tm_opt.value() > self.p_tm_max.value()
         ):
-            self.show_error_message("Primer Tm must satisfy Min ≤ Opt ≤ Max.")
+            self.show_error_message(tr_ui("Primer Tm must satisfy Min ≤ Opt ≤ Max."))
             return False
         if (
             self.p_gc_min.value() > self.p_gc_opt.value()
             or self.p_gc_opt.value() > self.p_gc_max.value()
         ):
-            self.show_error_message("Primer GC must satisfy Min ≤ Opt ≤ Max.")
+            self.show_error_message(tr_ui("Primer GC must satisfy Min ≤ Opt ≤ Max."))
             return False
         if self.prod_size_min.value() > self.prod_size_max.value():
-            self.show_error_message("Product size range is invalid (Min > Max).")
+            self.show_error_message(tr_ui("Product size range is invalid (Min > Max)."))
             return False
         return True
 
     def start_design_task(self):
         raw_text = self.seq_input.toPlainText().strip()
         if not raw_text:
-            QMessageBox.warning(self, "Input Error", "Please enter a valid DNA template sequence.")
+            QMessageBox.warning(
+                self, "Input Error", tr_ui("Please enter a valid DNA template sequence.")
+            )
             return
 
         sequence = self._normalize_sequence(raw_text)
@@ -588,17 +603,19 @@ class PrimerDesignTab(QWidget):
             QMessageBox.warning(
                 self,
                 "Input Error",
-                "Please enter a valid DNA sequence (A/C/G/T/U/N only).",
+                tr_ui("Please enter a valid DNA sequence (A/C/G/T/U/N only)."),
             )
             return
         if len(sequence) < 50:
-            QMessageBox.warning(self, "Input Error", "Sequence is too short (minimum 50 bp).")
+            QMessageBox.warning(
+                self, "Input Error", tr_ui("Sequence is too short (minimum 50 bp).")
+            )
             return
         if not self._validate_parameter_ranges():
             return
 
         self.design_button.setEnabled(False)
-        self.status_label.setText("Preparing parameters...")
+        self.status_label.setText(tr_ui("Preparing parameters..."))
         self.results_table.setRowCount(0)
         self.current_results.clear()
         self.row_detail_cache.clear()
@@ -650,7 +667,7 @@ class PrimerDesignTab(QWidget):
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
 
         self.worker_thread.start()
-        self.status_label.setText("Background task started. Designing primers...")
+        self.status_label.setText(tr_ui("Background task started. Designing primers..."))
 
     def _to_float_text(self, value: Any) -> str:
         if isinstance(value, (int, float)):
@@ -669,8 +686,12 @@ class PrimerDesignTab(QWidget):
         if num_returned == 0:
             explain = results.get("PRIMER_PAIR_EXPLAIN") or results.get("PRIMER_LEFT_EXPLAIN") or ""
             self.show_error_message(
-                "No primer pairs found. Try relaxing constraints."
-                + (f"\n\nPrimer3 explain: {explain}" if explain else "")
+                tr_ui("No primer pairs found. Try relaxing constraints.")
+                + (
+                    tr_format("\n\nPrimer3 explain: {explain}", explain=explain)
+                    if explain
+                    else ""
+                )
             )
             self.design_button.setEnabled(True)
             return
@@ -736,7 +757,7 @@ class PrimerDesignTab(QWidget):
                 self.row_detail_cache.append(detail)
                 row_idx += 1
 
-        self.status_label.setText("Found %d primer pairs." % num_returned)
+        self.status_label.setText(tr_format("Found {count} primer pairs.", count=num_returned))
         self.design_button.setEnabled(True)
         if self.results_table.rowCount() > 0:
             self.results_table.selectRow(0)
@@ -752,18 +773,18 @@ class PrimerDesignTab(QWidget):
         """Export primer results to an Excel (.xlsx) file."""
         if not _HAS_OPENPYXL:
             self.show_error_message(
-                "Excel export requires openpyxl. Install: pip install openpyxl"
+                tr_ui("Excel export requires openpyxl. Install: pip install openpyxl")
             )
             return
         if self.results_table.rowCount() == 0:
-            self.show_error_message("No results to export.")
+            self.show_error_message(tr_ui("No results to export."))
             return
 
         out_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Primer Results to Excel",
+            tr_ui("Export Primer Results to Excel"),
             "primer_results.xlsx",
-            "Excel files (*.xlsx)",
+            tr_ui("Excel files (*.xlsx)"),
         )
         if not out_path:
             return
@@ -823,11 +844,13 @@ class PrimerDesignTab(QWidget):
             ws.freeze_panes = "A2"
 
             wb.save(out_path)
-            self.status_label.setText("Exported Excel: %s" % out_path)
+            self.status_label.setText(tr_format("Exported Excel: {path}", path=out_path))
             self._last_export_dir = os.path.dirname(out_path)
             self.open_folder_btn.setEnabled(True)
         except Exception as exc:
-            self.show_error_message("Failed to export Excel: %s" % exc)
+            self.show_error_message(
+                tr_format("Failed to export Excel: {error}", error=str(exc))
+            )
 
     # ── Primer Binding Site Map (Matplotlib) ─────────────────────────
 
@@ -942,12 +965,14 @@ class PrimerDesignTab(QWidget):
         # Styling
         ax.set_xlim(-seq_len * 0.02, seq_len * 1.02)
         ax.set_ylim(-max_offset - 1.0, 0.8)
-        ax.set_xlabel("Template Position (bp)")
+        ax.set_xlabel(tr_ui("Template Position (bp)"))
         ax.set_yticks([])
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.spines["left"].set_visible(False)
-        ax.set_title("Primer Binding Sites on Template", fontweight="bold", fontsize=11)
+        ax.set_title(
+            tr_ui("Primer Binding Sites on Template"), fontweight="bold", fontsize=11
+        )
 
         self._primer_fig.tight_layout()
         self._primer_canvas.draw_idle()
@@ -1057,7 +1082,7 @@ self-dimer, and cross-dimer properties of any primer pair from the results.</p>
     @skip_when_closing
     def show_error_message(self, message: str):
         QMessageBox.critical(self, "Error", message)
-        self.status_label.setText("Task failed or no results found.")
+        self.status_label.setText(tr_ui("Task failed or no results found."))
         self.design_button.setEnabled(True)
 
 

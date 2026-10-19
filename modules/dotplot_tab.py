@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
+from utils.i18n import tr_format, tr_ui
 
 matplotlib.use("QtAgg")
 import re
@@ -193,9 +194,9 @@ class DotPlotTab(BaseTabWidget):
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select sequence file",
+            tr_ui("Select sequence file"),
             "",
-            "FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)",
+            tr_ui("FASTA/TXT/GenBank (*.fasta *.fa *.txt *.gb *.gbk);;All Files (*)"),
         )
         if file_path:
             self._load_file_path(file_path)
@@ -341,7 +342,7 @@ class DotPlotTab(BaseTabWidget):
                 "The dotplot matrix is large and may be slow to render. Continue?",
             )
             if ans != QMessageBox.StandardButton.Yes:
-                self.status_label.setText("Cancelled by user.")
+                self.status_label.setText(tr_ui("Cancelled by user."))
                 return
 
         matrix = self._build_dot_matrix(seq_a, seq_b, k)
@@ -353,7 +354,13 @@ class DotPlotTab(BaseTabWidget):
 
         dot_count = int(matrix.sum())
         density = (dot_count / matrix.size) * 100 if matrix.size else 0.0
-        self.status_label.setText(f"Generated: {dot_count} dots, density {density:.4f}%")
+        self.status_label.setText(
+            tr_format(
+                "Generated: {dots} dots, density {density}%",
+                dots=dot_count,
+                density=f"{density:.4f}",
+            )
+        )
 
     def clear(self):
         super().clear()
@@ -374,14 +381,16 @@ class DotPlotTab(BaseTabWidget):
             return
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save DotPlot Figure",
+            tr_ui("Save DotPlot Figure"),
             "dotplot.png",
-            "PNG files (*.png);;SVG files (*.svg);;PDF files (*.pdf);;All Files (*)",
+            tr_ui("PNG files (*.png);;SVG files (*.svg);;PDF files (*.pdf);;All Files (*)"),
         )
         if file_path:
             try:
                 self.figure.savefig(file_path, dpi=300, bbox_inches="tight")
-                self.status_label.setText(f"Exported: {os.path.basename(file_path)}")
+                self.status_label.setText(
+                    tr_format("Exported: {path}", path=os.path.basename(file_path))
+                )
                 self._last_export_dir = os.path.dirname(file_path)
                 self.open_folder_btn.setEnabled(True)
             except Exception as e:

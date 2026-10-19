@@ -1,0 +1,54 @@
+<h2>qPCR 引物设计 &mdash; 通过 Primer3 设计 PCR 引物</h2>
+
+<p><b>本工具有什么用？</b><br>
+使用 Primer3 引擎为定量 PCR（qPCR / 实时 PCR）设计最优引物对。它会在你的模板 DNA 中搜索满足适合 qPCR 的严格 Tm、GC% 和产物长度约束的引物对。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li><b>输入模板 DNA 序列</b> &mdash; 粘贴原始序列或 FASTA 格式（允许碱基 A/C/G/T/U/N），或点击<b>示例</b>载入 HBB 外显子 1。</li>
+<li>如需调整，可<b>修改参数</b> &mdash; 默认值（产物 80-150 bp、Tm 57-63°C、GC 40-60%）适用于大多数 qPCR 应用。</li>
+<li><b>点击“运行”</b>，在后台启动 Primer3（模板长度至少为 50 bp）。</li>
+<li>在表格中<b>查看结果</b> &mdash; 下方的图谱会显示每个返回的引物对；点击某一行即可刷新。</li>
+<li>将结果<b>导出</b>为 Excel，供后续使用。</li>
+</ol>
+
+<h3>参数指南</h3>
+<table border='0' cellpadding='4' cellspacing='2'>
+<tr><td><b>产物长度（最小/最大）</b></td><td>预期扩增子长度（bp）。qPCR：70-200 bp 时效率最佳。</td></tr>
+<tr><td><b>引物对数量</b></td><td>返回多少对引物。数值越大，可供选择的候选越多。</td></tr>
+<tr><td><b>长度（最小/最优/最大）</b></td><td>引物长度（nt）。典型值：18-25 nt。必须满足最小值 &le; 最优值 &le; 最大值。</td></tr>
+<tr><td><b>Tm（最小/最优/最大）</b></td><td>解链温度（°C）。qPCR 典型范围：57-63°C。最小值 &le; 最优值 &le; 最大值。</td></tr>
+<tr><td><b>GC%（最小/最优/最大）</b></td><td>GC 含量百分比。典型值：40-60%。最小值 &le; 最优值 &le; 最大值。</td></tr>
+</table>
+
+<h3>高级参数</h3>
+<table border='0' cellpadding='4' cellspacing='2'>
+<tr><td><b>盐浓度（单价）</b></td><td>Na&plus;/K&plus; 浓度（mM）。影响 Tm 计算。标准 PCR：50 mM。</td></tr>
+<tr><td><b>Mg&sup2;&plus;</b></td><td>镁离子浓度（mM）。影响 Tm 和特异性。qPCR 典型值：2-3 mM。</td></tr>
+</table>
+
+<h3>结果解读</h3>
+<ul>
+<li><b>引物对编号</b> &mdash; 按 Primer3 惩罚分数排序（1 = 最佳）。</li>
+<li><b>正向 / 反向</b> &mdash; 正向（sense）或反向（antisense）引物。</li>
+<li><b>位置</b> &mdash; Primer3 报告的、以 0 为起始的模板坐标：正向引物为最靠近 5' 端的碱基，反向引物为最靠近 3' 端的碱基。因此反向引物的结合跨度从 位置−长度+1 到 位置。</li>
+<li><b>长度</b> &mdash; 引物长度（核苷酸数）。</li>
+<li><b>Tm</b> &mdash; 解链温度。正向与反向引物的 Tm 差值应在 2°C 以内。</li>
+<li><b>GC%</b> &mdash; GC 含量。40-60% 对 qPCR 最佳。</li>
+<li><b>产物长度</b> &mdash; 预期扩增子长度（bp）。</li>
+</ul>
+<p><b>结合位点图谱</b> &mdash; 蓝色箭头 = 正向引物，橙色箭头 = 反向引物，按比例绘制在模板线上。</p>
+
+<h3>故障排查</h3>
+<p><b>“未找到引物对”</b></p>
+<ul>
+<li>放宽约束 &mdash; 扩大 Tm、GC% 或长度范围。</li>
+<li>增大产物长度范围（例如 70-200 bp）。</li>
+<li>增加请求的引物对数量。</li>
+<li>确认模板包含有效碱基（仅限 A/C/G/T/U/N）。</li>
+<li>对于较短的模板（&lt;100 bp），请缩小产物长度范围。</li>
+<li>确保已安装 primer3-py：<code>pip install primer3-py</code></li>
+</ul>
+
+<h3>设计之后 &mdash; 分析你的引物</h3>
+<p>打开 <b>引物设计 &rarr; 引物分析</b>，检查结果中任意引物对的发夹结构、自身二聚体和交叉二聚体特性。</p>

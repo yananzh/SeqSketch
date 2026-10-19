@@ -21,6 +21,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
+from utils.i18n import tr_ui
 
 SPLIT_BY_COUNT = "count"  # N sequences per file
 SPLIT_BY_PARTS = "parts"  # fixed number of output files
@@ -141,9 +142,9 @@ class SplitFastaTab(BaseTabWidget):
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select FASTA file",
+            tr_ui("Select FASTA file"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)"),
         )
         if file_path:
             self.handle_input_file_selected(file_path)
@@ -153,7 +154,7 @@ class SplitFastaTab(BaseTabWidget):
         self.show_status("Input file selected")
 
     def select_output_dir(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "Select output directory")
+        dir_path = QFileDialog.getExistingDirectory(self, tr_ui("Select output directory"))
         if dir_path:
             self.output_edit.setText(dir_path)
 

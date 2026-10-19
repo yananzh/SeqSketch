@@ -1,0 +1,45 @@
+<h2>MSA 可视化 &mdash; pyMSAviz</h2>
+
+<p><b>本工具有什么用？</b><br>
+使用 pyMSAviz 渲染彩色的多序列比对图，它是对 Matplotlib 的 Python 封装。
+非常适合生成达到发表质量的多序列比对图片。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>通过<b>浏览</b>载入<b>已完成比对</b>的 FASTA 文件，或直接拖放
+（所有序列长度必须相同）。</li>
+<li>选择<b>颜色方案</b>并调整显示选项。</li>
+<li>点击<b>运行</b> — 渲染出的图会显示在下方可滚动的区域中。</li>
+<li>使用<b>保存图像</b>导出为 PNG、SVG 或 PDF，然后点击
+<b>结果文件夹</b>找到已保存的文件。</li>
+</ol>
+
+<h3>颜色方案</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>Clustal</b></td><td>→ 经典的 Clustal-X 配色（蛋白质默认）</td></tr>
+<tr><td><b>Zappo</b></td><td>→ 按氨基酸理化性质着色</td></tr>
+<tr><td><b>Taylor</b></td><td>→ Taylor 残基着色</td></tr>
+<tr><td><b>Hydrophobicity</b></td><td>→ 按残基疏水性着色</td></tr>
+<tr><td><b>Nucleotide</b></td><td>→ 推荐用于 DNA 比对</td></tr>
+<tr><td><b>Identity</b></td><td>→ 按残基保守程度着色</td></tr>
+<tr><td><b>None</b></td><td>→ 纯灰色残基</td></tr>
+</table>
+
+<h3>显示选项</h3>
+<ul>
+<li><b>序列字符</b> — 显示/隐藏每个格子中的残基字母。</li>
+<li><b>网格</b> — 绘制单元格边框。</li>
+<li><b>显示计数</b> — 沿 x 轴显示列号。</li>
+<li><b>共有序列</b> — 在比对下方显示共有序列条。</li>
+<li><b>自动排序</b> — 按与第一条序列的相似度重新排序。</li>
+<li><b>高亮保守列</b> — 为达到一致性阈值的列添加浅蓝色背景。</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>先使用<b>多序列比对（Muscle5 / MAFFT）</b>标签页生成比对，再在此处载入
+    输出文件。</li>
+<li>将<b>换行长度</b>设为 0，即可显示为单行连续排列。</li>
+<li><b>DPI</b>（默认 150）控制预览清晰度；导出时始终至少使用 300 DPI。</li>
+<li>使用<b>保存图像</b>可导出 PNG、SVG、PDF 或 TIFF 格式的高分辨率副本。</li>
+</ul>

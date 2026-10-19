@@ -49,6 +49,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
+from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 
@@ -122,7 +123,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         self._resume_timer.setInterval(400)
         self._resume_timer.timeout.connect(self._start_resume_check)
         self._build_ui()
-        self.show_status("Ready — load an Excel workbook to start")
+        self.show_status(tr_ui("Ready — load an Excel workbook to start"))
 
     def _build_ui(self) -> None:
         # ── Input section ──
@@ -474,9 +475,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
             QMessageBox.Icon.Information if message.startswith("Reuse ready:")
             else QMessageBox.Icon.Warning
         )
-        self._resume_dialog.setText(message)
+        self._resume_dialog.setText(tr_ui(message))
         self._resume_dialog.setInformativeText(
-            "Read-only precheck. Files are verified again when the workflow starts."
+            tr_ui("Read-only precheck. Files are verified again when the workflow starts.")
         )
         self._resume_dialog.show()
 
@@ -507,9 +508,9 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     def _choose_excel(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select Excel file",
+            tr_ui("Select Excel file"),
             "",
-            "Excel Files (*.xlsx *.xls);;All Files (*)",
+            tr_ui("Excel Files (*.xlsx *.xls);;All Files (*)"),
         )
         if file_path:
             self.excel_path_edit.setText(file_path)
@@ -534,7 +535,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     def _choose_output_dir(self) -> None:
         directory = QFileDialog.getExistingDirectory(
             self,
-            "Select output directory",
+            tr_ui("Select output directory"),
             self.output_dir_edit.text().strip(),
         )
         if directory:
@@ -544,10 +545,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         """Open the folder where the pipeline results are written."""
         out_dir = self.output_dir_edit.text().strip()
         if not out_dir:
-            self.show_status("No output folder selected yet")
+            self.show_status(tr_ui("No output folder selected yet"))
             return
         if not os.path.isdir(out_dir):
-            self.show_status("Output folder does not exist yet")
+            self.show_status(tr_ui("Output folder does not exist yet"))
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(out_dir))
 
@@ -585,14 +586,16 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
             gene_names = [column for column in columns if column != strain_column]
             self._populate_gene_columns(gene_names)
-            self.show_status("Loaded sheet columns")
+            self.show_status(tr_ui("Loaded sheet columns"))
             self.log_message(
-                'Loaded {count} candidate gene columns from sheet "{sheet}".'.format(
-                    count=len(gene_names), sheet=sheet_name
+                tr_format(
+                    'Loaded {count} candidate gene columns from sheet "{sheet}".',
+                    count=len(gene_names),
+                    sheet=sheet_name,
                 )
             )
         except Exception as exc:
-            self.show_status("Failed to load workbook columns")
+            self.show_status(tr_ui("Failed to load workbook columns"))
             self.log_message(str(exc), "ERROR")
         finally:
             self._loading = False
@@ -615,17 +618,17 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         ]
 
     def _log_import_summary(self, summary: dict[str, int]) -> None:
-        self.log_message("── Import Summary ──")
-        self.log_message("Strains: {count}".format(count=summary.get("strain_count", 0)))
-        self.log_message("Genes: {count}".format(count=summary.get("gene_count", 0)))
+        self.log_message(tr_ui("── Import Summary ──"))
+        self.log_message(tr_format("Strains: {count}", count=summary.get("strain_count", 0)))
+        self.log_message(tr_format("Genes: {count}", count=summary.get("gene_count", 0)))
         self.log_message(
-            "Accessions: {count}".format(count=summary.get("accession_count", 0))
+            tr_format("Accessions: {count}", count=summary.get("accession_count", 0))
         )
         self.log_message(
-            "Raw sequences: {count}".format(count=summary.get("sequence_count", 0))
+            tr_format("Raw sequences: {count}", count=summary.get("sequence_count", 0))
         )
-        self.log_message("Missing: {count}".format(count=summary.get("missing_count", 0)))
-        self.log_message("Invalid: {count}".format(count=summary.get("invalid_count", 0)))
+        self.log_message(tr_format("Missing: {count}", count=summary.get("missing_count", 0)))
+        self.log_message(tr_format("Invalid: {count}", count=summary.get("invalid_count", 0)))
 
     def _handle_step_update(self, step_name: str, status: str) -> None:
         self.show_status(f"{step_name}: {status}")
@@ -645,8 +648,10 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         hours, remainder = divmod(seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
         elapsed = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        action = "Cancelling IQ-TREE" if self._iqtree_cancelling else "Running IQ-TREE"
-        self._iqtree_progress_label.setText(f"{action} · Elapsed {elapsed}")
+        action = tr_ui("Cancelling IQ-TREE" if self._iqtree_cancelling else "Running IQ-TREE")
+        self._iqtree_progress_label.setText(
+            tr_format("{action} · Elapsed {elapsed}", action=action, elapsed=elapsed)
+        )
 
     def _stop_iqtree_progress(self) -> None:
         self._iqtree_timer.stop()
@@ -659,7 +664,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
 
     @skip_when_closing
     def _handle_run_failed(self, message: str) -> None:
-        self.show_status("Workflow failed")
+        self.show_status(tr_ui("Workflow failed"))
         self.log_message(message, "ERROR")
         self._set_running_state(False)
         self._cleanup_worker()
@@ -667,30 +672,30 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     @skip_when_closing
     def _handle_run_completed(self, result) -> None:
         step_status = dict(getattr(result, "step_status", {}))
-        self.log_message("── Run Summary ──")
+        self.log_message(tr_ui("── Run Summary ──"))
         for step_name, status in step_status.items():
             self.log_message(f"  {step_name}: {status}")
 
         # Log artifact paths
         artifacts = getattr(result, "artifacts", None)
         if artifacts:
-            self.log_message("── Artifacts ──")
-            for label, attr in [
-                ("Tree file", "treefile_path"),
-                ("HTML report", "html_report_path"),
-                ("Manifest", "manifest_path"),
-                ("Run log", "report_path"),
+            self.log_message(tr_ui("── Artifacts ──"))
+            for template, attr in [
+                ("  Tree file: {path}", "treefile_path"),
+                ("  HTML report: {path}", "html_report_path"),
+                ("  Manifest: {path}", "manifest_path"),
+                ("  Run log: {path}", "report_path"),
             ]:
                 path = getattr(artifacts, attr, "")
                 if path:
-                    self.log_message(f"  {label}: {path}")
+                    self.log_message(tr_format(template, path=path))
             tree_path = getattr(artifacts, "treefile_path", "")
             if tree_path and os.path.isfile(tree_path):
                 self._last_treefile = tree_path
                 self._view_tree_btn.setVisible(True)
 
         warnings = list(getattr(result, "warnings", []))
-        self.show_status("Completed with warnings" if warnings else "Completed")
+        self.show_status(tr_ui("Completed with warnings" if warnings else "Completed"))
         for warning in warnings:
             self.log_message(warning, "WARNING")
         self._set_running_state(False)
@@ -720,18 +725,18 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
     ) -> bool:
         valid, _ = validate_input_path(excel_path)
         if not valid:
-            self.show_status("Excel file not found")
-            self.log_message("The selected Excel file does not exist.", "ERROR")
+            self.show_status(tr_ui("Excel file not found"))
+            self.log_message(tr_ui("The selected Excel file does not exist."), "ERROR")
             return False
 
         if not output_dir:
-            self.show_status("No output directory")
-            self.log_message("Please select an output directory.", "WARNING")
+            self.show_status(tr_ui("No output directory"))
+            self.log_message(tr_ui("Please select an output directory."), "WARNING")
             return False
 
         if not checked_genes:
-            self.show_status("No genes selected")
-            self.log_message("Select at least one gene column before running.", "WARNING")
+            self.show_status(tr_ui("No genes selected"))
+            self.log_message(tr_ui("Select at least one gene column before running."), "WARNING")
             return False
 
         if not ncbi_email and self.resume_mode_combo.currentData() == "scratch":
@@ -757,55 +762,77 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         excel_path = self.excel_path_edit.text().strip()
         sheet_name = self.sheet_name_combo.currentText().strip() or "Sheet1"
         strain_column = self.strain_column_combo.currentText().strip()
-        lines = ["Input Validation", ""]
+        lines = [tr_ui("Input Validation"), ""]
         failed = False
         warned = False
         valid, _ = validate_input_path(excel_path)
         if not valid:
-            lines.append("[FAIL] Excel file not found.")
+            lines.append(tr_ui("[FAIL] Excel file not found."))
             failed = True
         else:
-            lines.extend([f"[OK] Excel file: {excel_path}", f"Sheet: {sheet_name}"])
+            lines.extend([
+                tr_format("[OK] Excel file: {path}", path=excel_path),
+                tr_format("Sheet: {sheet}", sheet=sheet_name),
+            ])
             try:
                 parsed = parse_excel_sheet(
                     excel_path, sheet_name, strain_column, self._checked_gene_columns()
                 )
                 summary = parsed.summary
                 lines.extend([
-                    f"[OK] Strain column: {strain_column}",
-                    f"[OK] Strain names: {summary['strain_count']} valid, unique names",
-                    f"[OK] Selected genes: {summary['gene_count']}",
-                    f"Accessions: {summary['accession_count']}",
-                    f"Raw sequences: {summary['sequence_count']}",
-                    f"Missing entries: {summary['missing_count']} (filled with gaps)",
+                    tr_format("[OK] Strain column: {strain}", strain=strain_column),
+                    tr_format(
+                        "[OK] Strain names: {count} valid, unique names",
+                        count=summary["strain_count"],
+                    ),
+                    tr_format("[OK] Selected genes: {count}", count=summary["gene_count"]),
+                    tr_format("Accessions: {count}", count=summary["accession_count"]),
+                    tr_format("Raw sequences: {count}", count=summary["sequence_count"]),
+                    tr_format(
+                        "Missing entries: {count} (filled with gaps)",
+                        count=summary["missing_count"],
+                    ),
                 ])
                 if summary["invalid_count"]:
                     warned = True
-                    lines.append(f"[WARN] Invalid entries: {summary['invalid_count']}")
+                    lines.append(
+                        tr_format(
+                            "[WARN] Invalid entries: {count}",
+                            count=summary["invalid_count"],
+                        )
+                    )
                     for cell in parsed.cells:
                         if cell.value_type == "invalid":
-                            lines.append(f"    {cell.strain_name} / {cell.gene_name}: "
-                                         f"{cell.raw_value}")
+                            lines.append(
+                                tr_format(
+                                    "    {strain} / {gene}: {value}",
+                                    strain=cell.strain_name,
+                                    gene=cell.gene_name,
+                                    value=cell.raw_value,
+                                )
+                            )
                 if summary["accession_count"] and not self.email_edit.text().strip():
                     warned = True
-                    lines.append("[WARN] An NCBI email is required to retrieve accessions.")
+                    lines.append(
+                        tr_ui("[WARN] An NCBI email is required to retrieve accessions.")
+                    )
             except Exception as exc:
                 failed = True
-                lines.append(f"[FAIL] Workbook: {exc}")
+                lines.append(tr_format("[FAIL] Workbook: {error}", error=exc))
 
-        lines.extend(["", "External Tools"])
+        lines.extend(["", tr_ui("External Tools")])
         for tool_name, tool_path in [
             ("MAFFT", _mafft_executable()),
             ("trimAl", _trimal_executable()),
             ("IQ-TREE", _iqtree_executable()),
         ]:
             if os.path.isfile(tool_path):
-                lines.append(f"[OK] {tool_name}: {tool_path}")
+                lines.append(tr_format("[OK] {tool}: {path}", tool=tool_name, path=tool_path))
             else:
-                lines.append(f"[FAIL] {tool_name}: NOT FOUND")
+                lines.append(tr_format("[FAIL] {tool}: NOT FOUND", tool=tool_name))
                 failed = True
-        status = ("Validation failed" if failed else
-                  "Validation passed with warnings" if warned else "Validation passed")
+        status = tr_ui("Validation failed" if failed else
+                       "Validation passed with warnings" if warned else "Validation passed")
         report = "\n".join(lines)
         self.log_area.setPlainText(report)
         self.show_status(status)
@@ -874,7 +901,9 @@ and one or more <b>gene columns</b>.</p>
             return
         self.excel_path_edit.setText(path)
         self.load_sheet_columns()
-        self.show_status("Example loaded: MultiGenePhy_example.xlsx")
+        self.show_status(
+            tr_format("Example loaded: {name}", name="MultiGenePhy_example.xlsx")
+        )
 
     def _clear(self) -> None:
         """Clear the log area and reset all parameters to defaults."""
@@ -907,10 +936,10 @@ and one or more <b>gene columns</b>.</p>
             self._worker.requestInterruption()
             self._worker._abort = True
             self.log_message(
-                "Cancellation requested — waiting for current step to finish…",
+                tr_ui("Cancellation requested — waiting for current step to finish…"),
                 "WARNING",
             )
-            self.show_status("Cancelling…")
+            self.show_status(tr_ui("Cancelling…"))
             if self._iqtree_timer.isActive():
                 self._iqtree_cancelling = True
                 self._update_iqtree_progress()
@@ -963,7 +992,7 @@ and one or more <b>gene columns</b>.</p>
                 checked_genes,
             )
         except Exception as exc:
-            self.show_status("Failed to parse workbook")
+            self.show_status(tr_ui("Failed to parse workbook"))
             self.log_message(str(exc), "ERROR")
             return
 
@@ -973,23 +1002,44 @@ and one or more <b>gene columns</b>.</p>
         sep = "─" * 48
         self.log_area.append("")
         self.log_area.append(f"{sep}")
-        self.log_area.append("  MultiGenePhy Run Summary")
+        self.log_area.append(tr_ui("  MultiGenePhy Run Summary"))
         self.log_area.append(f"{sep}")
-        self.log_area.append(f"  Excel          : {excel_path}")
-        self.log_area.append(f"  Sheet          : {sheet_name}")
-        self.log_area.append(f"  Strain column  : {strain_column}")
-        self.log_area.append(f"  Genes          : {len(checked_genes)}")
-        self.log_area.append(f"  Output dir     : {output_dir}")
-        self.log_area.append(f"  MAFFT mode     : {self.mafft_mode_combo.currentText()}")
-        self.log_area.append(f"  trimAl mode    : {self.trimal_mode_combo.currentText()}")
+        self.log_area.append(tr_format("  Excel          : {path}", path=excel_path))
+        self.log_area.append(tr_format("  Sheet          : {sheet}", sheet=sheet_name))
         self.log_area.append(
-            f"  Bootstrap      : {self.bootstrap_spin.value()} ({self.bootstrap_mode_combo.currentText()})"
+            tr_format("  Strain column  : {strain}", strain=strain_column)
         )
         self.log_area.append(
-            f"  Threads        : {self.threads_spin.value()}"
+            tr_format("  Genes          : {count}", count=len(checked_genes))
+        )
+        self.log_area.append(tr_format("  Output dir     : {path}", path=output_dir))
+        self.log_area.append(
+            tr_format(
+                "  MAFFT mode     : {value}",
+                value=self.mafft_mode_combo.currentText(),
+            )
         )
         self.log_area.append(
-            f"  Skip completed : {self.resume_mode_combo.currentText()}"
+            tr_format(
+                "  trimAl mode    : {value}",
+                value=self.trimal_mode_combo.currentText(),
+            )
+        )
+        self.log_area.append(
+            tr_format(
+                "  Bootstrap      : {count} ({mode})",
+                count=self.bootstrap_spin.value(),
+                mode=self.bootstrap_mode_combo.currentText(),
+            )
+        )
+        self.log_area.append(
+            tr_format("  Threads        : {count}", count=self.threads_spin.value())
+        )
+        self.log_area.append(
+            tr_format(
+                "  Skip completed : {value}",
+                value=self.resume_mode_combo.currentText(),
+            )
         )
         self.log_area.append(f"{sep}")
         self.log_area.append("")
@@ -1014,8 +1064,8 @@ and one or more <b>gene columns</b>.</p>
         self._cleanup_worker()
         self._worker = worker
         self._set_running_state(True)
-        self.show_status("Workflow running")
-        self.log_message("Workflow started")
+        self.show_status(tr_ui("Workflow running"))
+        self.log_message(tr_ui("Workflow started"))
         worker.start()
 
     def show_help(self) -> None:

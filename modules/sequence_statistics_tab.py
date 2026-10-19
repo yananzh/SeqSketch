@@ -19,6 +19,7 @@ from utils.common_components import (
     FileDropLineEdit,
     unify_status_button_sizes,
 )
+from utils.i18n import tr_ui
 
 NUCLEOTIDE_BASES = set("ACGTUNRYMKSWBDHV")
 AMBIGUOUS_BASES = set("RYMKSWBDHV")
@@ -314,16 +315,16 @@ class SequenceStatisticsTab(BaseTabWidget):
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select FASTA file",
+            tr_ui("Select FASTA file"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)"),
         )
         if file_path:
             self.handle_input_file_selected(file_path)
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save statistics", "", "Text Files (*.txt);;All Files (*)"
+            self, tr_ui("Save statistics"), "", tr_ui("Text Files (*.txt);;All Files (*)")
         )
         if file_path:
             self.output_edit.setText(file_path)
@@ -370,7 +371,7 @@ class SequenceStatisticsTab(BaseTabWidget):
 
     def update_statistics(self, stats: dict):
         """更新统计信息显示"""
-        self.stat_labels["sequence_type"].setText(stats.get("sequence_type", "N/A"))
+        self.stat_labels["sequence_type"].setText(tr_ui(stats.get("sequence_type", "N/A")))
         self.stat_labels["total"].setText(str(stats.get("total", 0)))
         self.stat_labels["total_length"].setText(str(stats.get("total_length", 0)))
         self.stat_labels["avg_len"].setText(f"{stats.get('avg_len', 0):.1f}")
@@ -383,7 +384,7 @@ class SequenceStatisticsTab(BaseTabWidget):
         n_count = stats.get("total_n_count")
         n_rate = stats.get("n_content_rate")
         if n_count is None or n_rate is None:
-            self.stat_labels["n_content"].setText("N/A")
+            self.stat_labels["n_content"].setText(tr_ui("N/A"))
         else:
             self.stat_labels["n_content"].setText(f"{n_count} ({n_rate:.1f}%)")
 
@@ -528,7 +529,7 @@ or GC content.</li>
 
             self.show_status("Computing statistics...")
             self.log_message(
-                f"Detected sequence type: {summary['sequence_type']}; total sequences: {summary['total']}",
+                f"Detected sequence type: {tr_ui(summary['sequence_type'])}; total sequences: {summary['total']}",
                 "INFO",
             )
 

@@ -1,0 +1,82 @@
+<h2>系统树可视化（Toytree） &mdash; 高级树渲染</h2>
+
+<p><b>本工具有什么用？</b><br>
+使用 <b>toytree</b> + <b>toyplot</b> 渲染并导出系统发育树，提供丰富的样式选项。
+支持多种布局、中点 / 外群定根、支持值显示，以及可直接用于发表的导出结果。</p>
+
+<h3>快速入门</h3>
+<ol>
+  <li><b>打开</b>树文件，或将其拖放到输入框中。</li>
+  <li>选择<b>布局</b>（Rectangular、Circular 或 Unrooted）。</li>
+  <li>点击<b>运行</b>进行渲染 — 参数更改后会自动更新。</li>
+  <li>点击<b>导出图像</b>，保存为 SVG、PDF 或 PNG。</li>
+</ol>
+
+<h3>树选项</h3>
+<table>
+  <tr><td><b>布局</b></td><td>
+    Rectangular &mdash; 标准系统发育图（朝右）<br>
+    Circular &mdash; 径向系统发育图，适合大型树<br>
+    Unrooted &mdash; 等角无根布局</td></tr>
+  <tr><td><b>定根</b></td><td>
+    None &mdash; 按树的原样使用<br>
+    Midpoint &mdash; 以最长分支的中点定根<br>
+    Outgroup &mdash; 在指定的末端分类单元上定根</td></tr>
+  <tr><td><b>显示支持值</b></td><td>
+    在内部节点显示自举 / 后验概率，保留
+    小数精度和 IQ-TREE SH-aLRT/UFBoot 标签（例如 98.2/100）</td></tr>
+  <tr><td><b>显示比例尺</b></td><td>
+    显示进化距离比例尺</td></tr>
+  <tr><td><b>对齐末端标签</b></td><td>
+    在矩形布局中右对齐末端标签</td></tr>
+  <tr><td><b>使用枝长</b></td><td>
+    按枝长比例绘制分支（取消勾选可得到分支图）</td></tr>
+</table>
+
+<h3>样式选项</h3>
+<table>
+  <tr><td><b>末端字号</b></td><td>&mdash; 叶标签的字号（6&ndash;36 px）</td></tr>
+  <tr><td><b>节点大小</b></td><td>&mdash; 内部节点圆点的大小（0 = 隐藏）</td></tr>
+  <tr><td><b>枝宽</b></td><td>&mdash; 分支线条粗细（1&ndash;10 px）</td></tr>
+  <tr><td><b>支持值字号</b></td><td>&mdash; 支持值标签的字号（6&ndash;24 px）</td></tr>
+</table>
+
+<h3>画布控制</h3>
+<p><b>宽度 / 高度：</b>自动值会根据末端数量和标签长度自适应，也可直接输入像素值。
+<b>叶间距：</b>自动调整尺寸时使用的末端最小间距。
+<b>标签间距：</b>末端标签与分支之间的距离。</p>
+<p>参数变化后会在短暂停顿后刷新。渲染期间仍会保留之前的预览，且对同一文件的更新会保留缩放和平移状态。</p>
+<table>
+  <tr><td><b>适应 / 100%</b></td><td>&mdash; 完整显示树 / 按原始 SVG 尺寸显示</td></tr>
+  <tr><td><b>+ / &minus;</b></td><td>&mdash; 以视图中心为中心放大 / 缩小</td></tr>
+  <tr><td><b>滚轮</b></td><td>&mdash; 放大 / 缩小</td></tr>
+  <tr><td><b>单击并拖动</b></td><td>&mdash; 平移视图</td></tr>
+</table>
+<p>预览使用矢量 SVG 图形，缩放时文字和分支保持清晰。</p>
+
+<h3>导出格式</h3>
+<table>
+  <tr><td><b>SVG</b></td><td>&mdash; 可编辑的矢量图形（推荐）</td></tr>
+  <tr><td><b>PDF</b></td><td>&mdash; 可直接用于发表的文档</td></tr>
+  <tr><td><b>PNG</b></td><td>&mdash; 栅格图像（300 DPI）</td></tr>
+</table>
+
+<h3>末端名称映射</h3>
+<p>提供两列的<b>映射文件</b>（CSV / TSV / TXT / Excel），即可用自定义名称
+替换树的末端标签：</p>
+<table>
+  <tr><td><b>格式</b></td><td><code>old_name,new_name</code> — 每行一对</td></tr>
+  <tr><td><b>折叠区域</b></td><td>展开“末端名称映射”，然后使用其中的<b>浏览</b>按钮
+    或拖放一个映射文件。折叠该区域后，映射仍然生效。</td></tr>
+</table>
+<p>只有映射文件中列出的名称会被更改，其他名称保持原样。</p>
+<p>输入面板会报告已匹配的末端、未使用的映射条目以及未更改的名称。
+无效的映射和映射后重复的名称必须修正后，才能渲染或导出。</p>
+
+<h3>使用技巧</h3>
+<ul>
+  <li>文件可以直接<b>拖放</b>到输入框中。</li>
+  <li>树格式（Newick / Nexus）会根据文件扩展名<b>自动检测</b>。</li>
+  <li>对于大型树，<b>Circular</b> 布局能更有效地利用空间。</li>
+  <li>导出的 SVG 文件可在 Inkscape 或 Illustrator 中进一步编辑。</li>
+</ul>

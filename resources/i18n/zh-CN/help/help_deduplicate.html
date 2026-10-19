@@ -1,0 +1,45 @@
+<h2>去重 &mdash; 移除重复序列</h2>
+
+<p><b>本工具有什么用？</b><br>
+它扫描你的 FASTA 文件并移除重复条目。你可以按 ID（序列头名称相同）或按序列内容（碱基或残基完全相同）进行去重。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>选择一个 FASTA 文件，或点击<b>示例</b>。</li>
+<li>选择<b>去重依据</b>：<b>Sequence ID</b> 或 <b>Sequence content</b>。</li>
+<li>如需按 ID 去重，可选择<b>保留策略</b>。</li>
+<li>点击<b>预览</b>，查看将移除多少条重复记录。</li>
+<li>选择输出文件，然后点击<b>运行</b>。</li>
+</ol>
+
+<h3>应使用哪种模式？</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>模式</b></td><td><b>作用</b></td><td><b>适用情况</b></td></tr>
+<tr><td><b>Sequence ID</b></td>
+    <td>每个唯一的序列头名称仅保留一条记录</td>
+    <td>不同 ID 指向相同的序列，且你希望保留它们；你只想移除意外产生的序列头重复。</td></tr>
+<tr><td><b>Sequence content</b></td>
+    <td>每个唯一的序列字符串仅保留一条记录</td>
+    <td>你需要一个真正无冗余的数据集，不论序列头名称如何，每条序列都只出现一次。</td></tr>
+</table>
+
+<h3>保留策略（仅 ID 模式）</h3>
+<p>当多条记录共享同一 ID 时，应保留哪一条？</p>
+<ul>
+<li><b>Keep first</b> &mdash; 保留文件中首次出现的记录（默认）。</li>
+<li><b>Keep longest</b> &mdash; 保留序列最长的记录。适用于存在部分或截短重复记录的情况。</li>
+<li><b>Keep shortest</b> &mdash; 保留序列最短的记录。</li>
+</ul>
+
+<h3>其他选项</h3>
+<ul>
+<li><b>忽略大小写</b> &mdash; 将 'GeneA' 与 'genea' 视为同一 ID。仅在 Sequence ID 模式下可见。</li>
+<li><b>导出被移除的序列</b> &mdash; 将被移除的序列保存到配套的 <code>_removed</code> 文件中（扩展名与输出文件相同），便于检查被过滤掉的内容。</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>务必先<b>预览</b>，查看将移除多少条重复记录。</li>
+<li>先运行 <b>FASTA 统计</b>，检查源文件中是否存在重复 ID——其中的重复 ID 数量与本工具在 ID 模式下找到的数量一致。</li>
+<li>处理不熟悉的数据时，请使用<b>导出被移除的序列</b>，以确认没有误删重要序列。</li>
+</ul>

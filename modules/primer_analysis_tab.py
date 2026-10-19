@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import apply_sequence_editor_style, unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.i18n import tr_format, tr_ui
 
 try:
     import primer3
@@ -192,7 +193,7 @@ class PrimerAnalysisTab(QWidget):
             # Reconstruct FASTA for template display
             template_text = f">{records[2][0]}\n{records[2][1]}"
             self.template_edit.setPlainText(template_text)
-        self.status_label.setText("Loaded example: primer_example.fasta")
+        self.status_label.setText(tr_ui("Loaded example: primer_example.fasta"))
 
     def _clear_all(self):
         self.fwd_edit.clear()
@@ -200,7 +201,7 @@ class PrimerAnalysisTab(QWidget):
         self.template_edit.clear()
         self.results_text.clear()
         self._last_results = ""
-        self.status_label.setText("Cleared.")
+        self.status_label.setText(tr_ui("Cleared."))
 
     def _show_help(self):
         from PyQt6.QtCore import Qt as QtCore
@@ -297,8 +298,8 @@ and calculates the expected PCR product size.</p>
         """Update live length indicators as the user types."""
         fwd_len = len(self._normalize(self.fwd_edit.text()))
         rev_len = len(self._normalize(self.rev_edit.text()))
-        self.fwd_len_label.setText(f"{fwd_len} nt")
-        self.rev_len_label.setText(f"{rev_len} nt")
+        self.fwd_len_label.setText(tr_format("{n} nt", n=fwd_len))
+        self.rev_len_label.setText(tr_format("{n} nt", n=rev_len))
 
     def _normalize(self, raw: str) -> str:
         return raw.strip().upper().replace(" ", "").replace("\r", "").replace("\n", "")
@@ -316,28 +317,32 @@ and calculates the expected PCR product size.</p>
 
     def run_analysis(self):
         if not _HAS_PRIMER3:
-            self.results_text.setPlainText("Error: primer3-py is not installed.")
+            self.results_text.setPlainText(tr_ui("Error: primer3-py is not installed."))
             return
 
         fwd = self._normalize(self.fwd_edit.text())
         rev = self._normalize(self.rev_edit.text())
         if not fwd or not rev:
             self.results_text.setPlainText(
-                "Please enter both forward and reverse primer sequences."
+                tr_ui("Please enter both forward and reverse primer sequences.")
             )
             return
         if len(fwd) < 8 or len(rev) < 8:
-            self.results_text.setPlainText("Primer sequences are too short (minimum 8 nt).")
+            self.results_text.setPlainText(
+                tr_ui("Primer sequences are too short (minimum 8 nt).")
+            )
             return
         valid = set("ACGTUN")
         if not all(c in valid for c in fwd) or not all(c in valid for c in rev):
-            self.results_text.setPlainText("Invalid bases detected. Allowed: A/C/G/T/U/N.")
+            self.results_text.setPlainText(
+                tr_ui("Invalid bases detected. Allowed: A/C/G/T/U/N.")
+            )
             return
 
         mv = self.mv_spin.value()
         dv = self.dv_spin.value()
 
-        self.status_label.setText("Analyzing...")
+        self.status_label.setText(tr_ui("Analyzing..."))
 
         try:
             fwd_tm = primer3.calc_tm(fwd, mv_conc=mv, dv_conc=dv)
@@ -348,8 +353,10 @@ and calculates the expected PCR product size.</p>
             rev_homodimer = primer3.calc_homodimer(rev, mv_conc=mv, dv_conc=dv)
             heterodimer = primer3.calc_heterodimer(fwd, rev, mv_conc=mv, dv_conc=dv)
         except Exception as e:
-            self.results_text.setPlainText(f"Analysis error: {e}")
-            self.status_label.setText("Analysis failed.")
+            self.results_text.setPlainText(
+                tr_format("Analysis error: {error}", error=e)
+            )
+            self.status_label.setText(tr_ui("Analysis failed."))
             return
 
         fwd_gc = _gc_percent(fwd)
@@ -357,21 +364,26 @@ and calculates the expected PCR product size.</p>
         tm_diff = abs(fwd_tm - rev_tm)
 
         def _dim_label(dimer):
-            return "✓ None" if not dimer.ascii_structure else f"⚠ {dimer.dg:.1f}"
+            return tr_ui("✓ None") if not dimer.ascii_structure else f"⚠ {dimer.dg:.1f}"
 
         hp_fwd_tm = getattr(fwd_hairpin, "tm", 0)
         hp_rev_tm = getattr(rev_hairpin, "tm", 0)
 
         html = []
         html.append('<div style="font-family:Segoe UI,sans-serif;">')
-        html.append('<h3 style="color:#1976d2;margin:0 0 8px 0;">Primer Pair Analysis Results</h3>')
+        html.append(
+            '<h3 style="color:#1976d2;margin:0 0 8px 0;">'
+            f'{tr_ui("Primer Pair Analysis Results")}</h3>'
+        )
 
         # Main metrics table
         html.append(
             '<table cellpadding="5" cellspacing="0" style="border-collapse:collapse;width:100%;">'
         )
         html.append(
-            '<tr style="background:#e3f2fd;font-weight:bold;"><td>Property</td><td>Forward</td><td>Reverse</td></tr>'
+            '<tr style="background:#e3f2fd;font-weight:bold;">'
+            f'<td>{tr_ui("Property")}</td><td>{tr_ui("Forward")}</td>'
+            f'<td>{tr_ui("Reverse")}</td></tr>'
         )
 
         rows = [
@@ -386,8 +398,8 @@ and calculates the expected PCR product size.</p>
             ),
             (
                 "Hairpin Tm",
-                f"{hp_fwd_tm:.1f} °C" if hp_fwd_tm else "n/a",
-                f"{hp_rev_tm:.1f} °C" if hp_rev_tm else "n/a",
+                f"{hp_fwd_tm:.1f} °C" if hp_fwd_tm else tr_ui("n/a"),
+                f"{hp_rev_tm:.1f} °C" if hp_rev_tm else tr_ui("n/a"),
                 None,
             ),
             ("Self-Dimer", _dim_label(fwd_homodimer), _dim_label(rev_homodimer), None),
@@ -395,11 +407,15 @@ and calculates the expected PCR product size.</p>
         for label, f_val, r_val, _ in rows:
             bg = "#fafafa" if rows.index((label, f_val, r_val, _)) % 2 == 0 else "#fff"
             html.append(
-                f'<tr style="background:{bg};"><td><b>{label}</b></td><td>{f_val}</td><td>{r_val}</td></tr>'
+                f'<tr style="background:{bg};"><td><b>{tr_ui(label)}</b></td>'
+                f"<td>{f_val}</td><td>{r_val}</td></tr>"
             )
 
         # Pair-level metrics
-        html.append('<tr style="background:#fff3e0;"><td colspan="3"><b>Pair Metrics</b></td></tr>')
+        html.append(
+            '<tr style="background:#fff3e0;"><td colspan="3">'
+            f'<b>{tr_ui("Pair Metrics")}</b></td></tr>'
+        )
         pair_rows = [
             ("Tm Difference", f"{tm_diff:.1f} °C", ""),
             ("Cross-Dimer ΔG", f"{heterodimer.dg:.2f} kcal/mol", ""),
@@ -407,7 +423,8 @@ and calculates the expected PCR product size.</p>
         ]
         for label, val, _ in pair_rows:
             html.append(
-                f'<tr style="background:#fff8e1;"><td><b>{label}</b></td><td colspan="2">{val}</td></tr>'
+                f'<tr style="background:#fff8e1;"><td><b>{tr_ui(label)}</b></td>'
+                f'<td colspan="2">{val}</td></tr>'
             )
         html.append("</table>")
 
@@ -426,28 +443,40 @@ and calculates the expected PCR product size.</p>
                 product_size = hi - lo + hi_len
             else:
                 product_size = 0
-            html.append('<h4 style="color:#1976d2;margin:12px 0 6px 0;">Template Binding</h4>')
+            html.append(
+                '<h4 style="color:#1976d2;margin:12px 0 6px 0;">'
+                f'{tr_ui("Template Binding")}</h4>'
+            )
             html.append(
                 '<table cellpadding="5" cellspacing="0" style="border-collapse:collapse;width:100%;">'
             )
             html.append(
-                '<tr style="background:#e8f5e9;font-weight:bold;"><td>Property</td><td>Value</td></tr>'
+                '<tr style="background:#e8f5e9;font-weight:bold;">'
+                f'<td>{tr_ui("Property")}</td><td>{tr_ui("Value")}</td></tr>'
             )
             if fwd_pos > 0:
-                html.append(f"<tr><td>Fwd Binding Position</td><td>{fwd_pos}</td></tr>")
+                html.append(
+                    f'<tr><td>{tr_ui("Fwd Binding Position")}</td><td>{fwd_pos}</td></tr>'
+                )
             else:
                 html.append(
-                    '<tr style="color:#c62828;"><td>Fwd Binding</td><td>NOT FOUND</td></tr>'
+                    '<tr style="color:#c62828;">'
+                    f'<td>{tr_ui("Fwd Binding")}</td><td>{tr_ui("NOT FOUND")}</td></tr>'
                 )
             if rev_pos > 0:
-                html.append(f"<tr><td>Rev Binding Position</td><td>{rev_pos}</td></tr>")
+                html.append(
+                    f'<tr><td>{tr_ui("Rev Binding Position")}</td><td>{rev_pos}</td></tr>'
+                )
             else:
                 html.append(
-                    '<tr style="color:#c62828;"><td>Rev Binding</td><td>NOT FOUND</td></tr>'
+                    '<tr style="color:#c62828;">'
+                    f'<td>{tr_ui("Rev Binding")}</td><td>{tr_ui("NOT FOUND")}</td></tr>'
                 )
             if product_size:
                 html.append(
-                    f'<tr style="background:#e8f5e9;"><td><b>Product Size</b></td><td><b>{product_size} bp</b></td></tr>'
+                    '<tr style="background:#e8f5e9;">'
+                    f'<td><b>{tr_ui("Product Size")}</b></td>'
+                    f"<td><b>{product_size} bp</b></td></tr>"
                 )
             html.append("</table>")
 
@@ -462,37 +491,78 @@ and calculates the expected PCR product size.</p>
             if asc and str(asc).strip():
                 dimer_sections.append((label, str(asc)))
         if dimer_sections:
-            html.append('<h4 style="color:#1976d2;margin:12px 0 6px 0;">Dimer Structures</h4>')
+            html.append(
+                '<h4 style="color:#1976d2;margin:12px 0 6px 0;">'
+                f'{tr_ui("Dimer Structures")}</h4>'
+            )
             for label, structure in dimer_sections:
-                html.append(f"<p><b>{label}:</b></p>")
+                html.append(f"<p><b>{tr_ui(label)}:</b></p>")
                 html.append(
                     f'<pre style="background:#f5f5f5;padding:6px;font-family:Cascadia Mono,Consolas,monospace;font-size:12px;border-radius:4px;">{structure}</pre>'
                 )
 
         # Quality assessment
-        html.append('<h4 style="color:#1976d2;margin:12px 0 6px 0;">Quality Assessment</h4>')
+        html.append(
+            '<h4 style="color:#1976d2;margin:12px 0 6px 0;">'
+            f'{tr_ui("Quality Assessment")}</h4>'
+        )
         warnings = []
         if tm_diff > 2.0:
-            warnings.append(("warn", f"Tm difference > 2°C ({tm_diff:.1f}°C)"))
+            warnings.append(
+                ("warn", tr_format("Tm difference > 2°C ({diff}°C)", diff=f"{tm_diff:.1f}"))
+            )
         if fwd_gc < 40 or fwd_gc > 60:
-            warnings.append(("warn", f"Forward GC% out of 40-60% ({fwd_gc:.1f}%)"))
+            warnings.append(
+                (
+                    "warn",
+                    tr_format(
+                        "Forward GC% out of 40-60% ({gc}%)", gc=f"{fwd_gc:.1f}"
+                    ),
+                )
+            )
         if rev_gc < 40 or rev_gc > 60:
-            warnings.append(("warn", f"Reverse GC% out of 40-60% ({rev_gc:.1f}%)"))
+            warnings.append(
+                (
+                    "warn",
+                    tr_format(
+                        "Reverse GC% out of 40-60% ({gc}%)", gc=f"{rev_gc:.1f}"
+                    ),
+                )
+            )
         if fwd_homodimer.ascii_structure:
-            warnings.append((
-                "warn",
-                f"Forward self-dimer detected (ΔG={fwd_homodimer.dg:.1f})",
-            ))
+            warnings.append(
+                (
+                    "warn",
+                    tr_format(
+                        "Forward self-dimer detected (ΔG={dg})",
+                        dg=f"{fwd_homodimer.dg:.1f}",
+                    ),
+                )
+            )
         if rev_homodimer.ascii_structure:
-            warnings.append((
-                "warn",
-                f"Reverse self-dimer detected (ΔG={rev_homodimer.dg:.1f})",
-            ))
+            warnings.append(
+                (
+                    "warn",
+                    tr_format(
+                        "Reverse self-dimer detected (ΔG={dg})",
+                        dg=f"{rev_homodimer.dg:.1f}",
+                    ),
+                )
+            )
         if heterodimer.ascii_structure:
-            warnings.append(("warn", f"Cross-dimer detected (ΔG={heterodimer.dg:.1f})"))
+            warnings.append(
+                (
+                    "warn",
+                    tr_format(
+                        "Cross-dimer detected (ΔG={dg})",
+                        dg=f"{heterodimer.dg:.1f}",
+                    ),
+                )
+            )
         if not warnings:
             html.append(
-                '<p style="color:#2e7d32;font-weight:bold;">✓ All checks passed. Primer pair looks good!</p>'
+                '<p style="color:#2e7d32;font-weight:bold;">'
+                f'{tr_ui("✓ All checks passed. Primer pair looks good!")}</p>'
             )
         else:
             html.append('<ul style="color:#e65100;">')
@@ -503,7 +573,14 @@ and calculates the expected PCR product size.</p>
         html.append("</div>")
         self._last_results = "".join(html)
         self.results_text.setHtml(self._last_results)
-        self.status_label.setText(f"ΔTm {tm_diff:.1f}°C | Fwd {len(fwd)}nt | Rev {len(rev)}nt")
+        self.status_label.setText(
+            tr_format(
+                "ΔTm {diff}°C | Fwd {fwd}nt | Rev {rev}nt",
+                diff=f"{tm_diff:.1f}",
+                fwd=len(fwd),
+                rev=len(rev),
+            )
+        )
 
 
 if __name__ == "__main__":

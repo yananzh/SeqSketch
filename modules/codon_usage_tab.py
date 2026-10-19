@@ -41,6 +41,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1017,7 +1018,7 @@ class CodonUsageTab(QWidget):
             try:
                 with open(path, "r", encoding="utf-8", errors="replace") as f:
                     self._input_text.setPlainText(f.read())
-                self._set_status(f"Loaded: {path}")
+                self._set_status(tr_format("Loaded: {path}", path=path))
                 event.acceptProposedAction()
             except Exception as e:
                 QMessageBox.warning(self, "Error", str(e))
@@ -1026,15 +1027,15 @@ class CodonUsageTab(QWidget):
     def _load_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open FASTA File",
+            tr_ui("Open FASTA File"),
             "",
-            "FASTA Files (*.fa *.fasta *.fna *.ffn);;All Files (*)",
+            tr_ui("FASTA Files (*.fa *.fasta *.fna *.ffn);;All Files (*)"),
         )
         if path:
             try:
                 with open(path, "r", encoding="utf-8", errors="replace") as f:
                     self._input_text.setPlainText(f.read())
-                self._set_status(f"Loaded: {path}")
+                self._set_status(tr_format("Loaded: {path}", path=path))
             except Exception as e:
                 QMessageBox.warning(self, "Error", str(e))
 
@@ -1072,7 +1073,7 @@ class CodonUsageTab(QWidget):
             canvas.draw_idle()
         self._btn_export_csv.setEnabled(False)
         self._btn_export_plot.setEnabled(False)
-        self._set_status("Cleared")
+        self._set_status(tr_ui("Cleared"))
 
     def _set_status(self, msg: str):
         self._status_label.setText(msg)
@@ -1093,14 +1094,14 @@ class CodonUsageTab(QWidget):
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Plot",
+            tr_ui("Export Plot"),
             "codon_usage.png",
-            "PNG Images (*.png);;PDF Files (*.pdf);;SVG Files (*.svg)",
+            tr_ui("PNG Images (*.png);;PDF Files (*.pdf);;SVG Files (*.svg)"),
         )
         if path:
             try:
                 fig.savefig(path, dpi=150, bbox_inches="tight", pad_inches=0.15)
-                self._set_status(f"Plot saved: {path}")
+                self._set_status(tr_format("Plot saved: {path}", path=path))
             except Exception as e:
                 QMessageBox.critical(self, "Export Error", str(e))
 
@@ -1132,7 +1133,7 @@ class CodonUsageTab(QWidget):
 
         self._btn_run.setEnabled(False)
         self._btn_export_csv.setEnabled(False)
-        self._set_status("Analyzing...")
+        self._set_status(tr_ui("Analyzing..."))
 
         self._thread = QThread(self)
         self._worker = _Worker(text, table_id, cai_ref, frame_offset)
@@ -1149,7 +1150,7 @@ class CodonUsageTab(QWidget):
         self._thread.start()
 
     def _on_progress(self, cur: int, total: int):
-        self._set_status(f"Analyzing sequence {cur}/{total}...")
+        self._set_status(tr_format("Analyzing sequence {cur}/{total}...", cur=cur, total=total))
 
     @skip_when_closing
     def _on_analysis_done(self, results: list):
@@ -1172,12 +1173,19 @@ class CodonUsageTab(QWidget):
 
         self._display_results(0)
         self._fill_comparison()
-        parts = [f"{len(results)} sequence(s) analyzed"]
+        parts = [tr_format("{count} sequence(s) analyzed", count=len(results))]
         if self._skipped_count:
-            parts.append(f"{self._skipped_count} skipped (ambiguous bases)")
+            parts.append(
+                tr_format("{count} skipped (ambiguous bases)", count=self._skipped_count)
+            )
         if short:
-            parts.append(f"{len(short)} with <100 codons (RSCU/ENC may be unreliable)")
-        self._set_status("Done — " + "; ".join(parts) + ".")
+            parts.append(
+                tr_format(
+                    "{count} with <100 codons (RSCU/ENC may be unreliable)",
+                    count=len(short),
+                )
+            )
+        self._set_status(tr_ui("Done — ") + tr_ui("; ").join(parts) + tr_ui("."))
         self._update_export_plot_state()
 
     def _on_skipped(self, count: int):
@@ -1187,7 +1195,7 @@ class CodonUsageTab(QWidget):
     def _on_analysis_error(self, msg: str):
         self._btn_run.setEnabled(True)
         QMessageBox.critical(self, "Analysis Error", msg)
-        self._set_status("Error: " + msg[:80])
+        self._set_status(tr_format("Error: {message}", message=msg[:80]))
 
     def _cleanup_worker(self):
         self._worker = None
@@ -1209,7 +1217,7 @@ class CodonUsageTab(QWidget):
             self._draw_gc_chart(r)
         except Exception as exc:
             QMessageBox.critical(self, "Display Error", str(exc))
-            self._set_status("Display Error: " + str(exc)[:80])
+            self._set_status(tr_format("Display Error: {message}", message=str(exc)[:80]))
 
     def _fill_summary(self, r: dict):
         cai_str = f"{r['cai']:.3f}" if r.get("cai") is not None else "N/A"
@@ -1530,7 +1538,7 @@ class CodonUsageTab(QWidget):
         if not self._results:
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save CSV", "codon_usage.csv", "CSV Files (*.csv)"
+            self, tr_ui("Save CSV"), "codon_usage.csv", tr_ui("CSV Files (*.csv)")
         )
         if not path:
             return
@@ -1595,7 +1603,7 @@ class CodonUsageTab(QWidget):
                             f"{row['freq_per1000']:.4f}",
                             f"{row['rscu']:.4f}",
                         ])
-            self._set_status(f"Exported: {path}")
+            self._set_status(tr_format("Exported: {path}", path=path))
         except Exception as e:
             QMessageBox.critical(self, "Export Error", str(e))
 

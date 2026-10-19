@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
+from utils.i18n import tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 
@@ -154,9 +155,9 @@ class RestrictionEnzymeTab(BaseTabWidget):
     def _browse_input_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open FASTA File",
+            tr_ui("Open FASTA File"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
         )
         if path:
             self.input_path_edit.setText(os.path.normpath(path))
@@ -456,9 +457,9 @@ class RestrictionEnzymeTab(BaseTabWidget):
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Restriction Analysis",
+            tr_ui("Export Restriction Analysis"),
             "restriction_enzymes.xlsx",
-            "Excel Files (*.xlsx);;CSV Files (*.csv);;Text Files (*.txt)",
+            tr_ui("Excel Files (*.xlsx);;CSV Files (*.csv);;Text Files (*.txt)"),
         )
         if not path:
             return

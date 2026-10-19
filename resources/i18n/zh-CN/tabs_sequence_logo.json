@@ -1,0 +1,21 @@
+{
+  "Logo Options": "序列标识图选项",
+  "Sequence Type:": "序列类型：",
+  "Display Mode:": "显示模式：",
+  "Probability: Shows frequency of each base/residue at each position\nInformation: Shows information content (bits) based on sequence conservation": "Probability：显示每个位置上各碱基/残基的出现频率\nInformation：根据序列保守性显示信息量（bits）",
+  "Height = letter frequency (0–1)": "高度 = 字母频率（0–1）",
+  "Height = conservation in bits (DNA max 2, protein max ~4.32)": "高度 = 以 bits 表示的保守性（DNA 最大 2，蛋白质最大约 4.32）",
+
+  "Load example sequences for Sequence Logo": "载入用于序列标识图的示例序列",
+  "FASTA/TXT (*.fasta *.fa *.txt);;All Files (*)": "FASTA/TXT 文件 (*.fasta *.fa *.txt);;所有文件 (*)",
+  "Save Sequence Logo": "保存序列标识图",
+  "Help - Sequence Logo": "帮助 - 序列标识图",
+
+  "Generation Error": "生成错误",
+  "Please input or load FASTA sequences.": "请输入或载入 FASTA 序列。",
+  "No sequence logo to export. Please generate a logo first.": "没有可导出的序列标识图，请先生成标识图。",
+
+  "Sequences must be aligned (same length).\nFound sequences with lengths: {lengths}": "序列长度必须一致（即已完成比对）。\n发现以下长度的序列：{lengths}",
+  "Generated: {count} seqs, {positions} pos ({seq_type} {mode})": "已生成：{count} 条序列，{positions} 个位点（{seq_type} {mode}）",
+  "Failed to generate sequence logo:\n{error}\n\n{traceback}": "生成序列标识图失败：\n{error}\n\n{traceback}"
+}

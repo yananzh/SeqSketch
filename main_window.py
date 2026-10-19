@@ -19,6 +19,7 @@ from utils.app_paths import resource_path
 from utils.app_version import APP_VERSION
 from utils.common_components import BaseWorker, park_qthread, unify_tab_button_sizes
 from utils.home_page import HomePage
+from utils.i18n import normalize_language, tr_format, tr_ui
 from utils.task_lifecycle import (
     mark_closing,
     request_task_stop,
@@ -36,6 +37,7 @@ from utils.update_check import (
 # A window close waits for running tasks to stop, but never forever: after
 # this deadline, still-running threads are parked and the close proceeds.
 _CLOSE_DEADLINE_MS = 10_000
+_RESTART_NOTICE = "Restart SeqSketch to apply the language change."
 
 
 class UpdateCheckWorker(BaseWorker):
@@ -121,7 +123,20 @@ class MainWindow(QMainWindow):
         self.current_theme = name
         self.theme_actions[name].setChecked(True)
         self.settings.set("window.theme", name)
-        self.status.showMessage(f"Theme: {THEMES[name]}", 5000)
+        self.status.showMessage(tr_format("Theme: {name}", name=tr_ui(THEMES[name])), 5000)
+
+    def set_language(self, code):
+        code = normalize_language(code)
+        if code == self.settings.get("ui.language"):
+            return
+        self.settings.set("ui.language", code)
+        for language_code, action in self.language_actions.items():
+            action.setChecked(language_code == code)
+        notice = "\n".join(dict.fromkeys(tr_ui(_RESTART_NOTICE, lang) for lang in ("en", code)))
+        QMessageBox.information(self, tr_ui("Language", code), notice)
+
+    def _show_tab_status(self, message: str, timeout: int = 0):
+        self.status.showMessage(tr_ui(message), timeout)
 
     def show_message(self, text, error=False):
         if error:
@@ -150,7 +165,7 @@ class MainWindow(QMainWindow):
                 status_label.setProperty("statusText", True)
         apply_button_roles(tab)
         unify_tab_button_sizes(tab)
-        self.tabs.addTab(tab, title)
+        self.tabs.addTab(tab, tr_ui(title))
         self.tabs.setCurrentWidget(tab)
         # Prevent wider tabs from expanding the main window
         if hasattr(self, "_init_width"):
@@ -226,7 +241,7 @@ class MainWindow(QMainWindow):
                 event.accept()
                 return
             event.ignore()
-            self.status.showMessage("Stopping background tasks before closing...")
+            self.status.showMessage(tr_ui("Stopping background tasks before closing..."))
             self._close_timer.start()
         else:
             event.accept()
@@ -313,7 +328,7 @@ class MainWindow(QMainWindow):
         tab.set_mode(mode)
         apply_button_roles(tab)
         unify_tab_button_sizes(tab)
-        self.tabs.addTab(tab, "Complement/Reverse Complement")
+        self.tabs.addTab(tab, tr_ui("Complement/Reverse Complement"))
         self.tabs.setCurrentWidget(tab)
 
     def open_complement_tab(self):
@@ -448,11 +463,11 @@ class MainWindow(QMainWindow):
                 return
 
         tab = BlastLocalTab(
-            status_callback=self.status.showMessage,
+            status_callback=self._show_tab_status,
         )
         apply_button_roles(tab)
         unify_tab_button_sizes(tab)
-        self.tabs.addTab(tab, "Local BLAST")
+        self.tabs.addTab(tab, tr_ui("Local BLAST"))
         self.tabs.setCurrentWidget(tab)
         tab.switch_to(sub_index)
 
@@ -500,7 +515,7 @@ class MainWindow(QMainWindow):
         self._find_or_open(
             PartitionConcatTab,
             "Sequence Concatenation",
-            factory=lambda: PartitionConcatTab(status_callback=self.status.showMessage),
+            factory=lambda: PartitionConcatTab(status_callback=self._show_tab_status),
         )
 
     def open_one_step_multigenephy_tab(self):
@@ -546,7 +561,7 @@ class MainWindow(QMainWindow):
             return
         if self._update_button is not None:
             self._update_button.setEnabled(False)
-            self._update_button.setText("Checking...")
+            self._update_button.setText(tr_ui("Checking..."))
         self._update_thread = QThread(self)
         self._update_worker = UpdateCheckWorker()
         self._update_worker.moveToThread(self._update_thread)
@@ -609,7 +624,7 @@ class MainWindow(QMainWindow):
         dialog = self._update_dialog
         if button is not None:
             button.setEnabled(True)
-            button.setText("Check for Updates")
+            button.setText(tr_ui("Check for Updates"))
         # Keep the refs only while the About dialog is still open and may be
         # used for another check; the post-exec cleanup in show_about_dialog
         # is the backstop when the check outlives the dialog.
@@ -621,10 +636,10 @@ class MainWindow(QMainWindow):
         about_text = """
 <div style="text-align:center;">
 <h2 style="color:#2c7fb8; font-size:26px; margin-bottom:6px;">SeqSketch</h2>
-<p style="color:#888; font-size:14px; margin:0 0 16px 0;">Sequence Analysis &amp; Visualization Toolkit</p>
+<p style="color:#888; font-size:14px; margin:0 0 16px 0;">{tagline}</p>
 
 <p style="font-size:14px; color:#555; margin:0; line-height:1.8;">
-<b>Version {version}</b><br>
+<b>{version_line}</b><br>
 yananzh &middot; GPL-3.0
 </p>
 
@@ -636,7 +651,10 @@ Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
 <a href="https://github.com/yananzh/SeqSketch" style="color:#2c7fb8; text-decoration:none;">github.com/yananzh/SeqSketch</a>
 </p>
 </div>
-        """.format(version=APP_VERSION)
+        """.format(
+            version_line=tr_format("Version {version}", version=APP_VERSION),
+            tagline=tr_ui("Sequence Analysis & Visualization Toolkit").replace("&", "&amp;"),
+        )
         from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QVBoxLayout
 
         dlg = QDialog(self)

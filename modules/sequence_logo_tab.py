@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
+from utils.i18n import tr_format, tr_ui
 
 matplotlib.use("QtAgg")
 import logomaker
@@ -119,9 +120,9 @@ class SequenceLogoTab(BaseTabWidget):
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select sequence file",
+            tr_ui("Select sequence file"),
             "",
-            "FASTA/TXT (*.fasta *.fa *.txt);;All Files (*)",
+            tr_ui("FASTA/TXT (*.fasta *.fa *.txt);;All Files (*)"),
         )
         if file_path:
             self._load_file_path(file_path)
@@ -204,7 +205,7 @@ class SequenceLogoTab(BaseTabWidget):
             "Probability": "Height = letter frequency (0–1)",
             "Information": "Height = conservation in bits (DNA max 2, protein max ~4.32)",
         }
-        self._mode_hint.setText(hints.get(text, ""))
+        self._mode_hint.setText(tr_ui(hints.get(text, "")))
 
     def _add_plot_canvas(self):
         """Add a horizontally scrollable matplotlib canvas for long sequences."""
@@ -286,8 +287,11 @@ class SequenceLogoTab(BaseTabWidget):
             QMessageBox.warning(
                 self,
                 "Alignment Error",
-                "Sequences must be aligned (same length).\n"
-                f"Found sequences with lengths: {', '.join(map(str, set(lengths)))}",
+                tr_format(
+                    "Sequences must be aligned (same length).\n"
+                    "Found sequences with lengths: {lengths}",
+                    lengths=", ".join(map(str, set(lengths))),
+                ),
             )
             return
 
@@ -311,7 +315,13 @@ class SequenceLogoTab(BaseTabWidget):
             self.generate_logo(matrix, seq_type, len(records), mode)
 
             self.status_label.setText(
-                f"Generated: {len(records)} seqs, {lengths[0]} pos ({seq_type} {mode})"
+                tr_format(
+                    "Generated: {count} seqs, {positions} pos ({seq_type} {mode})",
+                    count=len(records),
+                    positions=lengths[0],
+                    seq_type=seq_type,
+                    mode=mode,
+                )
             )
         except Exception as e:
             import traceback
@@ -319,7 +329,11 @@ class SequenceLogoTab(BaseTabWidget):
             QMessageBox.critical(
                 self,
                 "Generation Error",
-                f"Failed to generate sequence logo:\n{str(e)}\n\n{traceback.format_exc()}",
+                tr_format(
+                    "Failed to generate sequence logo:\n{error}\n\n{traceback}",
+                    error=str(e),
+                    traceback=traceback.format_exc(),
+                ),
             )
 
     def detect_sequence_type(self, sequences):
@@ -496,19 +510,25 @@ class SequenceLogoTab(BaseTabWidget):
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Sequence Logo",
+            tr_ui("Save Sequence Logo"),
             "sequence_logo.png",
-            "PNG Files (*.png);;PDF Files (*.pdf);;SVG Files (*.svg);;All Files (*)",
+            tr_ui("PNG Files (*.png);;PDF Files (*.pdf);;SVG Files (*.svg);;All Files (*)"),
         )
 
         if file_path:
             try:
                 self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight")
-                self.status_label.setText(f"Exported: {os.path.basename(file_path)}")
+                self.status_label.setText(
+                    tr_format("Exported: {path}", path=os.path.basename(file_path))
+                )
                 self._last_export_dir = os.path.dirname(file_path)
                 self.open_folder_btn.setEnabled(True)
             except Exception as e:
-                QMessageBox.warning(self, "Export Error", f"Failed to save figure:\n{str(e)}")
+                QMessageBox.warning(
+                    self,
+                    "Export Error",
+                    tr_format("Failed to save figure:\n{error}", error=str(e)),
+                )
 
     def clear(self):
         """Clear input, output and figure, restoring the placeholder."""
@@ -518,7 +538,7 @@ class SequenceLogoTab(BaseTabWidget):
         self._draw_placeholder_plot()
         self.current_figure = None
         self.open_folder_btn.setEnabled(False)
-        self.status_label.setText("Cleared")
+        self.status_label.setText(tr_ui("Cleared"))
 
     def _open_output_folder(self):
         """Open the folder of the most recently exported figure."""

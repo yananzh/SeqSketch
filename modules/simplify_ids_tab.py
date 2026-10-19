@@ -24,6 +24,7 @@ from utils.common_components import (
     FileDropLineEdit,
     unify_status_button_sizes,
 )
+from utils.i18n import tr_ui
 
 SIMPLIFY_MODE_FIRST_TOKEN = "first_token"
 SIMPLIFY_MODE_DELIMITER_FIELD = "delimiter_field"
@@ -319,7 +320,7 @@ class SimplifyIDsTab(BaseTabWidget):
             SIMPLIFY_MODE_KEEP_TOKENS: "Keeps the first N words, joined with underscores — keep 2 of 'alpha beta gamma' → alpha_beta",
             SIMPLIFY_MODE_REGEX_CAPTURE: "Extracts part of the header with a regex — GN=(\\w+) finds the gene name",
         }
-        self.mode_hint_label.setText(_mode_hints.get(mode, ""))
+        self.mode_hint_label.setText(tr_ui(_mode_hints.get(mode, "")))
 
         _page_map = {
             SIMPLIFY_MODE_FIRST_TOKEN: 0,
@@ -427,9 +428,9 @@ class SimplifyIDsTab(BaseTabWidget):
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select FASTA file",
+            tr_ui("Select FASTA file"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.ffn *.faa *.frn *.txt);;All Files (*)"),
         )
         if file_path:
             self.handle_input_file_selected(file_path)
@@ -445,9 +446,9 @@ class SimplifyIDsTab(BaseTabWidget):
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save simplified file",
+            tr_ui("Save simplified file"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas);;All Files (*)"),
         )
         if file_path:
             self.output_edit.setText(file_path)

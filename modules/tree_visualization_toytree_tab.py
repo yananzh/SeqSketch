@@ -63,6 +63,7 @@ from utils.common_components import (
     validate_input_path,
 )
 from utils.example_data import stage_example
+from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 
@@ -129,7 +130,7 @@ def _load_and_root(tree_file: str, params: dict):
     elif method == "outgroup":
         outgroup = params.get("outgroup_name", "").strip()
         if not outgroup:
-            raise ValueError("Please specify an outgroup taxon name.")
+            raise ValueError(tr_ui("Please specify an outgroup taxon name."))
         tre = tre.root(outgroup)
 
     return tre
@@ -159,7 +160,7 @@ def _parse_tip_mapping_file(file_path: str) -> dict:
             try:
                 import pandas as pd
             except ImportError:
-                raise ValueError("Excel mapping requires pandas. Use CSV/TSV instead.")
+                raise ValueError(tr_ui("Excel mapping requires pandas. Use CSV/TSV instead."))
             df = pd.read_excel(file_path, header=None)
             rows = df.values.tolist()
         elif ext in (".csv", ".tsv", ".txt"):
@@ -174,14 +175,18 @@ def _parse_tip_mapping_file(file_path: str) -> dict:
                     if len(parts) >= 2:
                         rows.append([parts[0].strip(), parts[1].strip()])
                     else:
-                        raise ValueError(f"Line {line_number}: expected two columns.")
+                        raise ValueError(
+                            tr_format("Line {line}: expected two columns.", line=line_number)
+                        )
         else:
-            raise ValueError(f"Unsupported format: {ext}. Use CSV, TSV, or Excel.")
+            raise ValueError(
+                tr_format("Unsupported format: {ext}. Use CSV, TSV, or Excel.", ext=ext)
+            )
     except Exception as e:
-        raise ValueError(f"Failed to parse mapping file: {e}")
+        raise ValueError(tr_format("Failed to parse mapping file: {error}", error=e))
 
     if not rows:
-        raise ValueError("Mapping file is empty.")
+        raise ValueError(tr_ui("Mapping file is empty."))
 
     mapping = {}
     for row in rows:
@@ -189,13 +194,17 @@ def _parse_tip_mapping_file(file_path: str) -> dict:
         new_id = str(row[1]).strip() if row[1] is not None else ""
         if old_id and new_id:
             if old_id in mapping:
-                raise ValueError(f"Duplicate source name in mapping: {old_id}")
+                raise ValueError(
+                    tr_format("Duplicate source name in mapping: {name}", name=old_id)
+                )
             mapping[old_id] = new_id
         else:
-            raise ValueError("Mapping rows must contain two non-empty names.")
+            raise ValueError(tr_ui("Mapping rows must contain two non-empty names."))
 
     if not mapping:
-        raise ValueError("No valid mappings found (need two non-empty columns per row).")
+        raise ValueError(
+            tr_ui("No valid mappings found (need two non-empty columns per row).")
+        )
 
     return mapping
 
@@ -207,16 +216,39 @@ def _mapping_summary(names, mapping):
     renamed = [mapping.get(name, name) for name in names]
     duplicates = sorted(name for name, count in Counter(renamed).items() if count > 1)
     if duplicates:
-        raise ValueError("Duplicate tip names after mapping: " + ", ".join(duplicates))
+        raise ValueError(
+            tr_format(
+                "Duplicate tip names after mapping: {names}", names=", ".join(duplicates)
+            )
+        )
     matched = set(names) & mapping.keys()
     unused = sorted(mapping.keys() - set(names))
     unmapped = sorted(set(names) - mapping.keys())
-    summary = f"Mapping: {len(matched)}/{len(names)} tips matched; {len(unused)} unused entries"
+    counts = {"matched": len(matched), "total": len(names), "unused": len(unused)}
+    if unused and unmapped:
+        return tr_format(
+            "Mapping: {matched}/{total} tips matched; {unused} unused entries: "
+            "{unused_names}; unchanged tips: {unmapped_names}",
+            **counts,
+            unused_names=", ".join(unused),
+            unmapped_names=", ".join(unmapped),
+        )
     if unused:
-        summary += ": " + ", ".join(unused)
+        return tr_format(
+            "Mapping: {matched}/{total} tips matched; {unused} unused entries: {names}",
+            **counts,
+            names=", ".join(unused),
+        )
     if unmapped:
-        summary += "; unchanged tips: " + ", ".join(unmapped)
-    return summary
+        return tr_format(
+            "Mapping: {matched}/{total} tips matched; {unused} unused entries; "
+            "unchanged tips: {names}",
+            **counts,
+            names=", ".join(unmapped),
+        )
+    return tr_format(
+        "Mapping: {matched}/{total} tips matched; {unused} unused entries", **counts
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -767,7 +799,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
             canvas_controls.addLayout(row)
             spin.valueChanged.connect(self._on_param_changed)
         for spin in (self._canvas_width_spin, self._canvas_height_spin):
-            spin.setSpecialValueText("Auto")
+            spin.setSpecialValueText(tr_ui("Auto"))
             spin.setToolTip("Auto adapts to tip count and label length; otherwise use pixels.")
         self._leaf_spacing_spin.setToolTip("Minimum tip spacing used by automatic canvas sizing.")
         numeric_inputs = (
@@ -973,7 +1005,7 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
     def _show_placeholder(self):
         self._scene.clear()
         self._scene.setSceneRect(QRectF(-400, -300, 800, 600))
-        text_item = self._scene.addSimpleText("Load a tree file and click Run")
+        text_item = self._scene.addSimpleText(tr_ui("Load a tree file and click Run"))
         text_item.setBrush(QColor("#aaa"))
         br = text_item.boundingRect()
         text_item.setPos(-br.width() / 2, -br.height() / 2)
@@ -1061,9 +1093,12 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
     def _browse_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open tree file",
+            tr_ui("Open tree file"),
             "",
-            "Tree files (*.nwk *.treefile *.tree *.newick *.tre *.nex *.nxs);;All Files (*)",
+            tr_ui(
+                "Tree files (*.nwk *.treefile *.tree *.newick *.tre *.nex *.nxs);;"
+                "All Files (*)"
+            ),
         )
         if path:
             self._file_edit.setText(path)
@@ -1084,16 +1119,18 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
     def _on_mapping_path_changed(self):
         selected = bool(self._mapping_edit.text().strip())
         self._mapping_toggle.setText(
-            "Tip name mapping (file selected)" if selected else "Tip name mapping (optional)"
+            tr_ui("Tip name mapping (file selected)")
+            if selected
+            else tr_ui("Tip name mapping (optional)")
         )
         self._on_param_changed()
 
     def _browse_mapping(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open tip name mapping file",
+            tr_ui("Open tip name mapping file"),
             "",
-            "Mapping files (*.csv *.tsv *.txt *.xlsx *.xls);;All Files (*)",
+            tr_ui("Mapping files (*.csv *.tsv *.txt *.xlsx *.xls);;All Files (*)"),
         )
         if path:
             self._mapping_edit.setText(path)
@@ -1112,7 +1149,13 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
             tre = toytree.tree(path)
             ntips = tre.ntips
             nnodes = tre.nnodes
-            self.show_status(f"Loaded: {ntips} tips, {nnodes - ntips} internal nodes")
+            self.show_status(
+                tr_format(
+                    "Loaded: {tips} tips, {internal} internal nodes",
+                    tips=ntips,
+                    internal=nnodes - ntips,
+                )
+            )
         except (OSError, ValueError, RuntimeError):
             pass
 
@@ -1138,7 +1181,9 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
         if mapping_path:
             try:
                 if not os.path.isfile(mapping_path):
-                    raise ValueError("Mapping file not found: " + mapping_path)
+                    raise ValueError(
+                        tr_format("Mapping file not found: {path}", path=mapping_path)
+                    )
                 mapping = _parse_tip_mapping_file(mapping_path)
                 import toytree
 
@@ -1147,8 +1192,9 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
                 self._mapping_feedback.setText(self._mapping_status)
             except (OSError, ValueError, RuntimeError) as exc:
                 self._mapping_toggle.setChecked(True)
-                self._mapping_feedback.setText(f"Mapping error: {exc}")
-                raise ValueError(f"Mapping error: {exc}") from exc
+                message = tr_format("Mapping error: {error}", error=exc)
+                self._mapping_feedback.setText(message)
+                raise ValueError(message) from exc
 
         return {
             "layout": self._layout_combo.currentText(),
@@ -1194,8 +1240,9 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
                 except (OSError, ValueError) as exc:
                     self._mapping_toggle.setChecked(True)
                     self._outgroup_combo.clear()
-                    self._mapping_feedback.setText(f"Mapping error: {exc}")
-                    self.show_status(f"Mapping error: {exc}")
+                    message = tr_format("Mapping error: {error}", error=exc)
+                    self._mapping_feedback.setText(message)
+                    self.show_status(message)
                     return
 
             # Block signals so populating the combo doesn't trigger auto-redraw
@@ -1204,9 +1251,9 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
             self._outgroup_combo.addItems(names)
             self._outgroup_combo.setCurrentIndex(-1)  # no auto-selection
             self._outgroup_combo.blockSignals(False)
-            self.show_status(f"Loaded {len(names)} tip names")
+            self.show_status(tr_format("Loaded {count} tip names", count=len(names)))
         except Exception as exc:
-            self.show_status(f"Could not read tree: {exc}")
+            self.show_status(tr_format("Could not read tree: {error}", error=exc))
 
     # ------------------------------------------------------------------
     # Draw / Render
@@ -1272,11 +1319,14 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
         if success:
             self._show_svg_bytes(svg_bytes, preserve_view=rendered_file == self._displayed_file)
             self._displayed_file = rendered_file
-            self.show_status("Tree rendered" + (
-                " — " + self._mapping_status if self._mapping_status else ""
-            ))
+            if self._mapping_status:
+                self.show_status(
+                    tr_format("Tree rendered — {summary}", summary=self._mapping_status)
+                )
+            else:
+                self.show_status(tr_ui("Tree rendered"))
         else:
-            self.show_status(f"Error: {msg}")
+            self.show_status(tr_format("Error: {message}", message=msg))
 
     # ------------------------------------------------------------------
     # Export
@@ -1295,9 +1345,9 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
 
         out_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export tree image",
+            tr_ui("Export tree image"),
             "",
-            "SVG vector (*.svg);;PDF document (*.pdf);;PNG image (*.png)",
+            tr_ui("SVG vector (*.svg);;PDF document (*.pdf);;PNG image (*.png)"),
         )
         if not out_path:
             return
@@ -1336,6 +1386,8 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
             self._export_thread.deleteLater()
             self._export_thread = None
         if success:
-            self.show_status(f"Exported: {os.path.basename(path)}")
+            self.show_status(
+                tr_format("Exported: {path}", path=os.path.basename(path))
+            )
         else:
-            self.show_status(f"Export failed: {msg}")
+            self.show_status(tr_format("Export failed: {message}", message=msg))

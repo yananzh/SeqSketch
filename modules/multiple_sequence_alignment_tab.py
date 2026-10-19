@@ -35,6 +35,7 @@ from modules.fasta_processor import parse_unique_fasta_dict, validate_alignment_
 from utils.app_paths import resource_path, user_data_file
 from utils.common_components import BaseTabWidget, apply_input_list_style, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
+from utils.i18n import tr_format, tr_ui
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
 from utils.task_lifecycle import request_task_stop, skip_when_closing
@@ -446,11 +447,19 @@ class _MuscleBatchWorker(QThread):
             )
 
         if self._killed:
-            self.batch_finished.emit(f"Batch cancelled: {ok}/{total} succeeded before cancel.")
+            self.batch_finished.emit(
+                tr_format(
+                    "Batch cancelled: {ok}/{total} succeeded before cancel.",
+                    ok=ok,
+                    total=total,
+                )
+            )
         else:
-            summary = [f"Batch completed: {ok}/{total} succeeded."]
+            summary = [
+                tr_format("Batch completed: {ok}/{total} succeeded.", ok=ok, total=total)
+            ]
             if fail_msgs:
-                summary.append("\nFailures:")
+                summary.append("\n" + tr_ui("Failures:"))
                 summary.extend(f"- {m}" for m in fail_msgs)
             self.batch_finished.emit("\n".join(summary))
 
@@ -515,7 +524,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _cancel_batch(self):
         if self._batch_worker is not None and self._batch_worker.isRunning():
             request_task_stop(self._batch_worker)
-            self.status_label.setText("Cancelling…")
+            self.status_label.setText(tr_ui("Cancelling…"))
 
     # ---------------------------------------------------------------- layout
 
@@ -826,9 +835,9 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _browse_muscle_exe(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select MUSCLE executable",
+            tr_ui("Select MUSCLE executable"),
             "",
-            "Executable files (*.exe);;All Files (*)",
+            tr_ui("Executable files (*.exe);;All Files (*)"),
         )
         if path:
             path = os.path.normpath(path)
@@ -838,9 +847,9 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _browse_output_file(self):
         path, selected_filter = QFileDialog.getSaveFileName(
             self,
-            "Select aligned FASTA output file",
+            tr_ui("Select aligned FASTA output file"),
             self.output_file_edit.text().strip() or "muscle_alignment.fasta",
-            "FASTA files (*.fasta *.fa);;All Files (*)",
+            tr_ui("FASTA files (*.fasta *.fa);;All Files (*)"),
         )
         if not path:
             return
@@ -851,9 +860,9 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _browse_batch_muscle_exe(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select MUSCLE executable",
+            tr_ui("Select MUSCLE executable"),
             "",
-            "Executable files (*.exe);;All Files (*)",
+            tr_ui("Executable files (*.exe);;All Files (*)"),
         )
         if path:
             path = os.path.normpath(path)
@@ -895,9 +904,9 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open FASTA file",
+            tr_ui("Open FASTA file"),
             "",
-            "FASTA files (*.fasta *.fa *.fna *.faa *.txt);;All Files (*)",
+            tr_ui("FASTA files (*.fasta *.fa *.fna *.faa *.txt);;All Files (*)"),
         )
         if path:
             try:
@@ -931,7 +940,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.batch_files_list.clear()
         for p in paths:
             self.batch_files_list.addItem(QListWidgetItem(os.path.normpath(p)))
-        self.batch_files_edit.setText(f"{len(paths)} file(s) selected")
+        self.batch_files_edit.setText(tr_format("{count} file(s) selected", count=len(paths)))
         if not self.batch_out_dir_edit.text().strip() and paths:
             parent_dir = os.path.dirname(paths[0])
             if parent_dir:
@@ -950,7 +959,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             self.batch_files_edit.clear()
         if hasattr(self, "batch_log"):
             self.batch_log.clear()
-        self.status_label.setText("Ready")
+        self.status_label.setText(tr_ui("Ready"))
 
     def export_result(self):
         QMessageBox.information(
@@ -962,23 +971,23 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _select_batch_files(self):
         paths, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select FASTA files",
+            tr_ui("Select FASTA files"),
             "",
-            "FASTA files (*.fasta *.fa *.fna *.faa *.txt);;All Files (*)",
+            tr_ui("FASTA files (*.fasta *.fa *.fna *.faa *.txt);;All Files (*)"),
         )
         if not paths:
             return
         self.batch_files_list.clear()
         for p in paths:
             self.batch_files_list.addItem(QListWidgetItem(os.path.normpath(p)))
-        self.batch_files_edit.setText(f"{len(paths)} file(s) selected")
+        self.batch_files_edit.setText(tr_format("{count} file(s) selected", count=len(paths)))
         if not self.batch_out_dir_edit.text().strip():
             parent_dir = os.path.dirname(paths[0])
             if parent_dir:
                 self.batch_out_dir_edit.setText(os.path.normpath(parent_dir))
 
     def _select_batch_output_dir(self):
-        out_dir = QFileDialog.getExistingDirectory(self, "Select output directory")
+        out_dir = QFileDialog.getExistingDirectory(self, tr_ui("Select output directory"))
         if out_dir:
             self.batch_out_dir_edit.setText(os.path.normpath(out_dir))
 
@@ -1024,8 +1033,10 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.run_btn.setEnabled(False)
         self.stop_btn.setVisible(True)
         self.batch_log.clear()
-        self.batch_log.append(f"Starting batch for {len(input_files)} file(s)...")
-        self.status_label.setText("Running batch MUSCLE alignment...")
+        self.batch_log.append(
+            tr_format("Starting batch for {count} file(s)...", count=len(input_files))
+        )
+        self.status_label.setText(tr_ui("Running batch MUSCLE alignment..."))
 
         self._batch_worker = _MuscleBatchWorker(
             input_files=input_files,
@@ -1044,15 +1055,16 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self._batch_worker.start()
 
     def _on_batch_progress(self, msg: str):
-        self.batch_log.append(msg)
-        self.status_label.setText(msg)
+        translated = tr_ui(msg)
+        self.batch_log.append(translated)
+        self.status_label.setText(translated)
 
     @skip_when_closing
     def _on_batch_finished(self, summary: str):
         self.run_btn.setEnabled(True)
         self.stop_btn.setVisible(False)
         self.batch_log.append("\n" + summary)
-        self.status_label.setText("Batch done.")
+        self.status_label.setText(tr_ui("Batch done."))
         if self._batch_worker is not None:
             self._batch_worker.wait()
             self._batch_worker.deleteLater()
@@ -1062,8 +1074,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _on_batch_error(self, msg: str):
         self.run_btn.setEnabled(True)
         self.stop_btn.setVisible(False)
-        self.batch_log.append("Error: " + msg)
-        self.status_label.setText("Batch failed.")
+        self.batch_log.append(tr_format("Error: {message}", message=msg))
+        self.status_label.setText(tr_ui("Batch failed."))
         QMessageBox.critical(self, "Batch MUSCLE Error", msg)
         if self._batch_worker is not None:
             self._batch_worker.wait()
@@ -1085,7 +1097,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         output_path = self._normalized_output_file_path()
         if not output_path:
-            self.status_label.setText("Output file path not set.")
+            self.status_label.setText(tr_ui("Output file path not set."))
             QMessageBox.warning(
                 self,
                 "Output File Error",
@@ -1103,7 +1115,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             return
         seqs = self._fasta_records(raw)
         if len(seqs) < 2:
-            self.status_label.setText("Need ≥ 2 sequences for MSA.")
+            self.status_label.setText(tr_ui("Need ≥ 2 sequences for MSA."))
             QMessageBox.warning(
                 self,
                 "Input Error",
@@ -1114,7 +1126,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         # Detect / validate sequence type
         seq_type = self._detect_type(seqs)
         if seq_type is None:
-            self.status_label.setText("Unrecognized sequence alphabet.")
+            self.status_label.setText(tr_ui("Unrecognized sequence alphabet."))
             QMessageBox.warning(
                 self,
                 "Input Error",
@@ -1133,7 +1145,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self._save_muscle_path(muscle_exe)
 
         if not os.path.isfile(muscle_exe):
-            self.status_label.setText("MUSCLE executable not found.")
+            self.status_label.setText(tr_ui("MUSCLE executable not found."))
             QMessageBox.warning(
                 self,
                 "MUSCLE Path Error",
@@ -1143,14 +1155,20 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         self._aligned_fasta = ""
         self.run_btn.setEnabled(False)
-        self.status_label.setText(f"Running MUSCLE ({method}) on {len(seqs)} sequences…")
+        self.status_label.setText(
+            tr_format(
+                "Running MUSCLE ({method}) on {count} sequences…",
+                method=method,
+                count=len(seqs),
+            )
+        )
 
         self._worker = _MuscleWorker(
             clean_fasta, method, threads, muscle_exe, output_path=output_path
         )
         self._worker.alignment_finished.connect(self._on_alignment_done)
         self._worker.error.connect(self._on_alignment_error)
-        self._worker.progress.connect(lambda msg: self.status_label.setText(msg))
+        self._worker.progress.connect(lambda msg: self.status_label.setText(tr_ui(msg)))
         self._worker.start()
 
     @skip_when_closing
@@ -1167,7 +1185,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         try:
             saved_path = self._write_single_file_output(self._aligned_fasta)
         except OSError as exc:
-            self.status_label.setText("Output save failed.")
+            self.status_label.setText(tr_ui("Output save failed."))
             QMessageBox.critical(
                 self,
                 "Output Save Error",
@@ -1178,7 +1196,14 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         n_seq = len(ordered_seqs)
         aln_len = len(next(iter(ordered_seqs.values())))
         fname = os.path.basename(saved_path)
-        self.status_label.setText(f"Done — {n_seq} seqs, {aln_len} bp, → {fname}")
+        self.status_label.setText(
+            tr_format(
+                "Done — {count} seqs, {length} bp, → {name}",
+                count=n_seq,
+                length=aln_len,
+                name=fname,
+            )
+        )
         if self._worker is not None:
             self._worker.wait()
             self._worker.deleteLater()
@@ -1188,7 +1213,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
     def _on_alignment_error(self, msg: str):
         self.run_btn.setEnabled(True)
         self._aligned_fasta = ""
-        self.status_label.setText("MUSCLE alignment failed.")
+        self.status_label.setText(tr_ui("MUSCLE alignment failed."))
         QMessageBox.critical(self, "MUSCLE Error", msg)
         if self._worker is not None:
             self._worker.wait()

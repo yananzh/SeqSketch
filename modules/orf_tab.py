@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.i18n import tr_ui
 
 # NCBI genetic code table id, keyed by the human-readable label shown in the combo box.
 GENETIC_CODES = {
@@ -477,9 +478,9 @@ class ORFTab(BaseTabWidget):
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export ORFs",
+            tr_ui("Export ORFs"),
             "orfs.fasta",
-            "FASTA Files (*.fasta);;Text Files (*.txt)",
+            tr_ui("FASTA Files (*.fasta);;Text Files (*.txt)"),
         )
         if path:
             sorted_results = sorted(self._results, key=lambda o: o["length"], reverse=True)

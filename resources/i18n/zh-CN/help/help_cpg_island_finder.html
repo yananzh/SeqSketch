@@ -1,0 +1,58 @@
+<h2>CpG 岛查找 &mdash; Gardiner-Garden &amp; Frommer 判定标准</h2>
+
+<p><b>本工具有什么用？</b><br>
+它扫描基因组 DNA，找出符合经典 CpG 岛判定标准（Gardiner-Garden &amp; Frommer 1987）的区域：滑动窗口的
+<b>GC 含量 &ge; 50%</b>，且<b>观察/期望 CpG 比值 &ge; 0.6</b>，并将相邻符合条件的窗口合并为
+<b>&ge; 200 bp</b> 的岛。</p>
+
+<h3>什么是 CpG 岛？</h3>
+<p><b>CpG 岛</b>是一段 DNA（通常约 200 bp 至数 kb），其中 G+C 碱基含量异常丰富，更重要的是
+<b>CpG 二核苷酸</b>异常丰富，即同一条链上胞嘧啶紧接鸟嘌呤的二核苷酸。在基因组的大部分区域，CpG 二核苷酸严重缺失：
+CpG 对中的胞嘧啶是常见的甲基化靶点，被甲基化的胞嘧啶在进化过程中会突变为胸腺嘧啶，因此基因组中的 CpG 数量约为随机预期的五分之一。
+那些逃脱了这一过程的区域（因为其中的 CpG 保持未甲基化状态）保留了预期水平的 CpG，并以高 GC、高 CpG 含量的“岛”形式突显出来。</p>
+<ul>
+<li><b>约 70% 的人类基因启动子</b>位于 CpG 岛内</li>
+<li>启动子 CpG 岛在正常细胞中通常<b>未甲基化</b>，并与基因的活跃表达相关</li>
+<li>这些岛的异常高甲基化是许多癌症的标志</li>
+</ul>
+
+<h3>快速入门</h3>
+<ol>
+<li>选择一个 FASTA 文件（通过<b>浏览</b>或拖放），或点击<b>示例</b></li>
+<li>选择<b>序列</b>：<b>All records</b> 会扫描每条 FASTA 记录（结果将增加<b>记录</b>列）；单记录文件仅显示该记录的名称</li>
+<li>选择<b>判定标准</b>预设，或调整参数（已预设经典默认值）</li>
+<li>点击<b>运行</b>，岛会显示在表格中</li>
+<li>点击<b>导出 CSV</b>，将结果连同统计摘要表头一并保存</li>
+</ol>
+
+<h3>判定标准预设</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>预设</b></td><td>窗口</td><td>最小长度</td><td>最小 GC%</td><td>最小 o/e</td></tr>
+<tr><td><b>Gardiner-Garden &amp; Frommer 1987</b></td><td>100</td><td>200</td><td>50</td><td>0.60</td></tr>
+<tr><td><b>Takai &amp; Jones 2002</b></td><td>100</td><td>500</td><td>55</td><td>0.65</td></tr>
+<tr><td><b>Relaxed</b></td><td>100</td><td>100</td><td>50</td><td>0.60</td></tr>
+</table>
+<p>Takai &amp; Jones (2002) 是多数人类基因组研究采用的更严格定义。调整任一数值框都会将预设切换为<b>Custom</b>。</p>
+
+<h3>指标说明</h3>
+<ul>
+<li><b>GC%</b> &mdash; 岛内 G+C 碱基所占的比例</li>
+<li><b>CpG o/e</b> &mdash; 观察/期望 CpG 二核苷酸比值，其中期望值 = (C 数 &times; G 数) / 长度。数值 &gt; 0.6 表示 CpG 富集超出随机预期</li>
+<li><b>CpG</b> / <b>C+G</b> &mdash; 原始二核苷酸计数与碱基计数</li>
+</ul>
+
+<h3>CpG 岛的意义</h3>
+<ul>
+<li>大多数人类基因启动子位于 CpG 岛内</li>
+<li>未甲基化的 CpG 岛与基因的活跃表达相关</li>
+<li>CpG 富集反映了甲基化驱动的 C&rarr;T 突变造成的损耗</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>使用 <b>Gardiner-Garden &amp; Frommer 1987</b> 预设即为经典定义；<b>Takai &amp; Jones 2002</b> 则是更严格的人类基因组标准</li>
+<li>步长 &gt; 1 可加快大序列的分析，但岛的边界只是近似值</li>
+<li>多记录 FASTA 文件默认使用 <b>All records</b>；岛只在各自记录内合并，绝不跨记录合并</li>
+<li>点击列标题即可排序；结果默认按起始位置升序排列</li>
+<li>切换<b>序列</b>下拉框会自动重新运行分析</li>
+</ul>

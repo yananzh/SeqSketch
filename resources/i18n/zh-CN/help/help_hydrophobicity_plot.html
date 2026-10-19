@@ -1,0 +1,29 @@
+<h2>疏水性图 &mdash; 滑动窗口分析</h2>
+
+<p><b>本工具有什么用？</b><br>
+它使用滑动窗口为每个残基位置计算疏水性得分，然后沿蛋白质序列绘制曲线。
+对于 Kyte-Doolittle 类标度，正值表示疏水区域，负值表示亲水区域（Hopp-Woods 为反向标度，参见下方“标度”）。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>将蛋白质序列（原始序列或 FASTA）粘贴到输入框中，或点击<b>示例</b>载入一条序列。</li>
+<li>选择<b>疏水性标度</b>（Kyte-Doolittle 为经典默认值）以及<b>窗口大小</b>（9-15 适用于大多数蛋白质）。</li>
+<li>点击<b>绘图</b>绘制曲线，然后点击<b>导出图表</b>保存图像。</li>
+</ol>
+
+<h3>标度</h3>
+<ul>
+<li><b>Kyte-Doolittle</b> &mdash; 经典的疏水性标度。数值 &gt; 0 为疏水。广泛用于识别跨膜螺旋和信号肽。</li>
+<li><b>Hopp-Woods</b> &mdash; 亲水性 / 抗原性标度。正值表示可能为抗原表位的区域。</li>
+<li><b>Eisenberg</b> &mdash; 共识归一化疏水性。在多个实验数据集中保持平衡。</li>
+<li><b>Engelman (GES)</b> &mdash; 针对跨膜螺旋预测优化，使用 Goldman-Engelman-Steitz 标度。</li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>使用 Kyte-Doolittle 或 Engelman 标度寻找跨膜螺旋时，可将<b>窗口 = 19&ndash;21</b></li>
+<li>进行一般的疏水性分析时，可使用<b>窗口 = 7&ndash;9</b></li>
+<li>若得分在 20 个以上残基中持续高于约 1.6（Kyte-Doolittle），则提示存在跨膜螺旋。</li>
+<li>仅分析第一条 FASTA 记录 &mdash; 多记录文件应先拆分后再使用</li>
+<li>点击<b>导出图表</b>可将图像保存为 PNG / PDF / SVG</li>
+</ul>

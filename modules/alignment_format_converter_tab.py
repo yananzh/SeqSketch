@@ -22,6 +22,7 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import load_example_text, stage_example
+from utils.i18n import tr_ui
 
 FORMAT_LABELS = {
     "FASTA": "fasta",
@@ -246,9 +247,9 @@ class AlignmentFormatConverterTab(BaseTabWidget):
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select alignment file",
+            tr_ui("Select alignment file"),
             "",
-            "Alignment Files (*.fasta *.fa *.fas *.fna *.afa *.aln *.clustal *.phy *.phylip *.nex *.nexus);;All Files (*)",
+            tr_ui("Alignment Files (*.fasta *.fa *.fas *.fna *.afa *.aln *.clustal *.phy *.phylip *.nex *.nexus);;All Files (*)"),
         )
         if file_path:
             self.handle_input_file_selected(file_path)
@@ -256,9 +257,9 @@ class AlignmentFormatConverterTab(BaseTabWidget):
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save converted alignment",
+            tr_ui("Save converted alignment"),
             self.output_edit.text().strip() or "converted_alignment",
-            "Alignment Files (*.fasta *.fa *.aln *.phy *.nex);;All Files (*)",
+            tr_ui("Alignment Files (*.fasta *.fa *.aln *.phy *.nex);;All Files (*)"),
         )
         if file_path:
             self.output_edit.setText(file_path)

@@ -1,0 +1,52 @@
+<h2>正则筛选 &mdash; 用模式匹配 FASTA 记录</h2>
+
+<p><b>本工具有什么用？</b><br>
+工具会用正则表达式模式扫描你的 FASTA 文件（默认匹配序列头），并保留（或移除）匹配的记录。你可以控制模式在哪里查找（ID、描述或两者），以及匹配时是否区分大小写。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>选择一个 FASTA 文件</li>
+<li>输入正则表达式（或点击<b>示例</b>载入现成的表达式）</li>
+<li>选择匹配模式、匹配范围和大小写设置</li>
+<li>点击<b>预览</b>，在保存前检查匹配结果</li>
+<li>选择输出文件，然后点击<b>运行</b></li>
+</ol>
+
+<h3>匹配范围 &mdash; 模式在哪里查找？</h3>
+<p>例如，对于如下 FASTA 序列头：</p>
+<pre>&gt;NM_001101.5 Homo sapiens protein kinase</pre>
+<p><b>重要：</b>标记 FASTA 序列头的开头字符 <code>&gt;</code> <b>不属于</b>任何匹配范围。工具在去掉 <code>&gt;</code> 后读取该行，因此只包含 <code>&gt;</code> 的模式永远不会匹配任何内容。请改用匹配 ID 或描述文本的模式（例如 <code>^NM_</code>、<code>kinase</code>）。</p>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>范围</b></td><td><b>扫描内容</b></td><td><b>"^NM_" 的匹配示例</b></td></tr>
+<tr><td><b>Full Header</b></td><td>ID + 描述（不含 <code>&gt;</code>）</td><td>NM_001101.5 Homo sapiens protein kinase</td></tr>
+<tr><td><b>Sequence ID Only</b></td><td>第一个空格之前的文本（不含 <code>&gt;</code>）</td><td>NM_001101.5</td></tr>
+<tr><td><b>Description Only</b></td><td>第一个空格之后的文本</td><td>（不匹配）</td></tr>
+<tr><td><b>Sequence</b></td><td>序列本身的字母</td><td>ATG...（若序列以匹配 NM 的字母开头；适用于基序筛选）</td></tr>
+</table>
+
+<h3>正则表达式速查</h3>
+<table border="0" cellpadding="2" cellspacing="1">
+<tr><td><code>^</code></td><td>字符串开头</td><td><code>$</code></td><td>字符串结尾</td></tr>
+<tr><td><code>.*</code></td><td>任意字符</td><td><code>.+</code></td><td>任意一个或多个字符</td></tr>
+<tr><td><code>\d</code></td><td>数字 [0-9]</td><td><code>\w</code></td><td>单词字符</td></tr>
+<tr><td><code>[A-Z]</code></td><td>大写字母</td><td><code>[a-z]</code></td><td>小写字母</td></tr>
+<tr><td><code>+</code></td><td>一个或多个</td><td><code>*</code></td><td>零个或多个</td></tr>
+<tr><td><code>|</code></td><td>或（选择）</td><td><code>(...)</code></td><td>捕获组</td></tr>
+</table>
+
+<h3>实例</h3>
+<ul>
+<li><b>提取 RefSeq 条目：</b>模式 <code>^N[MP]_|^X[MP]_</code>，范围 <b>Sequence ID Only</b>，匹配模式 <b>Include Matches</b></li>
+<li><b>查找所有激酶：</b>模式 <code>kinase</code>，范围 <b>Full Header</b>，匹配模式 <b>Include Matches</b></li>
+<li><b>去除污染序列：</b>模式 <code>contaminant|vector</code>，匹配模式 <b>Exclude Matches</b></li>
+<li><b>按物种筛选：</b>模式 <code>Homo sapiens</code>，范围 <b>Description Only</b></li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>运行前务必先<b>预览</b>——正则表达式很容易写错。</li>
+<li>请勿在模式中包含 <code>&gt;</code>——它是 FASTA 序列头标记，不属于可搜索的文本。</li>
+<li>序列头中大小写混杂时，请使用<b>忽略大小写</b>。</li>
+<li>启用<b>导出未匹配报告</b>，保留筛选设置和匹配数量的记录。</li>
+<li>若模式没有产生任何输出，请尝试放宽条件（先去掉 <code>^</code> 或 <code>$</code> 锚定符）。</li>
+</ul>

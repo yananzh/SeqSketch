@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import FASTAProcessor
 from utils.atomic_file import write_text_atomic
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
+from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 
@@ -83,7 +84,9 @@ def format_accession_list(accessions: list[str], limit: int = 20) -> str:
     items = sorted(set(accessions))
     if len(items) <= limit:
         return ", ".join(items)
-    return ", ".join(items[:limit]) + f" ... and {len(items) - limit} more"
+    return ", ".join(items[:limit]) + tr_format(
+        " ... and {count} more", count=len(items) - limit
+    )
 
 
 def fetch_batch_with_retries(
@@ -209,7 +212,9 @@ class _NcbiDownloadWorker(QObject):
         try:
             from Bio import Entrez
         except ImportError:
-            self.error.emit("Biopython (Bio.Entrez) is required to download NCBI data.")
+            self.error.emit(
+                tr_ui("Biopython (Bio.Entrez) is required to download NCBI data.")
+            )
             return
 
         Entrez.email = self._email
@@ -250,20 +255,35 @@ class _NcbiDownloadWorker(QObject):
                     failed_accessions.extend(batch)
                     error_messages.append(f"Batch {batch_index}: Network error: {e}")
                     self.log_message.emit(
-                        f"Network error after {self._retry_count + 1} attempt(s) "
-                        f"for batch {batch_index}: {e}",
+                        tr_format(
+                            "Network error after {attempts} attempt(s) for batch {batch}: {error}",
+                            attempts=self._retry_count + 1,
+                            batch=batch_index,
+                            error=e,
+                        ),
                         "ERROR",
                     )
                     continue
                 except Exception as e:
                     failed_accessions.extend(batch)
                     error_messages.append(f"Batch {batch_index}: NCBI download error: {e}")
-                    self.log_message.emit(f"NCBI download error in batch {batch_index}: {e}", "ERROR")
+                    self.log_message.emit(
+                        tr_format(
+                            "NCBI download error in batch {batch}: {error}",
+                            batch=batch_index,
+                            error=e,
+                        ),
+                        "ERROR",
+                    )
                     continue
 
                 if retry_attempts_used:
                     self.log_message.emit(
-                        f"Batch {batch_index} succeeded after {retry_attempts_used + 1} attempt(s)",
+                        tr_format(
+                            "Batch {batch} succeeded after {attempts} attempt(s)",
+                            batch=batch_index,
+                            attempts=retry_attempts_used + 1,
+                        ),
                         "WARNING",
                     )
 
@@ -271,8 +291,11 @@ class _NcbiDownloadWorker(QObject):
                     failed_accessions.extend(batch)
                     error_messages.append(f"Batch {batch_index}: empty or error response from NCBI")
                     self.log_message.emit(
-                        f"Batch {batch_index} returned no usable sequence data. "
-                        "Check DB type and accessions.",
+                        tr_format(
+                            "Batch {batch} returned no usable sequence data. "
+                            "Check DB type and accessions.",
+                            batch=batch_index,
+                        ),
                         "ERROR",
                     )
                     continue
@@ -292,7 +315,11 @@ class _NcbiDownloadWorker(QObject):
                     failed_accessions.extend(batch_missing)
                     preview = ", ".join(batch_missing[:5])
                     self.log_message.emit(
-                        f"Batch {batch_index} may have missing accession(s): {preview}",
+                        tr_format(
+                            "Batch {batch} may have missing accession(s): {accessions}",
+                            batch=batch_index,
+                            accessions=preview,
+                        ),
                         "WARNING",
                     )
         finally:
@@ -473,14 +500,16 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.db_combo.setCurrentText("nucleotide")
         self.email_edit.setText("your_email@example.com")
         self.acc_edit.setPlainText(acc_text)
-        self.show_status(f"Example loaded: {count} gyrB accessions")
+        self.show_status(
+            tr_format("Example loaded: {count} gyrB accessions", count=count)
+        )
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save downloaded sequences",
+            tr_ui("Save downloaded sequences"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas);;All Files (*)"),
         )
         if file_path:
             self.output_edit.setText(file_path)
@@ -527,11 +556,11 @@ class DownloadFromNCBITab(BaseTabWidget):
 
         # 验证输入
         if not email:
-            self.log_message("Please enter an email address (required by NCBI)", "ERROR")
+            self.log_message(tr_ui("Please enter an email address (required by NCBI)"), "ERROR")
             return
 
         if not acc_text:
-            self.log_message("Please enter accession numbers", "ERROR")
+            self.log_message(tr_ui("Please enter accession numbers"), "ERROR")
             return
 
         from utils.common_components import validate_output_path
@@ -544,25 +573,39 @@ class DownloadFromNCBITab(BaseTabWidget):
         requested_acc_list = [line.strip() for line in acc_text.split("\n") if line.strip()]
         acc_list, duplicate_accessions = normalize_accession_list(acc_text)
         if not acc_list:
-            self.log_message("Accession list is empty", "ERROR")
+            self.log_message(tr_ui("Accession list is empty"), "ERROR")
             return
 
         self.log_message(
-            f"Detected {len(requested_acc_list)} accession(s): "
-            f"{len(acc_list)} unique, {len(duplicate_accessions)} duplicate(s) ignored",
+            tr_format(
+                "Detected {count} accession(s): {unique} unique, "
+                "{duplicates} duplicate(s) ignored",
+                count=len(requested_acc_list),
+                unique=len(acc_list),
+                duplicates=len(duplicate_accessions),
+            ),
             "INFO",
         )
         if duplicate_accessions:
             preview = ", ".join(duplicate_accessions[:5])
             self.log_message(
-                f"Duplicate accession IDs ignored after first occurrence: {preview}",
+                tr_format(
+                    "Duplicate accession IDs ignored after first occurrence: {accessions}",
+                    accessions=preview,
+                ),
                 "WARNING",
             )
 
         batches = split_batches(acc_list, batch_size)
         self.log_message(
-            f"Downloading {len(acc_list)} accession(s) in {len(batches)} batch(es) "
-            f"(batch size {batch_size}, retry {retry_count})",
+            tr_format(
+                "Downloading {count} accession(s) in {batches} batch(es) "
+                "(batch size {batch_size}, retry {retry_count})",
+                count=len(acc_list),
+                batches=len(batches),
+                batch_size=batch_size,
+                retry_count=retry_count,
+            ),
             "INFO",
         )
 
@@ -570,7 +613,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self._run_output_path = os.path.abspath(output_path)
         self._run_export_report = self.export_report_checkbox.isChecked()
         self.set_running_state(True)
-        self.show_status("Starting download worker...")
+        self.show_status(tr_ui("Starting download worker..."))
 
         self._worker = _NcbiDownloadWorker(
             db=db,
@@ -600,7 +643,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self._thread.start()
 
     def stop_download(self):
-        self.log_message("Stopping download...", "WARNING")
+        self.log_message(tr_ui("Stopping download..."), "WARNING")
         if self._worker:
             self._worker.cancel()
 
@@ -611,7 +654,13 @@ class DownloadFromNCBITab(BaseTabWidget):
         self._worker = None
 
     def _on_download_progress(self, batch_index: int, total_batches: int):
-        self.show_status(f"Downloading batch {batch_index}/{total_batches}...")
+        self.show_status(
+            tr_format(
+                "Downloading batch {batch}/{total}...",
+                batch=batch_index,
+                total=total_batches,
+            )
+        )
 
     @skip_when_closing
     def _on_download_finished(self, fasta_data: str, report: dict):
@@ -623,30 +672,41 @@ class DownloadFromNCBITab(BaseTabWidget):
                 report_path = report_path_for_output(output_path)
                 try:
                     write_download_report(report_path, report)
-                    self.log_message(f"Download report saved to: {report_path}", "INFO")
+                    self.log_message(
+                        tr_format("Download report saved to: {path}", path=report_path),
+                        "INFO",
+                    )
                 except OSError as exc:
-                    self.log_message(f"Download report save failed: {exc}", "ERROR")
+                    self.log_message(
+                        tr_format("Download report save failed: {error}", error=exc), "ERROR"
+                    )
             failed = report.get("failed_accessions", [])
             if failed:
                 self.log_message(
-                    f"Failed accessions ({len(failed)}): {format_accession_list(failed)}",
+                    tr_format(
+                        "Failed accessions ({count}): {accessions}",
+                        count=len(failed),
+                        accessions=format_accession_list(failed),
+                    ),
                     "ERROR",
                 )
             self.log_message(
-                "NCBI returned error or no sequences found. Check DB type and accessions.",
+                tr_ui(
+                    "NCBI returned error or no sequences found. Check DB type and accessions."
+                ),
                 "ERROR",
             )
             self.set_running_state(False)
             return
 
-        self.show_status("Saving file...")
+        self.show_status(tr_ui("Saving file..."))
         try:
             out_dir = os.path.dirname(output_path)
             if out_dir:
                 os.makedirs(out_dir, exist_ok=True)
             write_text_atomic(output_path, fasta_data + "\n")
         except Exception as e:
-            self.log_message(f"File save failed: {e}", "ERROR")
+            self.log_message(tr_format("File save failed: {error}", error=e), "ERROR")
             self.set_running_state(False)
             return
 
@@ -654,40 +714,59 @@ class DownloadFromNCBITab(BaseTabWidget):
             report_path = report_path_for_output(output_path)
             try:
                 write_download_report(report_path, report)
-                self.log_message(f"Download report saved to: {report_path}", "INFO")
+                self.log_message(
+                    tr_format("Download report saved to: {path}", path=report_path), "INFO"
+                )
             except OSError as exc:
-                self.log_message(f"Download report save failed: {exc}", "ERROR")
+                self.log_message(
+                    tr_format("Download report save failed: {error}", error=exc), "ERROR"
+                )
 
         failed = report.get("failed_accessions", [])
         succeeded = report.get("succeeded_accessions", [])
         if succeeded:
             self.log_message(
-                f"Succeeded accessions ({len(succeeded)}): {format_accession_list(succeeded)}",
+                tr_format(
+                    "Succeeded accessions ({count}): {accessions}",
+                    count=len(succeeded),
+                    accessions=format_accession_list(succeeded),
+                ),
                 "INFO",
             )
         if failed:
             self.log_message(
-                f"Failed accessions ({len(failed)}): {format_accession_list(failed)}",
+                tr_format(
+                    "Failed accessions ({count}): {accessions}",
+                    count=len(failed),
+                    accessions=format_accession_list(failed),
+                ),
                 "WARNING",
             )
 
         seq_count = report.get("sequences_returned", 0)
         total = report.get("unique_requested_count", 0)
         self.log_message(
-            f"Download complete. {len(succeeded)}/{total} accession(s) succeeded, "
-            f"{len(failed)} failed; {seq_count} sequences saved to: {output_path}"
+            tr_format(
+                "Download complete. {succeeded}/{total} accession(s) succeeded, "
+                "{failed} failed; {sequences} sequences saved to: {path}",
+                succeeded=len(succeeded),
+                total=total,
+                failed=len(failed),
+                sequences=seq_count,
+                path=output_path,
+            )
         )
         self.set_running_state(False)
 
     @skip_when_closing
     def _on_download_error(self, error_msg: str):
-        self.log_message(f"Download error: {error_msg}", "ERROR")
+        self.log_message(tr_format("Download error: {error}", error=error_msg), "ERROR")
         self.set_running_state(False)
 
     @skip_when_closing
     def _on_download_cancelled(self):
-        self.log_message("Download cancelled by user.", "WARNING")
-        self.show_status("Cancelled")
+        self.log_message(tr_ui("Download cancelled by user."), "WARNING")
+        self.show_status(tr_ui("Cancelled"))
         self.set_running_state(False)
 
     def show_help(self):

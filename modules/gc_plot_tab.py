@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
+from utils.i18n import tr_format, tr_ui
 
 matplotlib.use("QtAgg")
 import math
@@ -111,9 +112,9 @@ class GCPlotTab(BaseTabWidget):
     def _browse_input_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open FASTA File",
+            tr_ui("Open FASTA File"),
             "",
-            "FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)",
+            tr_ui("FASTA Files (*.fasta *.fa *.fas *.fna *.txt);;All Files (*)"),
         )
         if path:
             self.input_path_edit.setText(os.path.normpath(path))
@@ -390,7 +391,13 @@ class GCPlotTab(BaseTabWidget):
         self._draw_gc_skew(clean, gc_skew, window, header)
         self._draw_cumul_skew(clean, cumul_skew, window, header)
         mean_gc = np.nanmean(gc_content)
-        self.status_label.setText(f"Plotted \u2014 {n:,} bp, mean GC = {mean_gc:.1f}%")
+        self.status_label.setText(
+            tr_format(
+                "Plotted \u2014 {length} bp, mean GC = {gc}%",
+                length=f"{n:,}",
+                gc=f"{mean_gc:.1f}",
+            )
+        )
 
         if not self._logo_generated:
             self._logo_generated = True
@@ -562,7 +569,7 @@ class GCPlotTab(BaseTabWidget):
         self.input_path_edit.clear()
         self._draw_placeholder_plot()
         self._logo_generated = False
-        self.status_label.setText("Cleared")
+        self.status_label.setText(tr_ui("Cleared"))
 
     def export_result(self):
         """Save the currently displayed figure to a file."""
@@ -575,14 +582,14 @@ class GCPlotTab(BaseTabWidget):
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save GC Plot",
+            tr_ui("Save GC Plot"),
             "gc_plot.png",
-            "PNG Files (*.png);;PDF Files (*.pdf);;SVG Files (*.svg);;All Files (*)",
+            tr_ui("PNG Files (*.png);;PDF Files (*.pdf);;SVG Files (*.svg);;All Files (*)"),
         )
         if file_path:
             try:
                 fig.savefig(file_path, dpi=300, bbox_inches="tight")
-                self.status_label.setText("Figure saved")
+                self.status_label.setText(tr_ui("Figure saved"))
             except Exception as e:
                 QMessageBox.warning(self, "Export Error", f"Failed to save figure:\n{str(e)}")
 

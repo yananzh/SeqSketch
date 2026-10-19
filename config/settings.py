@@ -26,6 +26,7 @@ class Settings:
         """加载设置"""
         default_settings = {
             "window": {"width": 1100, "height": 700, "theme": "light"},
+            "ui": {"language": "en"},
             "analysis": {
                 "max_sequence_length": 1000000,
                 "default_output_format": "fasta",

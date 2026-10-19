@@ -1,0 +1,45 @@
+<h2>拆分 FASTA &mdash; 将一个文件拆分为多个文件</h2>
+
+<p><b>本工具有什么用？</b><br>
+将大型 FASTA 文件拆分为若干较小的文件，且不改变任何序列数据。每个输出文件都是有效的 FASTA 文件，保留原始的序列头和序列内容 &mdash; 只有每个文件所含的记录数会改变。</p>
+
+<h3>常见用途</h3>
+<ul>
+<li><b>数据共享</b> &mdash; 发送十个各含 1,000 条序列的文件，而不是一个含 10,000 条序列的文件。</li>
+<li><b>并行处理</b> &mdash; 将大型数据集分配到多台计算机或多个内核上处理（例如批量 BLAST、蛋白质结构预测）。</li>
+<li><b>上传限制</b> &mdash; 许多网络服务会拒绝超过几百 MB 的文件；请先拆分文件。</li>
+<li><b>教学</b> &mdash; 将大型数据集中小型、易于管理的子集分发给学生。</li>
+</ul>
+
+<h3>两种模式的工作方式</h3>
+<p>以一个包含 10 条序列的输入文件为例：</p>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>模式</b></td><td><b>设置</b></td><td><b>结果</b></td></tr>
+<tr><td><b>Sequences per file</b></td><td>3</td>
+    <td>4 个文件：3 + 3 + 3 + 1 条序列</td></tr>
+<tr><td><b>Number of parts</b></td><td>2</td>
+    <td>2 个文件：5 + 5 条序列（均等拆分）</td></tr>
+</table>
+<p>序列顺序始终保持不变 &mdash; part 001 包含输入文件中最前面的若干条记录。</p>
+
+<h3>输出文件命名</h3>
+<p>文件会以以下形式写入输出目录：
+<code>&lt;input_stem&gt;_part001.fasta</code>、
+<code>&lt;input_stem&gt;_part002.fasta</code>、&hellip;
+前缀取自输入文件名（不含扩展名）。例如，拆分 <code>cytb.fasta</code> 会生成 <code>cytb_part001.fasta</code>、<code>cytb_part002.fasta</code>、&hellip; 若输出目录不存在，则会自动创建。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>选择一个 FASTA 文件（或点击<b>示例</b>，载入内置的 <code>B.subtilis_pro.fasta</code> 蛋白质数据集）。</li>
+<li>选择<b>Sequences per file</b>或<b>Number of parts</b>，并设置其数值。</li>
+<li>选择输出目录。</li>
+<li>点击<b>预览</b> &mdash; 拆分方案会显示将创建多少个文件，以及每个文件包含多少条序列。</li>
+<li>点击<b>运行</b>，然后使用<b>结果文件夹</b>直接跳转到输出目录。</li>
+</ol>
+
+<h3>使用技巧</h3>
+<ul>
+<li>如果希望拆分后的文件遵循特定顺序（按 ID、长度或 GC 含量），请先运行<b>排序 FASTA</b>。</li>
+<li>拆分不会修改序列；可使用<b>FASTA 统计</b>检查各部分的序列总数是否与输入一致。</li>
+<li>运行时会自动创建输出目录。</li>
+</ul>

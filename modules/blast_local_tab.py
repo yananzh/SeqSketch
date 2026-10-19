@@ -43,6 +43,7 @@ from PyQt6.QtWidgets import (
 
 from utils.app_paths import exe_name, resource_path
 from utils.common_components import BaseTabWidget, unify_button_size, unify_status_button_sizes
+from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import request_task_stop, skip_when_closing
 
 from .blast_config import (
@@ -395,16 +396,16 @@ class _BuildDbWidget(QWidget):
     def _choose_fasta(self):
         f, _ = QFileDialog.getOpenFileName(
             self,
-            "Select input FASTA file",
+            tr_ui("Select input FASTA file"),
             "",
-            "FASTA files (*.fasta *.fa *.faa *.fna *.txt);;All Files (*)",
+            tr_ui("FASTA files (*.fasta *.fa *.faa *.fna *.txt);;All Files (*)"),
         )
         if f:
             self.fasta_edit.setText(f)
             self._on_fasta_dropped(f)
 
     def _choose_outdir(self):
-        d = QFileDialog.getExistingDirectory(self, "Select output folder")
+        d = QFileDialog.getExistingDirectory(self, tr_ui("Select output folder"))
         if d:
             self.outdir_edit.setText(d)
 
@@ -416,7 +417,7 @@ class _BuildDbWidget(QWidget):
         detected_type, error = detect_query_sequence_type(text)
         if detected_type in {"nucl", "prot"}:
             return detected_type, ""
-        return "", error or "Unable to detect sequence type."
+        return "", error or tr_ui("Unable to detect sequence type.")
 
     def _start_build(self):
         fasta = os.path.abspath(self.fasta_edit.text().strip())
@@ -445,8 +446,11 @@ class _BuildDbWidget(QWidget):
             QMessageBox.warning(
                 self,
                 "Input Error",
-                "Could not auto-detect whether the database FASTA is nucleotide or protein.\n\n"
-                f"{detection_error}",
+                tr_format(
+                    "Could not auto-detect whether the database FASTA is nucleotide or "
+                    "protein.\n\n{error}",
+                    error=detection_error,
+                ),
             )
             return
         if not bin_dir or not os.path.isfile(os.path.join(bin_dir, exe_name("makeblastdb"))):
@@ -462,9 +466,9 @@ class _BuildDbWidget(QWidget):
         self.build_btn.setVisible(False)
         self.cancel_build_btn.setVisible(True)
         if self.status_lbl:
-            self.status_lbl.setText("Building database, please wait…")
+            self.status_lbl.setText(tr_ui("Building database, please wait…"))
         if self.status_callback:
-            self.status_callback("Building BLAST database…")
+            self.status_callback(tr_ui("Building BLAST database…"))
 
         self._thread = _MakeDbThread(bin_dir, fasta, dbtype, outpath)
         self._thread.finished.connect(self._on_finished)
@@ -474,7 +478,7 @@ class _BuildDbWidget(QWidget):
         if self._thread and self._thread.isRunning():
             request_task_stop(self._thread)
             if self.status_lbl:
-                self.status_lbl.setText("Cancelling…")
+                self.status_lbl.setText(tr_ui("Cancelling…"))
 
     @skip_when_closing
     def _on_finished(self, success, msg):
@@ -496,7 +500,9 @@ class _BuildDbWidget(QWidget):
             if self._database_callback:
                 self._database_callback(outpath)
             if self.status_lbl:
-                self.status_lbl.setText(f"Database built: {self.name_edit.text()}")
+                self.status_lbl.setText(
+                    tr_format("Database built: {name}", name=self.name_edit.text())
+                )
             QMessageBox.information(
                 self,
                 "Database Built",
@@ -505,8 +511,12 @@ class _BuildDbWidget(QWidget):
             )
         else:
             if self.status_lbl:
-                self.status_lbl.setText("✘ Build failed — see error details.")
-            QMessageBox.critical(self, "Build Failed", f"makeblastdb reported an error:\n\n{msg}")
+                self.status_lbl.setText(tr_ui("✘ Build failed — see error details."))
+            QMessageBox.critical(
+                self,
+                "Build Failed",
+                tr_format("makeblastdb reported an error:\n\n{error}", error=msg),
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -594,9 +604,9 @@ class _ManageDatabasesDialog(QDialog):
             values = [
                 str(record["name"]),
                 str(record["db_type"]),
-                "OK" if valid else "Missing",
+                "OK" if valid else tr_ui("Missing"),
                 str(record["base_path"]),
-                "Yes" if record["pinned"] else "",
+                tr_ui("Yes") if record["pinned"] else "",
             ]
             for col, value in enumerate(values):
                 item = QTableWidgetItem(value)
@@ -605,7 +615,7 @@ class _ManageDatabasesDialog(QDialog):
                 self._table.setItem(row, col, item)
         if not records:
             self._table.setRowCount(1)
-            self._table.setItem(0, 0, QTableWidgetItem("No saved databases yet."))
+            self._table.setItem(0, 0, QTableWidgetItem(tr_ui("No saved databases yet.")))
 
     def _selected_record(self) -> dict | None:
         row = self._table.currentRow()
@@ -666,8 +676,11 @@ class _ManageDatabasesDialog(QDialog):
         answer = QMessageBox.question(
             self,
             "Remove Database",
-            f"Remove '{record['name']}' from the saved list?\n\n"
-            "The database files on disk will NOT be deleted.",
+            tr_format(
+                "Remove '{name}' from the saved list?\n\n"
+                "The database files on disk will NOT be deleted.",
+                name=record["name"],
+            ),
         )
         if answer == QMessageBox.StandardButton.Yes:
             remove_blast_database(str(record["base_path"]))
@@ -683,7 +696,7 @@ class _ManageDatabasesDialog(QDialog):
             QMessageBox.information(
                 self,
                 "Manage",
-                f"Removed {removed} missing database record(s).",
+                tr_format("Removed {count} missing database record(s).", count=removed),
             )
         else:
             QMessageBox.information(self, "Manage", "No missing database records found.")
@@ -967,7 +980,7 @@ class _RunQueryWidget(QWidget):
         start_dir = self._current_blast_bin_dir()
         selected_dir = QFileDialog.getExistingDirectory(
             self,
-            "Select BLAST+ bin directory",
+            tr_ui("Select BLAST+ bin directory"),
             start_dir,
         )
         if selected_dir:
@@ -977,9 +990,9 @@ class _RunQueryWidget(QWidget):
     def _choose_query_file(self):
         f, _ = QFileDialog.getOpenFileName(
             self,
-            "Select query FASTA file",
+            tr_ui("Select query FASTA file"),
             "",
-            "FASTA files (*.fasta *.fa *.faa *.fna *.txt);;All Files (*)",
+            tr_ui("FASTA files (*.fasta *.fa *.faa *.fna *.txt);;All Files (*)"),
         )
         if not f:
             return
@@ -1064,9 +1077,9 @@ class _RunQueryWidget(QWidget):
                     if db_type:
                         label = f"{label} ({db_type})"
                     if not database_is_valid(str(record["base_path"])):
-                        label = f"{label} ⚠ Missing"
+                        label = tr_format("{label} ⚠ Missing", label=label)
                     if record["pinned"]:
-                        label = f"{label} [Pinned]"
+                        label = tr_format("{label} [Pinned]", label=label)
                     break
         self.db_name_edit.setText(label)
 
@@ -1091,9 +1104,9 @@ class _RunQueryWidget(QWidget):
     def _choose_db(self):
         f, _ = QFileDialog.getOpenFileName(
             self,
-            "Select BLAST database index file",
+            tr_ui("Select BLAST database index file"),
             "",
-            "BLAST database index (*.nhr *.nin *.phr *.pin *.nal *.pal);;All Files (*)",
+            tr_ui("BLAST database index (*.nhr *.nin *.phr *.pin *.nal *.pal);;All Files (*)"),
         )
         if f:
             self._on_db_dropped(f)
@@ -1108,10 +1121,10 @@ class _RunQueryWidget(QWidget):
         outfmt_key = self.outfmt_combo.currentText()
         ext = _OUTFMT_EXT.get(outfmt_key, ".tsv")
         default_name = f"blast_result{ext}"
-        filter_str = f"{ext.upper()} files (*{ext});;All Files (*)"
+        filter_str = tr_format("{name} files (*{ext});;All Files (*)", name=ext.upper(), ext=ext)
         f, _ = QFileDialog.getSaveFileName(
             self,
-            "Choose output file",
+            tr_ui("Choose output file"),
             default_name,
             filter_str,
         )
@@ -1130,7 +1143,11 @@ class _RunQueryWidget(QWidget):
         try:
             query_seq = _read_text_file(query_file)
         except Exception as exc:
-            QMessageBox.warning(self, "Input Error", f"Could not read the query file:\n{exc}")
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                tr_format("Could not read the query file:\n{error}", error=exc),
+            )
             return
         if not query_seq.strip():
             QMessageBox.warning(self, "Input Error", "The selected query file is empty.")
@@ -1185,7 +1202,7 @@ class _RunQueryWidget(QWidget):
 
         self.run_btn.setVisible(False)
         self.cancel_run_btn.setVisible(True)
-        self._status("Running BLAST…")
+        self._status(tr_ui("Running BLAST…"))
 
         self._thread = _RunBlastThread(
             bin_dir,
@@ -1204,7 +1221,7 @@ class _RunQueryWidget(QWidget):
     def _cancel_run(self):
         if self._thread and self._thread.isRunning():
             request_task_stop(self._thread)
-            self._status("Cancelling…")
+            self._status(tr_ui("Cancelling…"))
 
     @skip_when_closing
     def _on_finished(self, success, out_file, msg):
@@ -1213,13 +1230,19 @@ class _RunQueryWidget(QWidget):
         self.cancel_run_btn.setVisible(False)
         self._status("")
         if success:
-            self._status(f"BLAST finished: {os.path.basename(out_file)}")
+            self._status(
+                tr_format("BLAST finished: {name}", name=os.path.basename(out_file))
+            )
             self.blast_finished.emit(out_file)
             if self.result_callback and out_file:
                 self.result_callback(out_file)
         else:
-            self._status("✘ BLAST failed — see error details.")
-            QMessageBox.critical(self, "BLAST Failed", f"BLAST reported an error:\n\n{msg}")
+            self._status(tr_ui("✘ BLAST failed — see error details."))
+            QMessageBox.critical(
+                self,
+                "BLAST Failed",
+                tr_format("BLAST reported an error:\n\n{error}", error=msg),
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1314,7 +1337,7 @@ class BlastLocalTab(BaseTabWidget):
         self._run_tab._auto_select_blast_program()
         remember_blast_database(db_path, db_type="prot", name="E.coli_pro_db")
         self._run_tab.refresh_database_library(current_path=db_path)
-        self.show_status("Example loaded: E. coli protein BLAST")
+        self.show_status(tr_ui("Example loaded: E. coli protein BLAST"))
 
     def _clear(self):
         """Clear query inputs. The Create new database form is intentionally
@@ -1329,7 +1352,7 @@ class BlastLocalTab(BaseTabWidget):
         self._run_tab.threads_spin.setValue(_default_blast_threads())
         self._run_tab.numhits_spin.setValue(_DEFAULT_MAX_HITS)
         self.open_folder_btn.setEnabled(False)
-        self.show_status("Cleared")
+        self.show_status(tr_ui("Cleared"))
 
     def _get_blast_bin_dir(self) -> str:
         return self._run_tab.blast_path_edit.text().strip() if hasattr(self, "_run_tab") else ""
@@ -1355,7 +1378,7 @@ class BlastLocalTab(BaseTabWidget):
         the binaries still report the problem with a proper dialog.
         """
         if not self._get_blast_bin_dir():
-            self.show_status("BLAST+ not found - browse to its bin folder")
+            self.show_status(tr_ui("BLAST+ not found - browse to its bin folder"))
 
     def show_help(self):
         """Show Local BLAST help dialog."""

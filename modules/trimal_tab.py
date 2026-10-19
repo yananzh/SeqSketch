@@ -48,6 +48,7 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import stage_example
+from utils.i18n import tr_format, tr_ui
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
 from utils.task_lifecycle import request_task_stop, skip_when_closing
@@ -97,7 +98,12 @@ def _prepare_trimal_input(input_path: str) -> tuple[str, str | None]:
     with open(input_path, "r", encoding="utf-8", errors="replace") as handle:
         alignments = list(AlignIO.parse(handle, fmt))
     if not alignments:
-        raise ValueError(f"No alignment records found in {os.path.basename(input_path)}")
+        raise ValueError(
+            tr_format(
+                "No alignment records found in {name}",
+                name=os.path.basename(input_path),
+            )
+        )
 
     fd, temp_path = tempfile.mkstemp(prefix="trimal_", suffix=".fasta")
     os.close(fd)
@@ -143,7 +149,13 @@ def _parse_column_change(log: str, out_path: str = "", before_cols: int = 0) -> 
     if orig and final:
         before, after = int(orig.group(1)), int(final.group(1))
         pct = (before - after) / before * 100 if before else 0
-        return f"Columns: {before} → {after}  (removed {before - after}, {pct:.1f}%)"
+        return tr_format(
+            "Columns: {before} → {after}  (removed {removed}, {pct}%)",
+            before=before,
+            after=after,
+            removed=before - after,
+            pct=f"{pct:.1f}",
+        )
 
     # Determine after count: first from stdout, then from file
     after = 0
@@ -159,11 +171,17 @@ def _parse_column_change(log: str, out_path: str = "", before_cols: int = 0) -> 
     # Build result using known before count
     if before_cols > 0 and after > 0:
         pct = (before_cols - after) / before_cols * 100
-        return f"Columns: {before_cols} → {after}  (removed {before_cols - after}, {pct:.1f}%)"
+        return tr_format(
+            "Columns: {before} → {after}  (removed {removed}, {pct}%)",
+            before=before_cols,
+            after=after,
+            removed=before_cols - after,
+            pct=f"{pct:.1f}",
+        )
     if after > 0:
-        return f"Selected {after} columns after trimming"
+        return tr_format("Selected {count} columns after trimming", count=after)
     if before_cols > 0:
-        return f"Input had {before_cols} columns"
+        return tr_format("Input had {count} columns", count=before_cols)
 
     return ""
 
@@ -222,7 +240,9 @@ class _DropFileList(QListWidget):
             painter.save()
             col = self.palette().placeholderText().color()
             painter.setPen(col)
-            painter.drawText(vp.rect(), Qt.AlignmentFlag.AlignCenter, self._placeholder)
+            painter.drawText(
+                vp.rect(), Qt.AlignmentFlag.AlignCenter, tr_ui(self._placeholder)
+            )
             painter.restore()
 
 
@@ -308,11 +328,17 @@ class _BatchTrimThread(QThread):
                 else:
                     failed += 1
                     if self._proc.returncode != 0 and not log:
-                        log = f"trimAl exited with code {self._proc.returncode}."
+                        log = tr_format(
+                            "trimAl exited with code {code}.",
+                            code=self._proc.returncode,
+                        )
                     if self._proc.returncode == 0 and not output_exists:
                         log = (
                             f"{log}\n" if log else ""
-                        ) + f"trimAl did not create output file:\n{out_path}"
+                        ) + tr_format(
+                            "trimAl did not create output file:\n{path}",
+                            path=out_path,
+                        )
                     self.file_done.emit(False, out_path, log)
             except Exception as exc:
                 failed += 1
@@ -587,10 +613,12 @@ or <b>MSA Visualization</b>.</li>
     def _add_files(self):
         files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select alignment files",
+            tr_ui("Select alignment files"),
             "",
-            "Alignment files (*.fasta *.fa *.faa *.fna *.aln *.phy *.nex "
-            "*.nexus *.clustal *.txt *.phylip);;All Files (*)",
+            tr_ui(
+                "Alignment files (*.fasta *.fa *.faa *.fna *.aln *.phy *.nex "
+                "*.nexus *.clustal *.txt *.phylip);;All Files (*)"
+            ),
         )
         for path in files:
             self.file_list._add_path(path)
@@ -619,7 +647,7 @@ or <b>MSA Visualization</b>.</li>
                 self.outdir_edit.setText(os.path.dirname(first.data(256)))
 
     def _choose_outdir(self):
-        d = QFileDialog.getExistingDirectory(self, "Select output folder")
+        d = QFileDialog.getExistingDirectory(self, tr_ui("Select output folder"))
         if d:
             self.outdir_edit.setText(d)
 
@@ -636,7 +664,10 @@ or <b>MSA Visualization</b>.</li>
 
     def _choose_exe(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select trimAl executable", "", "Executables (*.exe);;All Files (*)"
+            self,
+            tr_ui("Select trimAl executable"),
+            "",
+            tr_ui("Executables (*.exe);;All Files (*)"),
         )
         if path:
             self._exe_edit.setText(path)
@@ -686,7 +717,11 @@ or <b>MSA Visualization</b>.</li>
             return
         valid, err = validate_output_path(os.path.join(outdir, "trimal.out"))
         if not valid:
-            QMessageBox.critical(self, "Folder Error", f"Cannot create output folder:\n{err}")
+            QMessageBox.critical(
+                self,
+                "Folder Error",
+                tr_format("Cannot create output folder:\n{error}", error=err),
+            )
             return
 
         exe = self._exe_edit.text().strip() or _resolve_trimal_exe()
@@ -695,9 +730,12 @@ or <b>MSA Visualization</b>.</li>
             QMessageBox.critical(
                 self,
                 "trimAl Not Found",
-                f"trimAl executable not found at:\n{exe}\n\n"
-                "Please use the Browse button to select the trimAl executable, "
-                "or verify that the bundled softwares/ folder is intact.",
+                tr_format(
+                    "trimAl executable not found at:\n{path}\n\n"
+                    "Please use the Browse button to select the trimAl executable, "
+                    "or verify that the bundled softwares/ folder is intact.",
+                    path=exe,
+                ),
             )
             return
 
@@ -719,7 +757,9 @@ or <b>MSA Visualization</b>.</li>
                 valid, err = validate_input_path(in_path)
                 if not valid:
                     QMessageBox.warning(
-                        self, "Input Error", f"File not found or unreadable:\n{in_path}"
+                        self,
+                        "Input Error",
+                        tr_format("File not found or unreadable:\n{path}", path=in_path),
                     )
                     continue
                 in_ext = os.path.splitext(in_path)[1].lower()
@@ -749,7 +789,10 @@ or <b>MSA Visualization</b>.</li>
             QMessageBox.critical(
                 self,
                 "Input Error",
-                f"Failed to prepare alignment input for trimAl:\n{exc}",
+                tr_format(
+                    "Failed to prepare alignment input for trimAl:\n{error}",
+                    error=exc,
+                ),
             )
             return
 
@@ -759,17 +802,21 @@ or <b>MSA Visualization</b>.</li>
         sep = "─" * 48
         self.log_area.clear()
         self.log_area.append(f"{sep}")
-        self.log_area.append("  TrimAl Run Summary")
+        self.log_area.append(tr_ui("  TrimAl Run Summary"))
         self.log_area.append(f"{sep}")
-        self.log_area.append(f"  trimAl path      : {exe}")
-        self.log_area.append(f"  Output folder    : {outdir}")
-        self.log_area.append(f"  Trimming method  : {method_name}")
-        self.log_area.append(f"  Output format    : {fmt_name}")
-        self.log_area.append(f"  Files to trim    : {total}")
-        self.log_area.append("  ── Input files ──")
+        self.log_area.append(tr_format("  trimAl path      : {path}", path=exe))
+        self.log_area.append(tr_format("  Output folder    : {folder}", folder=outdir))
+        self.log_area.append(
+            tr_format("  Trimming method  : {method}", method=method_name)
+        )
+        self.log_area.append(
+            tr_format("  Output format    : {output_format}", output_format=fmt_name)
+        )
+        self.log_area.append(tr_format("  Files to trim    : {count}", count=total))
+        self.log_area.append(tr_ui("  ── Input files ──"))
         for fname, fmt_label in file_infos:
             self.log_area.append(f"    {fname}  [{fmt_label}]")
-        self.log_area.append("  ── Commands ──")
+        self.log_area.append(tr_ui("  ── Commands ──"))
         for index, (cmd, _, _) in enumerate(tasks, start=1):
             self.log_area.append(f"    [{index}] {_format_command(cmd)}")
         self.log_area.append(f"{sep}")
@@ -779,7 +826,11 @@ or <b>MSA Visualization</b>.</li>
         self.run_btn.setEnabled(False)
         self.run_btn.setVisible(False)
         self.stop_btn.setVisible(True)
-        msg = "Running trimAl…" if total == 1 else f"Batch trimming {total} files…"
+        msg = (
+            tr_ui("Running trimAl…")
+            if total == 1
+            else tr_format("Batch trimming {count} files…", count=total)
+        )
         self.show_status(msg)
         if self.status_callback:
             self.status_callback(msg)
@@ -808,7 +859,12 @@ or <b>MSA Visualization</b>.</li>
 
     # ── thread callbacks ──────────────────────────────────────────────────
     def _on_progress(self, current: int, total: int, fname: str):
-        msg = f"Trimming {current}/{total}: {fname}"
+        msg = tr_format(
+            "Trimming {current}/{total}: {name}",
+            current=current,
+            total=total,
+            name=fname,
+        )
         self.show_status(msg)
         if self.status_callback:
             self.status_callback(msg)
@@ -827,7 +883,7 @@ or <b>MSA Visualization</b>.</li>
             if col_info:
                 self.log_area.append(f"   {col_info}")
         else:
-            self.log_area.append(f"✘  {fname}  — FAILED")
+            self.log_area.append(tr_format("✘  {name}  — FAILED", name=fname))
             for line in log[:300].splitlines():
                 self.log_area.append(f"   {line}")
 
@@ -849,17 +905,36 @@ or <b>MSA Visualization</b>.</li>
                 if item:
                     base = os.path.splitext(os.path.basename(item.data(256)))[0]
                     out_name = os.path.join(outdir, base + ".trimmed" + self._out_ext())
-                self.show_status(f"Done  →  {os.path.basename(out_name)}")
-                self.log_area.append(f"Output: {out_name}")
+                self.show_status(
+                    tr_format("Done  →  {name}", name=os.path.basename(out_name))
+                )
+                self.log_area.append(tr_format("Output: {path}", path=out_name))
             else:
-                self.show_status(f"All {succeeded} files trimmed successfully")
+                self.show_status(
+                    tr_format("All {count} files trimmed successfully", count=succeeded)
+                )
                 self.log_area.append(
-                    f"All {succeeded} files trimmed successfully.\nOutput folder: {outdir}"
+                    tr_format(
+                        "All {count} files trimmed successfully.\nOutput folder: {folder}",
+                        count=succeeded,
+                        folder=outdir,
+                    )
                 )
         else:
-            self.show_status(f"{succeeded} succeeded   ✘ {failed} failed — see log")
+            self.show_status(
+                tr_format(
+                    "{succeeded} succeeded   ✘ {failed} failed — see log",
+                    succeeded=succeeded,
+                    failed=failed,
+                )
+            )
             self.log_area.append(
-                f"{succeeded} succeeded, {failed} failed.\nOutput folder: {outdir}"
+                tr_format(
+                    "{succeeded} succeeded, {failed} failed.\nOutput folder: {folder}",
+                    succeeded=succeeded,
+                    failed=failed,
+                    folder=outdir,
+                )
             )
         if self._thread is not None:
             self._thread.wait()

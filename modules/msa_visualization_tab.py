@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
+from utils.i18n import tr_format, tr_ui
 
 # Commonly used pyMSAviz color schemes
 _COLOR_SCHEMES = [
@@ -266,9 +267,9 @@ class MSAVisualizationTab(BaseTabWidget):
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open aligned FASTA file",
+            tr_ui("Open aligned FASTA file"),
             "",
-            "FASTA files (*.fasta *.fa *.fna *.faa *.aln *.txt);;All Files (*)",
+            tr_ui("FASTA files (*.fasta *.fa *.fna *.faa *.aln *.txt);;All Files (*)"),
         )
         if path:
             self._load_file_path(path)
@@ -297,6 +298,7 @@ class MSAVisualizationTab(BaseTabWidget):
             "PDF (*.pdf)": ".pdf",
             "TIFF (*.tiff)": ".tiff",
         }
+        filters = {tr_ui(label): ext for label, ext in _EXT_MAP.items()}
         # Derive default filename from input (first FASTA header) or fallback
         raw = self.input_text.toPlainText().strip()
         stem = "msa_viz"
@@ -308,15 +310,15 @@ class MSAVisualizationTab(BaseTabWidget):
                     break
         path, selected_filter = QFileDialog.getSaveFileName(
             self,
-            "Save Figure",
+            tr_ui("Save Figure"),
             f"{stem}.png",
-            ";;".join(_EXT_MAP.keys()),
+            ";;".join(filters),
         )
         if not path:
             return
 
         # Ensure the chosen extension is present
-        ext = _EXT_MAP.get(selected_filter, "")
+        ext = filters.get(selected_filter, "")
         if ext and not path.lower().endswith(ext):
             path += ext
 
@@ -329,7 +331,9 @@ class MSAVisualizationTab(BaseTabWidget):
                 format=fmt,
                 dpi=max(self.dpi_spin.value(), 300),
             )
-            self.status_label.setText(f"Saved: {os.path.basename(path)}")
+            self.status_label.setText(
+                tr_format("Saved: {name}", name=os.path.basename(path))
+            )
             self._last_export_dir = os.path.dirname(path)
             self.open_folder_btn.setEnabled(True)
         except Exception as e:
@@ -356,7 +360,7 @@ class MSAVisualizationTab(BaseTabWidget):
         self._clear_loaded_hint()
         self._clear_canvas()
         self.open_folder_btn.setEnabled(False)
-        self.status_label.setText("Ready")
+        self.status_label.setText(tr_ui("Ready"))
 
     def _open_output_folder(self):
         """Open the folder of the most recently exported figure."""
@@ -527,12 +531,18 @@ class MSAVisualizationTab(BaseTabWidget):
             gap_chars = sum(s.count("-") + s.count(".") for s in seq_lines)
             gap_pct = round(gap_chars / total_chars * 100, 1) if total_chars else 0.0
             self.status_label.setText(
-                f"Rendered: {n_seq} seqs, {aln_len} cols, {gap_pct}% gaps ({color})"
+                tr_format(
+                    "Rendered: {n_seq} seqs, {aln_len} cols, {gap_pct}% gaps ({color})",
+                    n_seq=n_seq,
+                    aln_len=aln_len,
+                    gap_pct=gap_pct,
+                    color=color,
+                )
             )
 
         except Exception as e:
             QMessageBox.critical(self, "Visualization Error", str(e))
-            self.status_label.setText("Visualization failed.")
+            self.status_label.setText(tr_ui("Visualization failed."))
         finally:
             if tmp_path and os.path.exists(tmp_path):
                 try:

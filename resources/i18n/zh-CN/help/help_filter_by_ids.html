@@ -1,0 +1,53 @@
+<h2>按 ID 筛选 &mdash; 按 ID 选择或移除序列</h2>
+
+<p><b>本工具有什么用？</b><br>
+你提供一组 FASTA 记录 ID，工具会根据所选的匹配模式，仅保留这些记录或将其移除。</p>
+
+<h3>快速入门</h3>
+<ol>
+<li>选择一个 FASTA 文件</li>
+<li>输入或粘贴你的 ID 列表（每行一个）</li>
+<li>选择匹配模式和输出顺序</li>
+<li>点击<b>预览</b>，检查前几条匹配结果</li>
+<li>选择结果的保存位置，然后点击<b>运行</b></li>
+</ol>
+
+<h3>应使用哪种匹配模式？</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>你的目标</b></td><td><b>&rarr; 选择此模式</b></td></tr>
+<tr><td>提取 ID 与列表完全一致的序列（例如 <code>NM_001101.5</code>）</td>
+    <td>&rarr; <b>Exact Match (case-sensitive)</b></td></tr>
+<tr><td>同上，但忽略大小写差异（例如 <code>geneA</code> 可匹配 <code>genea</code>）</td>
+    <td>&rarr; <b>Exact Match (case-insensitive)</b></td></tr>
+<tr><td>保留 ID <i>包含</i>某个关键词的序列（例如 <code>kinase</code> 可匹配 <code>NM_kinase_1</code>）</td>
+    <td>&rarr; <b>Contains (case-insensitive)</b></td></tr>
+<tr><td>同上，但区分大小写</td>
+    <td>&rarr; <b>Contains (case-sensitive)</b></td></tr>
+<tr><td>移除部分序列，保留其余全部</td>
+    <td>&rarr; <b>Remove Listed IDs (exclude)</b></td></tr>
+</table>
+
+<h3>什么是“输出顺序”？它为什么重要？</h3>
+<ul>
+<li><b>Preserve FASTA Order</b> &mdash; 序列保持输入文件中的原始顺序。对大多数流程而言是安全的选择。</li>
+<li><b>Preserve Query Order</b> &mdash; 输出序列与你粘贴的 ID 列表顺序一致。适用于下游工具需要特定顺序的情况（例如固定的基因组合）。</li>
+</ul>
+
+<h3>如何输入 ID</h3>
+<ul>
+<li>直接输入到文本框中，<b>每行一个</b></li>
+<li>可同时写出<b>缺失 ID 报告</b>，与输出文件一并保存，便于查看 FASTA 文件中哪些 ID 没有匹配结果</li>
+</ul>
+
+<h3>实用示例</h3>
+<ul>
+<li><b>提取一组基因：</b>粘贴一组登录号（<code>NM_001101.5</code>），选择<b>Exact Match (case-sensitive)</b>，并勾选<b>导出缺失 ID 报告</b></li>
+<li><b>移除污染序列：</b>列出不需要的 ID，并切换到<b>Remove Listed IDs (exclude)</b></li>
+<li><b>重新排序序列：</b>按所需顺序粘贴 ID，并选择<b>Preserve Query Order</b></li>
+</ul>
+
+<h3>使用技巧</h3>
+<ul>
+<li>对大文件运行前，请先使用<b>预览</b>，确认 ID 匹配正确</li>
+<li>如果没有提取到任何序列，请检查 ID 是否与 FASTA 序列头完全一致，并尝试不区分大小写的模式（<b>case-insensitive</b>）</li>
+</ul>

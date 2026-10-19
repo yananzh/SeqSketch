@@ -56,7 +56,7 @@ main_window.py       -> MainWindow, QTabWidget management, open_*_tab methods
 menus.py             -> QAction wiring into MainWindow.open_*_tab methods
 modules/             -> Feature tabs and supporting modules
 utils/               -> Shared UI base classes, validation helpers, path utilities, example-data loader
-config/settings.py   -> JSON-backed settings manager (planned, currently unused)
+config/settings.py   -> JSON-backed settings manager (window state, theme, ui.language)
 config.ini           -> External tool path overrides
 softwares/           -> External tool binaries per platform (gitignored; scripts/fetch_softwares.ps1)
 examples/            -> Bundled read-only teaching datasets (dna/, protein/, phylo/, blast/, sanger/) resolved via resource_path
@@ -167,7 +167,11 @@ tests/               -> Pytest regression coverage
 
 - `styles.qss` is the primary stylesheet; `resources/styles/modern_theme.qss` is the alternate theme.
 - Do not hard-code one-off colors in Python when the styling belongs in QSS.
-- The UI is English-only by decision — i18n was dropped (2026-08). Do not wrap user-visible strings in `self.tr(...)`; write plain English literals. Never mix CJK characters into UI text, status messages, or help dialogs.
+- The UI ships in English (default) and Simplified Chinese. Source literals stay English; zh-CN
+  strings live in `resources/i18n/zh-CN/*.json`. Static widget text is translated by the event
+  filter in [utils/i18n.py](utils/i18n.py); late-bound status/log/table text uses
+  `tr_ui(...)` / `tr_format(...)`. Do not hard-code CJK in Python source. See
+  [resources/i18n/README.md](resources/i18n/README.md) for the pack format, style guide and glossary.
 
 ## Dependencies
 

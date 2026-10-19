@@ -1,0 +1,63 @@
+<h2>本地 BLAST &mdash; 用本地数据库检索查询序列</h2>
+
+<p><b>本工具有什么用？</b><br>
+使用 NCBI BLAST+ 工具包，在本地 BLAST 数据库中检索你的查询序列。结果会按你选择的格式保存到输出文件，可用任意电子表格软件或文本编辑器打开。</p>
+
+<h3>快速入门 &mdash; 使用现有数据库</h3>
+<ol>
+<li>设置 <b>BLAST+ 路径</b>（若已内置则自动检测）。</li>
+<li>选择你的<b>查询 FASTA</b>文件。</li>
+<li>选择数据库：将<b>数据库文件</b>（*.phr / *.nhr）拖放到该字段，或点击<b>管理</b>从已保存的数据库中选择 &mdash; <b>数据库名称</b>字段会显示匹配的已保存记录。</li>
+<li>选择 <b>Outfmt</b>（默认：TSV，12 列），并设置<b>输出文件</b>路径。</li>
+<li>点击<b>运行</b>。</li>
+</ol>
+
+<h3>快速入门 &mdash; 创建新数据库</h3>
+<ol>
+<li>在<b>创建新数据库</b>区域，选择<b>输入 FASTA</b>和<b>输出文件夹</b>，并输入<b>数据库名称</b>。</li>
+<li>点击<b>构建数据库</b> &mdash; 新数据库会构建完成，并自动选中到上方的<b>数据库文件</b>和<b>数据库名称</b>字段中。</li>
+<li>选择<b>查询 FASTA</b>文件并点击<b>运行</b>。</li>
+</ol>
+
+<h3>BLAST 程序</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>blastn</b></td><td>→ DNA → DNA</td></tr>
+<tr><td><b>blastp</b></td><td>→ 蛋白质 → 蛋白质</td></tr>
+<tr><td><b>blastx</b></td><td>→ DNA（翻译）→ 蛋白质</td></tr>
+<tr><td><b>tblastn</b></td><td>→ 蛋白质 → DNA（翻译）</td></tr>
+<tr><td><b>tblastx</b></td><td>→ DNA（翻译）→ DNA（翻译）</td></tr>
+</table>
+<p>程序会根据查询序列和数据库类型自动选择，你也可以手动覆盖。</p>
+
+<h3>参数</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td><b>E-value</b></td><td>→ 随机命中的最大期望数量。数值越低越严格。常用：<code>1e-5</code>（一般）、<code>1e-10</code>（严格）。</td></tr>
+<tr><td><b>线程数</b></td><td>→ 用于并行检索的 CPU 核心数。默认：2。</td></tr>
+<tr><td><b>最大命中数</b></td><td>→ 每条查询序列最多报告的目标序列数。默认：50。</td></tr>
+<tr><td><b>Outfmt</b></td><td>→ 输出格式。<b>6 (TSV)</b> 输出 12 个制表符分隔的列；<b>0 (Pairwise)</b> 为人类可读的比对结果；<b>5 (XML)</b> 供程序化使用。建议的输出文件名会随所选格式更新。</td></tr>
+</table>
+
+<h3>输出列（outfmt 6）</h3>
+<table border="0" cellpadding="4" cellspacing="2">
+<tr><td>1</td><td>qseqid</td><td>→ 查询序列 ID</td></tr>
+<tr><td>2</td><td>sseqid</td><td>→ 目标（数据库）序列 ID</td></tr>
+<tr><td>3</td><td>pident</td><td>→ 相同匹配的百分比</td></tr>
+<tr><td>4</td><td>length</td><td>→ 比对长度</td></tr>
+<tr><td>5</td><td>mismatch</td><td>→ 错配数</td></tr>
+<tr><td>6</td><td>gapopen</td><td>→ 空位开放数</td></tr>
+<tr><td>7–8</td><td>qstart / qend</td><td>→ 查询序列的比对范围</td></tr>
+<tr><td>9–10</td><td>sstart / send</td><td>→ 目标序列的比对范围</td></tr>
+<tr><td>11</td><td>evalue</td><td>→ 期望值</td></tr>
+<tr><td>12</td><td>bitscore</td><td>→ 位得分</td></tr>
+</table>
+
+<h3>使用技巧</h3>
+<ul>
+<li>所有文件输入字段都支持拖放 &mdash; 无需点击“浏览”按钮。</li>
+<li>使用<b>管理</b>可选择、置顶、重命名、移除或定位已保存的数据库。置顶的数据库会始终排在已保存列表顶部。</li>
+<li>数据库列表会自动去重 &mdash; 同一个数据库不会出现两次。</li>
+<li>对于较大的查询文件，可增加<b>线程数</b>以加快检索。</li>
+<li>点击<b>示例</b>可使用内置数据体验预配置好的 E. coli 蛋白质 BLAST。</li>
+<li><b>清空</b>只重置查询输入 &mdash; 正在填写的<b>创建新数据库</b>表单会保持原样。</li>
+<li>BLAST 运行或数据库构建完成后，<b>结果文件夹</b>会打开包含输出文件 / 新数据库的文件夹。</li>
+</ul>
