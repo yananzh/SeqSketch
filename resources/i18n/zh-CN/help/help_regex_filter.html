@@ -18,10 +18,10 @@
 <p><b>重要：</b>标记 FASTA 序列头的开头字符 <code>&gt;</code> <b>不属于</b>任何匹配范围。工具在去掉 <code>&gt;</code> 后读取该行，因此只包含 <code>&gt;</code> 的模式永远不会匹配任何内容。请改用匹配 ID 或描述文本的模式（例如 <code>^NM_</code>、<code>kinase</code>）。</p>
 <table border="0" cellpadding="4" cellspacing="2">
 <tr><td><b>范围</b></td><td><b>扫描内容</b></td><td><b>"^NM_" 的匹配示例</b></td></tr>
-<tr><td><b>Full Header</b></td><td>ID + 描述（不含 <code>&gt;</code>）</td><td>NM_001101.5 Homo sapiens protein kinase</td></tr>
-<tr><td><b>Sequence ID Only</b></td><td>第一个空格之前的文本（不含 <code>&gt;</code>）</td><td>NM_001101.5</td></tr>
-<tr><td><b>Description Only</b></td><td>第一个空格之后的文本</td><td>（不匹配）</td></tr>
-<tr><td><b>Sequence</b></td><td>序列本身的字母</td><td>ATG...（若序列以匹配 NM 的字母开头；适用于基序筛选）</td></tr>
+<tr><td><b>完整标题</b></td><td>ID + 描述（不含 <code>&gt;</code>）</td><td>NM_001101.5 Homo sapiens protein kinase</td></tr>
+<tr><td><b>仅序列 ID</b></td><td>第一个空格之前的文本（不含 <code>&gt;</code>）</td><td>NM_001101.5</td></tr>
+<tr><td><b>仅描述</b></td><td>第一个空格之后的文本</td><td>（不匹配）</td></tr>
+<tr><td><b>序列</b></td><td>序列本身的字母</td><td>ATG...（若序列以匹配 NM 的字母开头；适用于基序筛选）</td></tr>
 </table>
 
 <h3>正则表达式速查</h3>
@@ -36,10 +36,10 @@
 
 <h3>实例</h3>
 <ul>
-<li><b>提取 RefSeq 条目：</b>模式 <code>^N[MP]_|^X[MP]_</code>，范围 <b>Sequence ID Only</b>，匹配模式 <b>Include Matches</b></li>
-<li><b>查找所有激酶：</b>模式 <code>kinase</code>，范围 <b>Full Header</b>，匹配模式 <b>Include Matches</b></li>
-<li><b>去除污染序列：</b>模式 <code>contaminant|vector</code>，匹配模式 <b>Exclude Matches</b></li>
-<li><b>按物种筛选：</b>模式 <code>Homo sapiens</code>，范围 <b>Description Only</b></li>
+<li><b>提取 RefSeq 条目：</b>模式 <code>^N[MP]_|^X[MP]_</code>，范围 <b>仅序列 ID</b>，匹配模式 <b>保留匹配项</b></li>
+<li><b>查找所有激酶：</b>模式 <code>kinase</code>，范围 <b>完整标题</b>，匹配模式 <b>保留匹配项</b></li>
+<li><b>去除污染序列：</b>模式 <code>contaminant|vector</code>，匹配模式 <b>排除匹配项</b></li>
+<li><b>按物种筛选：</b>模式 <code>Homo sapiens</code>，范围 <b>仅描述</b></li>
 </ul>
 
 <h3>使用技巧</h3>

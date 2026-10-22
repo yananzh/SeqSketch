@@ -2,7 +2,7 @@
   "Logo Options": "序列标识图选项",
   "Sequence Type:": "序列类型：",
   "Display Mode:": "显示模式：",
-  "Probability: Shows frequency of each base/residue at each position\nInformation: Shows information content (bits) based on sequence conservation": "Probability：显示每个位置上各碱基/残基的出现频率\nInformation：根据序列保守性显示信息量（bits）",
+  "Probability: Shows frequency of each base/residue at each position\nInformation: Shows information content (bits) based on sequence conservation": "概率：显示每个位置上各碱基/残基的出现频率\n信息量：根据序列保守性显示信息量（bits）",
   "Height = letter frequency (0–1)": "高度 = 字母频率（0–1）",
   "Height = conservation in bits (DNA max 2, protein max ~4.32)": "高度 = 以 bits 表示的保守性（DNA 最大 2，蛋白质最大约 4.32）",
 

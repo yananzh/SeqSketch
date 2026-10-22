@@ -30,16 +30,16 @@
 <tr><td><b>你的序列头形如</b></td><td><b>&rarr; 使用此模式</b></td></tr>
 <tr><td><code>&gt;NM_001101.5 Homo sapiens gene</code><br>
     （登录号后跟一个空格）</td>
-    <td>&rarr; <b>First word</b></td></tr>
+    <td>&rarr; <b>第一个单词</b></td></tr>
 <tr><td><code>&gt;tr|A0AAI7ZCJ9|A0AAI7ZCJ9_XANAC</code><br>
     （UniProt，以竖线分隔的字段）</td>
     <td>&rarr; <b>Regex</b> <code>tr\|([^|]+)\|</code>（字段 3 会吞掉描述部分）</td></tr>
 <tr><td><code>&gt;contig_123 length=5000 cov=10.5</code><br>
     （以空格分隔的标记，保留前几个）</td>
-    <td>&rarr; <b>Keep first N words</b></td></tr>
+    <td>&rarr; <b>保留前 N 个单词</b></td></tr>
 <tr><td><code>&gt;lcl|seq_001 gene:kinase</code><br>
     （结构化，但不完全基于分隔符）</td>
-    <td>&rarr; <b>Regex capture</b></td></tr>
+    <td>&rarr; <b>正则捕获</b></td></tr>
 </table>
 
 <h3>快速入门</h3>
@@ -98,7 +98,7 @@
 <h3>其他选项</h3>
 
 <p><b>大小写转换</b><br>
-将所有简化后的 ID 强制转为 <b>UPPERCASE</b>（大写）或 <b>lowercase</b>（小写），或保持 <b>As-is</b>（原样）。区分大小写的下游工具（例如某些系统发育软件）通常要求统一的大小写。</p>
+将所有简化后的 ID 强制转为 <b>大写</b>（大写）或 <b>小写</b>（小写），或保持 <b>保持原样</b>（原样）。区分大小写的下游工具（例如某些系统发育软件）通常要求统一的大小写。</p>
 
 <p><b>前缀 / 后缀</b><br>
 在每个简化后的 ID 之前或之后添加固定文本（例如样本编号或物种代码）。<i>示例：</i>对 <code>NM_001101.5</code> 添加前缀 <code>S1_</code>，得到 <code>S1_NM_001101.5</code>。</p>

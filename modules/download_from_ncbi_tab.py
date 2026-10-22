@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import FASTAProcessor
 from utils.atomic_file import write_text_atomic
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, set_combo_value, tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 
@@ -378,9 +378,9 @@ class DownloadFromNCBITab(BaseTabWidget):
         db_label = QLabel("Database:")
         db_label.setFixedWidth(70)
         conn_layout.addWidget(db_label)
-        self.db_combo = QComboBox()
+        self.db_combo = enable_combo_translation(QComboBox())
         self.db_combo.addItems(["nucleotide", "protein"])
-        self.db_combo.setCurrentText("nucleotide")
+        set_combo_value(self.db_combo, "nucleotide")
         self.db_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.db_combo.setToolTip(
             "nucleotide: for DNA/RNA accessions (NM_, XM_, AF...)\n"
@@ -497,7 +497,7 @@ class DownloadFromNCBITab(BaseTabWidget):
             )
             return
         count = len([line for line in acc_text.splitlines() if line.strip()])
-        self.db_combo.setCurrentText("nucleotide")
+        set_combo_value(self.db_combo, "nucleotide")
         self.email_edit.setText("your_email@example.com")
         self.acc_edit.setPlainText(acc_text)
         self.show_status(
@@ -521,7 +521,7 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.acc_edit.clear()
         self.output_edit.clear()
         self.log_area.clear()
-        self.db_combo.setCurrentText("nucleotide")
+        set_combo_value(self.db_combo, "nucleotide")
         self.batch_size_spin.setValue(20)
         self.retry_count_spin.setValue(1)
         self.export_report_checkbox.setChecked(False)
@@ -547,7 +547,7 @@ class DownloadFromNCBITab(BaseTabWidget):
     def run_download(self):
         if self._thread and self._thread.isRunning():
             return
-        db = self.db_combo.currentText()
+        db = combo_value(self.db_combo)
         email = self.email_edit.text().strip()
         acc_text = self.acc_edit.toPlainText().strip()
         output_path = self.output_edit.text().strip()

@@ -262,6 +262,7 @@ def test_row1_param_boxes_have_same_width(qapp):
     ("ufboot", {"-B": "1000"}),
     ("ufboot_shalrt", {"-B": "1000", "-alrt": "1000"}),
     ("standard", {"-b": "500"}),
+    ("disabled", {}),
 ])
 def test_bootstrap_method_generates_matching_flags(qapp, mode, expected):
     tab = IqTreeTab()
@@ -283,5 +284,22 @@ def test_bootstrap_mode_switch_and_reset_match_pipeline(qapp):
     tab._bootstrap_mode_combo.setCurrentIndex(1)
     assert tab._bootstrap_spin.value() == 0
     tab._clear()
+    assert tab._bootstrap_mode_combo.currentData() == "ufboot"
+    assert tab._bootstrap_spin.value() == 1000
+
+
+def test_disabled_bootstrap_disables_replicates_and_restores_on_reset(qapp):
+    tab = IqTreeTab()
+    tab._bootstrap_mode_combo.setCurrentIndex(
+        tab._bootstrap_mode_combo.findData("disabled")
+    )
+    assert not tab._bootstrap_spin.isEnabled()
+    assert not {"-B", "-b", "-alrt"} & set(tab._build_cmd())
+    tab._bootstrap_mode_combo.setCurrentIndex(tab._bootstrap_mode_combo.findData("standard"))
+    assert tab._bootstrap_spin.isEnabled()
+    assert tab._bootstrap_spin.value() == 500
+    tab._bootstrap_mode_combo.setCurrentIndex(tab._bootstrap_mode_combo.findData("disabled"))
+    tab._clear()
+    assert tab._bootstrap_spin.isEnabled()
     assert tab._bootstrap_mode_combo.currentData() == "ufboot"
     assert tab._bootstrap_spin.value() == 1000

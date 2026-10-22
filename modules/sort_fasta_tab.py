@@ -20,7 +20,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
-from utils.i18n import tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_ui
 
 SORT_KEY_ID = "id"
 SORT_KEY_LENGTH = "length"
@@ -77,7 +77,7 @@ class SortFastaTab(BaseTabWidget):
         opts_group = QGroupBox("Sort Options")
         opts_layout = QHBoxLayout(opts_group)
         opts_layout.addWidget(QLabel("Sort by:"))
-        self.sort_key_combo = QComboBox()
+        self.sort_key_combo = enable_combo_translation(QComboBox())
         self.sort_key_combo.addItem("Sequence ID", SORT_KEY_ID)
         self.sort_key_combo.addItem("Sequence length", SORT_KEY_LENGTH)
         self.sort_key_combo.addItem("GC content", SORT_KEY_GC)
@@ -88,7 +88,7 @@ class SortFastaTab(BaseTabWidget):
         )
         opts_layout.addWidget(self.sort_key_combo)
         opts_layout.addWidget(QLabel("Order:"))
-        self.sort_order_combo = QComboBox()
+        self.sort_order_combo = enable_combo_translation(QComboBox())
         self.sort_order_combo.addItem("Ascending")
         self.sort_order_combo.addItem("Descending")
         self.sort_order_combo.setToolTip(
@@ -216,7 +216,7 @@ class SortFastaTab(BaseTabWidget):
 
     def _sort_key_desc(self) -> tuple[str, bool]:
         key = str(self.sort_key_combo.currentData())
-        descending = self.sort_order_combo.currentText() == "Descending"
+        descending = combo_value(self.sort_order_combo) == "Descending"
         return key, descending
 
     def preview_sort(self):
@@ -226,19 +226,19 @@ class SortFastaTab(BaseTabWidget):
         key, descending = self._sort_key_desc()
         ordered = sorted_records(records, key, descending)
         lines = [
-            f"Sort by: {self.sort_key_combo.currentText()} "
-            f"({self.sort_order_combo.currentText()})  \u00b7  {len(ordered)} sequences",
+            tr_ui(f"Sort by: {self.sort_key_combo.currentText()} "
+            f"({self.sort_order_combo.currentText()})  \u00b7  {len(ordered)} sequences"),
             "",
-            "First records in new order:",
+            tr_ui("First records in new order:"),
         ]
         for record in ordered[:8]:
             lines.append(f"  {record.header}")
         if len(ordered) > 8:
-            lines.append(f"  ... and {len(ordered) - 8} more")
+            lines.append(tr_ui(f"  ... and {len(ordered) - 8} more"))
         self.preview_panel.setPlainText("\n".join(lines))
         self.log_message(
-            f"Preview: sorted by {self.sort_key_combo.currentText()} "
-            f"({self.sort_order_combo.currentText()})",
+            tr_ui(f"Preview: sorted by {self.sort_key_combo.currentText()} "
+            f"({self.sort_order_combo.currentText()})"),
             "INFO",
         )
 

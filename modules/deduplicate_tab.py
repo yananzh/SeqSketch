@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
-from utils.i18n import tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_ui
 
 DEDUP_BY_ID = "by_id"
 DEDUP_BY_SEQ = "by_seq"
@@ -58,7 +58,7 @@ class DeduplicateTab(BaseTabWidget):
         opts_group = QGroupBox("Deduplication Options")
         opts_layout = QHBoxLayout(opts_group)
         opts_layout.addWidget(QLabel("Deduplicate by:"))
-        self.mode_combo = QComboBox()
+        self.mode_combo = enable_combo_translation(QComboBox())
         self.mode_combo.addItem("Sequence ID", DEDUP_BY_ID)
         self.mode_combo.addItem("Sequence content", DEDUP_BY_SEQ)
         self.mode_combo.setToolTip(
@@ -67,7 +67,7 @@ class DeduplicateTab(BaseTabWidget):
         )
         opts_layout.addWidget(self.mode_combo)
         opts_layout.addWidget(QLabel("Keep strategy:"))
-        self.keep_combo = QComboBox()
+        self.keep_combo = enable_combo_translation(QComboBox())
         self.keep_combo.addItems(["Keep first", "Keep longest", "Keep shortest"])
         self.keep_combo.setToolTip(
             "When deduplicating by ID, which record to keep among duplicates.\n"
@@ -187,7 +187,7 @@ class DeduplicateTab(BaseTabWidget):
     def _deduplicate(self, records):
         mode = self.mode_combo.currentData()
         case_insensitive = self.case_insensitive_checkbox.isChecked()
-        strategy = self.keep_combo.currentText()
+        strategy = combo_value(self.keep_combo)
 
         kept = []
         removed = []
@@ -250,38 +250,38 @@ class DeduplicateTab(BaseTabWidget):
 
             processor = FASTAProcessor()
             if not processor.read_file(input_path):
-                self.log_message("Unable to read FASTA file", "ERROR")
+                self.log_message(tr_ui("Unable to read FASTA file"), "ERROR")
                 return
             records = processor.records
             if not records:
-                self.log_message("No sequences found", "ERROR")
+                self.log_message(tr_ui("No sequences found"), "ERROR")
                 return
 
             kept, removed, dup_id, dup_seq = self._deduplicate(records)
-            mode_label = "by ID" if self.mode_combo.currentData() == DEDUP_BY_ID else "by sequence"
+            mode_label = tr_ui("by ID") if self.mode_combo.currentData() == DEDUP_BY_ID else tr_ui("by sequence")
             total_removed = len(removed)
             lines = [
-                f"Total: {len(records)}  →  After dedup ({mode_label}): {len(kept)}  ·  "
-                f"Removed: {total_removed} duplicates"
+                tr_ui(f"Total: {len(records)}  →  After dedup ({mode_label}): {len(kept)}  ·  "
+                f"Removed: {total_removed} duplicates")
             ]
             if dup_id:
-                lines.append(f"  (ID duplicates: {dup_id})")
+                lines.append(tr_ui(f"  (ID duplicates: {dup_id})"))
             if dup_seq:
-                lines.append(f"  (Sequence duplicates: {dup_seq})")
+                lines.append(tr_ui(f"  (Sequence duplicates: {dup_seq})"))
             if kept:
                 lines.append("")
-                lines.append(f"─ Kept records (first {min(5, len(kept))}) ─")
+                lines.append(tr_ui(f"─ Kept records (first {min(5, len(kept))}) ─"))
                 for rec in kept[:5]:
                     lines.append(f"  {rec.header}")
             if removed:
                 lines.append("")
-                lines.append(f"─ Removed records (first {min(5, len(removed))}) ─")
+                lines.append(tr_ui(f"─ Removed records (first {min(5, len(removed))}) ─"))
                 for rec in removed[:5]:
                     lines.append(f"  ✗ {rec.header}")
             self.preview_panel.setPlainText("\n".join(lines))
-            self.log_message("Preview updated — see panel above", "INFO")
+            self.log_message(tr_ui("Preview updated — see panel above"), "INFO")
         except Exception as e:
-            self.log_message(f"Preview error: {e}", "ERROR")
+            self.log_message(tr_ui(f"Preview error: {e}"), "ERROR")
 
     def run_deduplicate(self):
         input_path = self.input_edit.text().strip()
@@ -323,7 +323,7 @@ class DeduplicateTab(BaseTabWidget):
             # are identical sequences, so keep-first is the only semantics
             # there and the log must not claim an unapplied strategy.
             strategy = (
-                self.keep_combo.currentText().lower()
+                combo_value(self.keep_combo).lower()
                 if self.mode_combo.currentData() == DEDUP_BY_ID
                 else "keep first"
             )
@@ -333,7 +333,7 @@ class DeduplicateTab(BaseTabWidget):
                 return
 
             self.log_message(
-                f"Deduplicated ({mode_label}, {strategy}): kept {len(kept)}, removed {total_removed}",
+                f"Deduplicated ({tr_ui(mode_label)}, {tr_ui(strategy)}): kept {len(kept)}, removed {total_removed}",
                 "INFO",
             )
             if not processor.save_file(output_path, kept):

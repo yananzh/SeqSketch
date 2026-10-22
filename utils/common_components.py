@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QStyle,
     QStyleOptionComboBox,
     QTextEdit,
@@ -212,7 +213,11 @@ def unify_button_size(button: QPushButton) -> None:
     text = button.text().replace("&", "").strip()
     if not text:
         return  # Preserve icon-only controls.
-    width = STATUS_BUTTON_WIDTH_DOUBLE if len(text.split()) > 1 else STATUS_BUTTON_WIDTH_SINGLE
+    tier = button.property("buttonSizeTier")
+    if tier is None:
+        tier = STATUS_BUTTON_WIDTH_DOUBLE if len(text.split()) > 1 else STATUS_BUTTON_WIDTH_SINGLE
+        button.setProperty("buttonSizeTier", tier)
+    width = tier
     # Tabs are prepared before inheriting the main window's stylesheet.
     # Measure using the shared QSS body font, in logical pixels for HiDPI.
     font = QFont("Segoe UI")
@@ -220,14 +225,19 @@ def unify_button_size(button: QPushButton) -> None:
     # Headless Qt can have no fonts at all; its missing-glyph boxes are not
     # representative of the UI. Keep the standard tiers in that environment.
     required = (
-        QFontMetrics(font).horizontalAdvance(text) + 26
+        QFontMetrics(font).horizontalAdvance(tr_ui(text)) + 26
         if QFontInfo(font).family()
         else 0
     )
     if not button.icon().isNull():
         required += button.iconSize().width() + 6
     width = max(width, ((required + 9) // 10) * 10)
-    button.setFixedSize(width, BUTTON_HEIGHT)
+    if button.property("expandToRow"):
+        button.setMinimumWidth(width)
+        button.setFixedHeight(BUTTON_HEIGHT)
+        button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+    else:
+        button.setFixedSize(width, BUTTON_HEIGHT)
 
 
 def unify_tab_button_sizes(tab: QWidget) -> None:
@@ -472,8 +482,9 @@ class BaseTabWidget(QWidget):
         self.copy_btn.clicked.connect(self.copy_result)
 
         ob_layout = QHBoxLayout()
-        ob_layout.addWidget(self.export_btn)
-        ob_layout.addWidget(self.copy_btn)
+        # Equal stretch also supports tabs opting into expandToRow sizing.
+        ob_layout.addWidget(self.export_btn, 1)
+        ob_layout.addWidget(self.copy_btn, 1)
         ob_layout.addStretch()
 
         og_layout.addWidget(self.output_text)

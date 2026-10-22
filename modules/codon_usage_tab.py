@@ -41,7 +41,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import unify_status_button_sizes
 from utils.example_data import load_example_text
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -830,20 +830,20 @@ class CodonUsageTab(QWidget):
         go.setContentsMargins(6, 16, 6, 4)
 
         go.addWidget(QLabel("Genetic Code:"))
-        self._code_combo = QComboBox()
+        self._code_combo = enable_combo_translation(QComboBox())
         for nm in GENETIC_CODES:
             self._code_combo.addItem(nm)
         go.addWidget(self._code_combo)
 
         go.addWidget(QLabel("CAI Reference Organism:"))
-        self._cai_combo = QComboBox()
+        self._cai_combo = enable_combo_translation(QComboBox())
         self._cai_combo.addItem("None (skip CAI)")
         for nm in _CAI_REFERENCES:
             self._cai_combo.addItem(nm)
         go.addWidget(self._cai_combo)
 
         go.addWidget(QLabel("Reading Frame:"))
-        self._frame_combo = QComboBox()
+        self._frame_combo = enable_combo_translation(QComboBox())
         self._frame_combo.addItems([
             "Frame +1 (nt 1→)",
             "Frame +2 (nt 2→)",
@@ -1125,8 +1125,8 @@ class CodonUsageTab(QWidget):
                 if ret != QMessageBox.StandardButton.Yes:
                     return
 
-        table_id = GENETIC_CODES[self._code_combo.currentText()]
-        cai_ref = self._cai_combo.currentText()
+        table_id = GENETIC_CODES[combo_value(self._code_combo)]
+        cai_ref = combo_value(self._cai_combo)
         if cai_ref == "None (skip CAI)":
             cai_ref = ""
         frame_offset = self._frame_combo.currentIndex()
@@ -1325,7 +1325,7 @@ class CodonUsageTab(QWidget):
     def _draw_rscu_chart(self, r: dict):
         from Bio.Data import CodonTable
 
-        table_id = GENETIC_CODES[self._code_combo.currentText()]
+        table_id = GENETIC_CODES[combo_value(self._code_combo)]
         bt = CodonTable.unambiguous_dna_by_id[table_id]
 
         aa_to_codons: Dict[str, List[str]] = collections.defaultdict(list)
@@ -1404,12 +1404,12 @@ class CodonUsageTab(QWidget):
             )
 
         legend = [
-            mpatches.Patch(color="#ef5350", label="RSCU < 0.6 Strongly underused"),
-            mpatches.Patch(color="#ff9800", label="0.6 ≤ RSCU < 0.9 Underused"),
-            mpatches.Patch(color="#66bb6a", label="0.9 ≤ RSCU ≤ 1.1 Near-equal"),
-            mpatches.Patch(color="#42a5f5", label="1.1 < RSCU < 2.0 Preferred"),
-            mpatches.Patch(color="#7e57c2", label="RSCU ≥ 2.0 Highly preferred"),
-            mpatches.Patch(color="#cccccc", label="Count = 0"),
+            mpatches.Patch(color="#ef5350", label=tr_ui("RSCU < 0.6 Strongly underused")),
+            mpatches.Patch(color="#ff9800", label=tr_ui("0.6 ≤ RSCU < 0.9 Underused")),
+            mpatches.Patch(color="#66bb6a", label=tr_ui("0.9 ≤ RSCU ≤ 1.1 Near-equal")),
+            mpatches.Patch(color="#42a5f5", label=tr_ui("1.1 < RSCU < 2.0 Preferred")),
+            mpatches.Patch(color="#7e57c2", label=tr_ui("RSCU ≥ 2.0 Highly preferred")),
+            mpatches.Patch(color="#cccccc", label=tr_ui("Count = 0")),
         ]
         ax.legend(handles=legend, loc="upper right", fontsize=8, framealpha=0.85)
 
@@ -1427,8 +1427,8 @@ class CodonUsageTab(QWidget):
         vals = [r["gc_all"], r["gc1"], r["gc2"], r["gc3"], r["gc12"]]
         cols = ["#1976d2", "#42a5f5", "#66bb6a", "#ef5350", "#ff9800"]
         bars = ax1.bar(cats, vals, color=cols, edgecolor="white", linewidth=0.8)
-        ax1.set_ylabel("GC Content (%)")
-        ax1.set_title("GC Content at Codon Positions")
+        ax1.set_ylabel(tr_ui("GC Content (%)"))
+        ax1.set_title(tr_ui("GC Content at Codon Positions"))
         ax1.set_ylim(0, 105)
         ax1.axhline(50, color="#aaa", linestyle="--", linewidth=0.8)
         for b, v in zip(bars, vals):
@@ -1447,7 +1447,7 @@ class CodonUsageTab(QWidget):
             gc12s = [rs["gc12"] for rs in self._results]
             gc3s = [rs["gc3"] for rs in self._results]
             ax2.scatter(gc3s, gc12s, color="#1976d2", s=50, alpha=0.75, zorder=3)
-            ax2.scatter(r["gc3"], r["gc12"], color="#ef5350", s=90, zorder=4, label="Current")
+            ax2.scatter(r["gc3"], r["gc12"], color="#ef5350", s=90, zorder=4, label=tr_ui("Current"))
             if len(gc3s) >= 3:
                 m, b = np.polyfit(gc3s, gc12s, 1)
                 xs = np.linspace(min(gc3s), max(gc3s), 100)
@@ -1457,7 +1457,7 @@ class CodonUsageTab(QWidget):
                     "--",
                     color="#888",
                     linewidth=1.0,
-                    label=f"Slope={m:.2f}",
+                    label=tr_ui(f"Slope={m:.2f}"),
                 )
         else:
             ax2.scatter([r["gc3"]], [r["gc12"]], color="#1976d2", s=80)
@@ -1465,7 +1465,7 @@ class CodonUsageTab(QWidget):
         ax2.plot([0, 100], [0, 100], ":", color="#bbb", linewidth=1.0, label="GC12 = GC3")
         ax2.set_xlabel("GC3 (%)")
         ax2.set_ylabel("GC12 (%)")
-        ax2.set_title("Neutrality Plot (GC12 vs GC3)")
+        ax2.set_title(tr_ui("Neutrality Plot (GC12 vs GC3)"))
         ax2.set_xlim(0, 100)
         ax2.set_ylim(0, 100)
         ax2.legend(fontsize=8, framealpha=0.8)
@@ -1506,13 +1506,13 @@ class CodonUsageTab(QWidget):
             "-",
             color="#aaa",
             linewidth=1.5,
-            label="Standard-code expectation (no selection)",
+            label=tr_ui("Standard-code expectation (no selection)"),
         )
 
         estimable = [r for r in self._results if r["enc"] is not None]
         encs = [r["enc"] for r in estimable]
         gc3s = [r["gc3"] for r in estimable]
-        ax.scatter(gc3s, encs, s=60, c="#1976d2", alpha=0.8, label="Sequences")
+        ax.scatter(gc3s, encs, s=60, c="#1976d2", alpha=0.8, label=tr_ui("Sequences"))
 
         if len(self._results) <= 20:
             for r, gx, ey in zip(estimable, gc3s, encs):
@@ -1526,7 +1526,7 @@ class CodonUsageTab(QWidget):
 
         ax.set_xlabel("GC3 (%)")
         ax.set_ylabel("ENC")
-        ax.set_title("Nc Plot — ENC vs GC3")
+        ax.set_title(tr_ui("Nc Plot — ENC vs GC3"))
         ax.set_xlim(0, 100)
         ax.set_ylim(20, 65)
         ax.legend(fontsize=8, framealpha=0.85)

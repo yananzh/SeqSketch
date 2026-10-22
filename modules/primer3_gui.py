@@ -13,7 +13,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 # matplotlib for primer binding site map
 from matplotlib.figure import Figure
 from PyQt6.QtCore import QObject, Qt, QThread, QUrl, pyqtSignal
-from PyQt6.QtGui import QColor, QDesktopServices
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -170,9 +170,9 @@ class PrimerDesignTab(QWidget):
         self.example_seq_btn = QPushButton("Example")
         self.example_seq_btn.setToolTip("Load HBB exon 1 example sequence")
         self.clear_seq_btn = QPushButton("Clear")
-        seq_btn_row.addWidget(self.load_seq_btn)
-        seq_btn_row.addWidget(self.example_seq_btn)
-        seq_btn_row.addStretch()
+        for button in (self.load_seq_btn, self.example_seq_btn):
+            button.setProperty("expandToRow", True)
+            seq_btn_row.addWidget(button, 1)
 
         seq_v.addWidget(self.seq_input)
         seq_v.addLayout(seq_btn_row)
@@ -200,6 +200,7 @@ class PrimerDesignTab(QWidget):
         size_h.setContentsMargins(0, 0, 0, 0)
         size_h.setSpacing(6)
         size_h.addWidget(self.prod_size_min)
+        size_h.addWidget(QLabel("–"))
         size_h.addWidget(self.prod_size_max)
         size_h.addStretch()
 
@@ -218,15 +219,24 @@ class PrimerDesignTab(QWidget):
         count_h.addWidget(self.num_primers_spin)
         count_h.addStretch()
 
-        size_label = QLabel("Product Size (Min/Max):")
-        size_label.setFixedWidth(180)
+        size_label = QLabel("Product Length (bp):")
         general_form.addRow(size_label, size_box)
         count_label = QLabel("Primer Pair Count:")
-        count_label.setFixedWidth(180)
         general_form.addRow(count_label, count_box)
 
         primer_group = QGroupBox("Primer Parameters")
         primer_form = QFormLayout(primer_group)
+        bounds_header = QWidget()
+        bounds_header.setFixedWidth(3 * 68 + 2 * 6)
+        bounds_layout = QHBoxLayout(bounds_header)
+        bounds_layout.setContentsMargins(0, 0, 0, 0)
+        bounds_layout.setSpacing(6)
+        for text in ("Min", "Opt", "Max"):
+            heading = QLabel(text)
+            heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            heading.setFixedWidth(68)
+            bounds_layout.addWidget(heading)
+        primer_form.addRow("", bounds_header)
 
         self.p_len_min = QSpinBox()
         self.p_len_opt = QSpinBox()
@@ -243,6 +253,7 @@ class PrimerDesignTab(QWidget):
         )
         self.p_len_max.setToolTip("Maximum acceptable primer length (nt).")
         len_box = QWidget()
+        len_box.setFixedWidth(3 * 68 + 2 * 6)
         len_h = QHBoxLayout(len_box)
         len_h.setContentsMargins(0, 0, 0, 0)
         len_h.setSpacing(6)
@@ -271,6 +282,7 @@ class PrimerDesignTab(QWidget):
             "Maximum acceptable melting temperature (°C).\nTypical range: 60-65°C."
         )
         tm_box = QWidget()
+        tm_box.setFixedWidth(3 * 68 + 2 * 6)
         tm_h = QHBoxLayout(tm_box)
         tm_h.setContentsMargins(0, 0, 0, 0)
         tm_h.setSpacing(6)
@@ -299,6 +311,7 @@ class PrimerDesignTab(QWidget):
             "Maximum acceptable GC content (%).\nTypical range: 40-60%."
         )
         gc_box = QWidget()
+        gc_box.setFixedWidth(3 * 68 + 2 * 6)
         gc_h = QHBoxLayout(gc_box)
         gc_h.setContentsMargins(0, 0, 0, 0)
         gc_h.setSpacing(6)
@@ -306,18 +319,15 @@ class PrimerDesignTab(QWidget):
         gc_h.addWidget(self.p_gc_opt)
         gc_h.addWidget(self.p_gc_max)
 
-        len_label = QLabel("Length (Min/Opt/Max):")
-        len_label.setFixedWidth(150)
+        len_label = QLabel("Length (nt):")
         primer_form.addRow(len_label, len_box)
-        tm_label = QLabel("Tm (°C) (Min/Opt/Max):")
-        tm_label.setFixedWidth(150)
+        tm_label = QLabel("Tm (°C):")
         primer_form.addRow(tm_label, tm_box)
-        gc_label = QLabel("GC (%) (Min/Opt/Max):")
-        gc_label.setFixedWidth(150)
+        gc_label = QLabel("GC (%):")
         primer_form.addRow(gc_label, gc_box)
 
-        # ── 4. Advanced Parameters ──────────────────────────────────
-        adv_group = QGroupBox("Advanced Parameters")
+        # ── 4. Reaction Conditions ──────────────────────────────────
+        adv_group = QGroupBox("Reaction Conditions")
         adv_form = QFormLayout(adv_group)
 
         self.salt_mono_spin = QDoubleSpinBox()
@@ -326,13 +336,11 @@ class PrimerDesignTab(QWidget):
         self.salt_mono_spin.setSingleStep(1)
         self.salt_mono_spin.setValue(50)
         self.salt_mono_spin.setFixedWidth(104)
-        self.salt_mono_spin.setSuffix(" mM")
         self.salt_mono_spin.setToolTip(
             "Monovalent salt concentration (Na⁺/K⁺).\n"
                 "Affects Tm calculation. Standard PCR: 50 mM."
         )
-        salt_label = QLabel("Salt (Monovalent):")
-        salt_label.setFixedWidth(150)
+        salt_label = QLabel("Monovalent Salt (mM):")
         adv_form.addRow(salt_label, self.salt_mono_spin)
 
         self.mg_spin = QDoubleSpinBox()
@@ -341,14 +349,19 @@ class PrimerDesignTab(QWidget):
         self.mg_spin.setSingleStep(1)
         self.mg_spin.setValue(3)
         self.mg_spin.setFixedWidth(104)
-        self.mg_spin.setSuffix(" mM")
         self.mg_spin.setToolTip(
             "Divalent salt concentration (Mg²⁺).\n"
                 "Standard PCR: 1.5 mM; qPCR typically: 2.5-3.5 mM."
         )
-        mg_label = QLabel("Mg²⁺:")
-        mg_label.setFixedWidth(150)
+        mg_label = QLabel("Mg²⁺ (mM):")
         adv_form.addRow(mg_label, self.mg_spin)
+
+        # Let each form size its label column to the translated text.
+        for form in (general_form, primer_form, adv_form):
+            form.setContentsMargins(10, 10, 10, 10)
+            form.setHorizontalSpacing(6)
+            form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            form.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
         # Hidden defaults for less-commonly-adjusted parameters
         self.max_poly_x_spin = QSpinBox()
@@ -409,6 +422,7 @@ class PrimerDesignTab(QWidget):
         map_v.addWidget(self._primer_canvas)
 
         self.results_table = QTableWidget()
+        self.results_table.setAlternatingRowColors(True)
         self.results_table.setColumnCount(8)
         self.results_table.setHorizontalHeaderLabels([
             "Pair #",
@@ -425,7 +439,7 @@ class PrimerDesignTab(QWidget):
 
         header = self.results_table.horizontalHeader()
         if header is not None:
-            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
             header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
             header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
             header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
@@ -433,7 +447,6 @@ class PrimerDesignTab(QWidget):
             header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
             header.setSectionResizeMode(6, QHeaderView.ResizeMode.Fixed)
             header.setSectionResizeMode(7, QHeaderView.ResizeMode.Fixed)
-            self.results_table.setColumnWidth(0, 50)
             self.results_table.setColumnWidth(1, 50)
             self.results_table.setColumnWidth(3, 65)
             self.results_table.setColumnWidth(4, 55)
@@ -747,10 +760,6 @@ class PrimerDesignTab(QWidget):
                 ]
                 for col, val in enumerate(values):
                     item = QTableWidgetItem(val)
-                    if detail["type"] == "Fwd":
-                        item.setBackground(QColor("#eef7ff"))
-                    else:
-                        item.setBackground(QColor("#fff4ee"))
                     if col == 1:
                         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     self.results_table.setItem(row_idx, col, item)
@@ -1015,7 +1024,7 @@ that meet strict Tm, GC%, and product-size constraints suitable for qPCR.</p>
 
 <h3>Parameter Guide</h3>
 <table border='0' cellpadding='4' cellspacing='2'>
-<tr><td><b>Product Size (Min/Max)</b></td><td>Expected amplicon length in bp.
+<tr><td><b>Product Length (bp)</b></td><td>Minimum and maximum expected amplicon length.
     qPCR: 70-200 bp for optimal efficiency.</td></tr>
 <tr><td><b>Primer Pair Count</b></td><td>How many pairs to return.
     Higher values give more candidates to choose from.</td></tr>
@@ -1027,11 +1036,11 @@ that meet strict Tm, GC%, and product-size constraints suitable for qPCR.</p>
     Typical: 40-60%. Min &le; Opt &le; Max.</td></tr>
 </table>
 
-<h3>Advanced Parameters</h3>
+<h3>Reaction Conditions</h3>
 <table border='0' cellpadding='4' cellspacing='2'>
-<tr><td><b>Salt (Monovalent)</b></td><td>Na&plus;/K&plus; concentration (mM).
+<tr><td><b>Monovalent Salt (mM)</b></td><td>Na&plus;/K&plus; concentration (mM).
     Affects Tm calculation. Standard PCR: 50 mM.</td></tr>
-<tr><td><b>Mg&sup2;&plus;</b></td><td>Magnesium concentration (mM).
+<tr><td><b>Mg&sup2;&plus; (mM)</b></td><td>Magnesium concentration (mM).
     Affects Tm and specificity. qPCR typical: 2-3 mM.</td></tr>
 </table>
 

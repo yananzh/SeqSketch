@@ -37,7 +37,7 @@ from utils.common_components import (
     validate_input_path,
     validate_output_path,
 )
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 
@@ -545,7 +545,7 @@ class PartitionConcatTab(BaseTabWidget):
         fmt_prefix_row = QHBoxLayout()
         fmt_prefix_row.setContentsMargins(0, 0, 0, 0)
 
-        self._format_combo = QComboBox()
+        self._format_combo = enable_combo_translation(QComboBox())
         self._format_combo.addItem("NEXUS charset (IQ-TREE)", "iqtree")
         self._format_combo.addItem("NEXUS DATA (MrBayes)", "mrbayes")
         self._format_combo.setFixedWidth(210)
@@ -904,7 +904,7 @@ class PartitionConcatTab(BaseTabWidget):
         self.log_area.append(
             tr_format(
                 "  Partition format : {value}",
-                value=self._format_combo.currentText(),
+                value=combo_value(self._format_combo),
             )
         )
         self.log_area.append(tr_format("  Output directory : {path}", path=out_dir))

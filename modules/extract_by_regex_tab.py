@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
-from utils.i18n import tr_ui
+from utils.i18n import combo_value, enable_combo_translation, set_combo_value, tr_ui
 
 
 def full_header_text(record) -> str:
@@ -130,11 +130,11 @@ class ExtractByRegexTab(BaseTabWidget):
         options_group = QGroupBox("Match Options")
         options_layout = QHBoxLayout(options_group)
         options_layout.addWidget(QLabel("Match mode:"))
-        self.match_mode_combo = QComboBox()
+        self.match_mode_combo = enable_combo_translation(QComboBox())
         self.match_mode_combo.addItems(["Include Matches", "Exclude Matches"])
         options_layout.addWidget(self.match_mode_combo)
         options_layout.addWidget(QLabel("Match scope:"))
-        self.match_scope_combo = QComboBox()
+        self.match_scope_combo = enable_combo_translation(QComboBox())
         self.match_scope_combo.addItems([
             "Full Header",
             "Sequence ID Only",
@@ -254,15 +254,15 @@ class ExtractByRegexTab(BaseTabWidget):
         # tr|ACC|ENTRY header format, and set scope to "Sequence ID Only"
         # since the accession lives in the ID part.
         self.regex_edit.setText(r"tr\|[^|]+\|A0AAI7Z")
-        self.match_scope_combo.setCurrentText("Sequence ID Only")
+        set_combo_value(self.match_scope_combo, "Sequence ID Only")
         self.show_status("Example loaded")
 
     def clear_all(self):
         self.input_edit.clear()
         self.output_edit.clear()
         self.regex_edit.clear()
-        self.match_mode_combo.setCurrentText("Include Matches")
-        self.match_scope_combo.setCurrentText("Full Header")
+        set_combo_value(self.match_mode_combo, "Include Matches")
+        set_combo_value(self.match_scope_combo, "Full Header")
         self.case_insensitive_checkbox.setChecked(False)
         self.export_no_match_report_checkbox.setChecked(False)
         self.preview_panel.clear()
@@ -287,8 +287,8 @@ class ExtractByRegexTab(BaseTabWidget):
         input_path = self.input_edit.text().strip()
         output_path = self.output_edit.text().strip()
         regex = self.regex_edit.text().strip()
-        match_mode = self.match_mode_combo.currentText()
-        match_scope = self.match_scope_combo.currentText()
+        match_mode = combo_value(self.match_mode_combo)
+        match_scope = combo_value(self.match_scope_combo)
         case_insensitive = self.case_insensitive_checkbox.isChecked()
         export_no_match_report = self.export_no_match_report_checkbox.isChecked()
 
@@ -321,7 +321,7 @@ class ExtractByRegexTab(BaseTabWidget):
         # Single-threaded processing
         self.set_running_state(True)
         self.log_message(
-            f"Compiled regex successfully. Mode: {match_mode}; Scope: {match_scope}; Case insensitive: {'Yes' if case_insensitive else 'No'}"
+            f"Compiled regex successfully. Mode: {tr_ui(match_mode)}; Scope: {tr_ui(match_scope)}; Case insensitive: {tr_ui('Yes' if case_insensitive else 'No')}"
         )
         self.log_message("Loading FASTA file...")
 
@@ -393,8 +393,8 @@ class ExtractByRegexTab(BaseTabWidget):
         """Preview the first few matching records without saving."""
         input_path = self.input_edit.text().strip()
         regex = self.regex_edit.text().strip()
-        match_mode = self.match_mode_combo.currentText()
-        match_scope = self.match_scope_combo.currentText()
+        match_mode = combo_value(self.match_mode_combo)
+        match_scope = combo_value(self.match_scope_combo)
         case_insensitive = self.case_insensitive_checkbox.isChecked()
 
         from utils.common_components import validate_input_path
@@ -407,12 +407,12 @@ class ExtractByRegexTab(BaseTabWidget):
             self.log_message(error, "ERROR")
             return
         if not regex:
-            self.log_message("Please enter a regular expression", "ERROR")
+            self.log_message(tr_ui("Please enter a regular expression"), "ERROR")
             return
         try:
             pattern = compile_regex_pattern(regex, case_insensitive)
         except Exception as e:
-            self.log_message(f"Invalid regular expression: {e}", "ERROR")
+            self.log_message(tr_ui(f"Invalid regular expression: {e}"), "ERROR")
             return
 
         try:
@@ -420,32 +420,32 @@ class ExtractByRegexTab(BaseTabWidget):
 
             processor = FASTAProcessor()
             if not processor.read_file(input_path):
-                self.log_message("Unable to read FASTA file", "ERROR")
+                self.log_message(tr_ui("Unable to read FASTA file"), "ERROR")
                 return
             records = processor.records
             if not records:
-                self.log_message("No sequences found in FASTA file", "ERROR")
+                self.log_message(tr_ui("No sequences found in FASTA file"), "ERROR")
                 return
 
             filtered, summary = filter_records_by_regex(records, pattern, match_mode, match_scope)
 
             lines = [
-                f"Results: {summary['match_count']} matched  ·  "
+                tr_ui(f"Results: {summary['match_count']} matched  ·  "
                 f"{summary['output_count']} in output  ·  "
-                f"{summary['scanned_count']} scanned"
+                f"{summary['scanned_count']} scanned")
             ]
             lines.append("")
             showing = filtered[:10]
             if showing:
-                lines.append(f"─ Matching records (showing first {len(showing)}) ─")
+                lines.append(tr_ui(f"─ Matching records (showing first {len(showing)}) ─"))
                 for rec in showing:
                     lines.append(f"  {rec.header}")
             else:
-                lines.append("(No records matched the given regex)")
+                lines.append(tr_ui("(No records matched the given regex)"))
             self.preview_panel.setPlainText("\n".join(lines))
-            self.log_message("Preview updated — see panel above", "INFO")
+            self.log_message(tr_ui("Preview updated — see panel above"), "INFO")
         except Exception as e:
-            self.log_message(f"Preview error: {e}", "ERROR")
+            self.log_message(tr_ui(f"Preview error: {e}"), "ERROR")
 
     def show_help(self):
         """Show help information"""

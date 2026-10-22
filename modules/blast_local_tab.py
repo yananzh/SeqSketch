@@ -43,7 +43,14 @@ from PyQt6.QtWidgets import (
 
 from utils.app_paths import exe_name, resource_path
 from utils.common_components import BaseTabWidget, unify_button_size, unify_status_button_sizes
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import (
+    combo_value,
+    connect_combo_source,
+    enable_combo_translation,
+    set_combo_value,
+    tr_format,
+    tr_ui,
+)
 from utils.task_lifecycle import request_task_stop, skip_when_closing
 
 from .blast_config import (
@@ -893,7 +900,7 @@ class _RunQueryWidget(QWidget):
         grp3_layout.setSpacing(6)
 
         grid = QGridLayout()
-        grid.setSpacing(2)
+        grid.setHorizontalSpacing(8)
         grid.setVerticalSpacing(6)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setColumnMinimumWidth(
@@ -903,18 +910,19 @@ class _RunQueryWidget(QWidget):
                 QLabel("Output File").sizeHint().width(),
             ),
         )
-        self.prog_combo = QComboBox()
+        self.prog_combo = enable_combo_translation(QComboBox())
         self.prog_combo.addItems(list(_PROG_TIPS.keys()))
-        self.prog_combo.setFixedWidth(110)
+        self.prog_combo.setFixedWidth(96)
         self.eval_edit = QLineEdit("1e-5")
-        self.eval_edit.setFixedWidth(110)
+        self.eval_edit.setFixedWidth(90)
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, 64)
         self.threads_spin.setValue(_default_blast_threads())
-        self.threads_spin.setFixedWidth(110)
+        self.threads_spin.setFixedWidth(76)
         self.numhits_spin = QSpinBox()
         self.numhits_spin.setRange(1, 10000)
         self.numhits_spin.setValue(_DEFAULT_MAX_HITS)
+        self.numhits_spin.setFixedWidth(86)
         grid.addWidget(QLabel("Program"), 0, 0)
         grid.addWidget(self.prog_combo, 0, 1)
         grid.addWidget(QLabel("E-value"), 0, 2)
@@ -923,10 +931,10 @@ class _RunQueryWidget(QWidget):
         grid.addWidget(self.threads_spin, 0, 5)
         grid.addWidget(QLabel("Max hits"), 0, 6)
         grid.addWidget(self.numhits_spin, 0, 7)
-        self.outfmt_combo = QComboBox()
+        self.outfmt_combo = enable_combo_translation(QComboBox())
         self.outfmt_combo.addItems(list(_OUTFMT_OPTIONS.keys()))
-        self.outfmt_combo.setFixedWidth(110)
-        self.outfmt_combo.currentTextChanged.connect(self._on_outfmt_changed)
+        self.outfmt_combo.setFixedWidth(130)
+        connect_combo_source(self.outfmt_combo, self._on_outfmt_changed)
         grid.addWidget(QLabel("Outfmt"), 0, 8)
         grid.addWidget(self.outfmt_combo, 0, 9)
         grid.setColumnStretch(10, 1)
@@ -1038,7 +1046,7 @@ class _RunQueryWidget(QWidget):
         }
         program = program_map.get((query_type, db_type))
         if program:
-            self.prog_combo.setCurrentText(program)
+            set_combo_value(self.prog_combo, program)
 
     def _on_db_dropped(self, path: str):
         """Strip extension so BLAST receives the base database path."""
@@ -1118,7 +1126,7 @@ class _RunQueryWidget(QWidget):
             self.out_edit.setText(os.path.normpath(os.path.abspath(text)))
 
     def _choose_outfile(self):
-        outfmt_key = self.outfmt_combo.currentText()
+        outfmt_key = combo_value(self.outfmt_combo)
         ext = _OUTFMT_EXT.get(outfmt_key, ".tsv")
         default_name = f"blast_result{ext}"
         filter_str = tr_format("{name} files (*{ext});;All Files (*)", name=ext.upper(), ext=ext)
@@ -1166,8 +1174,8 @@ class _RunQueryWidget(QWidget):
         num_hits = self.numhits_spin.value()
         out_raw = self.out_edit.text().strip()
         out_file = os.path.normpath(os.path.abspath(out_raw)) if out_raw else ""
-        program = self.prog_combo.currentText()
-        outfmt = _OUTFMT_OPTIONS[self.outfmt_combo.currentText()]
+        program = combo_value(self.prog_combo)
+        outfmt = _OUTFMT_OPTIONS[combo_value(self.outfmt_combo)]
         bin_dir = self._current_blast_bin_dir()
 
         if not db:
@@ -1346,7 +1354,7 @@ class BlastLocalTab(BaseTabWidget):
         self._run_tab.db_edit.clear()
         self._run_tab.db_name_edit.clear()
         self._run_tab.out_edit.clear()
-        self._run_tab._on_outfmt_changed(self._run_tab.outfmt_combo.currentText())
+        self._run_tab._on_outfmt_changed(combo_value(self._run_tab.outfmt_combo))
         self._run_tab.eval_edit.setText("1e-5")
         self._run_tab.prog_combo.setCurrentIndex(0)
         self._run_tab.threads_spin.setValue(_default_blast_threads())

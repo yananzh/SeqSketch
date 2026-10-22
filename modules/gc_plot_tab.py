@@ -279,7 +279,9 @@ class GCPlotTab(BaseTabWidget):
             ax.text(
                 0.5,
                 0.5,
-                f"{label} plot will appear here after clicking 'Plot'",
+                tr_format(
+                    "{name} plot will appear here after clicking 'Plot'", name=tr_ui(label),
+                ),
                 ha="center",
                 va="center",
                 fontsize=12,
@@ -417,11 +419,11 @@ class GCPlotTab(BaseTabWidget):
             color="#d32f2f",
             linestyle="--",
             linewidth=1.0,
-            label=f"Mean GC = {mean_gc:.1f}%",
+            label=tr_ui(f"Mean GC = {mean_gc:.1f}%"),
         )
-        ax.set_ylabel("GC Content (%)", fontsize=12)
+        ax.set_ylabel(tr_ui("GC Content (%)"), fontsize=12)
         ax.set_title(
-            f"GC Content — {header} (window={window})",
+            tr_ui(f"GC Content — {header} (window={window})"),
             fontsize=13,
             fontweight="bold",
         )
@@ -436,10 +438,10 @@ class GCPlotTab(BaseTabWidget):
                     lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
                 )
             )
-            ax.set_xlabel("Position (kb)", fontsize=12)
+            ax.set_xlabel(tr_ui("Position (kb)"), fontsize=12)
         else:
             ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
-            ax.set_xlabel("Position (bp)", fontsize=12)
+            ax.set_xlabel(tr_ui("Position (bp)"), fontsize=12)
 
         fig.tight_layout()
         self._canvases[0].draw()
@@ -461,7 +463,7 @@ class GCPlotTab(BaseTabWidget):
             where=(gc_skew > 0),
             color="#388e3c",
             alpha=0.15,
-            label="G excess",
+            label=tr_ui("G excess"),
         )
         ax.fill_between(
             x,
@@ -470,11 +472,11 @@ class GCPlotTab(BaseTabWidget):
             where=(gc_skew < 0),
             color="#d32f2f",
             alpha=0.15,
-            label="C excess",
+            label=tr_ui("C excess"),
         )
-        ax.set_ylabel("GC Skew", fontsize=12)
+        ax.set_ylabel(tr_ui("GC Skew"), fontsize=12)
         ax.set_title(
-            f"GC Skew = (G−C)/(G+C) — {header}",
+            tr_ui(f"GC Skew = (G−C)/(G+C) — {header}"),
             fontsize=13,
             fontweight="bold",
         )
@@ -487,10 +489,10 @@ class GCPlotTab(BaseTabWidget):
                     lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
                 )
             )
-            ax.set_xlabel("Position (kb)", fontsize=12)
+            ax.set_xlabel(tr_ui("Position (kb)"), fontsize=12)
         else:
             ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
-            ax.set_xlabel("Position (bp)", fontsize=12)
+            ax.set_xlabel(tr_ui("Position (bp)"), fontsize=12)
         ax.legend(loc="upper right", fontsize=9)
 
         fig.tight_layout()
@@ -513,7 +515,7 @@ class GCPlotTab(BaseTabWidget):
             where=(cumul_skew > 0),
             color="#7b1fa2",
             alpha=0.12,
-            label="G excess (leading)",
+            label=tr_ui("G excess (leading)"),
         )
         ax.fill_between(
             x,
@@ -522,11 +524,11 @@ class GCPlotTab(BaseTabWidget):
             where=(cumul_skew < 0),
             color="#e65100",
             alpha=0.12,
-            label="C excess (lagging)",
+            label=tr_ui("C excess (lagging)"),
         )
-        ax.set_ylabel("Cumulative GC Skew", fontsize=12)
+        ax.set_ylabel(tr_ui("Cumulative GC Skew"), fontsize=12)
         ax.set_title(
-            f"Cumulative GC Skew = Σ (G−C)/(G+C) — {header}",
+            tr_ui(f"Cumulative GC Skew = Σ (G−C)/(G+C) — {header}"),
             fontsize=13,
             fontweight="bold",
         )
@@ -556,10 +558,10 @@ class GCPlotTab(BaseTabWidget):
                     lambda v, _: f"{v / 1000:.0f} kb" if v >= 1000 else f"{int(v)}"
                 )
             )
-            ax.set_xlabel("Position (kb)", fontsize=12)
+            ax.set_xlabel(tr_ui("Position (kb)"), fontsize=12)
         else:
             ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
-            ax.set_xlabel("Position (bp)", fontsize=12)
+            ax.set_xlabel(tr_ui("Position (bp)"), fontsize=12)
         ax.legend(loc="upper right", fontsize=9)
 
         fig.tight_layout()

@@ -492,7 +492,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             self.log_message(error, "ERROR")
             return
         if not mapping_path:
-            self.log_message("Please select a mapping file", "ERROR")
+            self.log_message(tr_ui("Please select a mapping file"), "ERROR")
             return
 
         try:
@@ -505,7 +505,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             return
 
         if not mapping:
-            self.log_message("No valid mappings found in the file", "ERROR")
+            self.log_message(tr_ui("No valid mappings found in the file"), "ERROR")
             return
 
         try:
@@ -513,31 +513,31 @@ class BatchRenameIDsTab(BaseTabWidget):
 
             processor = FASTAProcessor()
             if not processor.read_file(input_path):
-                self.log_message("Unable to read FASTA file", "ERROR")
+                self.log_message(tr_ui("Unable to read FASTA file"), "ERROR")
                 return
             records = processor.records
             if not records:
-                self.log_message("No sequences found in FASTA file", "ERROR")
+                self.log_message(tr_ui("No sequences found in FASTA file"), "ERROR")
                 return
 
             rename_plan = plan_renames(records, mapping)
             lines = [
-                f"Total: {len(records)} sequences  ·  "
+                tr_ui(f"Total: {len(records)} sequences  ·  "
                 f"Renamed: {rename_plan['renamed_count']}  ·  "
-                f"Unchanged: {rename_plan['unchanged_count']}"
+                f"Unchanged: {rename_plan['unchanged_count']}")
             ]
             lines.append("")
             showing = [r for r in rename_plan["rename_rows"] if r["status"] == "renamed"][:5]
             if showing:
-                lines.append(f"─ Renamed (first {len(showing)}) ─")
+                lines.append(tr_ui(f"─ Renamed (first {len(showing)}) ─"))
                 for row in showing:
                     lines.append(f"  {row['old_id']}  →  {row['new_id']}")
             else:
-                lines.append("(No IDs match the mapping file)")
+                lines.append(tr_ui("(No IDs match the mapping file)"))
             self.preview_panel.setPlainText("\n".join(lines))
-            self.log_message("Preview updated — see panel above", "INFO")
+            self.log_message(tr_ui("Preview updated — see panel above"), "INFO")
         except Exception as e:
-            self.log_message(f"Preview error: {e}", "ERROR")
+            self.log_message(tr_ui(f"Preview error: {e}"), "ERROR")
 
     def select_output_file(self):
         file_path, _ = QFileDialog.getSaveFileName(

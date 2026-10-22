@@ -8,8 +8,8 @@ Usage::
     py scripts/check_ui_translation.py --include-combos # include combo items
 
 The check instantiates each tab twice (English, then zh-CN), shows it offscreen,
-and compares the visible text of both instances. Combo-box items are skipped by
-default because they are treated as data (see resources/i18n/README.md).
+and compares the visible text of both instances. Static, translatable combo-box
+options are included; --include-combos also inspects user-data combo boxes.
 """
 
 import argparse
@@ -42,6 +42,7 @@ from PyQt6.QtWidgets import (  # noqa: E402
 )
 
 from utils.i18n import (  # noqa: E402
+    configure_matplotlib_fonts,
     help_slug,
     install_ui_translator,
     language_pack,
@@ -64,6 +65,13 @@ EXTRA_CLASSES = {
     "PrimerAnalysisTab",
     "CodonUsageTab",
     "BookmarkManager",
+}
+# Scientific names, cited preset names and format identifiers stay unchanged.
+_TECHNICAL_CHOICES = {
+    "6 (TSV)", "5 (XML)", "E. coli K-12", "S. cerevisiae", "C. elegans",
+    "A. thaliana", "M. musculus", "Gardiner-Garden & Frommer 1987",
+    "Takai & Jones 2002", "Jukes-Cantor (JC69)", "CSV (.csv)", "TSV (.tsv)",
+    "Excel (.xlsx)", "Engelman (GES)", "UFBoot + SH-aLRT",
 }
 
 
@@ -137,7 +145,7 @@ def collect(root: QWidget, include_combos: bool) -> list[tuple[str, str, str]]:
     for index, combo in enumerate(root.findChildren(QComboBox)):
         if _visible(combo, root):
             add("combo-placeholder", combo.placeholderText(), index)
-            if include_combos:
+            if include_combos or combo.property("translateItems"):
                 for item in range(combo.count()):
                     add("combo-item", combo.itemText(item), f"{index}:{item}")
     for index, table in enumerate(root.findChildren(QTableWidget)):
@@ -160,6 +168,7 @@ def collect(root: QWidget, include_combos: bool) -> list[tuple[str, str, str]]:
 
 def snapshot(cls, language: str, include_combos: bool):
     set_active_language(language)
+    configure_matplotlib_fonts(language)
     tab = cls()
     tab.show()
     QApplication.processEvents()
@@ -179,7 +188,7 @@ def untranslated(cls_name: str, cls, include_combos: bool) -> list[tuple[str, st
     for kind, index, text in english:
         if zh_map.get((kind, index)) != text:
             continue
-        if kind == "combo-item" and not include_combos:
+        if kind == "combo-item" and text in _TECHNICAL_CHOICES:
             continue
         if text in pack.exact:
             # Deliberately identical translation (units, acronyms, product names).
@@ -193,6 +202,7 @@ def untranslated(cls_name: str, cls, include_combos: bool) -> list[tuple[str, st
 
 def check_help_pages(app) -> list[str]:
     set_active_language("zh-CN")
+    configure_matplotlib_fonts("zh-CN")
     original_exec = QDialog.exec
     QDialog.exec = lambda self: 0
     missing = []

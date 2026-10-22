@@ -22,7 +22,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
-from utils.i18n import tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_ui
 
 DIRECTION_FASTA_TO_TABLE = "fasta_to_table"
 DIRECTION_TABLE_TO_FASTA = "table_to_fasta"
@@ -127,7 +127,7 @@ class FastaTableConverterTab(BaseTabWidget):
         dir_group = QGroupBox("Conversion")
         dir_layout = QHBoxLayout(dir_group)
         dir_layout.addWidget(QLabel("Direction:"))
-        self.direction_combo = QComboBox()
+        self.direction_combo = enable_combo_translation(QComboBox())
         self.direction_combo.setMinimumWidth(160)
         self.direction_combo.addItem("FASTA \u2192 Table", DIRECTION_FASTA_TO_TABLE)
         self.direction_combo.addItem("Table \u2192 FASTA", DIRECTION_TABLE_TO_FASTA)
@@ -138,7 +138,7 @@ class FastaTableConverterTab(BaseTabWidget):
         self.direction_combo.currentIndexChanged.connect(self._update_direction_controls)
         dir_layout.addWidget(self.direction_combo)
         dir_layout.addWidget(QLabel("Table format:"))
-        self.format_combo = QComboBox()
+        self.format_combo = enable_combo_translation(QComboBox())
         self.format_combo.setMinimumWidth(130)
         self.format_combo.addItems(["CSV (.csv)", "TSV (.tsv)", "Excel (.xlsx)"])
         self.format_combo.setToolTip("Output format used when exporting FASTA \u2192 Table")
@@ -245,7 +245,7 @@ class FastaTableConverterTab(BaseTabWidget):
         self.show_status("Input file selected")
 
     def _table_extension(self) -> str:
-        fmt = self.format_combo.currentText()
+        fmt = combo_value(self.format_combo)
         if fmt.startswith("Excel"):
             return ".xlsx"
         if fmt.startswith("TSV"):
@@ -327,20 +327,20 @@ class FastaTableConverterTab(BaseTabWidget):
 
             processor = FASTAProcessor()
             if not processor.read_file(input_path):
-                self.log_message("Unable to read FASTA file", "ERROR")
+                self.log_message(tr_ui("Unable to read FASTA file"), "ERROR")
                 return
             if not processor.records:
-                self.log_message("No sequences found in FASTA file", "ERROR")
+                self.log_message(tr_ui("No sequences found in FASTA file"), "ERROR")
                 return
             df = records_to_table(processor.records)
             lines = [
-                f"FASTA \u2192 Table: {len(df)} records, columns: {', '.join(df.columns)}",
+                tr_ui(f"FASTA \u2192 Table: {len(df)} records, columns: {', '.join(df.columns)}"),
                 "",
-                "First rows:",
+                tr_ui("First rows:"),
             ]
             lines.extend(df.head(5).to_string(index=False).splitlines())
             self.preview_panel.setPlainText("\n".join(lines))
-            self.log_message(f"Preview: {len(df)} records ready for table export", "INFO")
+            self.log_message(tr_ui(f"Preview: {len(df)} records ready for table export"), "INFO")
         else:
             df = self._read_table()
             if df is None:
@@ -350,16 +350,16 @@ class FastaTableConverterTab(BaseTabWidget):
                 self.log_message(error, "ERROR")
                 return
             lines = [
-                f"Table \u2192 FASTA: {len(records)} sequences ready",
+                tr_ui(f"Table \u2192 FASTA: {len(records)} sequences ready"),
                 "",
-                "First records:",
+                tr_ui("First records:"),
             ]
             for record in records[:8]:
                 lines.append(f"  {record.header}")
             if len(records) > 8:
-                lines.append(f"  ... and {len(records) - 8} more")
+                lines.append(tr_ui(f"  ... and {len(records) - 8} more"))
             self.preview_panel.setPlainText("\n".join(lines))
-            self.log_message(f"Preview: {len(records)} sequences ready for FASTA export", "INFO")
+            self.log_message(tr_ui(f"Preview: {len(records)} sequences ready for FASTA export"), "INFO")
 
     def run_convert(self):
         to_table, input_path = self._load_input()

@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QMessageB
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
-from utils.i18n import tr_ui
+from utils.i18n import combo_value, enable_combo_translation, find_combo_value, tr_ui
 
 
 class ComplementTab(BaseTabWidget):
@@ -38,6 +38,8 @@ class ComplementTab(BaseTabWidget):
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
+        for button in (self.upload_btn, self.example_btn, self.export_btn, self.copy_btn):
+            button.setProperty("expandToRow", True)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
         btn_row = QHBoxLayout()
@@ -64,7 +66,7 @@ class ComplementTab(BaseTabWidget):
         mode_layout = QHBoxLayout(grp)
         mode_layout.setContentsMargins(6, 16, 6, 4)
         mode_layout.addWidget(QLabel("Mode:"))
-        self.mode_combo = QComboBox()
+        self.mode_combo = enable_combo_translation(QComboBox())
         self.mode_combo.addItems(["Complement", "Reverse Complement"])
         self.mode_combo.setMinimumWidth(220)
         self.mode_combo.currentTextChanged.connect(self._update_output_placeholder)
@@ -74,7 +76,7 @@ class ComplementTab(BaseTabWidget):
         self._param_layout.addWidget(grp)
 
     def _update_output_placeholder(self):
-        if self.mode_combo.currentText() == "Reverse Complement":
+        if combo_value(self.mode_combo) == "Reverse Complement":
             self.output_text.setPlaceholderText(
                 tr_ui("Reverse complement sequences will appear here...")
             )
@@ -82,18 +84,18 @@ class ComplementTab(BaseTabWidget):
             self.output_text.setPlaceholderText(tr_ui("Complement sequences will appear here..."))
 
     def set_mode(self, mode: str):
-        index = self.mode_combo.findText(mode)
+        index = find_combo_value(self.mode_combo, mode)
         if index >= 0:
             self.mode_combo.setCurrentIndex(index)
 
     def _transform_sequence(self, sequence: str) -> str:
         transformed = sequence.translate(self.complement_map)
-        if self.mode_combo.currentText() == "Reverse Complement":
+        if combo_value(self.mode_combo) == "Reverse Complement":
             return transformed[::-1]
         return transformed
 
     def _mode_label(self) -> str:
-        return self.mode_combo.currentText().lower()
+        return combo_value(self.mode_combo).lower()
 
     def run(self):
         seq = self.input_text.toPlainText().strip()
@@ -114,7 +116,7 @@ class ComplementTab(BaseTabWidget):
                 return
             transformed = self._transform_sequence(seq)
             self.output_text.setPlainText(transformed)
-            self.show_status(f"{self.mode_combo.currentText()} generated")
+            self.show_status(f"{combo_value(self.mode_combo)} generated")
 
     def _convert_fasta(self, fasta_text):
         """Convert FASTA format DNA with the selected mode."""

@@ -30,6 +30,8 @@ class RNATab(BaseTabWidget):
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
+        for button in (self.upload_btn, self.example_btn, self.export_btn, self.copy_btn):
+            button.setProperty("expandToRow", True)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
         btn_row = QHBoxLayout()

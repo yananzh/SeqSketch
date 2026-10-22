@@ -2,7 +2,7 @@
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QGridLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from utils.app_paths import resource_path
 
@@ -54,7 +54,8 @@ class HomePage(QWidget):
 
         features = QGridLayout()
         features.setHorizontalSpacing(48)
-        features.setVerticalSpacing(26)
+        features.setVerticalSpacing(6)
+        features.setRowMinimumHeight(2, 26)
         features.setColumnStretch(0, 1)
         features.setColumnStretch(1, 1)
         for index, (title, description) in enumerate((
@@ -63,22 +64,30 @@ class HomePage(QWidget):
             ("Alignment & BLAST", "Compare sequences and search for similar matches."),
             ("Primers & phylogenetics", "Design primers and explore evolutionary relationships."),
         )):
-            block = QVBoxLayout()
-            block.setSpacing(6)
             heading = QLabel(title)
             heading.setObjectName("homeFeatureTitle")
+            heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
             heading.setWordWrap(True)
             heading.setMinimumHeight(22)
             description_label = QLabel(description)
             description_label.setObjectName("homeFeatureDescription")
+            description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             description_label.setWordWrap(True)
             description_label.setMinimumHeight(40)
-            block.addWidget(heading)
-            block.addWidget(description_label)
-            features.addLayout(block, index // 2, index % 2)
+            # Direct grid rows let Qt share the wrapped title height between
+            # both columns instead of clipping a taller translated heading.
+            row, column = (index // 2) * 3, index % 2
+            features.addWidget(heading, row, column)
+            features.addWidget(description_label, row + 1, column)
         layout.addLayout(features)
         layout.addSpacing(36)
         centered("Choose a tool from the menu above to get started.", "homeHint")
 
-        outer.addWidget(content, 0, Qt.AlignmentFlag.AlignHCenter)
+        # Fill the available width up to the cap. AlignHCenter would constrain
+        # this widget to its size hint, leaving narrow columns even in a wide window.
+        content_row = QHBoxLayout()
+        content_row.addStretch()
+        content_row.addWidget(content, 1)
+        content_row.addStretch()
+        outer.addLayout(content_row)
         outer.addStretch(3)

@@ -32,7 +32,15 @@ from utils.common_components import (
     unify_status_button_sizes,
 )
 from utils.example_data import stage_example
-from utils.i18n import tr_ui
+from utils.i18n import (
+    combo_value,
+    connect_combo_source,
+    enable_combo_translation,
+    find_combo_value,
+    set_combo_value,
+    tr_format,
+    tr_ui,
+)
 
 # MISA default thresholds: minimum repeat count per unit length (1-6).
 DEFAULT_THRESHOLDS: Dict[int, int] = {1: 10, 2: 6, 3: 5, 4: 5, 5: 5, 6: 5}
@@ -228,25 +236,25 @@ class SsrFinderTab(BaseTabWidget):
             return sp
 
         unit_names = ("Mono", "Di", "Tri", "Tetra", "Penta", "Hexa")
-        row1 = QHBoxLayout()
-        row1.addWidget(QLabel("Min repeats:"))
+        row1 = QGridLayout()
+        row1.addWidget(QLabel("Min repeats:"), 0, 0, 2, 1)
         self._thresh_spins: Dict[int, QSpinBox] = {}
         for unit_len in range(1, 7):
-            row1.addStretch(1)  # spread the six groups evenly across the row
-            row1.addWidget(QLabel(f"{unit_names[unit_len - 1]}:"))
+            row, column = divmod(unit_len - 1, 3)
+            row1.addWidget(QLabel(f"{unit_names[unit_len - 1]}:"), row, 1 + column * 2)
             sp = thresh_spin(
                 DEFAULT_THRESHOLDS[unit_len],
                 f"Min repeats for {unit_names[unit_len - 1].lower()}-nucleotide SSRs "
                 f"(MISA default {DEFAULT_THRESHOLDS[unit_len]})",
             )
-            row1.addWidget(sp)
+            row1.addWidget(sp, row, 2 + column * 2)
             self._thresh_spins[unit_len] = sp
-        row1.addStretch(1)
+        row1.setColumnStretch(7, 1)
         grid.addLayout(row1)
 
         row2 = QHBoxLayout()
         row2.addWidget(QLabel("Preset:"))
-        self._preset_combo = QComboBox()
+        self._preset_combo = enable_combo_translation(QComboBox())
         self._preset_combo.addItems(list(THRESHOLD_PRESETS.keys()) + ["Custom"])
         self._preset_combo.setFixedWidth(160)
         self._preset_combo.setToolTip(
@@ -271,7 +279,7 @@ class SsrFinderTab(BaseTabWidget):
         row2.addStretch(1)
         grid.addLayout(row2)
 
-        self._preset_combo.currentTextChanged.connect(self._apply_preset)
+        connect_combo_source(self._preset_combo, self._apply_preset)
         for sp in self._thresh_spins.values():
             sp.valueChanged.connect(self._on_thresh_changed)
 
@@ -293,8 +301,8 @@ class SsrFinderTab(BaseTabWidget):
         """Any manual spin change marks the thresholds as custom."""
         if getattr(self, "_preset_guard", False):
             return
-        if self._preset_combo.currentText() != "Custom":
-            self._preset_combo.setCurrentText("Custom")
+        if combo_value(self._preset_combo) != "Custom":
+            set_combo_value(self._preset_combo, "Custom")
 
     def _setup_results_area(self):
         grp = QGroupBox("Microsatellites")
@@ -315,7 +323,7 @@ class SsrFinderTab(BaseTabWidget):
         filters.addWidget(self._record_combo, 1)
         filters.addSpacing(16)
         filters.addWidget(QLabel("Type:"))
-        self._type_combo = QComboBox()
+        self._type_combo = enable_combo_translation(QComboBox())
         self._type_combo.addItems(["All", "Perfect", "Compound"])
         filters.addWidget(self._type_combo)
         filters.addSpacing(16)
@@ -390,7 +398,7 @@ class SsrFinderTab(BaseTabWidget):
         self._record_combo.blockSignals(True)
         self._record_combo.clear()
         if len(cleaned) > 1:
-            self._record_combo.addItem(f"All records ({len(cleaned)})")
+            self._record_combo.addItem(tr_format("All records ({count})", count=len(cleaned)))
         for i, (header, _seq) in enumerate(cleaned, 1):
             self._record_combo.addItem(self._record_label(header, i))
         index = self._record_combo.findText(previous) if previous else 0
@@ -434,7 +442,7 @@ class SsrFinderTab(BaseTabWidget):
         selected = self._all_results if self._all_records_mode else [
             self._all_results[max(combo_idx - 1, 0)]
         ]
-        kind = self._type_combo.currentText()
+        kind = combo_value(self._type_combo)
         query = self._search_edit.text().strip().casefold()
         self._record_results = []
         for rec in selected:
@@ -491,7 +499,7 @@ class SsrFinderTab(BaseTabWidget):
         self._export_btn.setEnabled(bool(self._perfect or self._compound))
         if not self._perfect and not self._compound:
             self.show_status("No matching microsatellites" if (
-                self._type_combo.currentText() != "All" or self._search_edit.text().strip()
+                combo_value(self._type_combo) != "All" or self._search_edit.text().strip()
             ) else "No microsatellites found")
             return
         if self._all_records_mode:
@@ -509,7 +517,9 @@ class SsrFinderTab(BaseTabWidget):
     def _fill_row(self, row_idx: int, values: List[str]):
         """Populate one table row; numeric columns get value-aware sorting items."""
         for col_idx, value in enumerate(values):
-            item = QTableWidgetItem(value)
+            item = QTableWidgetItem(tr_ui(value) if col_idx == 1 else value)
+            if col_idx == 1:
+                item.setData(Qt.ItemDataRole.UserRole, value)
             if col_idx in (4, 5, 6, 7):
                 item = _NumItem(float(value), value)
             self._ssr_table.setItem(row_idx, col_idx, item)
@@ -554,7 +564,8 @@ class SsrFinderTab(BaseTabWidget):
                 writer.writerow(TABLE_HEADERS)
                 for row_idx in range(self._ssr_table.rowCount()):
                     writer.writerow([
-                        self._ssr_table.item(row_idx, col).text()
+                        (self._ssr_table.item(row_idx, col).data(Qt.ItemDataRole.UserRole)
+                         if col == 1 else self._ssr_table.item(row_idx, col).text())
                         for col in range(self._ssr_table.columnCount())
                     ])
             self.show_status(f"Exported: {os.path.normpath(path)}")

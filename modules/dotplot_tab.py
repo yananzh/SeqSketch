@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import enable_combo_translation, tr_format, tr_ui
 
 matplotlib.use("QtAgg")
 import re
@@ -132,7 +132,7 @@ class DotPlotTab(BaseTabWidget):
         mode_lbl = QLabel("Compare Mode:")
         mode_lbl.setFixedWidth(120)
         row.addWidget(mode_lbl)
-        self.mode_box = QComboBox()
+        self.mode_box = enable_combo_translation(QComboBox())
         self.mode_box.addItems([
             "Auto (2 FASTA records -> pairwise; 1 record -> self)",
             "Force self-comparison (use first sequence)",
@@ -255,7 +255,7 @@ class DotPlotTab(BaseTabWidget):
         ax.text(
             0.5,
             0.5,
-            "DotPlot will appear here after clicking 'Generate DotPlot'",
+            tr_ui("DotPlot will appear here after clicking 'Generate DotPlot'"),
             ha="center",
             va="center",
             fontsize=11,
@@ -278,9 +278,9 @@ class DotPlotTab(BaseTabWidget):
             origin="upper",
             aspect="auto",
         )
-        ax.set_title(f"DotPlot (k-mer = {k})", fontsize=11)
-        ax.set_xlabel(f"{name_b} position")
-        ax.set_ylabel(f"{name_a} position")
+        ax.set_title(tr_ui(f"DotPlot (k-mer = {k})"), fontsize=11)
+        ax.set_xlabel(tr_ui(f"{name_b} position"))
+        ax.set_ylabel(tr_ui(f"{name_a} position"))
         ax.grid(False)
         self.canvas.draw()
 

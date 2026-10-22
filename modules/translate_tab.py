@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget
 from utils.example_data import load_example_text
+from utils.i18n import combo_value, enable_combo_translation
 
 # NCBI genetic code table id, keyed by the human-readable label shown in the combo box.
 GENETIC_CODES = {
@@ -95,7 +96,7 @@ class TranslateTab(BaseTabWidget):
         grid.setVerticalSpacing(8)
 
         grid.addWidget(QLabel("Reading Frame:"), 0, 0)
-        self.frame_box = QComboBox()
+        self.frame_box = enable_combo_translation(QComboBox())
         self.frame_box.addItems([
             "+1 (forward, from position 1)",
             "+2 (forward, from position 2)",
@@ -108,7 +109,7 @@ class TranslateTab(BaseTabWidget):
         grid.addWidget(self.frame_box, 0, 1)
 
         grid.addWidget(QLabel("Amino Acid Format:"), 0, 2)
-        self.aa_mode_box = QComboBox()
+        self.aa_mode_box = enable_combo_translation(QComboBox())
         self.aa_mode_box.addItems([
             "1-letter (e.g., MKTF)",
             "3-letter (e.g., Met-Lys-Thr-Phe)",
@@ -117,7 +118,7 @@ class TranslateTab(BaseTabWidget):
         grid.addWidget(self.aa_mode_box, 0, 3)
 
         grid.addWidget(QLabel("Genetic Code:"), 1, 0)
-        self.genetic_code_box = QComboBox()
+        self.genetic_code_box = enable_combo_translation(QComboBox())
         self.genetic_code_box.addItems(list(GENETIC_CODES.keys()))
         self.genetic_code_box.setMinimumWidth(320)
         self.genetic_code_box.setToolTip(
@@ -136,6 +137,8 @@ class TranslateTab(BaseTabWidget):
         # Place Example button horizontally with upload_btn (unified pattern)
         self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
+        for button in (self.upload_btn, self.example_btn, self.export_btn, self.copy_btn):
+            button.setProperty("expandToRow", True)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
         btn_row = QHBoxLayout()
@@ -166,8 +169,8 @@ class TranslateTab(BaseTabWidget):
 
         frame = self.frame_box.currentIndex()
         aa_mode = self.aa_mode_box.currentIndex()
-        frame_name = self.frame_box.currentText().split()[0]
-        genetic_code_id = GENETIC_CODES[self.genetic_code_box.currentText()]
+        frame_name = combo_value(self.frame_box).split()[0]
+        genetic_code_id = GENETIC_CODES[combo_value(self.genetic_code_box)]
         codon_table = _codon_table_dict(genetic_code_id)
 
         if ">" in raw:

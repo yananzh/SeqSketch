@@ -53,7 +53,7 @@
   "STRING": "STRING",
   "MobiDB": "MobiDB",
   "HMMER (phmmer)": "HMMER (phmmer)",
-  "Alignment": "比对",
+  "Alignment": "序列比对",
   "Pairwise Sequence Alignment": "双序列比对",
   "DotPlot": "DotPlot（点阵图）",
   "Multiple Sequence Alignment": "多序列比对",
@@ -76,7 +76,7 @@
   "Sequence Concatenation": "序列拼接",
   "Distance Tree Construction": "距离树构建",
   "ML Tree Construction (IQ-TREE)": "最大似然树构建（IQ-TREE）",
-  "One Step MultiGenePhy": "One Step MultiGenePhy（一键多基因系统发育）",
+  "One Step MultiGenePhy": "一键多基因系统发育",
   "Tree Visualization (Toytree)": "系统树可视化（Toytree）",
   "Manage Bookmarks": "管理书签"
 }

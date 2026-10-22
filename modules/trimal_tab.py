@@ -48,7 +48,7 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import stage_example
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_format, tr_ui
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
 from utils.task_lifecycle import request_task_stop, skip_when_closing
@@ -491,7 +491,7 @@ class AlignmentTrimmingTab(BaseTabWidget):
         fmt_box = QGroupBox("Output Format")
         fmt_layout = QHBoxLayout(fmt_box)
         fmt_lbl = QLabel("Format:")
-        self.fmt_combo = QComboBox()
+        self.fmt_combo = enable_combo_translation(QComboBox())
         self.fmt_combo.addItems([
             "FASTA",
             "CLUSTAL",
@@ -691,7 +691,7 @@ or <b>MSA Visualization</b>.</li>
             "NEXUS": "-nexus",
             "MEGA": "-mega",
         }
-        fmt = self.fmt_combo.currentText()
+        fmt = combo_value(self.fmt_combo)
         if fmt in fmt_map:
             flags.append(fmt_map[fmt])
         return flags
@@ -703,7 +703,7 @@ or <b>MSA Visualization</b>.</li>
             "PHYLIP": ".phy",
             "NEXUS": ".nex",
             "MEGA": ".meg",
-        }.get(self.fmt_combo.currentText(), ".fasta")
+        }.get(combo_value(self.fmt_combo), ".fasta")
 
     # ── run / stop ────────────────────────────────────────────────────────
     def _run(self):
@@ -741,7 +741,7 @@ or <b>MSA Visualization</b>.</li>
 
         flags = self._build_flags()
         ext = self._out_ext()
-        fmt_name = self.fmt_combo.currentText()
+        fmt_name = combo_value(self.fmt_combo)
         method_name = self._selected_method_name()
 
         tasks: list[tuple[list[str], str, str | None]] = []

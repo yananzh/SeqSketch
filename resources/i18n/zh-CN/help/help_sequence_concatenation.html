@@ -24,7 +24,7 @@ IQ-TREE 或 MrBayes 进行多基因系统发育分析。</p>
   <li>点击<b>运行</b>。</li>
   <li>将 <code>&lt;prefix&gt;.fasta</code> + <code>&lt;prefix&gt;.nex</code>
   载入<b>最大似然树构建（IQ-TREE）</b>，或在 MrBayes 中直接打开 <code>.nex</code>
-  （选择 <b>NEXUS DATA (MrBayes)</b> 格式）。</li>
+  （选择 <b>NEXUS 数据（MrBayes）</b> 格式）。</li>
 </ol>
 
 <h3>输入</h3>
@@ -41,9 +41,9 @@ IQ-TREE 或 MrBayes 进行多基因系统发育分析。</p>
 <ul>
   <li>序列类型（DNA 或蛋白质）由第一条序列自动识别 &mdash; 无需设置。</li>
   <li><b>分区格式</b> &ndash; 两个选项：
-  <b>NEXUS charset (IQ-TREE)</b> 写出仅含分区的 <code>#NEXUS</code> 块，
+  <b>NEXUS 分区（IQ-TREE）</b> 写出仅含分区的 <code>#NEXUS</code> 块，
   使用 <code>BEGIN SETS;</code> charsets（用 IQ-TREE <code>-p</code> 载入）；
-  <b>NEXUS DATA (MrBayes)</b> 写出完整的数据文件，包含矩阵以及 charset 块，
+  <b>NEXUS 数据（MrBayes）</b> 写出完整的数据文件，包含矩阵以及 charset 块，
   可直接在 MrBayes 中打开。在 MrBayes 模式下，某个基因中缺失的分类单元会用
   <code>?</code>（未知）而不是 <code>-</code> 补齐。</li>
   <li><b>输出目录</b> &ndash; 拼接后的 FASTA 和分区文件的写出位置（会根据第一个输入文件自动填入）。</li>

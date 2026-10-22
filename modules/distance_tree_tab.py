@@ -38,7 +38,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 # ── Distance model presets ────────────────────────────────────────────────
@@ -419,7 +419,7 @@ class DistanceTreeTab(BaseTabWidget):
         opt_row = QHBoxLayout()
         opt_row.setSpacing(8)
         opt_row.addWidget(QLabel("Method:"))
-        self._method_combo = QComboBox()
+        self._method_combo = enable_combo_translation(QComboBox())
         self._method_combo.addItem("NJ", "nj")
         self._method_combo.addItem("UPGMA", "upgma")
         self._method_combo.setFixedWidth(110)
@@ -430,7 +430,7 @@ class DistanceTreeTab(BaseTabWidget):
         opt_row.addWidget(self._method_combo)
         opt_row.addSpacing(16)
         opt_row.addWidget(QLabel("Model:"))
-        self._model_combo = QComboBox()
+        self._model_combo = enable_combo_translation(QComboBox())
         for display, data in _DNA_MODELS:
             self._model_combo.addItem(display, data)
         self._model_combo.setMinimumWidth(220)
@@ -706,7 +706,7 @@ class DistanceTreeTab(BaseTabWidget):
             )
             status_msg = tr_format(
                 "{method} tree saved ({n_taxa} taxa{boot_msg})",
-                method=self._method_combo.currentText(),
+                method=combo_value(self._method_combo),
                 n_taxa=n_taxa,
                 boot_msg=boot_msg,
             )

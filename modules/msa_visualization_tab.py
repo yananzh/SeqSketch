@@ -4,6 +4,8 @@ import tempfile
 
 import matplotlib
 
+from utils.i18n import combo_value, enable_combo_translation, set_combo_value
+
 matplotlib.use("QtAgg")
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtCore import Qt, QUrl
@@ -133,7 +135,7 @@ class MSAVisualizationTab(BaseTabWidget):
         pg_layout.setContentsMargins(12, 16, 12, 4)
         pg_layout.setSpacing(6)
 
-        # Row 1 — appearance parameters: right-aligned labels, uniform controls.
+        # Row 1 — left-aligned labels share the display-toggle row's left edge.
         row1 = QHBoxLayout()
         row1.setSpacing(8)
         _label_width = 105
@@ -142,13 +144,13 @@ class MSAVisualizationTab(BaseTabWidget):
         def _add_param(label_text: str, widget: QWidget) -> None:
             label = QLabel(label_text)
             label.setFixedWidth(_label_width)
-            label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             row1.addWidget(label)
             row1.addWidget(widget)
 
-        self.color_combo = QComboBox()
+        self.color_combo = enable_combo_translation(QComboBox())
         self.color_combo.addItems(_COLOR_SCHEMES)
-        self.color_combo.setCurrentText("Clustal")
+        set_combo_value(self.color_combo, "Clustal")
         # Wider than the other controls so scheme names are not truncated.
         self.color_combo.setFixedWidth(130)
         self.color_combo.setToolTip(
@@ -448,7 +450,7 @@ class MSAVisualizationTab(BaseTabWidget):
 
             from pymsaviz import MsaViz
 
-            color = self.color_combo.currentText()
+            color = combo_value(self.color_combo)
             color_arg = None if color == "None" else color
             wrap = self.wrap_spin.value() or None  # 0 → None
             do_sort = self.chk_sort.isChecked()

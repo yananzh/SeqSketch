@@ -28,7 +28,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
-from utils.i18n import tr_ui
+from utils.i18n import enable_combo_translation, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 
@@ -183,7 +183,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         params.setContentsMargins(8, 16, 0, 4)
 
         params.addWidget(QLabel("Enzyme Set:"))
-        self._enzyme_set_combo = QComboBox()
+        self._enzyme_set_combo = enable_combo_translation(QComboBox())
         self._enzyme_set_combo.addItems([
             "Common (commercially available)",
             "All REBASE enzymes",
@@ -440,7 +440,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         ax.set_xlim(-seq_len * 0.025, seq_len * 1.025)
         ax.set_ylim(-0.5, 0.55)
         ax.set_yticks([])
-        ax.set_xlabel("Position (bp)", fontsize=8)
+        ax.set_xlabel(tr_ui("Position (bp)"), fontsize=8)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.spines["left"].set_visible(False)

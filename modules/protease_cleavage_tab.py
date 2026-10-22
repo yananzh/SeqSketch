@@ -27,7 +27,14 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import (
+    combo_value,
+    connect_combo_source,
+    enable_combo_translation,
+    set_combo_value,
+    tr_format,
+    tr_ui,
+)
 
 # ── Protease definitions ─────────────────────────────────────────────────────
 # Each entry: (display_name, cleavage_rule)
@@ -190,6 +197,8 @@ class ProteaseCleavageTab(BaseTabWidget):
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
+        for button in (self.upload_btn, self.example_btn):
+            button.setProperty("expandToRow", True)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
         btn_row = QHBoxLayout()
@@ -250,11 +259,11 @@ class ProteaseCleavageTab(BaseTabWidget):
         row1 = QHBoxLayout()
         row1.setSpacing(16)
         row1.addWidget(QLabel("Protease:"))
-        self.protease_combo = QComboBox()
+        self.protease_combo = enable_combo_translation(QComboBox())
         self.protease_combo.addItems(list(PROTEASES.keys()))
-        self.protease_combo.setCurrentText("Trypsin")
+        set_combo_value(self.protease_combo, "Trypsin")
         self.protease_combo.setMinimumWidth(200)
-        self.protease_combo.currentTextChanged.connect(self._update_protease_hint)
+        connect_combo_source(self.protease_combo, self._update_protease_hint)
         row1.addWidget(self.protease_combo)
 
         # Missed cleavages
@@ -299,7 +308,7 @@ class ProteaseCleavageTab(BaseTabWidget):
             QMessageBox.warning(self, "Input Error", "No valid FASTA sequences detected.")
             return
 
-        protease_name = self.protease_combo.currentText()
+        protease_name = combo_value(self.protease_combo)
         protease = PROTEASES[protease_name]
         missed = self.missed_spin.value()
 

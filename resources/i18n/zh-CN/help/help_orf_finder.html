@@ -17,7 +17,7 @@
 <table border="0" cellpadding="4" cellspacing="2">
 <tr><td><b>参数</b></td><td><b>控制内容</b></td></tr>
 <tr><td>最小 ORF 长度</td><td>过滤掉较短的 ORF。细菌基因组通常为 100 nt；真核生物可尝试 300 nt。</td></tr>
-<tr><td>搜索链</td><td><b>Both strands</b> = 全部 6 个阅读框（最适合发现新基因）。<b>Forward only</b> = + 链上的 3 个阅读框。</td></tr>
+<tr><td>搜索链</td><td><b>双链</b> = 全部 6 个阅读框（最适合发现新基因）。<b>Forward only</b> = + 链上的 3 个阅读框。</td></tr>
 <tr><td>起始密码子</td><td>真核生物通常使用<b>仅 ATG</b>。替代起始密码子常见的细菌可使用<b>ATG/GTG/TTG</b>。</td></tr>
 <tr><td>遗传密码表</td><td>用于识别终止密码子并翻译 ORF 的 NCBI 遗传密码表。默认使用 <b>Standard</b>（标准密码表）；若序列使用其他密码表，请选择线粒体或替代密码表。</td></tr>
 </table>
@@ -25,10 +25,10 @@
 <h3>输出说明</h3>
 <ul>
 <li><b>ORF #</b> &mdash; 顺序编号，便于引用</li>
-<li><b>Frame</b> &mdash; 阅读框（+1/+2/+3 = 正向，-1/-2/-3 = 反向）</li>
-<li><b>Position</b> &mdash; 输入序列中的起止坐标</li>
-<li><b>Length</b> &mdash; 核苷酸总数（包括起始和终止密码子）</li>
-<li><b>Sequence</b> &mdash; ORF 的 DNA 序列</li>
+<li><b>阅读框</b> &mdash; 阅读框（+1/+2/+3 = 正向，-1/-2/-3 = 反向）</li>
+<li><b>位置</b> &mdash; 输入序列中的起止坐标</li>
+<li><b>长度</b> &mdash; 核苷酸总数（包括起始和终止密码子）</li>
+<li><b>序列</b> &mdash; ORF 的 DNA 序列</li>
 <li><b>Translation</b> &mdash; 预测的氨基酸序列</li>
 </ul>
 

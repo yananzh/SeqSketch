@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, connect_combo_source, enable_combo_translation, tr_format, tr_ui
 
 matplotlib.use("QtAgg")
 import logomaker
@@ -170,7 +170,7 @@ class SequenceLogoTab(BaseTabWidget):
 
         # Sequence Type
         type_label = QLabel("Sequence Type:")
-        self.seq_type_combo = QComboBox()
+        self.seq_type_combo = enable_combo_translation(QComboBox())
         self.seq_type_combo.addItems(["Auto Detect", "DNA", "Protein"])
         self.seq_type_combo.setCurrentIndex(0)
         self.seq_type_combo.setMinimumWidth(140)
@@ -179,7 +179,9 @@ class SequenceLogoTab(BaseTabWidget):
 
         # Display Mode
         mode_label = QLabel("Display Mode:")
-        self.mode_combo = QComboBox()
+        self.mode_combo = enable_combo_translation(
+            QComboBox(), translation_keys={"Information": "Information content"},
+        )
         self.mode_combo.addItems(["Probability", "Information"])
         self.mode_combo.setCurrentIndex(0)
         self.mode_combo.setMinimumWidth(140)
@@ -193,7 +195,7 @@ class SequenceLogoTab(BaseTabWidget):
         # Inline hint for the currently selected mode
         self._mode_hint = QLabel("Height = letter frequency (0–1)")
         self._mode_hint.setProperty("hintLabel", True)
-        self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
+        connect_combo_source(self.mode_combo, self._on_mode_changed)
         row.addWidget(self._mode_hint)
         row.addStretch()
 
@@ -246,7 +248,7 @@ class SequenceLogoTab(BaseTabWidget):
         ax.text(
             0.5,
             0.5,
-            "Sequence Logo will appear here after generation",
+            tr_ui("Sequence Logo will appear here after generation"),
             ha="center",
             va="center",
             fontsize=12,
@@ -300,7 +302,7 @@ class SequenceLogoTab(BaseTabWidget):
 
         try:
             # Get selected mode
-            mode = self.mode_combo.currentText()
+            mode = combo_value(self.mode_combo)
 
             # Create position frequency matrix
             pfm = self.create_pfm(sequences, seq_type)
@@ -319,8 +321,8 @@ class SequenceLogoTab(BaseTabWidget):
                     "Generated: {count} seqs, {positions} pos ({seq_type} {mode})",
                     count=len(records),
                     positions=lengths[0],
-                    seq_type=seq_type,
-                    mode=mode,
+                    seq_type=tr_ui(seq_type),
+                    mode=self.mode_combo.currentText(),
                 )
             )
         except Exception as e:
@@ -338,7 +340,7 @@ class SequenceLogoTab(BaseTabWidget):
 
     def detect_sequence_type(self, sequences):
         """Detect if sequences are DNA or Protein"""
-        choice = self.seq_type_combo.currentText()
+        choice = combo_value(self.seq_type_combo)
 
         if choice == "DNA":
             return "DNA"
@@ -447,8 +449,8 @@ class SequenceLogoTab(BaseTabWidget):
 
         # Customize plot
         y_label = "Bits" if mode == "Information" else "Probability"
-        ax.set_ylabel(y_label, fontsize=14)
-        ax.set_xlabel("Position", fontsize=14)
+        ax.set_ylabel(tr_ui(y_label), fontsize=14)
+        ax.set_xlabel(tr_ui("Position"), fontsize=14)
         ax.tick_params(labelsize=12)
 
         # Set x-axis to show positions starting from 1
@@ -459,7 +461,12 @@ class SequenceLogoTab(BaseTabWidget):
         ax.spines["right"].set_visible(False)
 
         ax.set_title(
-            f"Sequence Logo — {seq_type} ({mode}, {num_seqs} seqs, {len(matrix)} pos)",
+            tr_format(
+                "Sequence Logo — {seq_type} ({mode}, {count} seqs, {positions} pos)",
+                seq_type=tr_ui(seq_type),
+                mode=tr_ui("Information content" if mode == "Information" else mode),
+                count=num_seqs, positions=len(matrix),
+            ),
             fontsize=13,
             fontweight="bold",
             pad=15,  # more breathing room between title and logo

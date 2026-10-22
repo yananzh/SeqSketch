@@ -142,7 +142,7 @@ class MainWindow(QMainWindow):
         if error:
             QMessageBox.critical(self, "Error", text)
         else:
-            self.status.showMessage(text, 5000)
+            self.status.showMessage(tr_ui(text), 5000)
 
     def _find_or_open(self, tab_class, title, factory=None, reuse=True):
         """Reuse an existing tab of *tab_class*, or create a new one.
@@ -644,7 +644,7 @@ yananzh &middot; GPL-3.0
 </p>
 
 <p style="font-size:13px; color:#999; margin:12px 0 0 0;">
-Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
+{built_with}
 </p>
 
 <p style="margin:16px 0 0 0; font-size:14px;">
@@ -654,12 +654,14 @@ Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib
         """.format(
             version_line=tr_format("Version {version}", version=APP_VERSION),
             tagline=tr_ui("Sequence Analysis & Visualization Toolkit").replace("&", "&amp;"),
+            built_with=tr_ui("Built with Python &middot; PyQt6 &middot; Biopython &middot; Matplotlib"),
         )
         from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QVBoxLayout
 
         dlg = QDialog(self)
         dlg.setWindowTitle("About SeqSketch")
-        dlg.setFixedSize(340, 280)
+        dlg.resize(380, 360)
+        dlg.setMinimumSize(380, 360)
         dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
         layout = QVBoxLayout(dlg)
         layout.setContentsMargins(28, 24, 28, 24)

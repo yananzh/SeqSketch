@@ -215,7 +215,7 @@ class ConcatFastaTab(BaseTabWidget):
     def preview_concat(self):
         paths = self._file_paths()
         if not paths:
-            self.log_message("Please add at least one FASTA file", "ERROR")
+            self.log_message(tr_ui("Please add at least one FASTA file"), "ERROR")
             return
 
         lines = []
@@ -223,7 +223,7 @@ class ConcatFastaTab(BaseTabWidget):
         valid_paths = 0
         for path in paths:
             if not os.path.isfile(path):
-                lines.append(f"  ✗ {path}  (file not found)")
+                lines.append(tr_ui(f"  ✗ {path}  (file not found)"))
                 continue
             try:
                 from modules.fasta_processor import FASTAProcessor
@@ -233,17 +233,17 @@ class ConcatFastaTab(BaseTabWidget):
                     count = len(processor.records)
                     total_seqs += count
                     valid_paths += 1
-                    lines.append(f"  ✓ {os.path.basename(path)}  ({count} sequences)")
+                    lines.append(tr_ui(f"  ✓ {os.path.basename(path)}  ({count} sequences)"))
                 else:
-                    lines.append(f"  ✗ {os.path.basename(path)}  (no sequences)")
+                    lines.append(tr_ui(f"  ✗ {os.path.basename(path)}  (no sequences)"))
             except Exception:
-                lines.append(f"  ✗ {os.path.basename(path)}  (read error)")
+                lines.append(tr_ui(f"  ✗ {os.path.basename(path)}  (read error)"))
 
-        summary = f"Files: {valid_paths}/{len(paths)} valid  ·  Total sequences: {total_seqs}"
+        summary = tr_ui(f"Files: {valid_paths}/{len(paths)} valid  ·  Total sequences: {total_seqs}")
         lines.insert(0, summary)
         lines.insert(1, "")
         self.preview_panel.setPlainText("\n".join(lines))
-        self.log_message("Preview updated — see panel above", "INFO")
+        self.log_message(tr_ui("Preview updated — see panel above"), "INFO")
 
     def run_concat(self):
         paths = self._file_paths()

@@ -22,7 +22,7 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import load_example_text, stage_example
-from utils.i18n import tr_ui
+from utils.i18n import combo_value, enable_combo_translation, set_combo_value, tr_ui
 
 FORMAT_LABELS = {
     "FASTA": "fasta",
@@ -167,7 +167,7 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         input_fmt_label = QLabel("Input format:")
         input_fmt_label.setFixedWidth(120)
         fmt_row.addWidget(input_fmt_label)
-        self.input_format_combo = QComboBox()
+        self.input_format_combo = enable_combo_translation(QComboBox())
         self.input_format_combo.addItems(list(FORMAT_LABELS))
         fmt_row.addWidget(self.input_format_combo)
         fmt_row.addStretch()
@@ -200,9 +200,9 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         output_fmt_label = QLabel("Output format:")
         output_fmt_label.setFixedWidth(120)
         out_fmt_row.addWidget(output_fmt_label)
-        self.output_format_combo = QComboBox()
+        self.output_format_combo = enable_combo_translation(QComboBox())
         self.output_format_combo.addItems(list(FORMAT_LABELS))
-        self.output_format_combo.setCurrentText("CLUSTAL")
+        set_combo_value(self.output_format_combo, "CLUSTAL")
         out_fmt_row.addWidget(self.output_format_combo)
         out_fmt_row.addStretch()
 
@@ -269,16 +269,16 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         self.input_edit.setText(file_path)
         ext = os.path.splitext(file_path)[1].lower()
         if ext in {".fasta", ".fa", ".fas", ".fna", ".afa"}:
-            self.input_format_combo.setCurrentText("FASTA")
+            set_combo_value(self.input_format_combo, "FASTA")
         elif ext in {".aln", ".clustal"}:
-            self.input_format_combo.setCurrentText("CLUSTAL")
+            set_combo_value(self.input_format_combo, "CLUSTAL")
         elif ext in {".phy", ".phylip"}:
-            self.input_format_combo.setCurrentText("PHYLIP")
+            set_combo_value(self.input_format_combo, "PHYLIP")
         elif ext in {".nex", ".nexus"}:
-            self.input_format_combo.setCurrentText("NEXUS")
+            set_combo_value(self.input_format_combo, "NEXUS")
         # Auto-fill the output path from the input file (always follows input)
         base, _ = os.path.splitext(file_path)
-        self.output_edit.setText(base + FORMAT_EXTENSIONS[self.output_format_combo.currentText()])
+        self.output_edit.setText(base + FORMAT_EXTENSIONS[combo_value(self.output_format_combo)])
 
     def _update_output_extension(self):
         output_path = self.output_edit.text().strip()
@@ -287,7 +287,7 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         root, ext = os.path.splitext(output_path)
         if ext.lower() in FORMAT_EXTENSIONS.values():
             self.output_edit.setText(
-                root + FORMAT_EXTENSIONS[self.output_format_combo.currentText()]
+                root + FORMAT_EXTENSIONS[combo_value(self.output_format_combo)]
             )
 
     def _resolved_output_path(self) -> str:
@@ -297,7 +297,7 @@ class AlignmentFormatConverterTab(BaseTabWidget):
         root, ext = os.path.splitext(output_path)
         if ext:
             return output_path
-        resolved = root + FORMAT_EXTENSIONS[self.output_format_combo.currentText()]
+        resolved = root + FORMAT_EXTENSIONS[combo_value(self.output_format_combo)]
         self.output_edit.setText(resolved)
         return resolved
 
@@ -321,8 +321,8 @@ class AlignmentFormatConverterTab(BaseTabWidget):
             written, seq_count, alignment_length = convert_alignment_file(
                 input_path=input_path,
                 output_path=output_path,
-                input_format_label=self.input_format_combo.currentText(),
-                output_format_label=self.output_format_combo.currentText(),
+                input_format_label=combo_value(self.input_format_combo),
+                output_format_label=combo_value(self.output_format_combo),
             )
             self.log_message(
                 f"Converted {written} alignment(s); sequences: {seq_count}; alignment length: {alignment_length}."

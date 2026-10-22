@@ -31,7 +31,15 @@ from utils.common_components import (
     unify_status_button_sizes,
 )
 from utils.example_data import stage_example
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import (
+    combo_value,
+    connect_combo_source,
+    enable_combo_translation,
+    find_combo_value,
+    set_combo_value,
+    tr_format,
+    tr_ui,
+)
 
 # Gardiner-Garden & Frommer (1987) default criteria.
 DEFAULT_CRITERIA: Dict[str, object] = {
@@ -248,7 +256,7 @@ class CpGIslandTab(BaseTabWidget):
         # Row 1: criteria preset + window size (compact, left-aligned).
         row1 = QHBoxLayout()
         row1.addWidget(QLabel("Criteria:"))
-        self._criteria_combo = QComboBox()
+        self._criteria_combo = enable_combo_translation(QComboBox())
         self._criteria_combo.addItems(list(CRITERIA_PRESETS.keys()) + ["Custom"])
         self._criteria_combo.setFixedWidth(280)
         self._criteria_combo.setToolTip(
@@ -315,7 +323,7 @@ class CpGIslandTab(BaseTabWidget):
         row2.addStretch()
         grid.addLayout(row2)
 
-        self._criteria_combo.currentTextChanged.connect(self._apply_criteria)
+        connect_combo_source(self._criteria_combo, self._apply_criteria)
         for sp in (
             self.window_spin,
             self.step_spin,
@@ -346,8 +354,8 @@ class CpGIslandTab(BaseTabWidget):
         """Any manual spin change marks the criteria as custom."""
         if getattr(self, "_criteria_guard", False):
             return
-        if self._criteria_combo.currentText() != "Custom":
-            self._criteria_combo.setCurrentText("Custom")
+        if combo_value(self._criteria_combo) != "Custom":
+            set_combo_value(self._criteria_combo, "Custom")
 
     def _setup_results_area(self):
         grp = QGroupBox("CpG Islands")
@@ -418,7 +426,7 @@ class CpGIslandTab(BaseTabWidget):
         self._record_combo.blockSignals(True)
         self._record_combo.clear()
         if len(cleaned) > 1:
-            self._record_combo.addItem(f"All records ({len(cleaned)})")
+            self._record_combo.addItem(tr_format("All records ({count})", count=len(cleaned)))
         for i, (header, _seq) in enumerate(cleaned, 1):
             self._record_combo.addItem(self._record_label(header, i))
         index = self._record_combo.findText(previous) if previous else 0

@@ -15,6 +15,8 @@
   "Output: <prefix>.treefile, <prefix>.iqtree, etc.": "输出：<prefix>.treefile、<prefix>.iqtree 等。",
   "Sequence type:": "序列类型：",
   "Model:": "模型：",
+  "Substitution model:": "替换模型：",
+  "Disabled": "关闭",
   "UFBoot: ultrafast (-B) | +SH-aLRT: ultrafast + branch test (-B -alrt) | Standard: nonparametric (-b)": "UFBoot：超快（-B）| +SH-aLRT：超快 + 分支检验（-B -alrt）| Standard：非参数（-b）",
   "Bootstrap replicates (0 = off). UFBoot >= 1000, Standard default: 500. UFBoot + SH-aLRT uses this count for both tests.": "自举重复次数（0 = 关闭）。UFBoot ≥ 1000，Standard 默认 500。UFBoot + SH-aLRT 的两种检验均使用此数值。",
   "Bootstrap replicates:": "自举重复次数：",

@@ -40,7 +40,7 @@ from utils.common_components import (
     unify_status_button_sizes,
 )
 from utils.example_data import load_example_text, stage_example
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_format, tr_ui
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
 from utils.task_lifecycle import request_task_stop, skip_when_closing
@@ -551,6 +551,8 @@ class MafftAlignmentTab(BaseTabWidget):
         self.example_btn = QPushButton("Example")
         self.example_btn.setToolTip("Load example sequences for MSA")
         self.example_btn.clicked.connect(self._load_example)
+        for button in (self.upload_btn, self.example_btn):
+            button.setProperty("expandToRow", True)
         btn_row.addWidget(self.example_btn, 1)
         ig.insertLayout(1, btn_row)
 
@@ -567,7 +569,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
         # Row 0: alignment strategy  |  sequence order  |  threads
         strategy_label = QLabel("Alignment Strategy:")
-        self.strategy_combo = QComboBox()
+        self.strategy_combo = enable_combo_translation(QComboBox())
         self.strategy_combo.addItems([
             "Auto",
             "FFT-NS-2 (Fast)",
@@ -576,7 +578,7 @@ class MafftAlignmentTab(BaseTabWidget):
         self.strategy_combo.setMinimumWidth(160)
 
         order_label = QLabel("Sequence Order:")
-        self.order_combo = QComboBox()
+        self.order_combo = enable_combo_translation(QComboBox())
         self.order_combo.addItems([
             "Input sequence order",
             "MAFFT output order",
@@ -706,11 +708,11 @@ class MafftAlignmentTab(BaseTabWidget):
 
         # Row 2: Output Format + Sequence Order + Overwrite
         fmt_label = QLabel("Output Format:")
-        self.batch_fmt_combo = QComboBox()
+        self.batch_fmt_combo = enable_combo_translation(QComboBox())
         self.batch_fmt_combo.addItems(["FASTA (aligned)", "CLUSTAL", "Summary"])
 
         order_label = QLabel("Sequence Order:")
-        self.batch_order_combo = QComboBox()
+        self.batch_order_combo = enable_combo_translation(QComboBox())
         self.batch_order_combo.addItems([
             "Input sequence order",
             "MAFFT output order",
@@ -728,7 +730,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
         # Row 3: Alignment Strategy + Threads
         strategy_label = QLabel("Alignment Strategy:")
-        self.batch_strategy_combo = QComboBox()
+        self.batch_strategy_combo = enable_combo_translation(QComboBox())
         self.batch_strategy_combo.addItems([
             "Auto",
             "FFT-NS-2 (Fast)",
@@ -942,7 +944,7 @@ class MafftAlignmentTab(BaseTabWidget):
         ]
         out_dir = self.batch_out_dir_edit.text().strip()
         pattern = self.batch_name_pattern.text().strip()
-        strategy = self.batch_strategy_combo.currentText()
+        strategy = combo_value(self.batch_strategy_combo)
         threads = self.batch_threads_spin.value()
         mafft_exe = self.batch_mafft_path_edit.text().strip() or _default_mafft_exe()
 
@@ -981,10 +983,10 @@ class MafftAlignmentTab(BaseTabWidget):
             strategy=strategy,
             threads=threads,
             mafft_exe=mafft_exe,
-            output_mode=self.batch_fmt_combo.currentText(),
+            output_mode=combo_value(self.batch_fmt_combo),
             naming_pattern=pattern,
             overwrite=self.batch_overwrite.isChecked(),
-            sequence_order=self.batch_order_combo.currentText(),
+            sequence_order=combo_value(self.batch_order_combo),
         )
         self._batch_worker.progress.connect(self._on_batch_progress)
         self._batch_worker.finished.connect(self._on_batch_finished)
@@ -1069,7 +1071,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
         clean_fasta = _dict_to_fasta_text(seqs)
         self._input_sequence_order = list(seqs.keys())
-        strategy = self.strategy_combo.currentText()
+        strategy = combo_value(self.strategy_combo)
         threads = self.threads_spin.value()
         mafft_exe = self.mafft_path_edit.text().strip() or _default_mafft_exe()
 
@@ -1084,7 +1086,7 @@ class MafftAlignmentTab(BaseTabWidget):
 
         self._aligned_fasta = ""
         self._run_output_path = output_path
-        self._run_order = self.order_combo.currentText()
+        self._run_order = combo_value(self.order_combo)
         self.run_btn.setEnabled(False)
         self.status_label.setText(
             tr_format(
@@ -1167,7 +1169,7 @@ class MafftAlignmentTab(BaseTabWidget):
         return os.path.abspath(path)
 
     def _apply_single_file_output_order(self, seqs: dict) -> dict:
-        if getattr(self, "_run_order", self.order_combo.currentText()) != "Input sequence order":
+        if getattr(self, "_run_order", combo_value(self.order_combo)) != "Input sequence order":
             return seqs
         if not self._input_sequence_order:
             return seqs

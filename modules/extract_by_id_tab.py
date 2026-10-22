@@ -21,7 +21,7 @@ from utils.common_components import (
     FileDropLineEdit,
     unify_status_button_sizes,
 )
-from utils.i18n import tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_ui
 
 # Remove worker, use main thread
 
@@ -223,7 +223,7 @@ class ExtractByIDTab(BaseTabWidget):
         options_group = QGroupBox("Matching Options")
         options_layout = QHBoxLayout(options_group)
         options_layout.addWidget(QLabel("Match mode:"))
-        self.match_mode_combo = QComboBox()
+        self.match_mode_combo = enable_combo_translation(QComboBox())
         self.match_mode_combo.addItems([
             "Exact Match (case-sensitive)",
             "Exact Match (case-insensitive)",
@@ -240,7 +240,7 @@ class ExtractByIDTab(BaseTabWidget):
         )
         options_layout.addWidget(self.match_mode_combo)
         options_layout.addWidget(QLabel("Output order:"))
-        self.output_order_combo = QComboBox()
+        self.output_order_combo = enable_combo_translation(QComboBox())
         self.output_order_combo.addItems([
             "Preserve Query Order",
             "Preserve FASTA Order",
@@ -352,8 +352,8 @@ class ExtractByIDTab(BaseTabWidget):
         """Preview the first 5 matched records without saving."""
         input_path = self.input_edit.text().strip()
         id_text = self.id_edit.toPlainText().strip()
-        match_mode = self.match_mode_combo.currentText()
-        output_order = self.output_order_combo.currentText()
+        match_mode = combo_value(self.match_mode_combo)
+        output_order = combo_value(self.output_order_combo)
 
         from utils.common_components import validate_input_path
 
@@ -365,12 +365,12 @@ class ExtractByIDTab(BaseTabWidget):
             self.log_message(error, "ERROR")
             return
         if not id_text:
-            self.log_message("Please enter sequence IDs to extract", "ERROR")
+            self.log_message(tr_ui("Please enter sequence IDs to extract"), "ERROR")
             return
 
         id_list = [line.strip() for line in id_text.split("\n") if line.strip()]
         if not id_list:
-            self.log_message("ID list is empty", "ERROR")
+            self.log_message(tr_ui("ID list is empty"), "ERROR")
             return
 
         try:
@@ -378,11 +378,11 @@ class ExtractByIDTab(BaseTabWidget):
 
             processor = FASTAProcessor()
             if not processor.read_file(input_path):
-                self.log_message("Unable to read FASTA file", "ERROR")
+                self.log_message(tr_ui("Unable to read FASTA file"), "ERROR")
                 return
             records = processor.records
             if not records:
-                self.log_message("No sequences found in FASTA file", "ERROR")
+                self.log_message(tr_ui("No sequences found in FASTA file"), "ERROR")
                 return
 
             matched, missing_ids, summary = match_records_by_id(
@@ -394,24 +394,24 @@ class ExtractByIDTab(BaseTabWidget):
             requested = summary["requested_count"]
 
             preview_lines = [
-                f"Results: {total} matched  ·  {missing_count} not found  ·  {requested} requested"
+                tr_ui(f"Results: {total} matched  ·  {missing_count} not found  ·  {requested} requested")
             ]
             preview_lines.append("")
             if matched:
-                preview_lines.append(f"─ Matched (first 10 of {total}) ─")
+                preview_lines.append(tr_ui(f"─ Matched (first 10 of {total}) ─"))
                 for rec in matched[:10]:
                     preview_lines.append(f"  ✓ {rec.header}")
             if missing_ids:
-                preview_lines.append("─ Not found ─")
+                preview_lines.append(tr_ui("─ Not found ─"))
                 for mid in missing_ids[:10]:
                     preview_lines.append(f"  ✗ {mid}")
             if total == 0 and not missing_ids:
-                preview_lines.append("(No results were produced)")
+                preview_lines.append(tr_ui("(No results were produced)"))
 
             self.preview_panel.setPlainText("\n".join(preview_lines))
-            self.log_message("Preview updated — see panel above", "INFO")
+            self.log_message(tr_ui("Preview updated — see panel above"), "INFO")
         except Exception as e:
-            self.log_message(f"Preview error: {e}", "ERROR")
+            self.log_message(tr_ui(f"Preview error: {e}"), "ERROR")
 
     def clear_all(self):
         self.input_edit.clear()
@@ -440,8 +440,8 @@ class ExtractByIDTab(BaseTabWidget):
         input_path = self.input_edit.text().strip()
         output_path = self.output_edit.text().strip()
         id_text = self.id_edit.toPlainText().strip()
-        match_mode = self.match_mode_combo.currentText()
-        output_order = self.output_order_combo.currentText()
+        match_mode = combo_value(self.match_mode_combo)
+        output_order = combo_value(self.output_order_combo)
         export_missing_ids = self.export_missing_ids_checkbox.isChecked()
 
         # Validate input
@@ -547,7 +547,7 @@ class ExtractByIDTab(BaseTabWidget):
                     "WARNING",
                 )
             self.log_message(
-                f"Match mode: {match_mode}; output order: {summary['effective_output_order']}",
+                f"Match mode: {tr_ui(match_mode)}; output order: {tr_ui(summary['effective_output_order'])}",
                 "INFO",
             )
             # Save

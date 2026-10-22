@@ -10,7 +10,7 @@ QWidget#treePreviewToolbar QToolButton {
     border: 1px solid #d8e0ea;
     border-radius: 5px;
     padding: 0;
-    font-size: 14px;
+    font-size: 10.5pt;
 }
 QWidget#treePreviewToolbar QToolButton:hover {
     background: #edf5ff;
@@ -34,6 +34,11 @@ QLabel#treePreviewZoom {
     background: transparent;
     font-size: 13px;
     padding: 0 6px;
+}
+
+/* Native Windows tool buttons need a positive point size (14px at 96 DPI). */
+QToolButton {
+    font-size: 10.5pt;
 }
 
 /* 主窗口 */

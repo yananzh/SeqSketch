@@ -190,33 +190,33 @@ class FilterByLengthTab(BaseTabWidget):
 
             processor = FASTAProcessor()
             if not processor.read_file(input_path):
-                self.log_message("Unable to read FASTA file", "ERROR")
+                self.log_message(tr_ui("Unable to read FASTA file"), "ERROR")
                 return
             records = processor.records
             if not records:
-                self.log_message("No sequences found", "ERROR")
+                self.log_message(tr_ui("No sequences found"), "ERROR")
                 return
 
             kept = self._filter(records)
             min_v = self.min_spin.value()
             max_v = self.max_spin.value()
             lines = [
-                f"Total: {len(records)}  →  Passing filter: {len(kept)}  ·  "
-                f"Removed: {len(records) - len(kept)}"
+                tr_ui(f"Total: {len(records)}  →  Passing filter: {len(kept)}  ·  "
+                f"Removed: {len(records) - len(kept)}")
             ]
             lines.append(
-                f"  (min: {'none' if min_v == 0 else min_v}, "
-                f"max: {'none' if max_v == 0 else max_v})"
+                tr_ui(f"  (min: {tr_ui('none') if min_v == 0 else min_v}, "
+                f"max: {tr_ui('none') if max_v == 0 else max_v})")
             )
             if kept:
                 lines.append("")
-                lines.append(f"─ Passing records (first {min(5, len(kept))}) ─")
+                lines.append(tr_ui(f"─ Passing records (first {min(5, len(kept))}) ─"))
                 for rec in kept[:5]:
                     lines.append(f"  {rec.header}  ({rec.length} bp)")
             self.preview_panel.setPlainText("\n".join(lines))
-            self.log_message("Preview updated — see panel above", "INFO")
+            self.log_message(tr_ui("Preview updated — see panel above"), "INFO")
         except Exception as e:
-            self.log_message(f"Preview error: {e}", "ERROR")
+            self.log_message(tr_ui(f"Preview error: {e}"), "ERROR")
 
     def run_filter(self):
         input_path = self.input_edit.text().strip()

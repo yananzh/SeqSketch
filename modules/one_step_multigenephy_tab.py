@@ -49,7 +49,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, set_combo_value, tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 
@@ -234,7 +234,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         param_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
 
         # MAFFT alignment mode
-        self.mafft_mode_combo = QComboBox()
+        self.mafft_mode_combo = enable_combo_translation(QComboBox())
         self.mafft_mode_combo.addItem("Auto", "--auto")
         self.mafft_mode_combo.addItem("Local Pair", "--localpair")
         self.mafft_mode_combo.addItem("Global Pair", "--globalpair")
@@ -245,7 +245,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
                 "Global Pair: global alignment | Conserved: conserved region alignment"
         )
 
-        self.trimal_mode_combo = QComboBox()
+        self.trimal_mode_combo = enable_combo_translation(QComboBox())
         self.trimal_mode_combo.addItem("automated1", "automated1")
         self.trimal_mode_combo.addItem("gappyout (adaptive)", "gappyout")
         self.trimal_mode_combo.addItem("strict (conservative)", "strict")
@@ -271,7 +271,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         param_form.addRow(_wrap_layout(mt_row))
 
         # IQ-TREE bootstrap
-        self.bootstrap_mode_combo = QComboBox()
+        self.bootstrap_mode_combo = enable_combo_translation(QComboBox())
         self.bootstrap_mode_combo.addItem("UFBoot (ultrafast)", "ufboot")
         self.bootstrap_mode_combo.addItem("UFBoot + SH-aLRT", "ufboot_shalrt")
         self.bootstrap_mode_combo.addItem("Standard bootstrap", "standard")
@@ -312,7 +312,7 @@ class OneStepMultiGenePhyTab(BaseTabWidget):
         param_form.addRow("IQ-TREE Bootstrap:", _wrap_layout(boot_row))
 
         # Resume mode: which stages to skip (reuse a previous run's outputs)
-        self.resume_mode_combo = QComboBox()
+        self.resume_mode_combo = enable_combo_translation(QComboBox())
         self.resume_mode_combo.addItem("From scratch (default)", "scratch")
         self.resume_mode_combo.addItem("From align/trim (skip fetch)", "align")
         self.resume_mode_combo.addItem(

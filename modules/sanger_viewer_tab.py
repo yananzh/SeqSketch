@@ -470,7 +470,7 @@ class SangerViewerTab(QWidget):
         ax_trace.set_xticklabels([str(i + 1) for i in tick_indices], fontsize=7)
         ax_trace.set_xlim(x_min, x_max)
         ax_trace.set_ylim(0, y_label * 1.12)
-        ax_trace.set_ylabel("Fluorescence", fontsize=8)
+        ax_trace.set_ylabel(tr_ui("Fluorescence"), fontsize=8)
         ax_trace.legend(loc="upper right", fontsize=7.5, framealpha=0.7)
 
         # --- Phred quality track (shares scan x-axis) ---

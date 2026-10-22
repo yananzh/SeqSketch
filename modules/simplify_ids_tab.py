@@ -24,7 +24,7 @@ from utils.common_components import (
     FileDropLineEdit,
     unify_status_button_sizes,
 )
-from utils.i18n import tr_ui
+from utils.i18n import enable_combo_translation, tr_ui
 
 SIMPLIFY_MODE_FIRST_TOKEN = "first_token"
 SIMPLIFY_MODE_DELIMITER_FIELD = "delimiter_field"
@@ -162,7 +162,7 @@ class SimplifyIDsTab(BaseTabWidget):
         mode_label = QLabel("Simplify mode:")
         mode_label.setFixedWidth(_label_width)
         mode_row.addWidget(mode_label)
-        self.mode_combo = QComboBox()
+        self.mode_combo = enable_combo_translation(QComboBox())
         self.mode_combo.setFixedWidth(160)
         self.mode_combo.addItem("First word", SIMPLIFY_MODE_FIRST_TOKEN)
         self.mode_combo.addItem("Delimiter field", SIMPLIFY_MODE_DELIMITER_FIELD)
@@ -270,7 +270,7 @@ class SimplifyIDsTab(BaseTabWidget):
 
         transform_row = QHBoxLayout()
         transform_row.addWidget(QLabel("Case:"))
-        self.case_combo = QComboBox()
+        self.case_combo = enable_combo_translation(QComboBox())
         self.case_combo.addItem("As-is", "as_is")
         self.case_combo.addItem("UPPERCASE", "upper")
         self.case_combo.addItem("lowercase", "lower")
@@ -371,15 +371,15 @@ class SimplifyIDsTab(BaseTabWidget):
         compiled_pattern = None
         if mode == SIMPLIFY_MODE_REGEX_CAPTURE:
             if not regex_pattern:
-                self.log_message("Please enter a regex pattern for preview", "ERROR")
+                self.log_message(tr_ui("Please enter a regex pattern for preview"), "ERROR")
                 return
             try:
                 compiled_pattern = re.compile(regex_pattern)
             except re.error as exc:
-                self.log_message(f"Invalid regex pattern: {exc}", "ERROR")
+                self.log_message(tr_ui(f"Invalid regex pattern: {exc}"), "ERROR")
                 return
         if mode == SIMPLIFY_MODE_DELIMITER_FIELD and not delimiter:
-            self.log_message("Please enter a delimiter for preview", "ERROR")
+            self.log_message(tr_ui("Please enter a delimiter for preview"), "ERROR")
             return
 
         try:
@@ -387,11 +387,11 @@ class SimplifyIDsTab(BaseTabWidget):
 
             processor = FASTAProcessor()
             if not processor.read_file(input_path):
-                self.log_message("Unable to read FASTA file", "ERROR")
+                self.log_message(tr_ui("Unable to read FASTA file"), "ERROR")
                 return
             records = processor.records[:5]
             if not records:
-                self.log_message("No sequences found in FASTA file", "ERROR")
+                self.log_message(tr_ui("No sequences found in FASTA file"), "ERROR")
                 return
 
             lines = []
@@ -416,14 +416,14 @@ class SimplifyIDsTab(BaseTabWidget):
                 if suffix:
                     simplified_id = simplified_id + suffix
                 desc_note = (
-                    " [desc preserved]" if preserve_description and record.description else ""
+                    tr_ui(" [desc preserved]") if preserve_description and record.description else ""
                 )
                 changed_mark = " *" if simplified_id != original_id else ""
                 lines.append(f"#{idx}:  {original_id}  →  {simplified_id}{changed_mark}{desc_note}")
             self.preview_panel.setPlainText("\n".join(lines))
-            self.log_message("Preview updated — see panel above", "INFO")
+            self.log_message(tr_ui("Preview updated — see panel above"), "INFO")
         except Exception as e:
-            self.log_message(f"Preview error: {e}", "ERROR")
+            self.log_message(tr_ui(f"Preview error: {e}"), "ERROR")
 
     def select_input_file(self):
         file_path, _ = QFileDialog.getOpenFileName(

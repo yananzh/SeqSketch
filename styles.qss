@@ -10,7 +10,7 @@ QWidget#treePreviewToolbar QToolButton {
     border: 1px solid #d8e0ea;
     border-radius: 5px;
     padding: 0;
-    font-size: 14px;
+    font-size: 10.5pt;
 }
 QWidget#treePreviewToolbar QToolButton:hover {
     background: #edf4f2;
@@ -41,6 +41,12 @@ QLabel#treePreviewZoom {
     font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
     font-size: 14px;
     font-weight: normal;
+}
+
+/* Qt's Windows native tool-button painting reads pointSize(), which is -1
+   for pixel-sized fonts. 10.5pt keeps the 14px body size at 96 logical DPI. */
+QToolButton {
+    font-size: 10.5pt;
 }
 
 /* Typography roles shared by both Light and Dark themes.

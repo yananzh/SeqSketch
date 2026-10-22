@@ -35,7 +35,7 @@ from modules.fasta_processor import parse_unique_fasta_dict, validate_alignment_
 from utils.app_paths import resource_path, user_data_file
 from utils.common_components import BaseTabWidget, apply_input_list_style, unify_status_button_sizes
 from utils.example_data import load_example_text, stage_example
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_format, tr_ui
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
 from utils.task_lifecycle import request_task_stop, skip_when_closing
@@ -546,6 +546,8 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         self.example_btn = QPushButton("Example")
         self.example_btn.setToolTip("Load example sequences for MSA")
         self.example_btn.clicked.connect(self._load_example)
+        for button in (self.upload_btn, self.example_btn):
+            button.setProperty("expandToRow", True)
         btn_row.addWidget(self.example_btn, 1)
         ig.insertLayout(1, btn_row)
 
@@ -561,14 +563,14 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         pg_layout.setColumnStretch(1, 1)
 
         # Keep seq_type_combo alive (used by _detect_type) but hidden
-        self.seq_type_combo = QComboBox()
+        self.seq_type_combo = enable_combo_translation(QComboBox())
         self.seq_type_combo.addItems(["Auto Detect", "DNA", "Protein"])
         self.seq_type_combo.setCurrentIndex(0)
         self.seq_type_combo.hide()
 
         # Row 0: alignment method  |  sequence order  |  threads
         method_label = QLabel("Alignment Method:")
-        self.method_combo = QComboBox()
+        self.method_combo = enable_combo_translation(QComboBox())
         self.method_combo.addItems([
             "Accurate (–align)",
             "Fast / Large datasets (–super5)",
@@ -580,7 +582,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         )
 
         order_label = QLabel("Sequence Order:")
-        self.order_combo = QComboBox()
+        self.order_combo = enable_combo_translation(QComboBox())
         self.order_combo.addItems([
             "Input sequence order",
             "MUSCLE output order",
@@ -725,11 +727,11 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         # Row 2: Output Format + Sequence Order + Overwrite
         fmt_label = QLabel("Output Format:")
-        self.batch_fmt_combo = QComboBox()
+        self.batch_fmt_combo = enable_combo_translation(QComboBox())
         self.batch_fmt_combo.addItems(["FASTA (aligned)", "CLUSTAL", "Summary"])
 
         order_label = QLabel("Sequence Order:")
-        self.batch_order_combo = QComboBox()
+        self.batch_order_combo = enable_combo_translation(QComboBox())
         self.batch_order_combo.addItems([
             "Input sequence order",
             "MUSCLE output order",
@@ -747,7 +749,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
 
         # Row 3: Alignment Method + Threads
         method_label = QLabel("Alignment Method:")
-        self.batch_method_combo = QComboBox()
+        self.batch_method_combo = enable_combo_translation(QComboBox())
         self.batch_method_combo.addItems([
             "Accurate (\u2013align)",
             "Fast / Large datasets (\u2013super5)",
@@ -1029,7 +1031,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             return
 
         out_dir = os.path.normpath(out_dir)
-        out_mode = self.batch_fmt_combo.currentText()
+        out_mode = combo_value(self.batch_fmt_combo)
         self.run_btn.setEnabled(False)
         self.stop_btn.setVisible(True)
         self.batch_log.clear()
@@ -1047,7 +1049,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
             output_mode=out_mode,
             naming_pattern=pattern,
             overwrite=self.batch_overwrite.isChecked(),
-            sequence_order=self.batch_order_combo.currentText(),
+            sequence_order=combo_value(self.batch_order_combo),
         )
         self._batch_worker.progress.connect(self._on_batch_progress)
         self._batch_worker.batch_finished.connect(self._on_batch_finished)
@@ -1245,7 +1247,7 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         return os.path.normpath(path)
 
     def _apply_single_file_output_order(self, seqs: dict) -> dict:
-        if self.order_combo.currentText() != "Input sequence order":
+        if combo_value(self.order_combo) != "Input sequence order":
             return seqs
         if not self._input_sequence_order:
             return seqs

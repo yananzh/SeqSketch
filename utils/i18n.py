@@ -4,9 +4,11 @@ import glob
 import json
 import os
 import re
+import weakref
 from dataclasses import dataclass, field
+from types import MethodType
 
-from PyQt6.QtCore import QEvent, QLibraryInfo, QObject, QTranslator
+from PyQt6.QtCore import QEvent, QLibraryInfo, QObject, QSignalBlocker, Qt, QTranslator
 from PyQt6.QtWidgets import (
     QAbstractButton,
     QAbstractSpinBox,
@@ -19,10 +21,13 @@ from PyQt6.QtWidgets import (
     QMenuBar,
     QMessageBox,
     QPlainTextEdit,
+    QPushButton,
     QTableWidget,
     QTabWidget,
     QTextBrowser,
     QTextEdit,
+    QToolButton,
+    QTreeWidget,
     QWidget,
 )
 
@@ -34,6 +39,76 @@ LANGUAGES = {"en": "English", "zh-CN": "简体中文"}
 _PLACEHOLDER = re.compile(r"\{([A-Za-z_]\w*)\}")
 _active = DEFAULT_LANGUAGE
 _packs: dict[str, "LanguagePack"] = {}
+_COMBO_SOURCE_ROLE = Qt.ItemDataRole.UserRole + 173
+
+
+def combo_value(combo: QComboBox) -> str:
+    """Return the source option, independently of its translated display label."""
+    source = combo.currentData(_COMBO_SOURCE_ROLE)
+    return source if source is not None and not combo.isEditable() else combo.currentText()
+
+
+def find_combo_value(combo: QComboBox, source: str) -> int:
+    index = combo.findData(source, _COMBO_SOURCE_ROLE)
+    return index if index >= 0 else combo.findText(source)
+
+
+def set_combo_value(combo: QComboBox, source: str) -> None:
+    index = find_combo_value(combo, source)
+    if index >= 0:
+        combo.setCurrentIndex(index)
+    elif combo.isEditable():
+        combo.setEditText(source)
+
+
+def localize_combo_items(combo: QComboBox) -> None:
+    """Translate opted-in options, preserving userData and the source identity."""
+    if not combo.property("translateItems") or combo.isEditable():
+        return
+    keys = combo.property("itemTranslationKeys") or {}
+    with QSignalBlocker(combo):
+        for index in range(combo.count()):
+            source = combo.itemData(index, _COMBO_SOURCE_ROLE)
+            if source is None:
+                source = combo.itemText(index)
+                combo.setItemData(index, source, _COMBO_SOURCE_ROLE)
+            display = source if _active == DEFAULT_LANGUAGE else tr_ui(keys.get(source, source))
+            combo.setItemText(index, display)
+
+
+def enable_combo_translation(
+    combo: QComboBox, *, translation_keys: dict[str, str] | None = None,
+) -> QComboBox:
+    """Opt static UI choices into translation; never use for user-supplied data."""
+    combo.setProperty("translateItems", True)
+    if translation_keys:
+        combo.setProperty("itemTranslationKeys", translation_keys)
+    # New options (e.g. DNA/protein distance models) can be populated after Show.
+    reference = weakref.ref(combo)
+
+    def inserted(*_):
+        widget = reference()
+        if widget is not None:
+            localize_combo_items(widget)
+
+    combo.model().rowsInserted.connect(inserted)
+    localize_combo_items(combo)
+    return combo
+
+
+def connect_combo_source(combo: QComboBox, slot) -> None:
+    """Connect a text callback that expects the canonical English option."""
+    reference = weakref.ref(combo)
+    # Match PyQt's weak ownership of bound slots. Capturing a bound method in
+    # a lambda would retain its tab and Qt children through native teardown.
+    slot_reference = weakref.WeakMethod(slot) if isinstance(slot, MethodType) else lambda: slot
+
+    def changed(_text):
+        widget, callback = reference(), slot_reference()
+        if widget is not None and callback is not None:
+            callback(combo_value(widget))
+
+    combo.currentTextChanged.connect(changed)
 
 
 @dataclass
@@ -66,7 +141,7 @@ def _compile_pattern(template: str) -> tuple[re.Pattern[str], list[str]]:
     end = 0
     for match in _PLACEHOLDER.finditer(template):
         parts.append(re.escape(template[end : match.start()]))
-        parts.append(f"(?P<v{len(names)}>.+?)")
+        parts.append(f"(?P<v{len(names)}>.*?)")
         names.append(match.group(1))
         end = match.end()
     parts.append(re.escape(template[end:]))
@@ -88,9 +163,14 @@ def pack_from_entries(entries: dict[str, str]) -> LanguagePack:
         if not literal.strip():
             pack.problems.append(f"pattern has no literal text: {source!r}")
             continue
-        stray = set(_PLACEHOLDER.findall(target)) - set(names)
-        if stray:
-            pack.problems.append(f"unknown placeholders {sorted(stray)} in {source!r}")
+        target_names = set(_PLACEHOLDER.findall(target))
+        stray = target_names - set(names)
+        missing = set(names) - target_names
+        if stray or missing:
+            pack.problems.append(
+                f"placeholder mismatch (unknown {sorted(stray)}, missing {sorted(missing)}) "
+                f"in {source!r}"
+            )
         templates.append((len(literal), source, target))
     # Longest literal text first, so a specific template wins over a generic one.
     for _, source, target in sorted(templates, key=lambda item: -item[0]):
@@ -193,6 +273,20 @@ def _retext(current: str, setter) -> None:
         setter(translated)
 
 
+def _fit_translated_text(widget: QWidget) -> None:
+    if isinstance(widget, QPushButton):
+        # Widths are assigned before Show, when the caption is still English.
+        from utils.common_components import unify_button_size
+
+        unify_button_size(widget)
+    elif isinstance(widget, QToolButton) and widget.icon().isNull():
+        if widget.minimumWidth() == widget.maximumWidth():
+            widget.setFixedWidth(max(widget.width(), widget.fontMetrics().horizontalAdvance(widget.text()) + 12))
+    elif isinstance(widget, QLabel) and widget.minimumWidth() == widget.maximumWidth():
+        if widget.fontMetrics().horizontalAdvance(widget.text()) > widget.contentsRect().width():
+            widget.setWordWrap(True)
+
+
 def translate_menu_tree(root) -> None:
     for action in root.actions():
         _retext(action.text(), action.setText)
@@ -208,13 +302,18 @@ def translate_widget(widget: QWidget) -> None:
     if widget.toolTip():
         _retext(widget.toolTip(), widget.setToolTip)
     if isinstance(widget, (QLabel, QAbstractButton)):
+        original = widget.text()
         _retext(widget.text(), widget.setText)
+        if widget.text() != original:
+            _fit_translated_text(widget)
     if isinstance(widget, QGroupBox):
         _retext(widget.title(), widget.setTitle)
     if isinstance(widget, (QLineEdit, QTextEdit, QPlainTextEdit, QComboBox)):
         _retext(widget.placeholderText(), widget.setPlaceholderText)
     if isinstance(widget, QAbstractSpinBox):
         _retext(widget.specialValueText(), widget.setSpecialValueText)
+    if isinstance(widget, QComboBox):
+        localize_combo_items(widget)
     if isinstance(widget, QTabWidget):
         for index in range(widget.count()):
             _retext(widget.tabText(index), lambda text, i=index: widget.setTabText(i, text))
@@ -223,6 +322,10 @@ def translate_widget(widget: QWidget) -> None:
             item = widget.horizontalHeaderItem(column)
             if item is not None:
                 _retext(item.text(), item.setText)
+    if isinstance(widget, QTreeWidget):
+        header = widget.headerItem()
+        for column in range(widget.columnCount()):
+            _retext(header.text(column), lambda text, i=column: header.setText(i, text))
     if isinstance(widget, QMessageBox):
         _retext(widget.text(), widget.setText)
         _retext(widget.informativeText(), widget.setInformativeText)

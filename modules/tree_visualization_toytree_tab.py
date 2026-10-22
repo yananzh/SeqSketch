@@ -63,7 +63,7 @@ from utils.common_components import (
     validate_input_path,
 )
 from utils.example_data import stage_example
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, connect_combo_source, enable_combo_translation, tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
 
@@ -672,7 +672,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
         lo_row = QHBoxLayout()
         lbl_layout = QLabel("Layout:")
         lo_row.addWidget(lbl_layout, 1)
-        self._layout_combo = QComboBox()
+        self._layout_combo = enable_combo_translation(QComboBox())
         self._layout_combo.addItems([
             "Rectangular",
             "Circular",
@@ -685,7 +685,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
         rm_row = QHBoxLayout()
         lbl_rooting = QLabel("Rooting:")
         rm_row.addWidget(lbl_rooting, 1)
-        self._root_method_combo = QComboBox()
+        self._root_method_combo = enable_combo_translation(QComboBox())
         self._root_method_combo.addItems(["None", "Midpoint", "Outgroup"])
         self._root_method_combo.setToolTip(
             "None: as-is | Midpoint: longest branch | Outgroup: specify taxon"
@@ -710,7 +710,7 @@ class ToytreeVisualizationTab(BaseTabWidget):
             if is_og:
                 self._load_leaf_names()
 
-        self._root_method_combo.currentTextChanged.connect(_on_root_method_changed)
+        connect_combo_source(self._root_method_combo, _on_root_method_changed)
 
         # checkboxes
         self._show_support_check = QCheckBox("Show support values")
@@ -1107,7 +1107,7 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
     def _on_mapping_selected(self, path: str):
         """Handle mapping file dropped onto the mapping edit."""
         self._mapping_toggle.setChecked(True)
-        if self._root_method_combo.currentText() == "Outgroup":
+        if combo_value(self._root_method_combo) == "Outgroup":
             self._load_leaf_names()
 
     def _toggle_mapping_area(self, expanded: bool):
@@ -1139,7 +1139,7 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
     def _on_file_selected(self, path: str):
         """Handle leaf-name loading and tree statistics after file selection."""
 
-        if self._root_method_combo.currentText() == "Outgroup":
+        if combo_value(self._root_method_combo) == "Outgroup":
             self._load_leaf_names()
 
         # Show tree statistics
@@ -1165,7 +1165,7 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
             return
         # When in Outgroup mode but no outgroup selected yet, skip the draw
         if (
-            self._root_method_combo.currentText() == "Outgroup"
+            combo_value(self._root_method_combo) == "Outgroup"
             and not self._outgroup_combo.currentText().strip()
         ):
             return
@@ -1197,8 +1197,8 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
                 raise ValueError(message) from exc
 
         return {
-            "layout": self._layout_combo.currentText(),
-            "root_method": self._root_method_combo.currentText().lower().split()[0],
+            "layout": combo_value(self._layout_combo),
+            "root_method": combo_value(self._root_method_combo).lower().split()[0],
             "outgroup_name": self._outgroup_combo.currentText().strip(),
             "tip_mapping": mapping,
             "show_support": self._show_support_check.isChecked(),

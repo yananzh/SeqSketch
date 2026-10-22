@@ -6,7 +6,7 @@
 <h3>快速入门</h3>
 <ol>
 <li>选择一个 FASTA 文件，或点击<b>示例</b>。</li>
-<li>选择<b>去重依据</b>：<b>Sequence ID</b> 或 <b>Sequence content</b>。</li>
+<li>选择<b>去重依据</b>：<b>序列 ID</b> 或 <b>序列内容</b>。</li>
 <li>如需按 ID 去重，可选择<b>保留策略</b>。</li>
 <li>点击<b>预览</b>，查看将移除多少条重复记录。</li>
 <li>选择输出文件，然后点击<b>运行</b>。</li>
@@ -15,10 +15,10 @@
 <h3>应使用哪种模式？</h3>
 <table border="0" cellpadding="4" cellspacing="2">
 <tr><td><b>模式</b></td><td><b>作用</b></td><td><b>适用情况</b></td></tr>
-<tr><td><b>Sequence ID</b></td>
+<tr><td><b>序列 ID</b></td>
     <td>每个唯一的序列头名称仅保留一条记录</td>
     <td>不同 ID 指向相同的序列，且你希望保留它们；你只想移除意外产生的序列头重复。</td></tr>
-<tr><td><b>Sequence content</b></td>
+<tr><td><b>序列内容</b></td>
     <td>每个唯一的序列字符串仅保留一条记录</td>
     <td>你需要一个真正无冗余的数据集，不论序列头名称如何，每条序列都只出现一次。</td></tr>
 </table>
@@ -26,9 +26,9 @@
 <h3>保留策略（仅 ID 模式）</h3>
 <p>当多条记录共享同一 ID 时，应保留哪一条？</p>
 <ul>
-<li><b>Keep first</b> &mdash; 保留文件中首次出现的记录（默认）。</li>
-<li><b>Keep longest</b> &mdash; 保留序列最长的记录。适用于存在部分或截短重复记录的情况。</li>
-<li><b>Keep shortest</b> &mdash; 保留序列最短的记录。</li>
+<li><b>保留第一条</b> &mdash; 保留文件中首次出现的记录（默认）。</li>
+<li><b>保留最长序列</b> &mdash; 保留序列最长的记录。适用于存在部分或截短重复记录的情况。</li>
+<li><b>保留最短序列</b> &mdash; 保留序列最短的记录。</li>
 </ul>
 
 <h3>其他选项</h3>

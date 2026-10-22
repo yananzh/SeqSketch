@@ -21,7 +21,7 @@ from utils.common_components import (
     unify_status_button_sizes,
     validate_input_path,
 )
-from utils.i18n import tr_ui
+from utils.i18n import enable_combo_translation, tr_ui
 
 SPLIT_BY_COUNT = "count"  # N sequences per file
 SPLIT_BY_PARTS = "parts"  # fixed number of output files
@@ -65,7 +65,7 @@ class SplitFastaTab(BaseTabWidget):
         opts_group = QGroupBox("Split Options")
         opts_layout = QHBoxLayout(opts_group)
         opts_layout.addWidget(QLabel("Split by:"))
-        self.split_mode_combo = QComboBox()
+        self.split_mode_combo = enable_combo_translation(QComboBox())
         self.split_mode_combo.addItem("Sequences per file", SPLIT_BY_COUNT)
         self.split_mode_combo.addItem("Number of parts", SPLIT_BY_PARTS)
         self.split_mode_combo.setToolTip(
@@ -248,14 +248,14 @@ class SplitFastaTab(BaseTabWidget):
             return
         chunks = self._build_plan(records)
         lines = [
-            f"Total sequences: {len(records)}  \u00b7  Output files: {len(chunks)}",
+            tr_ui(f"Total sequences: {len(records)}  \u00b7  Output files: {len(chunks)}"),
             "",
         ]
         for idx, chunk in enumerate(chunks, start=1):
-            lines.append(f"Part {idx:03d}: {len(chunk)} sequences  (first: {chunk[0].header})")
+            lines.append(tr_ui(f"Part {idx:03d}: {len(chunk)} sequences  (first: {chunk[0].header})"))
         self.preview_panel.setPlainText("\n".join(lines))
         self.log_message(
-            f"Preview: {len(records)} sequences \u2192 {len(chunks)} output file(s)", "INFO"
+            tr_ui(f"Preview: {len(records)} sequences \u2192 {len(chunks)} output file(s)"), "INFO"
         )
 
     def run_split(self):

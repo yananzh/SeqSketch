@@ -35,6 +35,58 @@ from modules.trimal_tab import (
 from utils.common_components import FileDropLineEdit
 
 
+@pytest.fixture
+def plot_font_context():
+    import matplotlib
+
+    with matplotlib.rc_context():
+        yield
+
+
+@pytest.mark.parametrize("language", ["en", "zh-CN"])
+@pytest.mark.parametrize("opener", [
+    "open_rna_tab", "open_complement_tab", "open_translate_tab", "open_orf_tab",
+    "open_mafft_alignment_tab", "open_multiple_sequence_alignment_tab",
+    "open_amino_acid_composition_tab", "open_physicochemical_properties_tab",
+    "open_hydrophobicity_plot_tab", "open_protease_cleavage_tab",
+])
+def test_sequence_action_buttons_fill_their_rows(qapp, plot_font_context, language, opener):
+    from PyQt6.QtCore import QEvent
+
+    from utils.i18n import configure_matplotlib_fonts, install_ui_translator, set_active_language
+
+    install_ui_translator(qapp)
+    set_active_language(language)
+    configure_matplotlib_fonts(language)
+    window = MainWindow()
+    try:
+        getattr(window, opener)()
+        window.show()
+        tab = window.tabs.currentWidget()
+        rows = [(tab.upload_btn, tab.example_btn, tab.input_text)]
+        if isinstance(tab, (RNATab, ComplementTab, TranslateTab)):
+            rows.append((tab.export_btn, tab.copy_btn, tab.output_text))
+        previous_widths = [0] * len(rows)
+        for width in (920, 1100):
+            window.resize(width, 700)
+            qapp.processEvents()
+            for index, (first, second, editor) in enumerate(rows):
+                left, right = first.geometry(), second.geometry()
+                assert abs(left.width() - right.width()) <= 1
+                assert left.left() == editor.geometry().left()
+                assert right.right() == editor.geometry().right()
+                assert left.top() == right.top()
+                assert left.height() == right.height() == 32
+                assert left.width() > previous_widths[index]
+                previous_widths[index] = left.width()
+    finally:
+        window.close()
+        window.deleteLater()
+        qapp.processEvents()
+        qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        set_active_language("en")
+
+
 def test_complement_tools_switches_between_modes(qapp):
     tab = ComplementTab()
 
@@ -875,7 +927,7 @@ def test_msa_visualization_param_rows_align_labels_and_controls(qapp):
     row1 = pg_layout.itemAt(0).layout()
     row2 = pg_layout.itemAt(1).layout()
 
-    # Row 1: 4 right-aligned labels with equal width, 4 uniform-width controls,
+    # Row 1: 4 left-aligned labels with equal width, 4 uniform-width controls,
     # plus an extra 24px spacer between Color Scheme and Wrap Length.
     assert row1.count() == 9
     assert row1.itemAt(2).spacerItem() is not None
@@ -884,7 +936,7 @@ def test_msa_visualization_param_rows_align_labels_and_controls(qapp):
     for i in (0, 3, 5, 7):
         label = row1.itemAt(i).widget()
         assert isinstance(label, QLabel)
-        assert label.alignment() & Qt.AlignmentFlag.AlignRight
+        assert label.alignment() & Qt.AlignmentFlag.AlignLeft
         label_widths.add((label.minimumWidth(), label.maximumWidth()))
         label_texts.append(label.text())
     assert label_widths == {(105, 105)}

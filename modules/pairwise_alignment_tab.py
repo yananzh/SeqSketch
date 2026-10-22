@@ -28,7 +28,7 @@ from utils.common_components import (
     unify_status_button_sizes,
 )
 from utils.example_data import load_example_text
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_format, tr_ui
 
 
 def _load_fasta_records(text: str):
@@ -140,7 +140,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
         # ── Always visible (cols 0-5) ─────────────────────────────────
         mode_label = QLabel("Alignment Mode:")
-        self.mode_combo = QComboBox()
+        self.mode_combo = enable_combo_translation(QComboBox())
         self.mode_combo.addItems([
             "Global (Needleman–Wunsch)",
             "Local (Smith–Waterman)",
@@ -173,7 +173,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
 
         # ── Auto-hidden (cols 4+, right side) ─────────────────────────
         self.matrix_label = QLabel("Scoring Method:")
-        self.matrix_combo = QComboBox()
+        self.matrix_combo = enable_combo_translation(QComboBox())
         self.matrix_combo.addItems(["BLOSUM62 (standard)", "PAM250 (distant)"])
         self.matrix_combo.setToolTip(
             "How amino acid similarity is scored (protein only).\n"
@@ -283,7 +283,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
         fmt_row = QHBoxLayout()
         fmt_row.setSpacing(20)
         fmt_label = QLabel("Output Format:")
-        self.fmt_combo = QComboBox()
+        self.fmt_combo = enable_combo_translation(QComboBox())
         self.fmt_combo.addItems(["Full Report", "FASTA (aligned)", "CLUSTAL"])
         self.fmt_combo.setMinimumWidth(150)
         self.fmt_combo.setToolTip(
@@ -468,9 +468,9 @@ class PairwiseAlignmentTab(BaseTabWidget):
             QMessageBox.warning(self, "Sequence Error", str(e))
             return
 
-        mode_text = self.mode_combo.currentText()
+        mode_text = combo_value(self.mode_combo)
         mode = "global" if mode_text.startswith("Global") else "local"
-        matrix_choice = self.matrix_combo.currentText()
+        matrix_choice = combo_value(self.matrix_combo)
         # Strip display suffix e.g. "BLOSUM62 (standard)" → "BLOSUM62"
         matrix_name = matrix_choice.split(" (")[0] if " (" in matrix_choice else matrix_choice
         use_matrix = seq_type == "Protein"
@@ -505,7 +505,7 @@ class PairwiseAlignmentTab(BaseTabWidget):
             label1 = header1 or (seq1[:30] + "..." if len(seq1) > 30 else seq1)
             label2 = header2 or (seq2[:30] + "..." if len(seq2) > 30 else seq2)
 
-            fmt = self.fmt_combo.currentText()
+            fmt = combo_value(self.fmt_combo)
 
             if fmt == "FASTA (aligned)":
                 output = self._format_fasta_aligned(aln1, aln2, header1, header2)

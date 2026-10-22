@@ -33,7 +33,7 @@ from utils.common_components import (
     validate_input_path,
 )
 from utils.example_data import stage_example
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, set_combo_value, tr_format, tr_ui
 from utils.process_control import kill_process_tree
 from utils.run_provenance import record_tool_run
 from utils.task_lifecycle import request_task_stop, skip_when_closing
@@ -206,7 +206,7 @@ class IqTreeTab(BaseTabWidget):
         form.setSpacing(8)
 
         # Row 1: Seq type + Threads + Model + Prefix (horizontal)
-        self._seqtype_combo = QComboBox()
+        self._seqtype_combo = enable_combo_translation(QComboBox())
         self._seqtype_combo.addItems(["AUTO", "DNA", "AA", "CODON", "BIN", "MORPH"])
         self._seqtype_combo.setToolTip(
             "AUTO: IQ-TREE auto-detects | DNA: nucleotide | AA: amino acid"
@@ -234,20 +234,21 @@ class IqTreeTab(BaseTabWidget):
         row1.addWidget(QLabel("Threads:"))
         row1.addWidget(self._threads_spin)
         row1.addSpacing(6)
-        row1.addWidget(QLabel("Model:"))
+        row1.addWidget(QLabel("Substitution model:"))
         row1.addWidget(self._model_edit)
         row1.addSpacing(6)
-        row1.addWidget(QLabel("Prefix:"))
+        row1.addWidget(QLabel("Output prefix:"))
         row1.addWidget(self._prefix_edit)
         row1.addStretch()
         form.addRow("Sequence type:", row1)
 
         # Row 2: match the One Step MultiGenePhy bootstrap controls.
         boot_row = QHBoxLayout()
-        self._bootstrap_mode_combo = QComboBox()
+        self._bootstrap_mode_combo = enable_combo_translation(QComboBox())
         self._bootstrap_mode_combo.addItem("UFBoot (ultrafast)", "ufboot")
         self._bootstrap_mode_combo.addItem("UFBoot + SH-aLRT", "ufboot_shalrt")
         self._bootstrap_mode_combo.addItem("Standard bootstrap", "standard")
+        self._bootstrap_mode_combo.addItem("Disabled", "disabled")
         self._bootstrap_mode_combo.setMinimumWidth(180)
         self._bootstrap_mode_combo.setMaximumWidth(260)
         self._bootstrap_mode_combo.setToolTip(
@@ -340,6 +341,10 @@ class IqTreeTab(BaseTabWidget):
         self.content_area.addStretch()
 
     def _on_bootstrap_mode_changed(self):
+        enabled = self._bootstrap_mode_combo.currentData() != "disabled"
+        self._bootstrap_spin.setEnabled(enabled)
+        if not enabled:
+            return
         suggested = 500 if self._bootstrap_mode_combo.currentData() == "standard" else 1000
         if self._bootstrap_spin.value() > 0:
             self._bootstrap_spin.setValue(suggested)
@@ -475,14 +480,14 @@ class IqTreeTab(BaseTabWidget):
         partition = self._partition_edit.text().strip()
         if partition:
             cmd += ["-p", partition]
-        seqtype = self._seqtype_combo.currentText()
+        seqtype = combo_value(self._seqtype_combo)
         if seqtype != "AUTO":
             cmd += ["-st", seqtype]
         model = self._model_edit.text().strip()
         if model:
             cmd += ["-m", model]
         boot_val = self._bootstrap_spin.value()
-        if boot_val > 0:
+        if boot_val > 0 and self._bootstrap_mode_combo.currentData() != "disabled":
             mode = self._bootstrap_mode_combo.currentData()
             flag = "-b" if mode == "standard" else "-B"
             cmd += [flag, str(boot_val)]
@@ -625,7 +630,11 @@ to root the tree on (IQ-TREE <code>-o</code>).</li>
                 model=self._model_edit.text().strip() or "TEST",
             )
         )
-        boot = self._bootstrap_spin.value()
+        boot = (
+            self._bootstrap_spin.value()
+            if self._bootstrap_mode_combo.currentData() != "disabled"
+            else 0
+        )
         if boot > 0:
             method = self._bootstrap_mode_combo.currentText()
             self.log_area.append(

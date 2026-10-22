@@ -78,8 +78,15 @@ self._set_status(tr_format("Loaded: {path}", path=path))
   enum values, command-line arguments, or data written to output files.
 - **Do not translate** the body argument of `show_help_dialog(...)`; help pages
   are handled separately (see below).
-- **Combo-box items are data.** Translating them would break code that compares
-  `currentText()`. Their surrounding labels and tooltips are translated.
+- **Static combo-box options** use `enable_combo_translation(QComboBox())`.
+  Read the English option with `combo_value(combo)`, select it with
+  `set_combo_value(combo, source)`, and use `connect_combo_source(combo, slot)`
+  for callbacks that need the English option. Existing `currentData()` values
+  stay intact. `currentText()` returns the translated display label.
+  For ambiguous words, pass `translation_keys={"Information": "Information content"}`
+  to use a specific translation while preserving the source option.
+- **User data** (record IDs, sheet/column names, outgroups, paths) must stay in
+  ordinary combo boxes, without `enable_combo_translation`.
 - Never write CJK characters into Python source; all translated text lives in
   packs.
 

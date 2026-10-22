@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import combo_value, enable_combo_translation, set_combo_value, tr_format, tr_ui
 
 # ── Hydrophobicity scales ───────────────────────────────────────────────────
 # Values for the 20 standard amino acids (A R N D C Q E G H I L K M F P S T W Y V)
@@ -151,6 +151,8 @@ class HydrophobicityPlotTab(BaseTabWidget):
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
+        for button in (self.upload_btn, self.example_btn):
+            button.setProperty("expandToRow", True)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
         btn_row = QHBoxLayout()
@@ -214,9 +216,9 @@ class HydrophobicityPlotTab(BaseTabWidget):
 
         # Scale selector
         row.addWidget(QLabel("Scale:"))
-        self.scale_combo = QComboBox()
+        self.scale_combo = enable_combo_translation(QComboBox())
         self.scale_combo.addItems(list(SCALES.keys()))
-        self.scale_combo.setCurrentText("Kyte-Doolittle")
+        set_combo_value(self.scale_combo, "Kyte-Doolittle")
         self.scale_combo.setMinimumWidth(180)
         self.scale_combo.setToolTip(
             "Kyte-Doolittle: classic hydropathy (positive = hydrophobic)\n"
@@ -265,7 +267,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
         ax.text(
             0.5,
             0.5,
-            "Hydrophobicity plot will appear here after clicking 'Plot'",
+            tr_ui("Hydrophobicity plot will appear here after clicking 'Plot'"),
             ha="center",
             va="center",
             fontsize=12,
@@ -303,7 +305,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
             QMessageBox.warning(self, "Input Error", "Sequence is empty after cleaning.")
             return
 
-        scale_name = self.scale_combo.currentText()
+        scale_name = combo_value(self.scale_combo)
         scale = SCALES[scale_name]
         window = self.window_spin.value()
 
@@ -351,18 +353,18 @@ class HydrophobicityPlotTab(BaseTabWidget):
 
         # Fill above/below zero differently
         ax.fill_between(
-            x, 0, scores, where=(scores > 0), color="#d9534f", alpha=0.35, label="Hydrophobic"
+            x, 0, scores, where=(scores > 0), color="#d9534f", alpha=0.35, label=tr_ui("Hydrophobic")
         )
         ax.fill_between(
-            x, 0, scores, where=(scores < 0), color="#5bc0de", alpha=0.35, label="Hydrophilic"
+            x, 0, scores, where=(scores < 0), color="#5bc0de", alpha=0.35, label=tr_ui("Hydrophilic")
         )
         ax.plot(x, scores, color="#333", linewidth=1.2)
         ax.axhline(y=0, color="#999", linestyle="--", linewidth=0.8)
 
-        ax.set_xlabel("Residue Position", fontsize=12)
-        ax.set_ylabel(f"{scale_name} Score", fontsize=12)
+        ax.set_xlabel(tr_ui("Residue Position"), fontsize=12)
+        ax.set_ylabel(tr_ui(f"{scale_name} Score"), fontsize=12)
         ax.set_title(
-            f"Hydrophobicity Plot — {scale_name} (window={window})\n{header}",
+            tr_ui(f"Hydrophobicity Plot — {scale_name} (window={window})\n{header}"),
             fontsize=13,
             fontweight="bold",
         )

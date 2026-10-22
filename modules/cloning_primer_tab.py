@@ -29,7 +29,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
-from utils.i18n import tr_format, tr_ui
+from utils.i18n import enable_combo_translation, tr_format, tr_ui
 
 # (name, recognition site, 0-based cut index on the 5'->3' strand, protection bases)
 CLONING_ENZYMES: list[tuple[str, str, int, int]] = [
@@ -358,14 +358,14 @@ class CloningPrimerTab(BaseTabWidget):
             grid.addLayout(cell, 0, col)
             grid.setColumnStretch(col, 1)
 
-        self.enz5_combo = QComboBox()
+        self.enz5_combo = enable_combo_translation(QComboBox())
         self._fill_enzyme_combo(self.enz5_combo, default_index=0)
         self.enz5_combo.setToolTip(
             "Restriction site added to the 5' end; None = blunt / TA ligation"
         )
         param_pair("5' Enzyme", self.enz5_combo, 0)
 
-        self.enz3_combo = QComboBox()
+        self.enz3_combo = enable_combo_translation(QComboBox())
         self._fill_enzyme_combo(self.enz3_combo, default_index=1)
         self.enz3_combo.setToolTip(
             "Restriction site added to the 3' end; None = blunt / TA ligation"

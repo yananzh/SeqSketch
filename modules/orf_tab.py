@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
-from utils.i18n import tr_ui
+from utils.i18n import combo_value, enable_combo_translation, tr_ui
 
 # NCBI genetic code table id, keyed by the human-readable label shown in the combo box.
 GENETIC_CODES = {
@@ -84,6 +84,8 @@ class ORFTab(BaseTabWidget):
         # Place Example button horizontally with upload_btn
         self.example_btn = QPushButton("Example")
         self.example_btn.clicked.connect(self._load_example)
+        for button in (self.upload_btn, self.example_btn):
+            button.setProperty("expandToRow", True)
         ig_layout = self.input_group.layout()
         ig_layout.removeWidget(self.upload_btn)
         btn_row = QHBoxLayout()
@@ -124,7 +126,7 @@ class ORFTab(BaseTabWidget):
         grid.addWidget(self.min_len_box, 0, 1)
 
         grid.addWidget(QLabel("Search Strand:"), 0, 2)
-        self.chain_box = QComboBox()
+        self.chain_box = enable_combo_translation(QComboBox())
         self.chain_box.addItems([
             "Forward strand only",
             "Reverse strand only",
@@ -134,7 +136,7 @@ class ORFTab(BaseTabWidget):
         grid.addWidget(self.chain_box, 0, 3)
 
         grid.addWidget(QLabel("Start Codons:"), 1, 0)
-        self.start_codon_box = QComboBox()
+        self.start_codon_box = enable_combo_translation(QComboBox())
         self.start_codon_box.addItems([
             "ATG only (standard)",
             "ATG, GTG, TTG (alternative)",
@@ -142,7 +144,7 @@ class ORFTab(BaseTabWidget):
         grid.addWidget(self.start_codon_box, 1, 1)
 
         grid.addWidget(QLabel("Genetic Code:"), 1, 2)
-        self.genetic_code_box = QComboBox()
+        self.genetic_code_box = enable_combo_translation(QComboBox())
         self.genetic_code_box.addItems(list(GENETIC_CODES.keys()))
         self.genetic_code_box.setToolTip(
             "NCBI genetic code table used to detect stop codons and "
@@ -230,7 +232,7 @@ class ORFTab(BaseTabWidget):
         min_len = self.min_len_box.value()
         chain_mode = self.chain_box.currentIndex()
         use_alt_start = self.start_codon_box.currentIndex() == 1
-        genetic_code_id = GENETIC_CODES[self.genetic_code_box.currentText()]
+        genetic_code_id = GENETIC_CODES[combo_value(self.genetic_code_box)]
         codon_table = _codon_table_dict(genetic_code_id)
         stop_codons = tuple(codon for codon, aa in codon_table.items() if aa == "*")
 
@@ -460,7 +462,7 @@ class ORFTab(BaseTabWidget):
         ax.set_xlim(-seq_len * 0.06, seq_len * 1.02)
         ax.set_ylim(-0.2, 6.2)
         ax.set_yticks([])
-        ax.set_xlabel("Sequence position (bp)", fontsize=8)
+        ax.set_xlabel(tr_ui("Sequence position (bp)"), fontsize=8)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
 
