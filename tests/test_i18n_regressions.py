@@ -2,15 +2,13 @@
 
 import csv
 import gc
-import os
 import re
 import weakref
-from pathlib import Path
 
 import matplotlib
 import pytest
 from PyQt6.QtCore import QEvent, QPoint, Qt
-from PyQt6.QtGui import QFontDatabase, QFontInfo
+from PyQt6.QtGui import QFontInfo
 from PyQt6.QtWidgets import QComboBox, QDialog, QLabel, QPushButton, QTextBrowser, QWidget
 
 from scripts.check_ui_translation import tab_classes, untranslated
@@ -143,10 +141,6 @@ def test_all_chinese_help_dialogs_show_translated_bodies(qapp, monkeypatch):
 def test_dense_parameter_forms_fit_default_window(qapp, language, opener):
     from main_window import MainWindow
 
-    font_ids = []
-    if not QFontInfo(qapp.font()).family() and os.name == "nt":
-        for filename in ("segoeui.ttf", "msyh.ttc"):
-            font_ids.append(QFontDatabase.addApplicationFont(str(Path(os.environ["WINDIR"]) / "Fonts" / filename)))
     set_active_language(language)
     window = MainWindow()
     try:
@@ -180,7 +174,9 @@ def test_dense_parameter_forms_fit_default_window(qapp, language, opener):
                     tab.prod_size_min, tab.num_primers_spin, tab.p_len_min,
                     tab.p_tm_min, tab.p_gc_min, tab.salt_mono_spin, tab.mg_spin,
                 ]
-                assert len({left(widget) for widget in inputs}) == 1
+                assert len({left(widget) for widget in inputs}) == 1, [
+                    (left(widget), widget.geometry().getRect()) for widget in inputs
+                ]
                 headings = [
                     label for label in tab.findChildren(QLabel)
                     if label.text() in {tr_ui(text) for text in ("Min", "Opt", "Max")}
@@ -205,9 +201,6 @@ def test_dense_parameter_forms_fit_default_window(qapp, language, opener):
         window.deleteLater()
         qapp.processEvents()
         qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
-        for font_id in font_ids:
-            if font_id >= 0:
-                QFontDatabase.removeApplicationFont(font_id)
 
 
 def test_chinese_complement_translation_and_pairwise_alignment(qapp):

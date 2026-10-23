@@ -1,11 +1,9 @@
 """Home-page translations and wrapped headings fit without clipping."""
 
-import os
 from pathlib import Path
 
 import pytest
 from PyQt6.QtCore import QEvent
-from PyQt6.QtGui import QFontDatabase, QFontInfo
 from PyQt6.QtWidgets import QLabel, QWidget
 
 from utils.app_paths import resource_path
@@ -13,25 +11,11 @@ from utils.home_page import HomePage
 from utils.i18n import install_ui_translator, set_active_language
 
 
-@pytest.fixture
-def home_fonts(qapp):
-    font_ids = []
-    if os.name == "nt" and not QFontInfo(qapp.font()).family():
-        for filename in ("segoeui.ttf", "msyh.ttc"):
-            font_ids.append(QFontDatabase.addApplicationFont(
-                str(Path(os.environ["WINDIR"]) / "Fonts" / filename)
-            ))
-    yield
-    for font_id in font_ids:
-        if font_id >= 0:
-            QFontDatabase.removeApplicationFont(font_id)
-
-
 @pytest.mark.parametrize("language", ["en", "zh-CN"])
 @pytest.mark.parametrize("width", [460, 622, 920])
 @pytest.mark.parametrize("heading_size", [15, 18])
 def test_home_content_is_centered_and_wrapped_text_is_fully_visible(
-    qapp, home_fonts, language, width, heading_size,
+    qapp, language, width, heading_size,
 ):
     install_ui_translator(qapp)
     set_active_language(language)
