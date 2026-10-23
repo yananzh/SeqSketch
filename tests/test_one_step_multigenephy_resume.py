@@ -170,7 +170,13 @@ def test_resume_ui_ignores_stale_results_and_checks_latest_input(qapp, saved_run
         tab.mafft_mode_combo.setCurrentIndex(1)
         first.finished.emit()
         assert tab._resume_check_result == "Checking reuse…"
-        QTest.qWait(500)
+        # Timer delivery can be delayed on a busy CI runner. Wait for the
+        # observable start instead of assuming a 400 ms timer fired by 500 ms.
+        for _ in range(300):
+            if len(ControlledCheck.started) >= 2:
+                break
+            QTest.qWait(20)
+        assert len(ControlledCheck.started) == 2, "Latest resume check did not start"
         latest = ControlledCheck.started[1]
         assert latest.project.mafft_mode == "--localpair"
         latest.result = "Reuse unavailable: changed settings"
