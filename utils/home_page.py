@@ -2,9 +2,22 @@
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from utils.app_paths import resource_path
+
+
+class _WrappedLabel(QLabel):
+    """Allow narrow columns and reserve height for their actual wrapped text."""
+
+    def __init__(self, text):
+        super().__init__(text)
+        self.setWordWrap(True)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.setMinimumHeight(self.heightForWidth(self.width()))
 
 
 class HomePage(QWidget):
@@ -35,7 +48,7 @@ class HomePage(QWidget):
             layout.addSpacing(12)
 
         def centered(text, name):
-            label = QLabel(text)
+            label = _WrappedLabel(text)
             label.setObjectName(name)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setWordWrap(True)
@@ -64,12 +77,12 @@ class HomePage(QWidget):
             ("Alignment & BLAST", "Compare sequences and search for similar matches."),
             ("Primers & phylogenetics", "Design primers and explore evolutionary relationships."),
         )):
-            heading = QLabel(title)
+            heading = _WrappedLabel(title)
             heading.setObjectName("homeFeatureTitle")
             heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
             heading.setWordWrap(True)
             heading.setMinimumHeight(22)
-            description_label = QLabel(description)
+            description_label = _WrappedLabel(description)
             description_label.setObjectName("homeFeatureDescription")
             description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             description_label.setWordWrap(True)

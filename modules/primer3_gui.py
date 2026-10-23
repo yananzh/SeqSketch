@@ -356,7 +356,10 @@ class PrimerDesignTab(QWidget):
         mg_label = QLabel("Mg²⁺ (mM):")
         adv_form.addRow(mg_label, self.mg_spin)
 
-        # Let each form size its label column to the translated text.
+        # Share the label-column width across all three parameter forms.
+        self._parameter_labels = (
+            size_label, count_label, len_label, tm_label, gc_label, salt_label, mg_label,
+        )
         for form in (general_form, primer_form, adv_form):
             form.setContentsMargins(10, 10, 10, 10)
             form.setHorizontalSpacing(6)
@@ -476,6 +479,20 @@ class PrimerDesignTab(QWidget):
         # Same one-word/two-word width rule as the BaseTabWidget tabs.
         unify_status_button_sizes(self)
         root_layout.addLayout(self.status_layout)
+
+    def showEvent(self, event):
+        # Measure after stylesheet polishing, using the active language even
+        # before the child labels receive their translation Show events.
+        for label in self._parameter_labels:
+            label.ensurePolished()
+        width = max(
+            label.fontMetrics().horizontalAdvance(tr_ui(label.text()))
+            + 2 * label.margin() + 2
+            for label in self._parameter_labels
+        )
+        for label in self._parameter_labels:
+            label.setFixedWidth(width)
+        super().showEvent(event)
 
     def connect_signals(self):
         self.design_button.clicked.connect(self.start_design_task)
