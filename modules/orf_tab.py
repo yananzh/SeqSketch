@@ -238,7 +238,9 @@ class ORFTab(BaseTabWidget):
 
         all_results: list[dict] = []
         for record_idx, (rec_header, seq) in enumerate(records):
-            seq = seq.replace(" ", "").upper().replace("U", "T")
+            # Wrapped raw input keeps its line breaks — strip all whitespace
+            # (like TranslateTab) so multiline pasted sequences pass the gate.
+            seq = "".join(seq.split()).upper().replace("U", "T")
             if not seq:
                 continue
             if not re.fullmatch(r"[ACGTN]+", seq):

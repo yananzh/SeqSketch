@@ -613,6 +613,20 @@ def test_orf_export_headers_match_the_table_span(qapp, monkeypatch, tmp_path):
     assert "[rec]" in content
 
 
+def test_orf_multiline_raw_sequence_is_cleaned(qapp):
+    """A wrapped raw sequence (no FASTA header) keeps its line breaks; the
+    run must strip them instead of failing the ACGT gate."""
+    tab = ORFTab()
+    tab.min_len_box.setValue(30)
+
+    tab.input_text.setPlainText("ATG" + "AAA" * 10 + "TAA\n" + "AAAA\n")
+    tab.run()
+
+    assert tab._orf_table.rowCount() == 1
+    assert tab._orf_table.item(0, 2).text() == "+1"
+    assert "Found" in tab.status_label.text()
+
+
 def test_rna_tab_converts_multi_fasta_records(qapp):
     """Multi-FASTA conversion goes through parse_fasta_tuples (AGENTS.md:
     no hand-rolled parsers); headers keep their full description line."""

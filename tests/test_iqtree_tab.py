@@ -303,3 +303,19 @@ def test_disabled_bootstrap_disables_replicates_and_restores_on_reset(qapp):
     assert tab._bootstrap_spin.isEnabled()
     assert tab._bootstrap_mode_combo.currentData() == "ufboot"
     assert tab._bootstrap_spin.value() == 1000
+
+
+def test_exe_drop_filter_matches_platform_binary_name(qapp, tmp_path):
+    """The bundled iqtree3 binary is extension-less on macOS/Linux, so the
+    exe drop box must accept the platform-shaped name while still filtering
+    unrelated files (regression: the filter used to be hardcoded to .exe)."""
+    from utils.app_paths import exe_suffix
+
+    tab = IqTreeTab()
+    binary = tmp_path / ("iqtree3" + exe_suffix())
+    binary.write_bytes(b"")
+    junk = tmp_path / "notes.txt"
+    junk.write_bytes(b"")
+
+    assert tab._exe_edit._is_valid(str(binary))
+    assert not tab._exe_edit._is_valid(str(junk))

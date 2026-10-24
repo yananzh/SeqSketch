@@ -292,6 +292,21 @@ class BaseWorker(QObject):
         self.logger.info(f"Task finished: {result_msg}")
         self.finished.emit(result_msg)
 
+    def _run_entry(self):
+        """Thread entry point with an exception guard.
+
+        An exception escaping run() must still emit error (which quits the
+        thread); otherwise the event loop spins forever and every later Run
+        is rejected with "A task is already running". This must be a bound
+        method of the worker: QThread.started is connected to it *after*
+        moveToThread, so Qt runs it in the worker thread. A plain closure
+        has no thread affinity and PyQt would invoke it on the GUI thread.
+        """
+        try:
+            self.run()
+        except Exception as exc:
+            self.emit_error(f"Unhandled error: {type(exc).__name__}: {exc}", exc)
+
     def run(self):
         """Must be implemented by subclass"""
         raise NotImplementedError("Subclass must implement run()")
@@ -360,7 +375,7 @@ class BaseTabWidget(QWidget):
             stop_worker_object(thread)
             park_qthread(thread)
             setattr(self, attr_name, None)
-        for attr_name in ("_worker",):
+        for attr_name in ("_worker", "_running_worker"):
             worker = getattr(self, attr_name, None)
             if worker is not None:
                 stop_worker_object(worker)
@@ -762,6 +777,7 @@ class BaseTabWidget(QWidget):
         """
         if self.sender() is self.worker_thread:
             self.worker_thread = None
+            self._running_worker = None
 
     def start_worker(self, worker: BaseWorker):
         """启动工作线程的通用方法"""
@@ -775,10 +791,14 @@ class BaseTabWidget(QWidget):
 
         self.worker_thread = QThread()
         worker.moveToThread(self.worker_thread)
+        # Keep the worker alive for the run: PyQt connections to bound
+        # methods are weak, so a caller that drops its own reference would
+        # let the worker die before run() ever executes.
+        self._running_worker = worker
 
         # 连接信号 — quit 必须在 handler 之前连接，
         # 否则 handler 若阻塞等待线程退出会造成死锁
-        self.worker_thread.started.connect(worker.run)
+        self.worker_thread.started.connect(worker._run_entry)
         worker.finished.connect(self.worker_thread.quit)
         worker.error.connect(self.worker_thread.quit)
         worker.finished.connect(self.handle_worker_finished)

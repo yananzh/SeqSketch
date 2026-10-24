@@ -344,9 +344,16 @@ class FASTAProcessor:
 
         return matches
 
+    # Full IUPAC complement (U→A, matching Biopython's DNA table); characters
+    # outside the nucleotide alphabet pass through unchanged.
+    _COMPLEMENT = str.maketrans(
+        "ACGTURYSWKMBDHVnacgturyswkmbdhvn",
+        "TGCAAYRSWMKVHDBNtgcaayrswmkvhdbn",
+    )
+
     def reverse_complement(self, sequence: str) -> str:
         """
-        获取序列的反向互补序列
+        获取序列的反向互补序列（完整 IUPAC 简并碱基，U→A）
 
         Args:
             sequence: 原始序列
@@ -354,8 +361,7 @@ class FASTAProcessor:
         Returns:
             str: 反向互补序列
         """
-        complement = {"A": "T", "T": "A", "G": "C", "C": "G", "N": "N"}
-        return "".join(complement.get(base, base) for base in reversed(sequence))
+        return sequence.translate(self._COMPLEMENT)[::-1]
 
     def create_reverse_complement_records(self) -> List[FASTARecord]:
         """

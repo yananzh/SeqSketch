@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.app_paths import resource_path
+from utils.app_paths import exe_suffix, resource_path
 from utils.common_components import (
     BaseTabWidget,
     FileDropLineEdit,
@@ -155,7 +155,9 @@ class IqTreeTab(BaseTabWidget):
         input_form.setSpacing(8)
 
         exe_row = QHBoxLayout()
-        self._exe_edit = FileDropLineEdit({".exe"})
+        # The bundled iqtree3 binary is extension-less on macOS/Linux, so the
+        # drop filter must follow the platform (exe_suffix → "" off Windows).
+        self._exe_edit = FileDropLineEdit({exe_suffix()})
         self._exe_edit.setText(_resolve_iqtree_exe())
         self._exe_edit.setPlaceholderText("Path to iqtree3.exe …")
         self._exe_edit.setToolTip("Path to the IQ-TREE executable")

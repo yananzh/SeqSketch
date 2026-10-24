@@ -9,8 +9,9 @@ from PyQt6.QtWidgets import QWidget
 
 logger = logging.getLogger(__name__)
 _TASK_ATTRIBUTES = (
-    "worker", "worker_thread", "_worker", "_thread", "_batch_worker",
-    "_render_thread", "_export_thread", "_update_worker", "_update_thread",
+    "worker", "worker_thread", "_worker", "_running_worker", "_thread",
+    "_batch_worker", "_render_thread", "_export_thread", "_update_worker",
+    "_update_thread",
 )
 _PARKED_THREADS = {}
 

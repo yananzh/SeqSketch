@@ -565,7 +565,7 @@ class MainWindow(QMainWindow):
         self._update_thread = QThread(self)
         self._update_worker = UpdateCheckWorker()
         self._update_worker.moveToThread(self._update_thread)
-        self._update_thread.started.connect(self._update_worker.run)
+        self._update_thread.started.connect(self._update_worker._run_entry)
         self._update_worker.finished.connect(self._on_update_check_finished)
         self._update_worker.error.connect(self._on_update_check_failed)
         # The QThread event loop runs until quit() — end it when the worker

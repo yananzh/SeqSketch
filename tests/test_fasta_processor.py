@@ -449,6 +449,16 @@ def test_reverse_complement():
     assert processor.reverse_complement("ATGCN") == "NGCAT"
 
 
+def test_reverse_complement_full_iupac_and_u():
+    """Degenerate codes must complement (R↔Y, M↔K, B↔V…), U pairs with A."""
+    processor = FASTAProcessor()
+    assert processor.reverse_complement("ARY") == "RYT"
+    assert processor.reverse_complement("AUG") == "CAT"
+    assert processor.reverse_complement("ACGTURYSWKMBDHVN") == "NBDHVKMWSRYAACGT"
+    # Unknown characters pass through instead of being silently complemented.
+    assert processor.reverse_complement("ACXT") == "AXGT"
+
+
 def test_create_reverse_complement_records():
     processor = FASTAProcessor()
     processor.records = [FASTARecord(header="seq1", sequence="ATGC")]

@@ -407,3 +407,57 @@ def test_production_adapter_outputs_support_validated_resume(tmp_path, monkeypat
     assert calls == ["tree"]
     assert resumed.step_status["Concatenate"] == "skipped"
     assert "ATGC" in Path(resumed.artifacts.extra_paths["supermatrix"]).read_text(encoding="utf-8")
+
+
+# ── start_worker: unguarded exceptions must not strand the tab ─────────────
+
+
+def test_start_worker_survives_uncaught_run_exception(qapp):
+    """Two framework guarantees for start_worker:
+    1. An exception escaping worker.run() used to leave the QThread event
+       loop running forever, so every later Run hit "A task is already running".
+    2. start_worker must keep the worker alive itself — PyQt connections to
+       bound methods are weak, so an inline worker would be garbage-collected
+       before run() executes (this test creates it inline on purpose).
+    """
+    import threading
+    import time
+
+    from utils.common_components import BaseTabWidget, BaseWorker
+
+    class _BrokenWorker(BaseWorker):
+        def run(self):
+            raise ValueError("boom")
+
+    host = BaseTabWidget("Host", "file")
+    assert host.start_worker(_BrokenWorker()) is True
+
+    deadline = time.time() + 5
+    while host.worker_thread is not None and time.time() < deadline:
+        qapp.processEvents()
+        time.sleep(0.01)
+    qapp.processEvents()
+
+    assert host.worker_thread is None
+    assert "boom" in host.log_area.toPlainText()
+
+    class _OkWorker(BaseWorker):
+        def __init__(self):
+            super().__init__()
+            self.run_thread = None
+
+        def run(self):
+            # _run_entry is a bound method of the moveToThread'ed worker, so
+            # Qt must invoke it in the worker thread — never the GUI thread.
+            self.run_thread = threading.current_thread()
+            self.emit_finished("done")
+
+    ok = _OkWorker()
+    assert host.start_worker(ok) is True
+    deadline = time.time() + 5
+    while host.worker_thread is not None and time.time() < deadline:
+        qapp.processEvents()
+        time.sleep(0.01)
+    assert host.worker_thread is None
+    assert ok.run_thread is not None
+    assert ok.run_thread is not threading.main_thread()
