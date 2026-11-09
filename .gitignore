@@ -18,6 +18,9 @@ _out.txt
 *.log
 .zcode/
 
+# Paper assets
+docs/paper-assets/
+
 # Stray dev scratch files
 all_files.txt
 tracked.txt
