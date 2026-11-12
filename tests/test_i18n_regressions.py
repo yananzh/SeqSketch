@@ -3,6 +3,7 @@
 import csv
 import gc
 import re
+import sys
 import weakref
 
 import matplotlib
@@ -149,7 +150,7 @@ def test_dense_parameter_forms_fit_default_window(qapp, language, opener):
         qapp.processEvents()
         tab = window.tabs.currentWidget()
         assert window.size().width() == 920
-        assert window.size().height() == 700
+        assert window.size().height() == (750 if sys.platform == "darwin" else 700)
         for label in tab.findChildren(QLabel):
             if not label.isVisibleTo(tab) or label.wordWrap() or not label.text():
                 continue
@@ -248,9 +249,9 @@ def test_information_mode_uses_scientific_translation_and_preserves_english(qapp
         chinese.input_text.setPlainText(">All\nACGTACGT\n>None\nACGTACGT")
         set_combo_value(chinese.mode_combo, "Information")
         chinese.run()
-        assert chinese.current_figure is not None
-        assert chinese.current_figure.axes[0].get_ylabel() == "比特"
-        assert "信息量" in chinese.current_figure.axes[0].get_title()
+        ax = chinese.figure.axes[0]
+        assert ax.get_ylabel() == "比特"
+        assert "信息量" in ax.get_title()
     finally:
         english.deleteLater()
         chinese.deleteLater()

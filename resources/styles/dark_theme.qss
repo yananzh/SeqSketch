@@ -4,14 +4,95 @@ QDialog, QMessageBox, QScrollArea, QScrollArea > QWidget > QWidget {
     background: #20252d;
 }
 QLabel { background: transparent; }
+/* Spin boxes need explicit arrows when their frame is styled. */
+QAbstractSpinBox {
+    background: #171c24;
+    border: 1px solid #596b82;
+    border-radius: 4px;
+    padding: 1px 2px;
+}
+QAbstractSpinBox:focus { border-color: #91b4ae; }
+QAbstractSpinBox:disabled { border-color: #343e4b; color: #a0adbe; }
+QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {
+    background: transparent;
+    border: none;
+}
+QAbstractSpinBox::up-button:hover:!off, QAbstractSpinBox::down-button:hover:!off {
+    background: #3a4656;
+}
+QAbstractSpinBox::up-arrow {
+    image: url(seqsketchicons:spin-up.svg);
+    width: 8px;
+    height: 5px;
+}
+QAbstractSpinBox::down-arrow {
+    image: url(seqsketchicons:spin-down.svg);
+    width: 8px;
+    height: 5px;
+}
+QAbstractSpinBox::up-arrow:off, QAbstractSpinBox::down-arrow:off,
+QAbstractSpinBox::up-arrow:disabled, QAbstractSpinBox::down-arrow:disabled {
+    image: none;
+}
 QMenuBar::item, QMenu::item { background: transparent; }
 QMenuBar::item:selected, QMenu::item:selected { background: #304b48; }
+QRadioButton::indicator {
+    width: 12px;
+    height: 12px;
+    border: 1px solid #8798ad;
+    border-radius: 7px;
+    background: #171c24;
+}
+QRadioButton::indicator:hover { border-color: #c3cedd; }
+QRadioButton::indicator:checked {
+    border-color: #9bbfba;
+    background: qradialgradient(cx: 0.5, cy: 0.5, radius: 0.5, fx: 0.5, fy: 0.5,
+                                stop: 0.48 #9bbfba, stop: 0.57 #171c24);
+}
+QRadioButton::indicator:disabled { border-color: #596b82; }
+QRadioButton::indicator:checked:disabled {
+    background: qradialgradient(cx: 0.5, cy: 0.5, radius: 0.5, fx: 0.5, fy: 0.5,
+                                stop: 0.48 #596b82, stop: 0.57 #171c24);
+}
+QCheckBox::indicator, QGroupBox::indicator, QAbstractItemView::indicator {
+    width: 12px;
+    height: 12px;
+    border: 1px solid #8798ad;
+    border-radius: 3px;
+    background: #171c24;
+}
+QCheckBox::indicator:checked, QGroupBox::indicator:checked, QAbstractItemView::indicator:checked {
+    border-color: #9bbfba;
+    background: #304b48;
+    image: url(seqsketchicons:checkmark.svg);
+}
+QCheckBox::indicator:indeterminate, QAbstractItemView::indicator:indeterminate {
+    border-color: #9bbfba;
+    background: #304b48;
+    image: url(seqsketchicons:check-indeterminate.svg);
+}
+QCheckBox::indicator:disabled, QGroupBox::indicator:disabled, QAbstractItemView::indicator:disabled {
+    border-color: #596b82;
+    background: #262e39;
+}
+QComboBox::drop-down {
+    border: none;
+}
+QComboBox::down-arrow {
+    image: url(seqsketchicons:spin-down.svg);
+    width: 8px;
+    height: 5px;
+}
 QAbstractItemView {
     background: #171c24;
     alternate-background-color: #262e39;
     color: #e2e8f0;
     selection-background-color: #304b48;
     selection-color: #ffffff;
+}
+QListView, QTreeView, QTableView {
+    border: 1px solid #596b82;
+    border-radius: 4px;
 }
 QHeaderView::section {
     background: #303b49;
@@ -70,5 +151,6 @@ QPushButton[stopButton="true"]:disabled, QPushButton[viewToggle="true"]:disabled
 QPushButton[actionRole="quiet"]:disabled {
     background: transparent; border-color: #343e4b; color: #a0adbe;
 }
+QGroupBox { border-color: #596b82; }
 QGroupBox::title { color: #b5c1d1; }
 QTabBar::tab:disabled, QLabel:disabled { color: #a0adbe; }

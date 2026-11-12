@@ -1,4 +1,5 @@
 import os
+import sys
 
 from PyQt6.QtCore import QElapsedTimer, Qt, QThread, QTimer
 from PyQt6.QtGui import QIcon, QPixmap
@@ -60,10 +61,9 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("SeqSketch")
-        self.resize(920, 700)
-        # Lock the default size as the minimum: some tabs (e.g. the MSA tabs'
-        # batch page) carry a large minimumSizeHint that would otherwise
-        # silently inflate the window beyond its default height.
+        self.resize(920, 750 if sys.platform == "darwin" else 700)
+        # Set an explicit minimum so larger tab size hints do not determine
+        # the minimum window size.
         self.setMinimumSize(920, 700)
         self._init_width = 920
         icon_path = resource_path("window_logo.png")
@@ -90,6 +90,7 @@ class MainWindow(QMainWindow):
 
     def _init_ui(self):
         self.tabs = QTabWidget()
+        self.tabs.setObjectName("mainTabs")
         self.tabs.setTabsClosable(True)
         self.tabs.tabCloseRequested.connect(self.close_tab)
         self.home_page = HomePage()

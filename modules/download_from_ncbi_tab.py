@@ -389,7 +389,6 @@ class DownloadFromNCBITab(BaseTabWidget):
         conn_layout.addWidget(self.db_combo)
 
         email_label = QLabel("Email:")
-        email_label.setFixedWidth(70)
         conn_layout.addWidget(email_label)
         self.email_edit = QLineEdit()
         self.email_edit.setPlaceholderText("NCBI requires an email address")
@@ -435,7 +434,8 @@ class DownloadFromNCBITab(BaseTabWidget):
         self.acc_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.acc_edit.setProperty("listDisplay", True)
         self.acc_edit.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
+            'QPlainTextEdit[listDisplay="true"] { border: 1px solid #94a3b8; '
+            "border-radius: 6px; padding: 8px 10px; background: #ffffff; }"
         )
         self.acc_edit.setFrameShape(QFrame.Shape.NoFrame)
         self.acc_edit.viewport().setStyleSheet("background: transparent;")

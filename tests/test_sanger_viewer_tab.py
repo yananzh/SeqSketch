@@ -45,6 +45,8 @@ def test_selected_range_is_saved_as_fasta(viewer, tmp_path, start, end):
 
 
 def test_automatic_output_and_clear_preserve_saved_file(viewer, tmp_path):
+    assert viewer._preview.has_figure
+    assert viewer._btn_export_plot.isEnabled()
     viewer._export_fasta()
     output = Path(viewer._output_edit.text())
     assert output.parent == Path(viewer._file_edit.text()).parent == tmp_path
@@ -55,6 +57,8 @@ def test_automatic_output_and_clear_preserve_saved_file(viewer, tmp_path):
     assert not viewer._sequence
     assert not viewer._last_output_path
     assert not viewer._btn_export_fasta.isEnabled()
+    assert not viewer._btn_export_plot.isEnabled()
+    assert not viewer._preview.has_figure
     assert not viewer._btn_result_folder.isEnabled()
     assert not viewer._spin_start.isEnabled()
     assert not viewer._spin_end.isEnabled()

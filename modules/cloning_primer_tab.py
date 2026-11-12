@@ -27,7 +27,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from utils.common_components import BaseTabWidget, unify_status_button_sizes
+from utils.common_components import BaseTabWidget, unify_button_size, unify_status_button_sizes
 from utils.example_data import load_example_text
 from utils.i18n import enable_combo_translation, tr_format, tr_ui
 
@@ -473,8 +473,9 @@ class CloningPrimerTab(BaseTabWidget):
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(8)
         for btn in (self.example_btn, self.upload_btn):
-            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            row.addWidget(btn)
+            btn.setProperty("expandToRow", True)
+            unify_button_size(btn)
+            row.addWidget(btn, 1)
 
         input_layout = self.input_group.layout()
         input_layout.removeWidget(self.upload_btn)

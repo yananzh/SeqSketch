@@ -198,7 +198,10 @@ def apply_transparent_text_edit_background(editor: QTextEdit) -> None:
 
 def apply_log_viewer_style(editor: QTextEdit) -> None:
     editor.setProperty("logViewer", True)
-    editor.setStyleSheet(LOG_VIEWER_STYLE)
+    editor.setStyleSheet(
+        f'QTextEdit[logViewer="true"] {{ {LOG_VIEWER_STYLE} }}'
+        'QTextEdit[compactLog="true"] { padding: 2px 10px; }'
+    )
     editor.viewport().setStyleSheet("background: transparent;")
 
 
@@ -220,7 +223,7 @@ def unify_button_size(button: QPushButton) -> None:
     width = tier
     # Tabs are prepared before inheriting the main window's stylesheet.
     # Measure using the shared QSS body font, in logical pixels for HiDPI.
-    font = QFont("Segoe UI")
+    font = QFont("Arial")
     font.setPixelSize(14)
     # Headless Qt can have no fonts at all; its missing-glyph boxes are not
     # representative of the UI. Keep the standard tiers in that environment.
@@ -441,6 +444,10 @@ class BaseTabWidget(QWidget):
 
         # 添加状态到布局
         self.main_layout.addLayout(self.status_layout)
+
+    def use_compact_log(self):
+        self.log_area.setProperty("compactLog", True)
+        self.log_area.setFixedHeight(36)
 
     def init_sequence_ui(self):
         """Initialize sequence processing UI with QGroupBox sections"""

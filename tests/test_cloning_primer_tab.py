@@ -391,6 +391,23 @@ def test_main_window_opens_cloning_primer_tab(qapp):
     assert window.tabs.tabText(0) == "Cloning Primer Design"
 
 
+def test_main_window_cloning_primer_input_buttons_fill_row(qapp):
+    window = MainWindow()
+    window.open_cloning_primer_tab()
+    window.resize(1000, 780)
+    window.show()
+    qapp.processEvents()
+
+    tab = window.tabs.currentWidget()
+    example = tab.example_btn.geometry()
+    upload = tab.upload_btn.geometry()
+    layout = tab.input_group.layout()
+    row = layout.itemAt(layout.count() - 1).layout().geometry()
+    assert abs(example.width() - upload.width()) <= 1
+    assert example.left() == row.left()
+    assert upload.right() == row.right()
+
+
 def test_main_window_cloning_primer_single_instance(qapp):
     window = MainWindow()
     window.open_cloning_primer_tab()

@@ -175,8 +175,7 @@ class ExtractByIDTab(BaseTabWidget):
     def __init__(self):
         super().__init__("Filter by IDs", "file")
         # 适当减小共享日志区高度，使标签页内容适配默认窗口高度
-        self.log_area.setMinimumHeight(80)
-        self.log_area.setMaximumHeight(100)
+        self.use_compact_log()
         self.init_ui()
         self.connect_signals()
         unify_status_button_sizes(self)
@@ -209,11 +208,12 @@ class ExtractByIDTab(BaseTabWidget):
         self.id_edit.setPlaceholderText(
             "Enter sequence IDs, one per line\nExamples:\nseq1\nseq2\nseq3"
         )
-        self.id_edit.setMinimumHeight(90)
+        self.id_edit.setMinimumHeight(64)
         self.id_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.id_edit.setProperty("listDisplay", True)
         self.id_edit.setStyleSheet(
-            "border: 1px solid #94a3b8; border-radius: 6px; padding: 8px 10px; background: #ffffff;"
+            'QPlainTextEdit[listDisplay="true"] { border: 1px solid #94a3b8; '
+            "border-radius: 6px; padding: 8px 10px; background: #ffffff; }"
         )
         self.id_edit.setFrameShape(QFrame.Shape.NoFrame)
         self.id_edit.viewport().setStyleSheet("background: transparent;")

@@ -135,11 +135,15 @@ def test_render_serializes_latest_request_and_keeps_old_preview(qapp, tmp_path, 
     path = tmp_path / "tree.nwk"
     path.write_text("(a,b,c);")
     tab._file_edit.setText(str(path))
+    tab._show_svg_bytes(
+        b'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"></svg>'
+    )
     old_item = tab._scene.items()[0]
     shown = []
     monkeypatch.setattr(tab, "_show_svg_bytes", lambda data, **kw: shown.append((data, kw)))
     tab._draw()
     assert tab._scene.items()[0] is old_item
+    assert not tab._export_btn.isEnabled()
     tab._tip_size_spin.setValue(20)
     tab._draw()
     assert len(ControlledRender.started) == 1
@@ -266,11 +270,15 @@ def test_vector_preview_toolbar_and_renderer_lifetime(qapp):
     tab.show()
     qapp.processEvents()
     assert all(not button.isEnabled() for button in tab._view_buttons)
+    assert tab._preview.empty_label.isVisible()
+    assert not tab._export_btn.isEnabled()
     svg = (
         b'<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1600">'
         b'<path d="M10 10 L1500 1200" stroke="black"/></svg>'
     )
     tab._show_svg_bytes(svg)
+    assert not tab._preview.empty_label.isVisible()
+    assert tab._export_btn.isEnabled()
     gc.collect()
     item = tab._scene.items()[0]
     assert isinstance(item, QGraphicsSvgItem)

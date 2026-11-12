@@ -6,19 +6,21 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
-    QWidget,
 )
 
 from modules.fasta_processor import parse_fasta_tuples
-from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
+from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_button_size
 from utils.example_data import stage_example
+from utils.figure_preview import FigurePreview
 from utils.i18n import combo_value, connect_combo_source, enable_combo_translation, tr_format, tr_ui
 
 matplotlib.use("QtAgg")
@@ -34,31 +36,12 @@ class SequenceLogoTab(BaseTabWidget):
     def __init__(self, parent=None):
         super().__init__("Sequence Logo (Logomaker)", "sequence")
 
-        # Customize base widgets
-        self.run_btn.setText("Run")
-        self.export_btn.setText("Save Figure")
-        self.export_btn.setFixedWidth(110)
-        self.export_btn.setProperty("accentButton", True)
-        self.export_btn.style().unpolish(self.export_btn)
-        self.export_btn.style().polish(self.export_btn)
-        self.status_layout.insertWidget(
-            self.status_layout.indexOf(self.run_btn) + 1, self.export_btn
-        )
-
-        self.clear_btn.setFixedWidth(75)
-        self.run_btn.setFixedWidth(75)
-        self.help_btn.setFixedWidth(75)
-        # Result Folder button (before Clear; enabled after export)
+        # Figure actions live above the preview.
         self.open_folder_btn = QPushButton("Result Folder")
-        self.open_folder_btn.setFixedWidth(110)
-        self.open_folder_btn.setProperty("accentButton", True)
+        self.open_folder_btn.setProperty("actionRole", "secondary")
         self.open_folder_btn.setEnabled(False)
         self.open_folder_btn.clicked.connect(self._open_output_folder)
-        self.open_folder_btn.style().unpolish(self.open_folder_btn)
-        self.open_folder_btn.style().polish(self.open_folder_btn)
-        self.status_layout.insertWidget(
-            self.status_layout.indexOf(self.clear_btn), self.open_folder_btn
-        )
+        unify_button_size(self.open_folder_btn)
         self._last_export_dir = ""
 
         if hasattr(self, "copy_btn"):
@@ -109,9 +92,7 @@ class SequenceLogoTab(BaseTabWidget):
         # ── Matplotlib canvas ─────────────────────────────────────────
         self._add_plot_canvas()
 
-        # Store current figure for export
-        self.current_figure = None
-        unify_status_button_sizes(self)
+        self._logo_data = None
 
     def _clear_loaded_hint(self):
         self.input_hint.clear()
@@ -212,54 +193,25 @@ class SequenceLogoTab(BaseTabWidget):
     def _add_plot_canvas(self):
         """Add a horizontally scrollable matplotlib canvas for long sequences."""
         self._scroll_area = QScrollArea()
-        self._scroll_area.setWidgetResizable(False)
+        self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll_area.setWidgetResizable(True)
+        self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._scroll_area.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
         self._scroll_area.setMinimumHeight(240)
-        self._scroll_max_w = None
 
-        # Inner wrapper widget isolates canvas sizing from scroll-area layout
-        self._canvas_inner = QWidget()
-        self._canvas_vbox = QVBoxLayout(self._canvas_inner)
-        self._canvas_vbox.setContentsMargins(0, 0, 0, 0)
-        self._canvas_vbox.setSpacing(0)
-        self._scroll_area.setWidget(self._canvas_inner)
-
-        self.figure = Figure(figsize=(10, 3))
+        self.figure = Figure(figsize=(6, 2.4), layout="constrained")
         self.canvas = FigureCanvas(self.figure)
-        self.canvas.setMinimumHeight(200)
+        self._scroll_area.setWidget(self.canvas)
 
-        self._canvas_vbox.addWidget(self.canvas)
-
-        # Set initial inner widget size to match figure so the placeholder
-        # is visible from the start.
-        dpi = self.figure.dpi
-        self._canvas_inner.setFixedSize(
-            int(self.figure.get_figwidth() * dpi),
-            int(self.figure.get_figheight() * dpi),
+        self._preview = FigurePreview(
+            self._scroll_area, "Load an aligned FASTA file and click Run.", self.export_btn
         )
-
-        self.content_area.insertWidget(max(0, self.content_area.count() - 1), self._scroll_area)
-
-        self._draw_placeholder_plot()
-
-    def _draw_placeholder_plot(self):
-        """Draw a simple placeholder on the canvas."""
-        self.figure.clear()
-        ax = self.figure.add_subplot(111)
-        ax.text(
-            0.5,
-            0.5,
-            tr_ui("Sequence Logo will appear here after generation"),
-            ha="center",
-            va="center",
-            fontsize=12,
-            color="#999",
-            transform=ax.transAxes,
-        )
-        ax.set_xticks([])
-        ax.set_yticks([])
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-        self.canvas.draw()
+        self._preview.toolbar.insertWidget(1, self.open_folder_btn)
+        self._preview.add_scroll_reset(self._scroll_area)
+        # Extra window height should not stretch the letter stacks indefinitely.
+        self._preview.setMaximumHeight(380)
+        self.content_area.insertWidget(self.content_area.count() - 1, self._preview, 1)
+        self.content_area.addStretch(1)
 
     def run(self):
         """Generate sequence logo"""
@@ -435,11 +387,17 @@ class SequenceLogoTab(BaseTabWidget):
 
     def generate_logo(self, matrix, seq_type, num_seqs, mode):
         """Generate sequence logo using logomaker"""
-        # Clear previous figure
-        self.figure.clear()
+        self._draw_logo(self.figure, matrix, seq_type, num_seqs, mode)
+        # Keep enough room for each stack without allocating an unbounded raster.
+        self.canvas.setMinimumWidth(min(12000, 96 + len(matrix) * 14))
+        self._preview.set_has_figure(True)
+        self._scroll_area.horizontalScrollBar().setValue(0)
+        self._logo_data = (matrix, seq_type, num_seqs, mode)
+        self.canvas.draw_idle()
 
-        # Create axis
-        ax = self.figure.add_subplot(111)
+    def _draw_logo(self, figure, matrix, seq_type, num_seqs, mode):
+        figure.clear()
+        ax = figure.add_subplot(111)
 
         # Create logo
         if seq_type == "DNA":
@@ -472,42 +430,9 @@ class SequenceLogoTab(BaseTabWidget):
             pad=15,  # more breathing room between title and logo
         )
 
-        # Dynamically widen figure for long sequences so each position is legible
-        num_pos = len(matrix)
-        if num_pos > 30:
-            fig_width = min(15, max(10, num_pos * 0.35))
-            self.figure.set_size_inches(fig_width, 3)
-        else:
-            self.figure.set_size_inches(10, 3)
-
-        # Adjust layout
-        self.figure.tight_layout()
-
-        # Lock the scroll area at its current width so the canvas (which may
-        # be wider) never inflates the tab or the main window.
-        if self._scroll_max_w is None and self._scroll_area.width() > 10:
-            self._scroll_max_w = self._scroll_area.width()
-
-        # Size canvas to match the figure at native resolution.
-        dpi = self.figure.dpi
-        w = int(self.figure.get_figwidth() * dpi)
-        h = int(self.figure.get_figheight() * dpi)
-        self.canvas.setFixedSize(w, h)
-        self._canvas_inner.setFixedSize(w, h)
-
-        if self._scroll_max_w:
-            self._scroll_area.setMaximumWidth(self._scroll_max_w)
-            self._scroll_area.setMinimumWidth(0)
-
-        # Store current figure for export
-        self.current_figure = self.figure
-
-        # Refresh canvas
-        self.canvas.draw()
-
     def export_result(self):
         """Override export to save figure instead of text"""
-        if self.current_figure is None:
+        if self._logo_data is None:
             QMessageBox.warning(
                 self,
                 "Export Error",
@@ -524,7 +449,11 @@ class SequenceLogoTab(BaseTabWidget):
 
         if file_path:
             try:
-                self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight")
+                matrix, seq_type, num_seqs, mode = self._logo_data
+                width = min(15, max(10, len(matrix) * 0.35))
+                figure = Figure(figsize=(width, 3), layout="constrained")
+                self._draw_logo(figure, matrix, seq_type, num_seqs, mode)
+                figure.savefig(file_path, dpi=300, bbox_inches="tight", facecolor="white")
                 self.status_label.setText(
                     tr_format("Exported: {path}", path=os.path.basename(file_path))
                 )
@@ -542,8 +471,11 @@ class SequenceLogoTab(BaseTabWidget):
         self.input_text.clear()
         self.path_edit.clear()
         self._clear_loaded_hint()
-        self._draw_placeholder_plot()
-        self.current_figure = None
+        self._preview.set_has_figure(False)
+        self.canvas.setMinimumWidth(0)
+        self._scroll_area.horizontalScrollBar().setValue(0)
+        self.figure.clear()
+        self._logo_data = None
         self.open_folder_btn.setEnabled(False)
         self.status_label.setText(tr_ui("Cleared"))
 
@@ -570,7 +502,7 @@ height reflects how often that letter appears.</p>
 <li>Choose the sequence type (DNA or Protein). Auto-detect works well for most inputs.</li>
 <li>Select a display mode (Probability or Information).</li>
 <li>Click <b>Run</b> to generate the logo.</li>
-<li>Use <b>Save Figure</b> to export as PNG, PDF, or SVG.</li>
+<li>Use <b>Export Image</b> to export as PNG, PDF, or SVG.</li>
 </ol>
 
 <h3>Input Requirements</h3>
@@ -602,7 +534,7 @@ at that position (range 0–1). Useful for seeing raw composition.</li>
 <ul>
 <li>For long sequences the canvas widens automatically; use the horizontal
 scrollbar to inspect every position.</li>
-<li>Export high-resolution figures (300 DPI) via <b>Save Figure</b>.</li>
+<li>Export high-resolution figures (300 DPI) via <b>Export Image</b>.</li>
 <li>Start with a small alignment (5–10 sequences, 20–50 positions) to get
 a feel for the output before tackling larger datasets.</li>
 </ul>

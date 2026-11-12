@@ -24,7 +24,6 @@ from PyQt6.QtCore import (
     QEvent,
     QObject,
     QPointF,
-    QRectF,
     Qt,
     QThread,
     QTimer,
@@ -37,6 +36,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
+    QFrame,
     QGraphicsItem,
     QGraphicsScene,
     QGraphicsView,
@@ -47,6 +47,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSpinBox,
     QSplitter,
     QStackedWidget,
@@ -63,6 +64,7 @@ from utils.common_components import (
     validate_input_path,
 )
 from utils.example_data import stage_example
+from utils.figure_preview import FigurePreview
 from utils.i18n import combo_value, connect_combo_source, enable_combo_translation, tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
@@ -624,13 +626,16 @@ class ToytreeVisualizationTab(BaseTabWidget):
 
         btn_row = QHBoxLayout()
         browse_btn = QPushButton("Browse")
+        browse_btn.setProperty("expandToRow", True)
         browse_btn.clicked.connect(self._browse_file)
         file_example_btn = QPushButton("Example")
+        file_example_btn.setProperty("expandToRow", True)
         file_example_btn.clicked.connect(self._load_example)
         btn_row.addWidget(browse_btn, 1)
         btn_row.addWidget(file_example_btn, 1)
         gl.addLayout(btn_row)
         self._mapping_toggle = QToolButton()
+        self._mapping_toggle.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._mapping_toggle.setText("Tip name mapping (optional)")
         self._mapping_toggle.setCheckable(True)
         self._mapping_toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
@@ -821,21 +826,19 @@ class ToytreeVisualizationTab(BaseTabWidget):
             widget.installEventFilter(self._parameter_wheel_filter)
 
         # ── RIGHT: canvas ──────────────────────────────────────────
-        canvas_outer = QWidget()
-        canvas_vbox = QVBoxLayout(canvas_outer)
-        canvas_vbox.setContentsMargins(0, 0, 0, 0)
-        canvas_vbox.setSpacing(0)
-        splitter.addWidget(canvas_outer)
-
         self._scene = QGraphicsScene(self)
-        self._scene.setBackgroundBrush(QColor("#ffffff"))
         self._graphics_view = _ZoomableGraphicsView()
+        self._graphics_view.setFrameShape(QFrame.Shape.NoFrame)
         self._graphics_view.setScene(self._scene)
-        self._preview_toolbar = QWidget()
-        self._preview_toolbar.setObjectName("treePreviewToolbar")
-        view_toolbar = QHBoxLayout(self._preview_toolbar)
-        view_toolbar.setContentsMargins(8, 6, 8, 6)
-        view_toolbar.setSpacing(6)
+        self._export_btn = QPushButton()
+        self._export_btn.clicked.connect(self._export)
+        self._file_edit.textChanged.connect(lambda: self._export_btn.setEnabled(False))
+        self._preview = FigurePreview(
+            self._graphics_view, "Load a tree file and click Run", self._export_btn
+        )
+        splitter.addWidget(self._preview)
+        self._preview.toolbar_widget.setObjectName("treePreviewToolbar")
+        view_toolbar = self._preview.toolbar
         self._view_buttons = []
         for text, tooltip, slot in (
             ("Fit", "Fit the entire tree in the preview", self._graphics_view.fit_to_window),
@@ -853,22 +856,18 @@ class ToytreeVisualizationTab(BaseTabWidget):
             button.setToolTip(tooltip)
             button.setAccessibleName(tooltip)
             button.clicked.connect(slot)
-            view_toolbar.addWidget(button)
+            view_toolbar.insertWidget(len(self._view_buttons), button)
             self._view_buttons.append(button)
         self._zoom_label = QLabel()
         self._zoom_label.setObjectName("treePreviewZoom")
         self._zoom_label.setMinimumWidth(65)
         self._zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._zoom_label.setToolTip("Preview zoom; exported image dimensions are unchanged")
-        view_toolbar.addSpacing(6)
-        view_toolbar.addWidget(self._zoom_label)
-        view_toolbar.addStretch()
+        view_toolbar.insertSpacing(len(self._view_buttons), 6)
+        view_toolbar.insertWidget(len(self._view_buttons) + 1, self._zoom_label)
         self._graphics_view.zoomChanged.connect(
             lambda scale: self._zoom_label.setText(f"{scale * 100:.0f}%")
         )
-        canvas_vbox.addWidget(self._preview_toolbar)
-        canvas_vbox.addWidget(self._graphics_view, 1)
-
         splitter.setSizes([340, 760])
         self.add_content_widget(splitter)
 
@@ -880,10 +879,6 @@ class ToytreeVisualizationTab(BaseTabWidget):
         self._clear_btn = QPushButton("Clear")
         self._clear_btn.clicked.connect(self._clear)
         self.status_layout.insertWidget(self.status_layout.count() - 1, self._clear_btn)
-
-        self._export_btn = QPushButton("Export Image")
-        self._export_btn.clicked.connect(self._export)
-        self.status_layout.insertWidget(self.status_layout.count() - 1, self._export_btn)
 
         # ── Auto-update on parameter change ───────────────────────────
         self._layout_combo.currentTextChanged.connect(self._on_param_changed)
@@ -1003,13 +998,8 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
     # Canvas helpers
     # ------------------------------------------------------------------
     def _show_placeholder(self):
+        self._preview.set_has_figure(False)
         self._scene.clear()
-        self._scene.setSceneRect(QRectF(-400, -300, 800, 600))
-        text_item = self._scene.addSimpleText(tr_ui("Load a tree file and click Run"))
-        text_item.setBrush(QColor("#aaa"))
-        br = text_item.boundingRect()
-        text_item.setPos(-br.width() / 2, -br.height() / 2)
-        self._graphics_view.fit_to_window()
         for button in self._view_buttons:
             button.setEnabled(False)
         self._zoom_label.setText("—")
@@ -1030,6 +1020,7 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
         self._scene.clear()
         self._scene.addItem(item)
         self._scene.setSceneRect(item.boundingRect())
+        self._preview.set_has_figure(True)
         if preserve_view:
             self._graphics_view.setTransform(transform)
             self._graphics_view.centerOn(center)
@@ -1163,6 +1154,7 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
         """Auto-redraw when any tree parameter changes, if a tree file is loaded."""
         if self._resetting:
             return
+        self._export_btn.setEnabled(False)
         # When in Outgroup mode but no outgroup selected yet, skip the draw
         if (
             combo_value(self._root_method_combo) == "Outgroup"
@@ -1260,6 +1252,7 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
     # ------------------------------------------------------------------
     def _draw(self):
         self._redraw_timer.stop()
+        self._export_btn.setEnabled(False)
         # Serialize rendering: keep at most one active render and the latest request.
         if self._render_thread is not None:
             self._render_pending = True
@@ -1319,6 +1312,8 @@ Invalid mappings and duplicate resulting names must be corrected before renderin
         if success:
             self._show_svg_bytes(svg_bytes, preserve_view=rendered_file == self._displayed_file)
             self._displayed_file = rendered_file
+            if rendered_file != self._file_edit.text().strip():
+                self._export_btn.setEnabled(False)
             if self._mapping_status:
                 self.show_status(
                     tr_format("Tree rendered — {summary}", summary=self._mapping_status)

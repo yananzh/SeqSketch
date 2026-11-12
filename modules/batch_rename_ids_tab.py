@@ -214,6 +214,7 @@ class BatchRenameIDsTab(BaseTabWidget):
 
     def __init__(self):
         super().__init__("Rename IDs", "file")
+        self.use_compact_log()
         self.init_ui()
         self.connect_signals()
         unify_status_button_sizes(self)
@@ -248,6 +249,7 @@ class BatchRenameIDsTab(BaseTabWidget):
             "Step 3: Edit new IDs externally  →  Step 4: Load mapping  →  Step 5: Start"
         )
         step_hint.setProperty("hintLabel", True)
+        step_hint.setWordWrap(True)
         mapping_main.addWidget(step_hint)
 
         # Mapping file row

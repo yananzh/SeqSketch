@@ -108,10 +108,13 @@ def main():
             Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
         )
         app = QApplication(sys.argv)
+        app.setStyle("Fusion")
         # 应用程序级图标回退（任务栏 / Alt+Tab）
         from utils.app_paths import resource_path
 
-        _icon = resource_path("window_logo.ico")
+        # Cocoa uses the smallest ICO frame for the Dock icon.
+        icon_name = "window_logo.png" if sys.platform == "darwin" else "window_logo.ico"
+        _icon = resource_path(icon_name)
         if os.path.exists(_icon):
             app.setWindowIcon(QIcon(_icon))
     except Exception as _e:

@@ -1,10 +1,11 @@
 import re
 
 from Bio.Data import CodonTable
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from PyQt6.QtCore import Qt
+from matplotlib.patches import Polygon
+from matplotlib.ticker import MaxNLocator
+from PyQt6.QtCore import QEvent, Qt
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -20,12 +21,12 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
-    QWidget,
 )
 
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.figure_preview import FigurePreview
 from utils.i18n import combo_value, enable_combo_translation, tr_ui
 
 # NCBI genetic code table id, keyed by the human-readable label shown in the combo box.
@@ -191,18 +192,14 @@ class ORFTab(BaseTabWidget):
         splitter.addWidget(self._orf_table)
 
         # ── ORF map (Matplotlib) ───────────────────────────────────
-        map_container = QWidget()
-        map_layout = QVBoxLayout(map_container)
-        map_layout.setContentsMargins(0, 0, 0, 0)
-        map_layout.setSpacing(2)
-
-        self._orf_fig = Figure(figsize=(6, 3), dpi=100)
+        self._orf_fig = Figure(figsize=(6, 3), dpi=100, layout="constrained")
         self._orf_canvas = FigureCanvas(self._orf_fig)
         self._orf_canvas.setMinimumHeight(160)
-        self._orf_toolbar = NavigationToolbar(self._orf_canvas, map_container)
-        map_layout.addWidget(self._orf_toolbar)
-        map_layout.addWidget(self._orf_canvas)
-        splitter.addWidget(map_container)
+        self._orf_preview = FigurePreview(
+            self._orf_canvas, "Run ORF Finder on a single sequence to see its map."
+        )
+        splitter.addWidget(self._orf_preview)
+        self._style_orf_map()
 
         splitter.setSizes([420, 500])  # map pane slightly wider than the table
         gr_layout.addWidget(splitter)
@@ -284,7 +281,7 @@ class ORFTab(BaseTabWidget):
             # map for single-record input and point multi-record runs at the
             # table, whose Record column carries each ORF's origin.
             self._orf_fig.clear()
-            self._orf_canvas.draw_idle()
+            self._orf_preview.set_has_figure(False)
             QMessageBox.information(
                 self,
                 "ORF Map",
@@ -406,69 +403,59 @@ class ORFTab(BaseTabWidget):
     def _draw_orf_map(self, results, seq_len):
         self._orf_fig.clear()
 
-        frames = ["+1", "+2", "+3", "-1", "-2", "-3"]
-        colors = [
-            "#1976d2",
-            "#388e3c",
-            "#f57c00",
-            "#d32f2f",
-            "#7b1fa2",
-            "#00796b",
-        ]
-
+        frames = ("+1", "+2", "+3", "-1", "-2", "-3")
+        lanes = {frame: index for index, frame in enumerate(frames)}
         ax = self._orf_fig.add_subplot(111)
-        ax.set_facecolor("#fafafa")
-        bar_h = 0.55
-
-        for track_idx, fname in enumerate(frames):
-            y_base = 5.5 - track_idx
-            ax.plot(
-                [1, seq_len],
-                [y_base, y_base],
-                color="#ddd",
-                linewidth=0.6,
-                zorder=0,
-            )
-            frame_orfs = [o for o in results if o["frame"] == fname]
-            for o in frame_orfs:
-                s, e = o["start"], o["end"]
-                if s > e:
-                    s, e = e, s
-                w = e - s + 1
-                color = colors[track_idx]
-                ax.broken_barh(
-                    [(s, w)],
-                    (y_base - bar_h / 2, bar_h),
-                    facecolors=color,
-                    edgecolors="none",
-                    alpha=0.7,
-                    zorder=2,
-                )
-                # Arrowhead
-                if fname.startswith("+"):
-                    ax.plot(e, y_base, marker=">", color=color, markersize=5, zorder=3)
-                else:
-                    ax.plot(s, y_base, marker="<", color=color, markersize=5, zorder=3)
-
-            ax.text(
-                -seq_len * 0.01,
-                y_base,
-                fname,
-                ha="right",
-                va="center",
-                fontsize=7,
-                color=colors[track_idx],
-                fontweight="bold",
-            )
-
-        ax.set_xlim(-seq_len * 0.06, seq_len * 1.02)
-        ax.set_ylim(-0.2, 6.2)
-        ax.set_yticks([])
+        ax.set_axisbelow(True)
+        ax.grid(axis="both", linewidth=0.6, alpha=0.25)
+        ax.set_yticks(range(len(frames)), labels=frames)
+        ax.tick_params(axis="both", labelsize=8, length=0, pad=5)
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=4, integer=True, min_n_ticks=2))
+        ax.ticklabel_format(axis="x", style="plain", useOffset=False)
+        ax.set_xlim(0, seq_len + 0.5)
+        ax.set_ylim(len(frames) - 0.5, -0.5)
         ax.set_xlabel(tr_ui("Sequence position (bp)"), fontsize=8)
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
+        for side in ("top", "right", "left"):
+            ax.spines[side].set_visible(False)
 
-        self._orf_fig.tight_layout(pad=0.5)
+        half_height = 0.24
+        for orf in results:
+            frame = orf["frame"]
+            y = lanes[frame]
+            lo, hi = sorted((orf["start"], orf["end"]))
+            left, right = lo - 0.5, hi + 0.5
+            forward = frame.startswith("+")
+            tail, tip = (left, right) if forward else (right, left)
+            head_width = min(seq_len * 0.025, (right - left) / 2)
+            shoulder = tip - head_width if forward else tip + head_width
+            ax.add_patch(Polygon(
+                [(tail, y - half_height), (shoulder, y - half_height), (tip, y),
+                 (shoulder, y + half_height), (tail, y + half_height)],
+                facecolor="#438dc4" if forward else "#b47b36",
+                edgecolor="none",
+            ))
+
+        self._orf_preview.set_has_figure(True)
+        self._style_orf_map()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.PaletteChange and hasattr(self, "_orf_canvas"):
+            self._style_orf_map()
+
+    def _style_orf_map(self):
+        palette = self.palette()
+        background = palette.base().color().name()
+        text = palette.text().color().name()
+        muted = palette.placeholderText().color().name()
+        self._orf_fig.set_facecolor(background)
+        for ax in self._orf_fig.axes:
+            ax.set_facecolor(background)
+            ax.tick_params(colors=text)
+            ax.xaxis.label.set_color(text)
+            ax.spines["bottom"].set_color(muted)
+            for line in (*ax.get_xgridlines(), *ax.get_ygridlines()):
+                line.set_color(muted)
         self._orf_canvas.draw_idle()
 
     # ── Override export / copy to use FASTA output ─────────────────────
@@ -524,7 +511,7 @@ class ORFTab(BaseTabWidget):
         self._orf_table.setRowCount(0)
         self._results = []
         self._orf_fig.clear()
-        self._orf_canvas.draw_idle()
+        self._orf_preview.set_has_figure(False)
         super().clear()
 
     # ── Help ───────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import sys
 from datetime import datetime
 
 from utils.app_paths import (
+    APP_NAME,
     bundled_tool_entries,
     exe_name,
     portable_root,
@@ -19,6 +20,11 @@ if getattr(sys, "frozen", False):
     CONFIG_FILE = _writable if os.path.isfile(_writable) else resource_path("config.ini")
 else:
     CONFIG_FILE = user_data_file("config.ini")
+    if os.path.normcase(os.path.realpath(CONFIG_FILE)) == os.path.normcase(
+        os.path.realpath(_LEGACY_CONFIG_FILE)
+    ):
+        # A checkout at ~/SeqSketch can also be the default user data directory.
+        CONFIG_FILE = user_data_file("config.ini", os.path.join(".config", APP_NAME))
 CONFIG_SECTION = "BLAST"
 CONFIG_KEY = "bin_dir"
 DATABASES_FILE = user_data_file("blast_databases.json")

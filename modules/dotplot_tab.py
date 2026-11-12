@@ -10,15 +10,13 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
-    QScrollArea,
     QSpinBox,
-    QVBoxLayout,
-    QWidget,
 )
 
 from modules.fasta_processor import parse_fasta_tuples
-from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
+from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_button_size
 from utils.example_data import load_example_text, stage_example
+from utils.figure_preview import FigurePreview
 from utils.i18n import enable_combo_translation, tr_format, tr_ui
 
 matplotlib.use("QtAgg")
@@ -40,38 +38,17 @@ class DotPlotTab(BaseTabWidget):
         self._seq_a_name = "Sequence A"
         self._seq_b_name = "Sequence B"
 
-        # Accent Save Figure button right after Run
-        self.export_plot_btn = QPushButton("Save Figure")
-        self.export_plot_btn.setFixedWidth(110)
-        self.export_plot_btn.setProperty("accentButton", True)
-        self.export_plot_btn.setEnabled(False)
+        self.export_plot_btn = QPushButton()
         self.export_plot_btn.clicked.connect(self.export_result)
-        self.export_plot_btn.style().unpolish(self.export_plot_btn)
-        self.export_plot_btn.style().polish(self.export_plot_btn)
-        self.status_layout.insertWidget(
-            self.status_layout.indexOf(self.run_btn) + 1, self.export_plot_btn
-        )
-
-        # Result Folder button (before Clear; enabled after export)
         self.open_folder_btn = QPushButton("Result Folder")
-        self.open_folder_btn.setFixedWidth(110)
-        self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
         self.open_folder_btn.clicked.connect(self._open_output_folder)
-        self.open_folder_btn.style().unpolish(self.open_folder_btn)
-        self.open_folder_btn.style().polish(self.open_folder_btn)
-        self.status_layout.insertWidget(
-            self.status_layout.indexOf(self.clear_btn), self.open_folder_btn
-        )
+        unify_button_size(self.open_folder_btn)
         self._last_export_dir = ""
 
-        self.clear_btn.setFixedWidth(75)
-        self.run_btn.setFixedWidth(75)
-        self.help_btn.setFixedWidth(75)
         self._update_ui_layout()
         self._setup_parameters()
         self._setup_plot_canvas()
-        unify_status_button_sizes(self)
 
     def _update_ui_layout(self):
         # File-only input: the text editor stays hidden as the content
@@ -159,37 +136,14 @@ class DotPlotTab(BaseTabWidget):
         self.input_group.layout().addLayout(row)
 
     def _setup_plot_canvas(self):
-        """Add a scrollable matplotlib canvas (same form as Sequence Logo)."""
-        self._scroll_area = QScrollArea()
-        self._scroll_area.setWidgetResizable(False)
-        self._scroll_area.setMinimumHeight(240)
-        # Center the figure when the viewport is larger than the canvas
-        self._scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # Inner wrapper widget isolates canvas sizing from scroll-area layout
-        self._canvas_inner = QWidget()
-        self._canvas_vbox = QVBoxLayout(self._canvas_inner)
-        self._canvas_vbox.setContentsMargins(0, 0, 0, 0)
-        self._canvas_vbox.setSpacing(0)
-        self._scroll_area.setWidget(self._canvas_inner)
-
-        # Near-square figure: dotplots are square-ish (len_a x len_b matrix)
-        self.figure = Figure(figsize=(6, 6), tight_layout=True)
+        self.figure = Figure(figsize=(6, 6), layout="constrained")
         self.canvas = FigureCanvas(self.figure)
-        self.canvas.setMinimumHeight(220)
-
-        self._canvas_vbox.addWidget(self.canvas)
-
-        # Set initial inner widget size to match the figure so the
-        # placeholder is visible from the start.
-        dpi = self.figure.dpi
-        self._canvas_inner.setFixedSize(
-            int(self.figure.get_figwidth() * dpi),
-            int(self.figure.get_figheight() * dpi),
+        self.canvas.setMinimumHeight(240)
+        self._preview = FigurePreview(
+            self.canvas, "Load one or two sequences and click Run.", self.export_plot_btn
         )
-
-        self.add_content_widget(self._scroll_area)
-        self._draw_placeholder_plot()
+        self._preview.toolbar.insertWidget(1, self.open_folder_btn)
+        self.content_area.addWidget(self._preview, 1)
 
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -249,24 +203,6 @@ class DotPlotTab(BaseTabWidget):
 
         return matrix
 
-    def _draw_placeholder_plot(self):
-        self.figure.clear()
-        ax = self.figure.add_subplot(111)
-        ax.text(
-            0.5,
-            0.5,
-            tr_ui("DotPlot will appear here after clicking 'Generate DotPlot'"),
-            ha="center",
-            va="center",
-            fontsize=11,
-            color="#888",
-        )
-        ax.set_xticks([])
-        ax.set_yticks([])
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-        self.canvas.draw()
-
     def _draw_dotplot(self, matrix, name_a, name_b, k):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
@@ -276,7 +212,7 @@ class DotPlotTab(BaseTabWidget):
             cmap="Greys",
             interpolation="nearest",
             origin="upper",
-            aspect="auto",
+            aspect="equal",
         )
         ax.set_title(tr_ui(f"DotPlot (k-mer = {k})"), fontsize=11)
         ax.set_xlabel(tr_ui(f"{name_b} position"))
@@ -350,7 +286,7 @@ class DotPlotTab(BaseTabWidget):
         self._seq_a_name = seq_a_name
         self._seq_b_name = seq_b_name
         self._draw_dotplot(matrix, seq_a_name, seq_b_name, k)
-        self.export_plot_btn.setEnabled(True)
+        self._preview.set_has_figure(True)
 
         dot_count = int(matrix.sum())
         density = (dot_count / matrix.size) * 100 if matrix.size else 0.0
@@ -366,9 +302,9 @@ class DotPlotTab(BaseTabWidget):
         super().clear()
         self._matrix = None
         self.path_edit.clear()
-        self.export_plot_btn.setEnabled(False)
+        self._preview.set_has_figure(False)
         self.open_folder_btn.setEnabled(False)
-        self._draw_placeholder_plot()
+        self.figure.clear()
 
     def _open_output_folder(self):
         """Open the folder of the most recently exported figure."""
@@ -387,7 +323,7 @@ class DotPlotTab(BaseTabWidget):
         )
         if file_path:
             try:
-                self.figure.savefig(file_path, dpi=300, bbox_inches="tight")
+                self.figure.savefig(file_path, dpi=300, bbox_inches="tight", facecolor="white")
                 self.status_label.setText(
                     tr_format("Exported: {path}", path=os.path.basename(file_path))
                 )
@@ -409,7 +345,7 @@ onto the input area. One sequence gives a self-comparison; two
 sequences give a pairwise comparison.</li>
 <li>Choose word size (k-mer). Start with <b>k=1</b> for sensitive, <b>k=2</b> for cleaner plots.</li>
 <li>Click <b>Run</b>.</li>
-<li>Use <b>Save Figure</b> to export the plot as PNG, PDF, or SVG, then
+<li>Use <b>Export Image</b> to export the plot as PNG, PDF, or SVG, then
 <b>Result Folder</b> to locate the saved file.</li>
 </ol>
 

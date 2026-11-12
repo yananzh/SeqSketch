@@ -1228,6 +1228,17 @@ class MultipleSequenceAlignmentTab(BaseTabWidget):
         """Return {header: sequence}."""
         return parse_unique_fasta_dict(text)
 
+    def _detect_type(self, seqs: dict[str, str]) -> str | None:
+        choice = combo_value(self.seq_type_combo)
+        if choice in ("DNA", "Protein"):
+            return choice
+        characters = {char for seq in seqs.values() for char in seq.upper()}
+        if characters.issubset("ACGTUNRYKMSWBDHV-"):
+            return "DNA"
+        if characters.issubset("ACDEFGHIKLMNPQRSTVWY*X-"):
+            return "Protein"
+        return None
+
     def _build_clean_fasta(self, seqs: dict) -> str:
         lines = []
         for hdr, seq in seqs.items():

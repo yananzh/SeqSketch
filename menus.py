@@ -11,6 +11,7 @@ from utils.themes import THEMES
 
 def create_menus(window):
     menubar = window.menuBar()
+    menubar.setNativeMenuBar(False)
     menubar.clear()
     # 1. FASTA Tools
     fasta_menu = menubar.addMenu("FASTA Tools")

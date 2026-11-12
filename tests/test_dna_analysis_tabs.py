@@ -519,6 +519,7 @@ def test_sanger_assembly_outputs_merged_fasta_contig_without_input_headers(
     assert output_file.read_text(encoding="utf-8") == ">assembled_contig\nAAAGGGCCCTTT\n"
     assert "Saved:" in tab.status_label.text()
     assert tab.result_folder_btn.isEnabled()
+    assert tab._overlap_preview.has_figure
 
 
 def test_dna_analysis_output_editors_use_transparent_backgrounds(qapp):
@@ -549,6 +550,7 @@ def test_orf_single_record_still_draws_map(qapp, monkeypatch):
     assert tab._orf_table.rowCount() == 1
     assert tab._orf_table.item(0, 1).text() == "recA"
     assert tab._orf_fig.axes, "single-record input must still draw the ORF map"
+    assert tab._orf_preview.has_figure
     assert not popups
 
 
@@ -576,6 +578,7 @@ def test_orf_multi_record_skips_map_and_attributes_table_rows(qapp, monkeypatch)
     assert origins == {"recA", "recB"}
     assert popups and "single-record" in popups[0][2]
     assert not tab._orf_fig.axes, "the map must be cleared for multi-record input"
+    assert not tab._orf_preview.has_figure
 
 
 def test_orf_export_headers_match_the_table_span(qapp, monkeypatch, tmp_path):
@@ -866,6 +869,38 @@ def test_msa_single_file_loads_input_without_showing_loaded_hint(qapp, monkeypat
     assert tab.input_hint.text() == ""
 
 
+@pytest.mark.parametrize(
+    ("sequence", "valid"), [("acgtn", True), ("MELKX", True), ("ACG?", False)]
+)
+def test_msa_single_file_run_validates_alphabet(qapp, monkeypatch, tmp_path, sequence, valid):
+    from modules.multiple_sequence_alignment_tab import _MuscleWorker
+
+    tab = MultipleSequenceAlignmentTab()
+    executable = tmp_path / "muscle"
+    executable.touch()
+    tab.muscle_path_edit.setText(str(executable))
+    tab.output_file_edit.setText(str(tmp_path / "aligned.fasta"))
+    tab.input_text.setPlainText(f">first\n{sequence}\n>second\n{sequence}\n")
+    started = []
+    warnings = []
+    monkeypatch.setattr(tab, "_save_muscle_path", lambda _path: None)
+    monkeypatch.setattr(_MuscleWorker, "start", lambda worker: started.append(worker))
+    monkeypatch.setattr(
+        "modules.multiple_sequence_alignment_tab.QMessageBox.warning",
+        lambda *args: warnings.append(args[2]),
+    )
+
+    tab.run_btn.click()
+
+    if valid:
+        assert started == [tab._worker]
+        assert not warnings
+    else:
+        assert not started
+        assert len(warnings) == 1
+        assert "do not match DNA or protein alphabets" in warnings[0]
+
+
 def test_msa_single_file_alignment_done_writes_output_file_in_input_order(qapp, tmp_path):
     tab = MultipleSequenceAlignmentTab()
     output_path = tmp_path / "aligned_output"
@@ -925,10 +960,12 @@ def test_msa_batch_worker_can_restore_input_sequence_order():
     assert list(ordered.keys()) == ["seqB", "seqA"]
 
 
-def test_msa_visualization_tab_shows_save_figure_button(qapp):
+def test_msa_visualization_tab_shows_export_image_button(qapp):
     tab = MSAVisualizationTab()
 
     assert not tab.export_btn.isHidden()
+    assert tab.export_btn.text() == "Export Image"
+    assert not tab.export_btn.isEnabled()
 
 
 def test_msa_visualization_param_rows_align_labels_and_controls(qapp):
@@ -1150,6 +1187,7 @@ def test_msa_visualization_keeps_sequence_labels_visible_with_default_dpi(qapp):
     tab.run()
 
     assert tab._current_figure is not None
+    assert tab.export_btn.isEnabled()
 
     fig = tab._current_figure
     fig.canvas.draw()
@@ -1158,6 +1196,9 @@ def test_msa_visualization_keeps_sequence_labels_visible_with_default_dpi(qapp):
 
     assert texts
     assert min(text.get_window_extent(renderer).x0 for text in texts) >= 0
+    tab.clear()
+    assert not tab.export_btn.isEnabled()
+    assert not tab._preview.has_figure
 
 
 def test_main_window_and_menu_use_msa_visualization_pymsaviz_label(qapp):
@@ -1198,10 +1239,12 @@ def test_main_window_and_menu_use_mafft_label(qapp):
     assert "Muscle5" in sub_texts
 
 
-def test_sequence_logo_tab_shows_save_figure_button_and_uses_logomaker_title(qapp):
+def test_sequence_logo_tab_shows_export_image_button_and_uses_logomaker_title(qapp):
     tab = SequenceLogoTab()
 
     assert not tab.export_btn.isHidden()
+    assert tab.export_btn.text() == "Export Image"
+    assert not tab.export_btn.isEnabled()
     assert tab.title == "Sequence Logo (Logomaker)"
 
 
@@ -1307,12 +1350,51 @@ def test_sequence_logo_conserved_column_near_max_information(qapp):
     assert float(info.loc[0, "A"]) > 1.99
 
 
-def test_sequence_logo_figure_widens_for_long_sequences(qapp):
+def test_sequence_logo_preview_fits_short_sequences_and_scrolls_long_ones(qapp):
     tab = SequenceLogoTab()
-    seq = "ATGC" * 20  # 80 positions -> 80*0.35=28 -> capped at 15
-    pfm = tab.create_pfm([seq, seq], "DNA")
-    tab.generate_logo(pfm, "DNA", 2, "Probability")
-    assert tab.figure.get_figwidth() == 15.0
+    tab.resize(700, 620)
+    tab.show()
+    try:
+        qapp.processEvents()
+        viewport = tab._scroll_area.viewport()
+        scrollbar = tab._scroll_area.horizontalScrollBar()
+        assert tab._preview.empty_label.isVisible()
+        assert not tab.canvas.isVisible()
+
+        short = tab.create_pfm(["ATGC", "ATGC"], "DNA")
+        tab.generate_logo(short, "DNA", 2, "Probability")
+        qapp.processEvents()
+        assert tab.export_btn.isEnabled()
+        assert not tab._preview.empty_label.isVisible()
+        assert tab.canvas.width() == viewport.width()
+        assert scrollbar.maximum() == 0
+
+        seq = "ATGC" * 20
+        long = tab.create_pfm([seq, seq], "DNA")
+        tab.generate_logo(long, "DNA", 2, "Probability")
+        qapp.processEvents()
+        original_range = scrollbar.maximum()
+        assert original_range > 0
+        back_to_start = tab._preview.toolbar.itemAt(0).widget()
+        assert not back_to_start.isEnabled()
+        scrollbar.setValue(original_range)
+        assert back_to_start.isEnabled()
+        back_to_start.click()
+        assert scrollbar.value() == 0
+        assert not back_to_start.isEnabled()
+
+        tab.resize(850, tab.height())
+        qapp.processEvents()
+        assert 0 < scrollbar.maximum() < original_range
+
+        tab.clear()
+        qapp.processEvents()
+        assert tab._preview.empty_label.isVisible()
+        assert not tab.export_btn.isEnabled()
+        assert scrollbar.value() == 0
+        assert tab.canvas.minimumWidth() == 0
+    finally:
+        tab.close()
 
 
 def test_sequence_logo_title_contains_type_mode_and_counts(qapp):
@@ -1446,15 +1528,19 @@ def test_gc_plot_tab_clear_resets(qapp, tmp_path):
     from modules.gc_plot_tab import GCPlotTab
 
     tab = GCPlotTab()
+    assert not tab._save_fig_btn.isEnabled()
     seq_file = tmp_path / "seq.fasta"
     seq_file.write_text(">test\n" + "ATGC" * 500, encoding="utf-8")
     tab.input_path_edit.setText(str(seq_file))
     tab.window_spin.setValue(101)
     tab.run()
     assert len(tab._figs[0].axes) == 1
+    assert tab._save_fig_btn.isEnabled()
 
     tab.clear()
-    assert len(tab._figs[0].axes) == 1  # placeholder axis still present
+    assert not tab._figs[0].axes
+    assert not tab._preview.has_figure
+    assert not tab._save_fig_btn.isEnabled()
     assert tab.input_path_edit.text() == ""
 
 

@@ -38,6 +38,16 @@
   "Sequence position (bp)": "序列位置（bp）",
   "Fluorescence": "荧光强度",
   "Sequence Logo will appear here after generation": "生成后，序列标识图将显示在此处",
+  "Load an aligned FASTA file and click Run.": "载入已比对的 FASTA 文件，然后点击运行。",
+  "Load a DNA FASTA file and click Plot.": "载入 DNA FASTA 文件，然后点击绘图。",
+  "Load a DNA FASTA file and click Run.": "载入 DNA FASTA 文件，然后点击运行。",
+  "Load one or two sequences and click Run.": "载入一条或两条序列，然后点击运行。",
+  "Load a protein sequence and click Plot.": "载入蛋白质序列，然后点击绘图。",
+  "Load coding sequences and click Run.": "载入编码序列，然后点击运行。",
+  "Run ORF Finder on a single sequence to see its map.": "对单条序列运行 ORF 查找，即可查看位置图。",
+  "Load both reads and run assembly to see their overlap.": "载入两条读段并运行拼接，即可查看重叠区域。",
+  "Design primers to see their binding sites.": "完成引物设计后，即可查看结合位点。",
+  "Back to Start": "返回起点",
   "Sequence Logo — {seq_type} ({mode}, {count} seqs, {positions} pos)": "序列标识图 — {seq_type}（{mode}，{count} 条序列，{positions} 个位点）",
   "Bits": "比特"
 }
