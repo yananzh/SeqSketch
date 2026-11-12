@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
+from utils.figure_preview import FigurePreview
 from utils.i18n import enable_combo_translation, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
@@ -255,10 +256,13 @@ class RestrictionEnzymeTab(BaseTabWidget):
         gl.setContentsMargins(0, 16, 0, 4)
         gl.setSpacing(2)
 
-        self._map_fig = Figure(figsize=(8, 1.6), dpi=100)
+        self._map_fig = Figure(figsize=(8, 1.6), dpi=100, layout="constrained")
         self._map_canvas = FigureCanvas(self._map_fig)
         self._map_canvas.setMinimumHeight(130)
-        gl.addWidget(self._map_canvas)
+        self._map_preview = FigurePreview(
+            self._map_canvas, "Load a DNA FASTA file and click Run."
+        )
+        gl.addWidget(self._map_preview)
 
         self.add_content_widget(grp)
 
@@ -268,7 +272,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         self._results = []
         self._results_table.setRowCount(0)
         self._map_fig.clear()
-        self._map_canvas.draw_idle()
+        self._map_preview.set_has_figure(False)
         super().clear()
 
     # ── Run ────────────────────────────────────────────────────────────
@@ -406,7 +410,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
     def _draw_map(self, results, seq_len):
         self._map_fig.clear()
         if seq_len <= 0:
-            self._map_canvas.draw_idle()
+            self._map_preview.set_has_figure(False)
             return
 
         ax = self._map_fig.add_subplot(111)
@@ -431,10 +435,8 @@ class RestrictionEnzymeTab(BaseTabWidget):
             )
 
         # Tick labels
-        step = max(1, seq_len // 10)
-        tick_positions = list(range(0, seq_len + 1, step))
-        if tick_positions[-1] != seq_len:
-            tick_positions.append(seq_len)
+        intervals = min(seq_len, 10)
+        tick_positions = [round(i * seq_len / intervals) for i in range(intervals + 1)]
         ax.set_xticks(tick_positions)
         ax.set_xticklabels([str(p) for p in tick_positions], fontsize=7)
         ax.set_xlim(-seq_len * 0.025, seq_len * 1.025)
@@ -445,7 +447,7 @@ class RestrictionEnzymeTab(BaseTabWidget):
         ax.spines["right"].set_visible(False)
         ax.spines["left"].set_visible(False)
 
-        self._map_fig.tight_layout(pad=0.5)
+        self._map_preview.set_has_figure(True)
         self._map_canvas.draw_idle()
 
     # ── Export ──────────────────────────────────────────────────────────

@@ -105,8 +105,7 @@ class SimplifyIDsTab(BaseTabWidget):
     def __init__(self):
         super().__init__("Simplify Headers", "file")
         # 适当减小共享日志区高度，使标签页内容适配默认窗口高度
-        self.log_area.setMinimumHeight(80)
-        self.log_area.setMaximumHeight(100)
+        self.use_compact_log()
         self.init_ui()
         self.connect_signals()
         self.update_mode_controls()

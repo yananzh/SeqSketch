@@ -13,16 +13,15 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
-    QScrollArea,
     QSpinBox,
     QStackedWidget,
     QVBoxLayout,
-    QWidget,
 )
 
 from modules.fasta_processor import parse_fasta_tuples
 from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
 from utils.example_data import stage_example
+from utils.figure_preview import FigurePreview
 from utils.i18n import tr_format, tr_ui
 
 matplotlib.use("QtAgg")
@@ -53,9 +52,8 @@ class GCPlotTab(BaseTabWidget):
 
     def __init__(self, parent=None):
         super().__init__("GC Content / GC Skew", "sequence")
-        self._logo_generated = False
-
         self.run_btn.setText("Plot")
+        self.run_btn.setProperty("actionRole", "primary")
         self.run_btn.setFixedWidth(100)
         if hasattr(self, "copy_btn"):
             self.copy_btn.hide()
@@ -67,13 +65,6 @@ class GCPlotTab(BaseTabWidget):
         self.input_hint.hide()
 
         self._setup_file_input()
-
-        # Add Save Figure button in the status row after Plot
-        self._save_fig_btn = QPushButton("Save Figure")
-        self._save_fig_btn.setFixedWidth(110)
-        self._save_fig_btn.clicked.connect(self.export_result)
-        _idx = self.status_layout.indexOf(self.run_btn)
-        self.status_layout.insertWidget(_idx + 1, self._save_fig_btn)
 
         self._setup_parameters()
         self._add_plot_canvas()
@@ -216,10 +207,6 @@ class GCPlotTab(BaseTabWidget):
         self.content_area.insertWidget(1, param_group)
 
     def _add_plot_canvas(self):
-        # --- View-switching buttons ---
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(4)
-
         self._btn_gc = QPushButton("GC Content")
         self._btn_gc.setCheckable(True)
         self._btn_gc.setChecked(True)
@@ -233,66 +220,33 @@ class GCPlotTab(BaseTabWidget):
         self._btn_cumul.setCheckable(True)
         self._btn_cumul.clicked.connect(lambda: self._switch_view(2))
 
-        for btn in (self._btn_gc, self._btn_skew, self._btn_cumul):
-            btn.setProperty("viewToggle", True)
-        btn_layout.addWidget(self._btn_gc)
-        btn_layout.addWidget(self._btn_skew)
-        btn_layout.addWidget(self._btn_cumul)
-        btn_layout.addStretch()
-
-        # --- QStackedWidget with three pages ---
         self._stack = QStackedWidget()
-        self._stack.setMinimumHeight(300)
+        self._stack.setMinimumHeight(280)
 
         self._figs: list[Figure] = []
         self._canvases: list[FigureCanvas] = []
         for _ in range(3):
             fig = Figure(figsize=(10, 3.2))
             canvas = FigureCanvas(fig)
-            canvas.setMinimumHeight(280)
-            scroll = QScrollArea()
-            scroll.setWidgetResizable(False)
-            scroll.setWidget(canvas)
-            self._stack.addWidget(scroll)
+            self._stack.addWidget(canvas)
             self._figs.append(fig)
             self._canvases.append(canvas)
 
-        self.content_area.insertLayout(self.content_area.count() - 1, btn_layout)
-        self.content_area.insertWidget(self.content_area.count() - 1, self._stack)
-        self._draw_placeholder_plot()
+        self._save_fig_btn = QPushButton()
+        self._save_fig_btn.clicked.connect(self.export_result)
+        self._preview = FigurePreview(
+            self._stack, "Load a DNA FASTA file and click Plot.", self._save_fig_btn
+        )
+        for index, button in enumerate((self._btn_gc, self._btn_skew, self._btn_cumul)):
+            button.setProperty("viewToggle", True)
+            self._preview.toolbar.insertWidget(index, button)
+        self.content_area.insertWidget(self.content_area.count() - 1, self._preview, 1)
 
     def _switch_view(self, idx: int):
         """Switch the stacked widget to the selected plot view."""
         self._stack.setCurrentIndex(idx)
         for i, btn in enumerate((self._btn_gc, self._btn_skew, self._btn_cumul)):
             btn.setChecked(i == idx)
-
-    def _draw_placeholder_plot(self):
-        labels = [
-            "GC Content",
-            "GC Skew",
-            "Cumulative GC Skew",
-        ]
-        for fig, canvas, label in zip(self._figs, self._canvases, labels):
-            fig.clear()
-            ax = fig.add_subplot(111)
-            ax.text(
-                0.5,
-                0.5,
-                tr_format(
-                    "{name} plot will appear here after clicking 'Plot'", name=tr_ui(label),
-                ),
-                ha="center",
-                va="center",
-                fontsize=12,
-                color="#999",
-                transform=ax.transAxes,
-            )
-            ax.set_xticks([])
-            ax.set_yticks([])
-            for spine in ax.spines.values():
-                spine.set_visible(False)
-            canvas.draw()
 
     # ── Core logic ──────────────────────────────────────────────────────────
 
@@ -401,8 +355,7 @@ class GCPlotTab(BaseTabWidget):
             )
         )
 
-        if not self._logo_generated:
-            self._logo_generated = True
+        self._preview.set_has_figure(True)
 
     def _draw_gc_content(self, seq, gc_content, window, header):
         """Draw GC Content on page 0."""
@@ -569,18 +522,17 @@ class GCPlotTab(BaseTabWidget):
 
     def clear(self):
         self.input_path_edit.clear()
-        self._draw_placeholder_plot()
-        self._logo_generated = False
+        self._preview.set_has_figure(False)
+        for fig in self._figs:
+            fig.clear()
         self.status_label.setText(tr_ui("Cleared"))
 
     def export_result(self):
         """Save the currently displayed figure to a file."""
-        idx = self._stack.currentIndex()
-        fig = self._figs[idx]
-        if fig is None:
+        if not self._preview.has_figure:
             QMessageBox.warning(self, "Export Error", "Generate a plot first.")
             return
-        from PyQt6.QtWidgets import QFileDialog
+        fig = self._figs[self._stack.currentIndex()]
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,
@@ -590,7 +542,7 @@ class GCPlotTab(BaseTabWidget):
         )
         if file_path:
             try:
-                fig.savefig(file_path, dpi=300, bbox_inches="tight")
+                fig.savefig(file_path, dpi=300, bbox_inches="tight", facecolor="white")
                 self.status_label.setText(tr_ui("Figure saved"))
             except Exception as e:
                 QMessageBox.warning(self, "Export Error", f"Failed to save figure:\n{str(e)}")
@@ -681,7 +633,7 @@ sharply from the genome mean often indicate recently acquired DNA</li>
 <ul>
 <li>Use the <b>Example</b> button to load the pBR322 plasmid (4,361 bp) — a compact
 circular replicon where the leading/lagging strand bias is clearly visible</li>
-<li>Use <b>Save Figure</b> to export the current view as PNG/PDF/SVG</li>
+<li>Use <b>Export Image</b> to export the current view as PNG/PDF/SVG</li>
 <li>For multi-contig assemblies, run the tool on each contig separately</li>
 <li>The first FASTA record in the selected file is used if multiple are present</li>
 <li>N bases are ignored in GC calculations within each window</li>

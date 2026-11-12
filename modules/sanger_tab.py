@@ -31,6 +31,7 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import stage_example
+from utils.figure_preview import FigurePreview
 from utils.i18n import tr_format, tr_ui
 
 _BASE_COLOR = {"A": "#007700", "T": "#BB0000", "G": "#111111", "C": "#0044AA", "N": "#888888"}
@@ -64,7 +65,7 @@ class SangerTab(QWidget):
         grp_input = QGroupBox("Input Sequences")
         grp_input.setFlat(True)
         gi = QVBoxLayout(grp_input)
-        gi.setContentsMargins(6, 16, 0, 4)
+        gi.setContentsMargins(6, 16, 6, 4)
         gi.setSpacing(6)
 
         fwd_label = QLabel("Forward Sequence (5' \u2192 3'):")
@@ -148,7 +149,10 @@ class SangerTab(QWidget):
         self._overlap_canvas = FigureCanvas(self._overlap_fig)
         self._overlap_canvas.setMinimumHeight(180)
         self._overlap_canvas.setMaximumHeight(200)
-        gv.addWidget(self._overlap_canvas)
+        self._overlap_preview = FigurePreview(
+            self._overlap_canvas, "Load both reads and run assembly to see their overlap."
+        )
+        gv.addWidget(self._overlap_preview)
         outer.addWidget(grp_overlap)
 
         # ── 4. Output QGroupBox ───────────────────────────────────────
@@ -351,7 +355,7 @@ class SangerTab(QWidget):
         self._overlap_fig.clear()
         fwd, rev_rc = self._last_fwd, self._last_rev_rc
         if not fwd or not rev_rc:
-            self._overlap_canvas.draw_idle()
+            self._overlap_preview.set_has_figure(False)
             return
 
         overlap = self._last_overlap
@@ -430,6 +434,7 @@ class SangerTab(QWidget):
         for side in ("left", "right", "top"):
             ax.spines[side].set_visible(False)
         ax.spines["bottom"].set_linewidth(0.6)
+        self._overlap_preview.set_has_figure(True)
         self._overlap_canvas.draw_idle()
 
     # ── Helpers ────────────────────────────────────────────────────────
@@ -464,7 +469,7 @@ class SangerTab(QWidget):
         self._last_overlap = 0
         self._last_identity = 0.0
         self._overlap_fig.clear()
-        self._overlap_canvas.draw_idle()
+        self._overlap_preview.set_has_figure(False)
         self.status_label.setText(tr_ui("Ready"))
 
     @staticmethod

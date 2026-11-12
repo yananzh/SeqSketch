@@ -27,6 +27,7 @@ class ConcatFastaTab(BaseTabWidget):
 
     def __init__(self):
         super().__init__("Concatenate FASTA", "file")
+        self.use_compact_log()
         self.init_ui()
         self.connect_signals()
         unify_status_button_sizes(self)

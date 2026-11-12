@@ -14,15 +14,14 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
-    QScrollArea,
     QSpinBox,
     QVBoxLayout,
-    QWidget,
 )
 
 from modules.fasta_processor import parse_fasta_tuples
-from utils.common_components import BaseTabWidget, unify_status_button_sizes
+from utils.common_components import BaseTabWidget, unify_button_size
 from utils.example_data import load_example_text
+from utils.figure_preview import FigurePreview
 from utils.i18n import combo_value, enable_combo_translation, set_combo_value, tr_format, tr_ui
 
 # ── Hydrophobicity scales ───────────────────────────────────────────────────
@@ -127,7 +126,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
         super().__init__("Hydrophobicity Plot", "sequence")
 
         self.run_btn.setText("Plot")
-        self.run_btn.setFixedWidth(100)
+        self.run_btn.setProperty("actionRole", "primary")
         if hasattr(self, "copy_btn"):
             self.copy_btn.hide()
         if hasattr(self, "export_btn"):
@@ -144,7 +143,6 @@ class HydrophobicityPlotTab(BaseTabWidget):
         self.input_text.setMaximumHeight(100)
 
         self._setup_parameters()
-        self._add_plot_canvas()
         self._setup_drag_drop()
         self.current_figure = None
 
@@ -160,27 +158,14 @@ class HydrophobicityPlotTab(BaseTabWidget):
         btn_row.addWidget(self.example_btn, 1)
         ig_layout.insertLayout(1, btn_row)
 
-        # Export Plot button between Plot and Clear in the status row.
-        self.export_plot_btn = QPushButton("Export Plot")
-        self.export_plot_btn.setFixedWidth(110)
-        self.export_plot_btn.setProperty("accentButton", True)
-        self.export_plot_btn.setEnabled(False)
+        self.export_plot_btn = QPushButton()
         self.export_plot_btn.clicked.connect(self.export_result)
-        self.export_plot_btn.style().unpolish(self.export_plot_btn)
-        self.export_plot_btn.style().polish(self.export_plot_btn)
-        _idx = self.status_layout.indexOf(self.run_btn)
-        self.status_layout.insertWidget(_idx + 1, self.export_plot_btn)
-        # Add Result Folder button after Export Plot
         self.open_folder_btn = QPushButton("Result Folder")
-        self.open_folder_btn.setFixedWidth(110)
-        self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
         self.open_folder_btn.clicked.connect(self._open_output_folder)
-        self.open_folder_btn.style().unpolish(self.open_folder_btn)
-        self.open_folder_btn.style().polish(self.open_folder_btn)
-        self.status_layout.insertWidget(_idx + 2, self.open_folder_btn)
+        unify_button_size(self.open_folder_btn)
+        self._add_plot_canvas()
         self._last_export_dir = ""
-        unify_status_button_sizes(self)
 
     def _load_example(self):
         """Load the bundled protein example (only the first record is shown)."""
@@ -245,40 +230,14 @@ class HydrophobicityPlotTab(BaseTabWidget):
         self.content_area.insertWidget(1, param_group)
 
     def _add_plot_canvas(self):
-        self._scroll_area = QScrollArea()
-        self._scroll_area.setWidgetResizable(False)
-        self._scroll_area.setMinimumHeight(210)
-
-        self.figure = Figure(figsize=(10, 3.5))
+        self.figure = Figure(figsize=(10, 3.5), layout="constrained")
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setMinimumHeight(250)
-        self._scroll_area.setWidget(self.canvas)
-
-        plot_label = QLabel("Hydrophobicity Profile:")
-        plot_layout = QVBoxLayout()
-        plot_layout.addWidget(plot_label)
-        plot_layout.addWidget(self._scroll_area)
-        self.content_area.insertLayout(self.content_area.count() - 1, plot_layout)
-        self._draw_placeholder_plot()
-
-    def _draw_placeholder_plot(self):
-        self.figure.clear()
-        ax = self.figure.add_subplot(111)
-        ax.text(
-            0.5,
-            0.5,
-            tr_ui("Hydrophobicity plot will appear here after clicking 'Plot'"),
-            ha="center",
-            va="center",
-            fontsize=12,
-            color="#999",
-            transform=ax.transAxes,
+        self._preview = FigurePreview(
+            self.canvas, "Load a protein sequence and click Plot.", self.export_plot_btn
         )
-        ax.set_xticks([])
-        ax.set_yticks([])
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-        self.canvas.draw()
+        self._preview.toolbar.insertWidget(1, self.open_folder_btn)
+        self.content_area.insertWidget(self.content_area.count() - 1, self._preview, 1)
 
     # ── Core logic ──────────────────────────────────────────────────────────
 
@@ -323,7 +282,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
 
         averaged = self._window_average(scores, window)
         self._draw_plot(seq, averaged, scale_name, window, header)
-        self.export_plot_btn.setEnabled(True)
+        self._preview.set_has_figure(True)
         status = tr_format(
             "Plotted {scale} (window={window}) — {residues} residues",
             scale=scale_name,
@@ -371,15 +330,14 @@ class HydrophobicityPlotTab(BaseTabWidget):
         ax.set_xlim(1, len(seq))
         ax.legend(loc="upper right", fontsize=9)
 
-        self.figure.tight_layout()
         self.current_figure = self.figure
         self.canvas.draw()
 
     def clear(self):
         self.input_text.clear()
-        self._draw_placeholder_plot()
+        self.figure.clear()
         self.current_figure = None
-        self.export_plot_btn.setEnabled(False)
+        self._preview.set_has_figure(False)
         self.open_folder_btn.setEnabled(False)
         self.status_label.setText(tr_ui("Cleared"))
 
@@ -402,7 +360,7 @@ class HydrophobicityPlotTab(BaseTabWidget):
         )
         if file_path:
             try:
-                self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight")
+                self.current_figure.savefig(file_path, dpi=300, bbox_inches="tight", facecolor="white")
                 self.status_label.setText(
                     tr_format("Figure saved: {name}", name=os.path.basename(file_path))
                 )
@@ -435,7 +393,7 @@ hydrophilic ones (Hopp-Woods is inverted — see Scales below).</p>
 <b>Example</b> to load one.</li>
 <li>Pick a <b>hydrophobicity scale</b> (Kyte-Doolittle is the classic default)
 and a <b>window size</b> (9-15 works well for most proteins).</li>
-<li>Click <b>Run</b> to draw the profile, then <b>Export Plot</b> to save it.</li>
+<li>Click <b>Plot</b> to draw the profile, then <b>Export Image</b> to save it.</li>
 </ol>
 
 <h3>Scales</h3>
@@ -460,7 +418,7 @@ the Kyte-Doolittle or Engelman scale.</li>
 20+ residues suggest a transmembrane helix.</li>
 <li>Only the first FASTA record is analysed &mdash; multi-record files
 should be split before use</li>
-<li>Click <b>Export Plot</b> to save the figure as PNG / PDF / SVG</li>
+<li>Click <b>Export Image</b> to save the figure as PNG / PDF / SVG</li>
 </ul>
         """
         dialog = QDialog(self)

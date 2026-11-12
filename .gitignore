@@ -9,6 +9,9 @@ build/
 # Per-user runtime data (favorites_manager writes to %APPDATA%/SeqSketch/)
 bookmarks.json
 favorites.json
+/config.json
+/blast_databases.json
+/example_work/
 
 # Runtime logs and scratch files
 startup.log

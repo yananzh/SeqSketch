@@ -7,7 +7,6 @@ import os
 import sys
 from typing import Any, Dict
 
-from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 
 # matplotlib for primer binding site map
@@ -50,6 +49,7 @@ except ImportError:
 # Shared styling
 from utils.common_components import apply_sequence_editor_style, unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.figure_preview import FigurePreview
 from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
@@ -417,12 +417,13 @@ class PrimerDesignTab(QWidget):
         map_v = QVBoxLayout(map_group)
         map_v.setContentsMargins(4, 4, 4, 4)
         map_v.setSpacing(2)
-        self._primer_fig = Figure(figsize=(8, 4.0), dpi=100)
+        self._primer_fig = Figure(figsize=(8, 4.0), dpi=100, layout="constrained")
         self._primer_canvas = FigureCanvas(self._primer_fig)
         self._primer_canvas.setMinimumHeight(220)
-        self._primer_toolbar = NavigationToolbar(self._primer_canvas, map_group)
-        map_v.addWidget(self._primer_toolbar)
-        map_v.addWidget(self._primer_canvas)
+        self._primer_preview = FigurePreview(
+            self._primer_canvas, "Design primers to see their binding sites."
+        )
+        map_v.addWidget(self._primer_preview)
 
         self.results_table = QTableWidget()
         self.results_table.setAlternatingRowColors(True)
@@ -649,6 +650,7 @@ class PrimerDesignTab(QWidget):
         self.results_table.setRowCount(0)
         self.current_results.clear()
         self.row_detail_cache.clear()
+        self._clear_primer_map()
 
         seq_args = {
             "SEQUENCE_ID": "Template",
@@ -883,15 +885,15 @@ class PrimerDesignTab(QWidget):
     def _clear_primer_map(self):
         """Clear the primer binding site map figure."""
         self._primer_fig.clear()
-        self._primer_canvas.draw_idle()
+        self._primer_preview.set_has_figure(False)
 
     def _draw_primer_map(self):
         """Draw a linear map showing primer binding positions on the template."""
         self._primer_fig.clear()
 
         template = self._current_template_seq
-        if not template:
-            self._primer_canvas.draw_idle()
+        if not template or not self.row_detail_cache:
+            self._primer_preview.set_has_figure(False)
             return
 
         ax = self._primer_fig.add_subplot(111)
@@ -1000,7 +1002,7 @@ class PrimerDesignTab(QWidget):
             tr_ui("Primer Binding Sites on Template"), fontweight="bold", fontsize=11
         )
 
-        self._primer_fig.tight_layout()
+        self._primer_preview.set_has_figure(True)
         self._primer_canvas.draw_idle()
 
     # ── Help Dialog ─────────────────────────────────────────────────

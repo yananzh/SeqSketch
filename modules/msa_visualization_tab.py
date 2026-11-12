@@ -30,8 +30,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_status_button_sizes
+from utils.common_components import BaseTabWidget, FileDropLineEdit, unify_button_size
 from utils.example_data import stage_example
+from utils.figure_preview import FigurePreview
 from utils.i18n import tr_format, tr_ui
 
 # Commonly used pyMSAviz color schemes
@@ -53,32 +54,11 @@ class MSAVisualizationTab(BaseTabWidget):
         super().__init__("MSA Visualization (pyMSAviz)", "sequence")
         self._current_figure = None
 
-        # Rewire base widgets
-        self.run_btn.setText("Run")
-        self.export_btn.setText("Save Figure")
-        self.export_btn.setFixedWidth(110)
-        self.export_btn.setProperty("accentButton", True)
-        self.export_btn.style().unpolish(self.export_btn)
-        self.export_btn.style().polish(self.export_btn)
-        self.status_layout.insertWidget(
-            self.status_layout.indexOf(self.run_btn) + 1, self.export_btn
-        )
         self.output_group.hide()
-
-        self.clear_btn.setFixedWidth(75)
-        self.run_btn.setFixedWidth(75)
-        self.help_btn.setFixedWidth(75)
-        # Result Folder button (before Clear; enabled after export)
         self.open_folder_btn = QPushButton("Result Folder")
-        self.open_folder_btn.setFixedWidth(110)
-        self.open_folder_btn.setProperty("accentButton", True)
         self.open_folder_btn.setEnabled(False)
         self.open_folder_btn.clicked.connect(self._open_output_folder)
-        self.open_folder_btn.style().unpolish(self.open_folder_btn)
-        self.open_folder_btn.style().polish(self.open_folder_btn)
-        self.status_layout.insertWidget(
-            self.status_layout.indexOf(self.clear_btn), self.open_folder_btn
-        )
+        unify_button_size(self.open_folder_btn)
         self._last_export_dir = ""
 
         self.copy_btn.hide()
@@ -123,7 +103,6 @@ class MSAVisualizationTab(BaseTabWidget):
 
         self._setup_parameters()
         self._add_canvas()
-        unify_status_button_sizes(self)
 
     # ---------------------------------------------------------------- layout
 
@@ -239,6 +218,7 @@ class MSAVisualizationTab(BaseTabWidget):
     def _add_canvas(self):
         """Insert a scrollable matplotlib canvas below the parameters."""
         self._canvas_container = QScrollArea()
+        self._canvas_container.setFrameShape(QFrame.Shape.NoFrame)
         self._canvas_container.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
@@ -262,7 +242,12 @@ class MSAVisualizationTab(BaseTabWidget):
         self.canvas = None
 
         insert_at = max(0, self.content_area.count() - 1)
-        self.content_area.insertWidget(insert_at, self._canvas_container)
+        self._preview = FigurePreview(
+            self._canvas_container, "Load an aligned FASTA file and click Run.", self.export_btn
+        )
+        self._preview.toolbar.insertWidget(1, self.open_folder_btn)
+        self._preview.add_scroll_reset(self._canvas_container)
+        self.content_area.insertWidget(insert_at, self._preview, 1)
 
     # ---------------------------------------------------------------- actions
 
@@ -312,7 +297,7 @@ class MSAVisualizationTab(BaseTabWidget):
                     break
         path, selected_filter = QFileDialog.getSaveFileName(
             self,
-            tr_ui("Save Figure"),
+            tr_ui("Export Image"),
             f"{stem}.png",
             ";;".join(filters),
         )
@@ -332,6 +317,7 @@ class MSAVisualizationTab(BaseTabWidget):
                 path,
                 format=fmt,
                 dpi=max(self.dpi_spin.value(), 300),
+                facecolor="white",
             )
             self.status_label.setText(
                 tr_format("Saved: {name}", name=os.path.basename(path))
@@ -414,6 +400,7 @@ class MSAVisualizationTab(BaseTabWidget):
             )
 
     def _clear_canvas(self):
+        self._preview.set_has_figure(False)
         if self.canvas is not None:
             self._canvas_vbox.removeWidget(self.canvas)
             self.canvas.setParent(None)
@@ -421,6 +408,8 @@ class MSAVisualizationTab(BaseTabWidget):
         self._current_figure = None
         # Reset inner container so scroll area shows nothing
         self._canvas_inner.setFixedSize(0, 0)
+        self._canvas_container.horizontalScrollBar().setValue(0)
+        self._canvas_container.verticalScrollBar().setValue(0)
 
     # ------------------------------------------------------------------ run
 
@@ -521,6 +510,7 @@ class MSAVisualizationTab(BaseTabWidget):
             self._canvas_vbox.addWidget(self.canvas)
             # Size inner widget to match canvas so full image is scrollable
             self._canvas_inner.setFixedSize(w_px, h_px + 24)
+            self._preview.set_has_figure(True)
 
             aln_len = mv.alignment_length
             # Count gap characters across all sequences for the stats bar
@@ -569,7 +559,7 @@ MSA figures.</p>
 (all sequences must be the same length).</li>
 <li>Choose a <b>Color Scheme</b> and adjust display options.</li>
 <li>Click <b>Run</b> — the rendered figure appears in the scrollable area below.</li>
-<li>Use <b>Save Figure</b> to export as PNG, SVG, or PDF, then
+<li>Use <b>Export Image</b> to export as PNG, SVG, or PDF, then
 <b>Result Folder</b> to locate the saved file.</li>
 </ol>
 
@@ -601,7 +591,7 @@ MSA figures.</p>
     generate an alignment first, then load the output file here.</li>
 <li>Set <b>Wrap Length</b> to 0 for a single continuous row.</li>
 <li><b>DPI</b> (default 150) controls preview sharpness; exports always use at least 300 DPI.</li>
-<li>Use <b>Save Figure</b> to export high-resolution copies in PNG, SVG, PDF, or TIFF.</li>
+<li>Use <b>Export Image</b> to export high-resolution copies in PNG, SVG, PDF, or TIFF.</li>
 </ul>
 """
         dlg = QDialog(self)

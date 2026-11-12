@@ -6,7 +6,7 @@ Check properties of user-specified primer pairs.
 import sys
 from typing import Any
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QEvent, Qt
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -90,6 +90,7 @@ class PrimerAnalysisTab(QWidget):
         template_v = QVBoxLayout(template_group)
         self.template_edit = QTextEdit()
         apply_sequence_editor_style(self.template_edit)
+        self.template_edit.viewport().setStyleSheet("background: transparent; border: none;")
         self.template_edit.setPlaceholderText(
             "Paste template to check binding positions and product size..."
         )
@@ -316,6 +317,7 @@ and calculates the expected PCR product size.</p>
         return -1
 
     def run_analysis(self):
+        self._last_results = ""
         if not _HAS_PRIMER3:
             self.results_text.setPlainText(tr_ui("Error: primer3-py is not installed."))
             return
@@ -572,7 +574,7 @@ and calculates the expected PCR product size.</p>
 
         html.append("</div>")
         self._last_results = "".join(html)
-        self.results_text.setHtml(self._last_results)
+        self._render_results()
         self.status_label.setText(
             tr_format(
                 "ΔTm {diff}°C | Fwd {fwd}nt | Rev {rev}nt",
@@ -581,6 +583,42 @@ and calculates the expected PCR product size.</p>
                 rev=len(rev),
             )
         )
+
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.PaletteChange and getattr(self, "_last_results", ""):
+            scrollbar = self.results_text.verticalScrollBar()
+            position = scrollbar.value()
+            self._render_results()
+            scrollbar.setValue(position)
+
+    def _render_results(self):
+        html = self._last_results
+        palette = self.palette()
+        if palette.base().color().lightness() < palette.text().color().lightness():
+            # Qt applies the widget palette to the text, but leaves inline HTML colors intact.
+            base = palette.base().color().name()
+            alternate = palette.alternateBase().color().name()
+            section = palette.button().color().name()
+            text = palette.text().color().name()
+            accent = palette.link().color().name()
+            replacements = {
+                "background:#fff;": f"background:{base};",
+                "background:#fafafa;": f"background:{alternate};",
+                "background:#f5f5f5;": f"background:{alternate};",
+                "background:#fff8e1;": f"background:{alternate};",
+                "background:#fff3e0;": f"background:{section};",
+                "background:#e3f2fd;": f"background:{section};",
+                "background:#e8f5e9;": f"background:{section};",
+                "color:#1976d2;": f"color:{accent};",
+                "color:#2e7d32;": f"color:{accent};",
+                "color:#c62828;": f"color:{text};",
+                "color:#e65100;": f"color:{text};",
+            }
+            for source, target in replacements.items():
+                html = html.replace(source, target)
+        self.results_text.setHtml(html)
 
 
 if __name__ == "__main__":

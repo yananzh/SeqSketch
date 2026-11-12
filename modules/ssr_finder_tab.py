@@ -223,34 +223,36 @@ class SsrFinderTab(BaseTabWidget):
     def _setup_parameters(self):
         grp = QGroupBox("Parameters")
         grp.setFlat(True)
-        grid = QVBoxLayout(grp)
-        grid.setContentsMargins(6, 16, 6, 4)
-        grid.setSpacing(6)
+        layout = QVBoxLayout(grp)
+        layout.setContentsMargins(6, 16, 6, 4)
+        layout.setSpacing(6)
 
         def thresh_spin(value: int, tooltip: str) -> QSpinBox:
             sp = QSpinBox()
             sp.setRange(2, 100)
             sp.setValue(value)
-            sp.setFixedWidth(80)  # uniform width for the six threshold boxes
+            sp.setFixedWidth(80)
             sp.setToolTip(tooltip)
             return sp
 
         unit_names = ("Mono", "Di", "Tri", "Tetra", "Penta", "Hexa")
-        row1 = QGridLayout()
-        row1.addWidget(QLabel("Min repeats:"), 0, 0, 2, 1)
+        thresholds = QGridLayout()
+        thresholds.setHorizontalSpacing(12)
+        thresholds.setVerticalSpacing(3)
+        thresholds.addWidget(QLabel("Min repeats:"), 0, 0, 2, 1)
         self._thresh_spins: Dict[int, QSpinBox] = {}
-        for unit_len in range(1, 7):
+        for unit_len, unit_name in enumerate(unit_names, 1):
             row, column = divmod(unit_len - 1, 3)
-            row1.addWidget(QLabel(f"{unit_names[unit_len - 1]}:"), row, 1 + column * 2)
+            thresholds.addWidget(QLabel(f"{unit_name}:"), row, 1 + column * 2)
             sp = thresh_spin(
                 DEFAULT_THRESHOLDS[unit_len],
-                f"Min repeats for {unit_names[unit_len - 1].lower()}-nucleotide SSRs "
+                f"Min repeats for {unit_name.lower()}-nucleotide SSRs "
                 f"(MISA default {DEFAULT_THRESHOLDS[unit_len]})",
             )
-            row1.addWidget(sp, row, 2 + column * 2)
+            thresholds.addWidget(sp, row, 2 + column * 2)
             self._thresh_spins[unit_len] = sp
-        row1.setColumnStretch(7, 1)
-        grid.addLayout(row1)
+        thresholds.setColumnStretch(7, 1)
+        layout.addLayout(thresholds)
 
         row2 = QHBoxLayout()
         row2.addWidget(QLabel("Preset:"))
@@ -261,7 +263,7 @@ class SsrFinderTab(BaseTabWidget):
             "Apply a ready-made set of minimum repeat counts (MISA default / stringent / relaxed)"
         )
         row2.addWidget(self._preset_combo)
-        row2.addStretch(1)  # spread the three groups evenly across the row
+        row2.addSpacing(12)
         row2.addWidget(QLabel("Compound distance:"))
         self._compound_dist_spin = QSpinBox()
         self._compound_dist_spin.setRange(0, 1000)
@@ -272,12 +274,12 @@ class SsrFinderTab(BaseTabWidget):
             "Max gap (bp) between two SSRs to merge them into a compound SSR (MISA default 100)"
         )
         row2.addWidget(self._compound_dist_spin)
-        row2.addStretch(1)
+        row2.addSpacing(12)
         self._compound_check = QCheckBox("Report compound SSRs")
         self._compound_check.setChecked(True)
         row2.addWidget(self._compound_check)
         row2.addStretch(1)
-        grid.addLayout(row2)
+        layout.addLayout(row2)
 
         connect_combo_source(self._preset_combo, self._apply_preset)
         for sp in self._thresh_spins.values():

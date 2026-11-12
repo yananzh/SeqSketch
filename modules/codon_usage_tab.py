@@ -41,6 +41,7 @@ from PyQt6.QtWidgets import (
 
 from utils.common_components import unify_status_button_sizes
 from utils.example_data import load_example_text
+from utils.figure_preview import FigurePreview
 from utils.i18n import combo_value, enable_combo_translation, tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
@@ -751,6 +752,7 @@ class CodonUsageTab(QWidget):
         root.addWidget(splitter, 1)
 
         left_panel = self._build_left_panel()
+        self._chart_previews = []
         right_panel = self._build_right_panel()
         left_panel.setMinimumWidth(280)
         right_panel.setMinimumWidth(520)
@@ -767,13 +769,6 @@ class CodonUsageTab(QWidget):
         self._btn_export_csv.setEnabled(False)
         self._btn_export_csv.clicked.connect(self._export_csv)
 
-        self._btn_export_plot = QPushButton("Export Plot")
-        self._btn_export_plot.setToolTip(
-            "Save the current chart (RSCU / GC / Comparison) as an image file"
-        )
-        self._btn_export_plot.setEnabled(False)
-        self._btn_export_plot.clicked.connect(self._export_plot)
-
         self._btn_help = QPushButton("Help")
         self._btn_help.clicked.connect(self._show_help)
 
@@ -782,13 +777,10 @@ class CodonUsageTab(QWidget):
         self.status_layout.addStretch()
         self.status_layout.addWidget(self._btn_run)
         self.status_layout.addWidget(self._btn_export_csv)
-        self.status_layout.addWidget(self._btn_export_plot)
         self.status_layout.addWidget(self._btn_help)
         # Same one-word/two-word width rule as the BaseTabWidget tabs.
         unify_status_button_sizes(self)
         root.addLayout(self.status_layout)
-
-        self._result_tabs.currentChanged.connect(self._update_export_plot_state)
 
     def _build_left_panel(self) -> QWidget:
         w = QWidget()
@@ -885,8 +877,7 @@ class CodonUsageTab(QWidget):
         self._stats_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._stats_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._stats_table.setMinimumHeight(200)
-        self._stats_table.setMaximumHeight(240)
-        sv.addWidget(self._stats_table)
+        sv.addWidget(self._stats_table, 1)
 
         sv.addSpacing(14)
         sv.addWidget(QLabel("Top 10 Most-Used Codons (excluding stop):"))
@@ -901,9 +892,7 @@ class CodonUsageTab(QWidget):
         self._top10_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._top10_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._top10_table.setMinimumHeight(190)
-        self._top10_table.setMaximumHeight(220)
-        sv.addWidget(self._top10_table)
-        sv.addStretch()
+        sv.addWidget(self._top10_table, 1)
         self._result_tabs.addTab(self._summary_widget, "Summary")
 
         codon_container = QWidget()
@@ -952,7 +941,7 @@ class CodonUsageTab(QWidget):
         self._rscu_fig = Figure(figsize=(8, 3.0), tight_layout=True)
         self._rscu_canvas = FigureCanvas(self._rscu_fig)
         self._rscu_canvas.setMinimumHeight(300)
-        rv.addWidget(self._rscu_canvas)
+        self._add_chart_preview(rv, self._rscu_canvas)
         self._result_tabs.addTab(rscu_container, "RSCU")
 
         gc_container = QWidget()
@@ -960,7 +949,7 @@ class CodonUsageTab(QWidget):
         self._gc_fig = Figure(figsize=(8, 2.6), tight_layout=True)
         self._gc_canvas = FigureCanvas(self._gc_fig)
         self._gc_canvas.setMinimumHeight(260)
-        gv.addWidget(self._gc_canvas)
+        self._add_chart_preview(gv, self._gc_canvas)
         self._result_tabs.addTab(gc_container, "GC/Neutrality")
 
         cmp_container = QWidget()
@@ -988,7 +977,7 @@ class CodonUsageTab(QWidget):
         self._nc_fig = Figure(figsize=(8, 2.4), tight_layout=True)
         self._nc_canvas = FigureCanvas(self._nc_fig)
         self._nc_canvas.setMinimumHeight(240)
-        mv.addWidget(self._nc_canvas)
+        self._add_chart_preview(mv, self._nc_canvas)
         self._result_tabs.addTab(cmp_container, "Compare")
 
         self._seq_combo.currentIndexChanged.connect(self._on_seq_changed)
@@ -1072,7 +1061,8 @@ class CodonUsageTab(QWidget):
             fig.clear()
             canvas.draw_idle()
         self._btn_export_csv.setEnabled(False)
-        self._btn_export_plot.setEnabled(False)
+        for preview in self._chart_previews:
+            preview.set_has_figure(False)
         self._set_status(tr_ui("Cleared"))
 
     def _set_status(self, msg: str):
@@ -1080,27 +1070,26 @@ class CodonUsageTab(QWidget):
         if self._status_cb:
             self._status_cb(msg, 4000)
 
-    def _update_export_plot_state(self, *_args):
-        """Enable Export Plot only when a chart tab is active with results."""
-        self._btn_export_plot.setEnabled(
-            bool(self._results) and self._result_tabs.currentIndex() >= 2
-        )
+    def _add_chart_preview(self, layout, canvas):
+        export_button = QPushButton()
+        export_button.clicked.connect(lambda: self._export_plot(canvas.figure))
+        preview = FigurePreview(canvas, "Load coding sequences and click Run.", export_button)
+        self._chart_previews.append(preview)
+        layout.addWidget(preview, 1)
 
-    def _export_plot(self):
-        """Save the currently visible chart (RSCU / GC / Comparison) as an image."""
-        figs = {2: self._rscu_fig, 3: self._gc_fig, 4: self._nc_fig}
-        fig = figs.get(self._result_tabs.currentIndex())
-        if fig is None:
+    def _export_plot(self, fig):
+        """Save the figure shown in the selected chart tab."""
+        if not self._results:
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            tr_ui("Export Plot"),
+            tr_ui("Export Image"),
             "codon_usage.png",
             tr_ui("PNG Images (*.png);;PDF Files (*.pdf);;SVG Files (*.svg)"),
         )
         if path:
             try:
-                fig.savefig(path, dpi=150, bbox_inches="tight", pad_inches=0.15)
+                fig.savefig(path, dpi=150, bbox_inches="tight", pad_inches=0.15, facecolor="white")
                 self._set_status(tr_format("Plot saved: {path}", path=path))
             except Exception as e:
                 QMessageBox.critical(self, "Export Error", str(e))
@@ -1186,7 +1175,8 @@ class CodonUsageTab(QWidget):
                 )
             )
         self._set_status(tr_ui("Done — ") + tr_ui("; ").join(parts) + tr_ui("."))
-        self._update_export_plot_state()
+        for preview in self._chart_previews:
+            preview.set_has_figure(bool(results))
 
     def _on_skipped(self, count: int):
         self._skipped_count = count
@@ -1666,7 +1656,7 @@ class CodonUsageTab(QWidget):
             "<li>The <b>Codons</b> table supports sorting — click any column header to reorder rows</li>"
             "<li>Use the amino acid filter (e.g. &quot;L&quot;, &quot;Leu&quot; or &quot;L,M&quot;) to focus on specific codon families; <b>Hide zero-count codons</b> is on by default</li>"
             "<li>With multiple sequences a selector appears and the <b>Compare</b> tab gives per-sequence summaries and the Nc plot</li>"
-            "<li>Use <b>Export Plot</b> to save the current chart (RSCU / GC/Neutrality / Compare) as PNG, PDF or SVG</li>"
+            "<li>Use <b>Export Image</b> to save the current chart (RSCU / GC/Neutrality / Compare) as PNG, PDF or SVG</li>"
             "<li><b>Clear</b> resets the input and all result views</li>"
             "<li>Export data as CSV &mdash; the file contains a per-sequence summary and the full codon usage table</li>"
             "<li>For whole-genome codon usage analysis, concatenate CDS sequences from the same genome into a single FASTA file</li>"

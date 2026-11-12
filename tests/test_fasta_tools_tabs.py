@@ -7,9 +7,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pandas as pd
 import pytest
-from PyQt6.QtWidgets import QApplication, QFileDialog, QGroupBox
+from PyQt6.QtWidgets import QApplication, QFileDialog, QGroupBox, QLabel, QScrollArea
 
 from modules.batch_rename_ids_tab import BatchRenameIDsTab
+from modules.concat_fasta_tab import ConcatFastaTab
 from modules.deduplicate_tab import DeduplicateTab
 from modules.download_from_ncbi_tab import DownloadFromNCBITab
 from modules.extract_by_id_tab import ExtractByIDTab
@@ -95,6 +96,7 @@ def log_text(tab) -> str:
     "tab_class",
     [
         SequenceStatisticsTab,
+        ConcatFastaTab,
         SimplifyIDsTab,
         ExtractByIDTab,
         ExtractByRegexTab,
@@ -115,8 +117,51 @@ def test_fasta_tools_tabs_share_a_clear_labeled_log_area(qapp, tab_class):
     assert tab.log_area.placeholderText() == (
         "Run a FASTA tool to see progress and results here..."
     )
-    assert tab.log_area.minimumHeight() >= 60
+    compact_tabs = (BatchRenameIDsTab, SimplifyIDsTab, ExtractByIDTab, ConcatFastaTab)
+    expected_minimum = 36 if isinstance(tab, compact_tabs) else 60
+    assert tab.log_area.minimumHeight() >= expected_minimum
     assert tab.log_area.lineWrapMode() == tab.log_area.LineWrapMode.NoWrap
+
+
+@pytest.mark.parametrize(
+    ("title", "tab_class"),
+    [
+        ("Rename IDs", BatchRenameIDsTab),
+        ("Simplify Headers", SimplifyIDsTab),
+        ("Filter by IDs", ExtractByIDTab),
+        ("Concatenate FASTA", ConcatFastaTab),
+    ],
+)
+def test_compact_log_keeps_fasta_form_visible_at_default_window_size(qapp, title, tab_class):
+    from main_window import MainWindow
+    from utils.i18n import tr_ui
+
+    window = MainWindow()
+    try:
+        menu = window.menuBar().actions()[0].menu()
+        action = next(action for action in menu.actions() if action.text() == tr_ui(title))
+        action.trigger()
+        window.show()
+        qapp.processEvents()
+
+        tab = window.tabs.currentWidget()
+        assert isinstance(tab, tab_class)
+        assert tab.findChild(QScrollArea) is None
+        assert tab.log_area.height() == 36
+        scrollbar = tab.log_area.verticalScrollBar()
+        assert not scrollbar.isVisible()
+        tab.log_area.setPlainText("Log entry\n" * 20)
+        qapp.processEvents()
+        assert scrollbar.isVisible()
+        assert scrollbar.maximum() > 0
+        assert tab.log_group.isVisible()
+        assert tab.run_btn.isVisible()
+        if isinstance(tab, BatchRenameIDsTab):
+            hint = next(label for label in tab.findChildren(QLabel) if label.property("hintLabel"))
+            assert hint.height() >= hint.heightForWidth(hint.width())
+    finally:
+        window.close()
+        qapp.processEvents()
 
 
 def test_fasta_tools_log_viewer_uses_borderless_inner_style(qapp):

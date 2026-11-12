@@ -9,7 +9,7 @@ import re
 import weakref
 
 from PyQt6 import sip
-from PyQt6.QtCore import QEvent, QObject, Qt
+from PyQt6.QtCore import QDir, QEvent, QObject, Qt
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QPushButton, QWidget
 
@@ -128,6 +128,7 @@ class ThemeManager(QObject):
         with open(resource_path("styles.qss"), encoding="utf-8") as handle:
             stylesheet = handle.read()
         if name == "dark":
+            QDir.setSearchPaths("seqsketchicons", [resource_path("resources", "icons")])
             with open(
                 resource_path("resources", "styles", "dark_theme.qss"), encoding="utf-8"
             ) as handle:

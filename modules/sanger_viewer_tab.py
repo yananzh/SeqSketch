@@ -14,6 +14,7 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QCheckBox,
     QFileDialog,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -22,7 +23,6 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSpinBox,
-    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -35,6 +35,7 @@ from utils.common_components import (
     validate_output_path,
 )
 from utils.example_data import stage_example
+from utils.figure_preview import FigurePreview
 from utils.i18n import tr_format, tr_ui
 from utils.task_lifecycle import skip_when_closing
 
@@ -150,37 +151,26 @@ class SangerViewerTab(QWidget):
 
         # Give the canvas a predictable initial size so the scroll area
         # does not end up with an arbitrary Matplotlib default extent.
-        self._canvas.setFixedSize(_MIN_CANVAS_W, _TRACE_H_PX)
+        self._canvas.setMinimumWidth(_MIN_CANVAS_W)
+        self._canvas.setFixedHeight(_TRACE_H_PX)
 
         self._scroll_area = QScrollArea()
+        self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
         self._scroll_area.setWidget(self._canvas)
-        self._scroll_area.setWidgetResizable(False)
+        self._scroll_area.setWidgetResizable(True)
         self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self._scroll_area.setMinimumHeight(200)
 
-        # Empty-state hint shown centered in the plot area
-        self._hint_page = QWidget()
-        self._hint_page.setMinimumHeight(200)
-        hint_layout = QVBoxLayout(self._hint_page)
-        self._hint_label = QLabel(
-            "No chromatogram loaded.\nSelect an AB1 file or drag & drop one here."
+        self._btn_export_plot = QPushButton()
+        self._btn_export_plot.setToolTip("Save the current chromatogram as an image file")
+        self._preview = FigurePreview(
+            self._scroll_area,
+            "No chromatogram loaded.\nSelect an AB1 file or drag & drop one here.",
+            self._btn_export_plot,
         )
-        self._hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._hint_label.setProperty("hintLabel", True)
-        hint_layout.addWidget(self._hint_label)
-
-        self._plot_stack = QStackedWidget()
-        self._plot_stack.addWidget(self._hint_page)
-        self._plot_stack.addWidget(self._scroll_area)
-
-        # --- Plot area wrapped in a QGroupBox ---
-        plot_group = QGroupBox("Chromatogram")
-        plot_group.setFlat(True)
-        plot_vbox = QVBoxLayout(plot_group)
-        plot_vbox.setContentsMargins(0, 16, 0, 4)
-        plot_vbox.addWidget(self._plot_stack)
-        outer.addWidget(plot_group, 1)
+        self._preview.add_scroll_reset(self._scroll_area)
+        outer.addWidget(self._preview, 1)
 
         # --- Selected called-sequence range and FASTA output ---
         seq_group = QGroupBox("Called Sequence (5\u2019 to 3\u2019)")
@@ -231,13 +221,6 @@ class SangerViewerTab(QWidget):
         self.status_layout.addWidget(self._status_label)
         self.status_layout.addStretch()
         self.status_layout.addWidget(self._btn_export_fasta)
-        self._btn_export_plot = QPushButton("Export Plot")
-        self._btn_export_plot.setProperty("accentButton", True)
-        self._btn_export_plot.setToolTip("Save the current chromatogram as an image file")
-        self._btn_export_plot.setEnabled(False)
-        self._btn_export_plot.style().unpolish(self._btn_export_plot)
-        self._btn_export_plot.style().polish(self._btn_export_plot)
-        self.status_layout.addWidget(self._btn_export_plot)
         self._btn_result_folder = QPushButton("Result Folder")
         self._btn_result_folder.setProperty("accentButton", True)
         self._btn_result_folder.setEnabled(False)
@@ -321,7 +304,9 @@ class SangerViewerTab(QWidget):
         self._spin_end.setEnabled(False)
         self._last_output_path = ""
         self._btn_result_folder.setEnabled(False)
-        self._btn_export_plot.setEnabled(False)
+        self._preview.set_has_figure(False)
+        self._scroll_area.horizontalScrollBar().setValue(0)
+        self._scroll_area.verticalScrollBar().setValue(0)
         self._set_status(tr_ui("Loading\u2026"))
 
         self._thread = _LoadThread(self)
@@ -371,10 +356,11 @@ class SangerViewerTab(QWidget):
         self._last_output_path = ""
         self._btn_result_folder.setEnabled(False)
         self._btn_export_fasta.setEnabled(True)
-        self._btn_export_plot.setEnabled(True)
 
         self._draw_chromatogram()
-        self._plot_stack.setCurrentIndex(1)  # show the chromatogram
+        self._preview.set_has_figure(True)
+        self._scroll_area.horizontalScrollBar().setValue(0)
+        self._scroll_area.verticalScrollBar().setValue(0)
         self._set_status(tr_format("Loaded \u2014 {count} bases", count=n))
 
     @skip_when_closing
@@ -408,9 +394,7 @@ class SangerViewerTab(QWidget):
             x_min, x_max = 0, n_scans
 
         # Resize canvas to match the visible data range.
-        # Set the figure dimensions first, then force the canvas widget
-        # to the matching pixel size so they stay in sync.
-        dpi = self._fig.get_dpi()
+        # Reserve at least one pixel per scan. Short traces can fill a wide viewport.
         # Fixed pixel gutters on the left and right of the data; the axes
         # span the canvas between the two gutters.
         left_gutter_px = 200
@@ -420,8 +404,8 @@ class SangerViewerTab(QWidget):
             int(x_max - x_min) * _PX_PER_SCAN + left_gutter_px + right_gutter_px,
         )
         canvas_h = (_TRACE_H_PX + _QUAL_H_PX) if show_quality else _TRACE_H_PX
-        self._fig.set_size_inches(canvas_w / dpi, canvas_h / dpi)
-        self._canvas.setFixedSize(canvas_w, canvas_h)
+        self._canvas.setMinimumWidth(canvas_w)
+        self._canvas.setFixedHeight(canvas_h)
 
         self._fig.clear()
 
@@ -593,18 +577,20 @@ class SangerViewerTab(QWidget):
 
     def _export_plot(self) -> None:
         """Save the current chromatogram figure as an image file."""
-        if self._abi_data is None:
+        if not self._preview.has_figure:
             QMessageBox.warning(self, "Export Error", "Load an AB1 file first.")
             return
         path, _ = QFileDialog.getSaveFileName(
             self,
-            tr_ui("Export Plot"),
+            tr_ui("Export Image"),
             "chromatogram.png",
             tr_ui("PNG Images (*.png);;PDF Files (*.pdf);;SVG Files (*.svg)"),
         )
         if path:
             try:
-                self._fig.savefig(path, dpi=150, bbox_inches="tight", pad_inches=0.15)
+                self._fig.savefig(
+                    path, dpi=150, bbox_inches="tight", pad_inches=0.15, facecolor="white"
+                )
                 self._set_status(tr_format("Plot saved: {path}", path=path))
             except Exception as e:
                 QMessageBox.warning(self, "Export Error", str(e))
@@ -622,14 +608,15 @@ class SangerViewerTab(QWidget):
         self._spin_end.setEnabled(False)
         self._status_label.setToolTip("")
         self._btn_export_fasta.setEnabled(False)
-        self._btn_export_plot.setEnabled(False)
         self._spin_start.setMaximum(1)
         self._spin_end.setMaximum(1)
         self._spin_start.setValue(1)
         self._spin_end.setValue(1)
         self._fig.clear()
         self._canvas.draw_idle()
-        self._plot_stack.setCurrentIndex(0)  # back to the empty-state hint
+        self._preview.set_has_figure(False)
+        self._scroll_area.horizontalScrollBar().setValue(0)
+        self._scroll_area.verticalScrollBar().setValue(0)
         self._set_status(tr_ui("Load an AB1 file to begin"))
 
     # ------------------------------------------------------------------
@@ -657,7 +644,7 @@ class SangerViewerTab(QWidget):
             "<ol>"
             "<li>Click <b>Browse</b> or drag-and-drop an AB1 file onto the window</li>"
             "<li>The chromatogram loads automatically with base calls and quality data</li>"
-            "<li>Click <b>Export Plot</b> to save the chromatogram as an image file</li>"
+            "<li>Click <b>Export Image</b> to save the chromatogram as an image file</li>"
             "<li>Toggle the <b>Phred quality track</b> to show or hide quality bars</li>"
             "<li>Set Start / End positions, choose an <b>Output File</b>, and click <b>Save to File</b> to export the selected range</li>"
             "</ol>"
@@ -687,7 +674,7 @@ class SangerViewerTab(QWidget):
             "</ul>"
             "<h3>Tips</h3>"
             "<ul>"
-            "<li>Use <b>Export Plot</b> to save the current view as a PNG / PDF / SVG for reports or papers</li>"
+            "<li>Use <b>Export Image</b> to save the current view as a PNG / PDF / SVG for reports or papers</li>"
             "<li>If base calls mismatch the peaks, the sequencing may have mixed templates or poor quality</li>"
             "<li>Supported format: AB1 (Applied Biosystems). SCF and ZTR are not currently supported.</li>"
             "<li>Browse or drag-and-drop a different file to reload; <b>Clear</b> resets the viewer</li>"
